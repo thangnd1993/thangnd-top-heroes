@@ -48,7 +48,7 @@ def parse_list2(output: str) -> tuple[Instance, ...]:
             if fields is None:
                 raise ValueError("unrecognized list2 layout")
             name, index, top, bind, android, pid, vbox, *display = fields
-            if index < 0 or index in seen or not name.strip() or android not in (0, 1):
+            if index < 0 or index in seen or not name.strip() or android not in (0, 1, 2):
                 raise ValueError("index/name/state invalid")
             if top < 0 or bind < 0 or pid < -1 or vbox < -1:
                 raise ValueError("invalid process values")
@@ -61,7 +61,9 @@ def parse_list2(output: str) -> tuple[Instance, ...]:
         except ValueError as exc:
             raise ValueError(f"Không đọc được list2 an toàn: {line!r}") from exc
         seen.add(index)
-        result.append(Instance(index, name, bool(android), pid, vbox, width, height, dpi))
+        # State 2 is emitted by LDPlayer 9 while Android is still booting.  It
+        # proves the instance is running through its PID, but is not ADB-ready.
+        result.append(Instance(index, name, android == 1, pid, vbox, width, height, dpi))
     return tuple(result)
 
 

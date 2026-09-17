@@ -28,6 +28,11 @@ def test_starting_is_running_without_android():
     assert parse_list2("8,Farm,0,0,0,123,-1")[0].running
 
 
+def test_transitional_android_state_is_running_but_not_ready():
+    instance = parse_list2("4,3-Chíp,1,2,2,123,-1,1280,720,240")[0]
+    assert instance.running and not instance.android_started
+
+
 @pytest.mark.parametrize(
     "text",
     ["garbage", "0,x,0,0,2,1,1", "-1,x,0,0,0,-1,-1", "0,,0,0,0,-1,-1", "0,x,0,0,0,-1,-1\n0,y,0,0,0,-1,-1"],
