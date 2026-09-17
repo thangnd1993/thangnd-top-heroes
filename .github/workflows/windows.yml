@@ -23,10 +23,12 @@ jobs:
       - name: Check executable starts
         shell: pwsh
         run: |
-          $process = Start-Process -FilePath .\dist\TopHeroesAutoManager\TopHeroesAutoManager.exe -PassThru
-          Start-Sleep -Seconds 12
-          if ($process.HasExited) { throw "Application exited during startup: $($process.ExitCode)" }
-          Stop-Process -Id $process.Id
+          $process = Start-Process -FilePath .\dist\TopHeroesAutoManager\TopHeroesAutoManager.exe -ArgumentList '--smoke-test' -PassThru
+          if (-not $process.WaitForExit(60000)) {
+            Stop-Process -Id $process.Id
+            throw "Application did not complete GUI smoke test within 60 seconds"
+          }
+          if ($process.ExitCode -ne 0) { throw "Application smoke test failed: $($process.ExitCode)" }
       - uses: actions/upload-artifact@v4
         with:
           name: TopHeroesAutoManager-Windows-x64

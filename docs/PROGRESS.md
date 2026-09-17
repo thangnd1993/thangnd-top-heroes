@@ -20,5 +20,8 @@
 - Commit implementation: `dbb1953340b0e8b5e54415365d73573fd3c03b27` — đã push `origin/main`.
 - Cập nhật kiểm thử: phủ toàn bộ protected actions, input abstraction, cold-start policy và
   transport đổi trước dispatch. Đóng SQLite connection rõ ràng sau mỗi transaction (quan trọng trên Windows).
+- Commit bổ sung guard tests/SQLite: `38d3964485b967f03f12a5f09378bb522bf65a95`.
+- Build baseline Windows: [run 35202383416](https://github.com/thangnd1993/thangnd-top-heroes/actions/runs/35202383416)
+  thành công. Đang nâng smoke test để yêu cầu GUI khởi động và thoát sạch (exit 0), không chỉ kiểm tra process sống.
 - Bước tiếp: hoàn tất CI và bàn giao portable + checklist; dừng Phase 1.
 - Phase kế tiếp (chưa làm): Phase 2 — queue/concurrency/account lifecycle, chỉ khi người dùng yêu cầu.
