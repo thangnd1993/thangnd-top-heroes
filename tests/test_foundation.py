@@ -19,6 +19,11 @@ def test_list2_real_layout_names_and_state():
     assert rows[1].width is None and rows[1].adb_serial is None
 
 
+def test_list2_current_layout_includes_resolution_and_dpi():
+    rows = parse_list2("4,3-Chíp,0,0,0,-1,-1,1280,720,240\n")
+    assert rows == (Instance(4, "3-Chíp", False, -1, -1, 1280, 720, 240),)
+
+
 def test_starting_is_running_without_android():
     assert parse_list2("8,Farm,0,0,0,123,-1")[0].running
 

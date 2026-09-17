@@ -24,7 +24,7 @@ class Instance:
 
 
 def parse_list2(output: str) -> tuple[Instance, ...]:
-    """Official list2: index,title,top_hwnd,bind_hwnd,android,pid,vbox_pid.
+    """Parse legacy and current LDPlayer ``list2`` layouts.
 
     Split numeric suffix from the right so commas inside instance titles survive.
     Unknown layouts fail closed instead of silently misidentifying an instance.
@@ -35,17 +35,33 @@ def parse_list2(output: str) -> tuple[Instance, ...]:
         if not line.strip():
             continue
         try:
-            prefix, top, bind, android, pid, vbox = line.rsplit(",", 5)
-            index, name = prefix.split(",", 1)
-            index, top, bind, android, pid, vbox = map(int, (index, top, bind, android, pid, vbox))
+            fields = None
+            for numeric_fields in (8, 5):
+                prefix, *tail = line.rsplit(",", numeric_fields)
+                try:
+                    index, name = prefix.split(",", 1)
+                    parsed = tuple(map(int, (index, *tail)))
+                except ValueError:
+                    continue
+                fields = name, *parsed
+                break
+            if fields is None:
+                raise ValueError("unrecognized list2 layout")
+            name, index, top, bind, android, pid, vbox, *display = fields
             if index < 0 or index in seen or not name.strip() or android not in (0, 1):
                 raise ValueError("index/name/state invalid")
             if top < 0 or bind < 0 or pid < -1 or vbox < -1:
                 raise ValueError("invalid process values")
+            if display:
+                width, height, dpi = display
+                if width <= 0 or height <= 0 or dpi <= 0:
+                    raise ValueError("invalid display values")
+            else:
+                width = height = dpi = None
         except ValueError as exc:
             raise ValueError(f"Không đọc được list2 an toàn: {line!r}") from exc
         seen.add(index)
-        result.append(Instance(index, name, bool(android), pid, vbox))
+        result.append(Instance(index, name, bool(android), pid, vbox, width, height, dpi))
     return tuple(result)
 
 
