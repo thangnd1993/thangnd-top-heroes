@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from top_heroes_auto.adb.client import ADB, Target, valid_boot_id, validate_package, validate_serial
+from top_heroes_auto.app.process import decode
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError, create_snapshot, require_selected
 from top_heroes_auto.ldplayer.client import Instance, LDPlayer
 from top_heroes_auto.storage.store import Store
@@ -137,7 +138,8 @@ class Manager:
             "quit",
             "reboot",
             "packages",
-            "package_dump",
+            "third_party_packages",
+            "package_badging",
             "launcher_activity",
             "open_game",
             "close_game",
@@ -182,8 +184,28 @@ class Manager:
                     return f"[{instance.name} / #{index}] Android sẵn sàng; đã xác minh ADB: {target.serial}"
                 if action == "packages":
                     return self.adb._shell(target.serial, "pm", "list", "packages")
-                if action == "package_dump":
-                    return self.adb._shell(target.serial, "dumpsys", "package")
+                if action == "third_party_packages":
+                    return self.adb._shell(target.serial, "pm", "list", "packages", "-3")
+                if action == "package_badging":
+                    package = validate_package(package)
+                    paths = [
+                        line.removeprefix("package:").strip()
+                        for line in self.adb._shell(target.serial, "pm", "path", package).splitlines()
+                        if line.startswith("package:") and line.strip().endswith("/base.apk")
+                    ]
+                    if len(paths) != 1:
+                        raise SafetyError("Không xác định được đúng một base APK của ứng dụng.")
+                    aapt = self.ld.installation.console.parent / "aapt.exe"
+                    if not aapt.is_file():
+                        raise SafetyError("LDPlayer không cung cấp aapt.exe để xác minh app label.")
+                    folder = self.data_dir / "diagnostics" / "apk-metadata"
+                    folder.mkdir(parents=True, exist_ok=True)
+                    local = folder / f"instance-{index}-{package}.apk"
+                    try:
+                        local.write_bytes(self.adb._read_apk(target.serial, paths[0]))
+                        return decode(self.ld.process.run([str(aapt), "dump", "badging", str(local)]))
+                    finally:
+                        local.unlink(missing_ok=True)
                 if action == "launcher_activity":
                     package = validate_package(package)
                     return self.adb._shell(

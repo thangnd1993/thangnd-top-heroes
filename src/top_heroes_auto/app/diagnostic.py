@@ -39,24 +39,14 @@ def _packages(output: str) -> list[str]:
     return [line.removeprefix("package:").strip() for line in output.splitlines() if line.startswith("package:")]
 
 
-def _labelled_packages(output: str, label: str) -> list[str]:
-    """Find package sections whose installed application label matches exactly."""
-    matches = []
-    package = None
-    matched = False
+def _aapt_labels(output: str) -> set[str]:
+    """Return localized and default labels from ``aapt dump badging``."""
+    labels = set()
     for line in output.splitlines():
         stripped = line.strip()
-        if stripped.startswith("Package [") and "]" in stripped:
-            if package and matched:
-                matches.append(package)
-            package = stripped.partition("Package [")[2].partition("]")[0]
-            matched = False
-        elif package and stripped.startswith("application-label:"):
-            value = stripped.partition(":")[2].strip().strip("'\"")
-            matched = value == label
-    if package and matched:
-        matches.append(package)
-    return matches
+        if stripped.startswith("application-label") and ":'" in stripped and stripped.endswith("'"):
+            labels.add(stripped.partition(":'")[2][:-1])
+    return labels
 
 
 def _report_path(data: Path) -> Path:
@@ -147,8 +137,13 @@ def test_command(manager: Manager, data: Path, index: int, name: str):
         first.replace(first_path)
         report["screenshot_before_game"] = str(first_path)
         packages = _packages(manager.execute(index, "packages"))
-        labels = _labelled_packages(manager.execute(index, "package_dump"), "Thời Đại Anh Hùng")
-        candidates = sorted(set(packages) & set(labels))
+        third_party = _packages(manager.execute(index, "third_party_packages"))
+        candidates = [
+            package
+            for package in third_party
+            if "Thời Đại Anh Hùng" in _aapt_labels(manager.execute(index, "package_badging", package))
+        ]
+        candidates = sorted(set(packages) & set(candidates))
         report["top_heroes_candidates"] = candidates
         if len(candidates) != 1:
             raise SafetyError("Top Heroes package label is ambiguous or cannot be identified safely.")

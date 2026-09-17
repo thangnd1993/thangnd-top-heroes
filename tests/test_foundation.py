@@ -213,6 +213,16 @@ def test_capture_correct_target_and_path(rig):
     assert all("quitall" not in call for call in process.calls)
 
 
+def test_package_badging_reads_only_verified_base_apk(rig):
+    manager, process, _ = rig
+    (manager.ld.installation.console.parent / "aapt.exe").touch()
+    output = manager.execute(7, "package_badging", "com.example.game")
+    assert "Thời Đại Anh Hùng" in output
+    read = next(call for call in process.calls if "exec-out" in call)
+    assert read[1:] == ["-s", "emulator-5568", "exec-out", "cat", "/data/app/mock/base.apk"]
+    assert not list((manager.data_dir / "diagnostics" / "apk-metadata").glob("*.apk"))
+
+
 @pytest.mark.parametrize(
     "action,part",
     [

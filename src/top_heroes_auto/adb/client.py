@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from uuid import UUID
 
 from top_heroes_auto.app.process import Process, decode
@@ -77,4 +78,17 @@ class ADB:
         data = self._target(serial, "exec-out", "screencap", "-p")
         if not data.startswith(b"\x89PNG\r\n\x1a\n"):
             raise SafetyError("ADB không trả về ảnh PNG hợp lệ.")
+        return data
+
+    def _read_apk(self, serial: str, remote: str) -> bytes:
+        path = PurePosixPath(remote)
+        if (
+            not re.fullmatch(r"/[A-Za-z0-9_./\-]+/base\.apk", remote)
+            or not path.is_absolute()
+            or ".." in path.parts
+        ):
+            raise SafetyError("Đường dẫn APK không hợp lệ.")
+        data = self._target(serial, "exec-out", "cat", remote)
+        if not data.startswith(b"PK"):
+            raise SafetyError("ADB không trả về APK hợp lệ.")
         return data
