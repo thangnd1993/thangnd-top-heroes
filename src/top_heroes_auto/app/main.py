@@ -21,6 +21,7 @@ def main(argv: list[str] | None = None):
 
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QApplication
+
     from top_heroes_auto.ui.window import Window
 
     app = QApplication([sys.argv[0], *argv])

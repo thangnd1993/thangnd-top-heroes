@@ -3,7 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from top_heroes_auto.app.diagnostic import list_command, protect_command, test_command as run_test_command
+from top_heroes_auto.app.diagnostic import list_command, protect_command
+from top_heroes_auto.app.diagnostic import test_command as run_test_command
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.ldplayer.client import Instance
 from top_heroes_auto.storage.store import Store
