@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from top_heroes_auto.app.diagnostic import list_command, protect_command
+from top_heroes_auto.app.diagnostic import _labelled_packages, list_command, protect_command
 from top_heroes_auto.app.diagnostic import test_command as run_test_command
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.ldplayer.client import Instance
@@ -61,6 +61,10 @@ class DiagnosticManager:
             return image
         if action == "packages":
             return "package:com.example.topheroes.game\n"
+        if action == "package_dump":
+            return "Package [com.example.topheroes.game] (1):\n  application-label:'Thời Đại Anh Hùng'\n"
+        if action == "launcher_activity":
+            return "com.example.topheroes.game/.MainActivity\n"
         return "ok"
 
 
@@ -104,3 +108,29 @@ def test_diagnostic_uses_only_explicit_target_and_reresolves_adb(tmp_path):
     assert all(call[0] == 4 for call in manager.calls)
     assert sum(call[1] == "verify" for call in manager.calls) == 2
     assert (tmp_path / "diagnostics" / "3-Chíp").is_dir()
+
+
+def test_package_label_requires_an_exact_metadata_match():
+    output = """Package [com.example.game] (1):
+  application-label:'Thời Đại Anh Hùng'
+Package [com.other] (2):
+  application-label:'Other'
+"""
+    assert _labelled_packages(output, "Thời Đại Anh Hùng") == ["com.example.game"]
+
+
+def test_diagnostic_stops_exact_target_when_package_identity_is_not_safe(tmp_path):
+    manager = DiagnosticManager(tmp_path)
+    manager.protect(0, True)
+    original = manager.execute
+
+    def ambiguous(index, action, package="", values=()):
+        if action == "package_dump":
+            return "Package [com.example.topheroes.game] (1):\n  application-label:'Wrong'\n"
+        return original(index, action, package, values)
+
+    manager.execute = ambiguous
+    with pytest.raises(SafetyError):
+        run_test_command(manager, tmp_path, 4, "3-Chíp")
+    assert manager.calls[-1][1] == "quit"
+    assert all(call[0] == 4 for call in manager.calls)

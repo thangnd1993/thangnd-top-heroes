@@ -39,8 +39,24 @@ def _packages(output: str) -> list[str]:
     return [line.removeprefix("package:").strip() for line in output.splitlines() if line.startswith("package:")]
 
 
-def _top_heroes_candidates(packages: list[str]) -> list[str]:
-    return [package for package in packages if "top" in package.casefold() and "hero" in package.casefold()]
+def _labelled_packages(output: str, label: str) -> list[str]:
+    """Find package sections whose installed application label matches exactly."""
+    matches = []
+    package = None
+    matched = False
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("Package [") and "]" in stripped:
+            if package and matched:
+                matches.append(package)
+            package = stripped.partition("Package [")[2].partition("]")[0]
+            matched = False
+        elif package and stripped.startswith("application-label:"):
+            value = stripped.partition(":")[2].strip().strip("'\"")
+            matched = value == label
+    if package and matched:
+        matches.append(package)
+    return matches
 
 
 def _report_path(data: Path) -> Path:
@@ -116,34 +132,52 @@ def test_command(manager: Manager, data: Path, index: int, name: str):
         after = _state(manager.refresh())
         return result, _only_target_changed(before, after, index)
 
-    report["start_result"], report["start_changed"] = lifecycle("launch")
-    report["adb"] = manager.execute(index, "verify")
-    report["harmless_shell"] = manager.execute(index, "harmless")
-    first = Path(manager.execute(index, "screenshot"))
-    shots = data / "diagnostics" / name
-    shots.mkdir(parents=True, exist_ok=True)
-    first_path = shots / first.name
-    first.replace(first_path)
-    report["screenshot_before_game"] = str(first_path)
-    packages = _packages(manager.execute(index, "packages"))
-    candidates = _top_heroes_candidates(packages)
-    report["top_heroes_candidates"] = candidates
-    if len(candidates) != 1:
-        raise SafetyError("Top Heroes package is ambiguous or cannot be identified safely.")
-    package = candidates[0]
-    report["top_heroes_package"] = package
-    report["game_launch"] = manager.execute(index, "open_game", package)
-    second = Path(manager.execute(index, "screenshot"))
-    second_path = shots / second.name
-    second.replace(second_path)
-    report["screenshot_after_game"] = str(second_path)
-    report["game_stop"] = manager.execute(index, "close_game", package)
-    report["restart_result"], report["restart_changed"] = lifecycle("reboot")
-    report["adb_after_restart"] = manager.execute(index, "verify")
-    report["stop_result"], report["stop_changed"] = lifecycle("quit")
-    report["isolation"] = "passed"
-    report["timestamps"]["finished"] = _stamp()
-    return report
+    started = False
+    game_started = False
+    package = ""
+    try:
+        report["start_result"], report["start_changed"] = lifecycle("launch")
+        started = True
+        report["adb"] = manager.execute(index, "verify")
+        report["harmless_shell"] = manager.execute(index, "harmless")
+        first = Path(manager.execute(index, "screenshot"))
+        shots = data / "diagnostics" / name
+        shots.mkdir(parents=True, exist_ok=True)
+        first_path = shots / first.name
+        first.replace(first_path)
+        report["screenshot_before_game"] = str(first_path)
+        packages = _packages(manager.execute(index, "packages"))
+        labels = _labelled_packages(manager.execute(index, "package_dump"), "Thời Đại Anh Hùng")
+        candidates = sorted(set(packages) & set(labels))
+        report["top_heroes_candidates"] = candidates
+        if len(candidates) != 1:
+            raise SafetyError("Top Heroes package label is ambiguous or cannot be identified safely.")
+        package = candidates[0]
+        launcher = manager.execute(index, "launcher_activity", package).strip()
+        if not launcher or "/" not in launcher:
+            raise SafetyError("Top Heroes launcher activity cannot be identified safely.")
+        report["top_heroes_package"] = package
+        report["top_heroes_launcher_activity"] = launcher
+        report["game_launch"] = manager.execute(index, "open_game", package)
+        game_started = True
+        second = Path(manager.execute(index, "screenshot"))
+        second_path = shots / second.name
+        second.replace(second_path)
+        report["screenshot_after_game"] = str(second_path)
+        report["game_stop"] = manager.execute(index, "close_game", package)
+        game_started = False
+        report["restart_result"], report["restart_changed"] = lifecycle("reboot")
+        report["adb_after_restart"] = manager.execute(index, "verify")
+        report["stop_result"], report["stop_changed"] = lifecycle("quit")
+        started = False
+        report["isolation"] = "passed"
+        report["timestamps"]["finished"] = _stamp()
+        return report
+    finally:
+        if game_started:
+            manager.execute(index, "close_game", package)
+        if started:
+            report["cleanup_stop_result"], report["cleanup_stop_changed"] = lifecycle("quit")
 
 
 def parser():

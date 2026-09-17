@@ -122,6 +122,8 @@ class Manager:
             "quit",
             "reboot",
             "packages",
+            "package_dump",
+            "launcher_activity",
             "open_game",
             "close_game",
             "screenshot",
@@ -165,6 +167,22 @@ class Manager:
                     return f"[{instance.name} / #{index}] Android sẵn sàng; đã xác minh ADB: {target.serial}"
                 if action == "packages":
                     return self.adb._shell(target.serial, "pm", "list", "packages")
+                if action == "package_dump":
+                    return self.adb._shell(target.serial, "dumpsys", "package")
+                if action == "launcher_activity":
+                    package = validate_package(package)
+                    return self.adb._shell(
+                        target.serial,
+                        "cmd",
+                        "package",
+                        "resolve-activity",
+                        "--brief",
+                        "-a",
+                        "android.intent.action.MAIN",
+                        "-c",
+                        "android.intent.category.LAUNCHER",
+                        package,
+                    )
                 if action in {"open_game", "close_game"}:
                     package = validate_package(package)
                     if action == "open_game":
