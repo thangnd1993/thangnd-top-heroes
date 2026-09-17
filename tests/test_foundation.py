@@ -229,3 +229,65 @@ def test_process_timeout(monkeypatch):
     monkeypatch.setattr(subprocess, "run", run)
     with pytest.raises(CommandError):
         Process().run(["adb", "devices"])
+
+
+@pytest.mark.parametrize(
+    "action",
+    [
+        "launch",
+        "quit",
+        "reboot",
+        "packages",
+        "open_game",
+        "close_game",
+        "screenshot",
+        "verify",
+        "tap",
+        "swipe",
+        "keyevent",
+    ],
+)
+def test_protected_blocks_every_action_at_execution_layer(rig, action):
+    manager, process, _ = rig
+    with pytest.raises(SafetyError):
+        manager.execute(0, action, "com.example.game")
+    assert all(call[1] == "list2" for call in process.calls)
+
+
+def test_cold_start_requires_policy_exception(rig):
+    manager, process, _ = rig
+    process.listing = "7,Farm-007,0,0,0,-1,-1"
+    with pytest.raises(SafetyError, match="Android"):
+        manager.execute(7, "launch")
+    assert all(call[1] == "list2" for call in process.calls)
+
+
+@pytest.mark.parametrize("action,values", [("tap", (4, 5)), ("swipe", (4, 5, 6, 7, 300)), ("keyevent", (4,))])
+def test_guarded_input_abstraction(rig, action, values):
+    manager, process, _ = rig
+    manager.execute(7, action, values=values)
+    assert process.calls[-1][1:] == [
+        "-s",
+        "emulator-5568",
+        "shell",
+        "input",
+        action,
+        *(str(v) for v in values),
+    ]
+
+
+def test_transport_changes_just_before_action(rig):
+    manager, process, _ = rig
+    count = 0
+
+    def hook(args):
+        nonlocal count
+        if args[1:3] == ["-s", process.serial] and args[-1] == "/proc/sys/kernel/random/boot_id":
+            count += 1
+            if count == 2:
+                process.device_boot = "bb068632-fc3e-4090-a8d7-ae8d9fe353f5"
+
+    process.hook = hook
+    with pytest.raises(SafetyError):
+        manager.execute(7, "screenshot")
+    assert not any("screencap" in call for call in process.calls)

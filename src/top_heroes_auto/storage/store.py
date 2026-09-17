@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,8 +28,14 @@ class Store:
                     PRIMARY KEY(namespace, idx), CHECK (NOT (selected AND protected)));
             """)
 
+    @contextmanager
     def connect(self):
-        return sqlite3.connect(self.path, timeout=10)
+        db = sqlite3.connect(self.path, timeout=10)
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     def get(self, key: str, default: str = "") -> str:
         with self.connect() as db:
