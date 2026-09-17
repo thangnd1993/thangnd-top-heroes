@@ -2,19 +2,24 @@
 
 import logging
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 from top_heroes_auto.adb.client import ADB, Target, valid_boot_id, validate_package, validate_serial
 from top_heroes_auto.app.process import decode
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError, create_snapshot, require_selected
-from top_heroes_auto.ldplayer.client import LDPlayer
+from top_heroes_auto.ldplayer.client import Instance, LDPlayer
 from top_heroes_auto.storage.store import Store
 
 log = logging.getLogger("top_heroes_auto")
 
 
 class Manager:
+    START_TIMEOUT = 120.0
+    STOP_TIMEOUT = 60.0
+    POLL_INTERVAL = 1.0
+
     def __init__(self, ld: LDPlayer, store: Store, data_dir: Path):
         self.ld, self.store, self.data_dir = ld, store, data_dir
         self.adb = ADB(str(ld.installation.adb), ld.process)
@@ -36,6 +41,44 @@ class Manager:
     def protect(self, index: int, protected: bool):
         with self._lock:
             self.store.protect(self.namespace, index, protected)
+
+    def query(self, index: int) -> Instance:
+        """Read-only lifecycle query; even protected instances may be listed."""
+        if type(index) is not int or index < 0:
+            raise SafetyError("Index không hợp lệ; không fallback về index 0.")
+        matches = [instance for instance in self.refresh() if instance.index == index]
+        if len(matches) != 1:
+            raise SafetyError("Không tìm thấy đúng giả lập được chỉ định.")
+        return matches[0]
+
+    def _wait_state(self, index: int, *, started: bool):
+        timeout = self.START_TIMEOUT if started else self.STOP_TIMEOUT
+        deadline = time.monotonic() + timeout
+        while True:
+            instance = self._check(index)
+            ready = instance.running and instance.android_started if started else not instance.running
+            if ready:
+                return instance
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                state = "Android khởi động" if started else "giả lập dừng"
+                raise SafetyError(f"[#{index}] Hết thời gian chờ {state}; hủy riêng thao tác này.")
+            time.sleep(min(self.POLL_INTERVAL, remaining))
+
+    def _stop(self, index: int):
+        instance = self._check(index)
+        if instance.running:
+            log.info("[%s / #%s] Dừng đúng instance bằng index", instance.name, index)
+            self.ld._indexed("quit", index)
+        self._wait_state(index, started=False)
+
+    def _start(self, index: int):
+        instance = self._check(index)
+        if not instance.running:
+            log.info("[%s / #%s] Khởi động đúng instance bằng index (chưa cần ADB)", instance.name, index)
+            self.ld._indexed("launch", index)
+        log.info("[%s / #%s] Chờ Android sẵn sàng", instance.name, index)
+        self._wait_state(index, started=True)
 
     def _check(self, index: int):
         if self._active is None or self._active.namespace != self.namespace:
@@ -90,6 +133,17 @@ class Manager:
             self._active = RunSnapshot(self.namespace, tuple(m for m in snapshot.members if m[0] == index))
             try:
                 instance = self._check(index)
+                # Lifecycle dispatch targets the verified LDPlayer index. A stopped
+                # Android cannot supply ADB identity, so never resolve before launch.
+                if action == "quit":
+                    self._stop(index)
+                    return f"[{instance.name} / #{index}] Giả lập đã dừng."
+                if action == "reboot":
+                    # Explicit stop -> observed stopped -> start; never reuse a
+                    # pre-restart Target or call the opaque CLI reboot command.
+                    self._stop(index)
+                if action in {"launch", "reboot"}:
+                    self._start(index)
                 target = self._resolve(index)
                 self._check(index)
                 # Revalidate explicit transport immediately before sending the action.
@@ -99,11 +153,8 @@ class Manager:
                 log.info("[%s / #%s] Thao tác: %s", instance.name, index, action)
                 if action == "verify":
                     return f"Đã xác minh ADB: {target.serial}"
-                if action in {"launch", "quit", "reboot"}:
-                    return (
-                        decode(self.ld._indexed(action, index))
-                        or "Đã gửi lệnh; làm mới để kiểm tra trạng thái."
-                    )
+                if action in {"launch", "reboot"}:
+                    return f"[{instance.name} / #{index}] Android sẵn sàng; đã xác minh ADB: {target.serial}"
                 if action == "packages":
                     return self.adb._shell(target.serial, "pm", "list", "packages")
                 if action in {"open_game", "close_game"}:

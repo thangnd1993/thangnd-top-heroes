@@ -13,6 +13,8 @@ class FakeProcess:
         self.listing = "0,Main-Thang,1,2,1,101,102\n7,Farm-007,3,4,1,201,202\n"
         self.serial = "emulator-5568"
         self.device_boot = BOOT
+        self.cli_boot = BOOT
+        self.auto_lifecycle = True
         self.devices_output = "List of devices attached\nemulator-5568\tdevice\n"
         self.hook = None
 
@@ -24,7 +26,7 @@ class FakeProcess:
             return self.listing.encode()
         if args[1] == "adb":
             assert args[2:4] == ["--index", "7"]
-            return (self.serial if args[-1] == "get-serialno" else BOOT).encode()
+            return (self.serial if args[-1] == "get-serialno" else self.cli_boot).encode()
         if args[1:] == ["devices"]:
             return self.devices_output.encode()
         if args[1:3] == ["-s", self.serial]:
@@ -35,6 +37,12 @@ class FakeProcess:
             return b"package:com.example.game\n"
         if args[1] in ("launch", "quit", "reboot"):
             assert args[2:] == ["--index", "7"]
+            if self.auto_lifecycle:
+                row = "7,Farm-007,3,4,1,201,202" if args[1] == "launch" else "7,Farm-007,0,0,0,-1,-1"
+                self.listing = (
+                    "\n".join(row if line.startswith("7,") else line for line in self.listing.splitlines())
+                    + "\n"
+                )
             return b""
         raise AssertionError(f"Unexpected command: {args}")
 

@@ -1,5 +1,26 @@
 # Tiến độ
 
+## Phase 1 — Sửa blocker lifecycle Start/Restart
+
+- Trạng thái: đã sửa và pass **103 tests** trên macOS; đang build portable Windows mới.
+  **Phase 1 chưa được nghiệm thu**, không chuyển sang Phase 2.
+- Root cause: execute gọi resolver ADB vô điều kiện trước khi phân loại lifecycle/ADB-dependent;
+  cold start bị chặn và CLI reboot không bảo đảm đã chờ stop/start rồi verify transport mới.
+- Fix: lifecycle index-first, selected/protected/snapshot guard giữ nguyên. Start → wait Android →
+  resolve/verify. Restart → quit đúng index → wait stopped → launch cùng index → wait Android →
+  resolve/verify mới. Stop/Query không phụ thuộc ADB. UI refresh read-only sau lifecycle.
+- Startup timeout 120 giây, stop timeout 60 giây; polling kiểm tra lại quyền và identity.
+  Resolver failure chỉ hủy thao tác của instance đó, không global cleanup hoặc chuyển target.
+- Tests mới: 29 cases trong `tests/test_lifecycle.py`; thay test cold start bị chặn đã lỗi thời.
+  Phủ đủ 9 yêu cầu: cold start không có ADB, thứ tự resolve, protected/unchecked, restart đổi serial/boot,
+  failure isolation, exact index, không fallback 0, không quitall; thêm wait/timeout/revocation/identity changes.
+- Local: `pytest -q` **103 passed**; `ruff check .` pass. LDPlayer thật: chưa test trên macOS.
+- Windows build / CI / commit / artifact mới: sẽ ghi bằng chứng sau khi build hoàn tất.
+- Tài liệu: README, SAFETY, WINDOWS_TEST cập nhật theo lifecycle mới.
+- Next: bàn giao lại Phase 1 để người dùng kiểm thử Windows thật, không làm Phase 2.
+
+## Lịch sử bản bàn giao trước sửa lifecycle (đã thay thế)
+
 ## Phase 1 — Windows Foundation + LDPlayer Multi
 
 - Trạng thái: đã bàn giao code foundation + portable Windows để thử nghiệm; **chưa nghiệm thu đầy đủ Phase 1**.

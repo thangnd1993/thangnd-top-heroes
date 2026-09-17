@@ -164,7 +164,7 @@ def test_capture_correct_target_and_path(rig):
     "action,part",
     [
         ("quit", "quit"),
-        ("reboot", "reboot"),
+        ("reboot", "launch"),
         ("packages", "pm"),
         ("open_game", "monkey"),
         ("close_game", "force-stop"),
@@ -251,14 +251,6 @@ def test_protected_blocks_every_action_at_execution_layer(rig, action):
     manager, process, _ = rig
     with pytest.raises(SafetyError):
         manager.execute(0, action, "com.example.game")
-    assert all(call[1] == "list2" for call in process.calls)
-
-
-def test_cold_start_requires_policy_exception(rig):
-    manager, process, _ = rig
-    process.listing = "7,Farm-007,0,0,0,-1,-1"
-    with pytest.raises(SafetyError, match="Android"):
-        manager.execute(7, "launch")
     assert all(call[1] == "list2" for call in process.calls)
 
 

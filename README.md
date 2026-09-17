@@ -19,14 +19,12 @@ Không đăng nhập game, không lưu mật khẩu, không gameplay macro, sche
 Các điều khiển cho phase tương lai được vô hiệu hóa và có chú thích. OpenCV sẽ bổ sung khi
 cần nhận dạng hình ảnh; Phase 1 chụp PNG trực tiếp qua ADB và xem bằng Qt.
 
-Bản thử đã build và pass 75 tests trên Windows:
-[tải portable V0.1.0](https://github.com/thangnd1993/thangnd-top-heroes/actions/runs/35202851053/artifacts/10489185027).
-Chưa nghiệm thu LDPlayer thật; xem các giới hạn dưới đây trước khi thử.
-
-**Giới hạn Khởi động:** chính sách hiện tại yêu cầu xác minh ADB trước mọi lệnh điều khiển.
-Vì instance đã tắt không có ADB, nút Khởi động sẽ chặn instance này. Hãy khởi động thủ công
-trong LDPlayer Multi để kiểm thử Phase 1. Ngoại lệ cho cold start chưa được người dùng duyệt;
-đây là tiêu chí chưa hoàn thành, không được xem là đã hỗ trợ cold start đầy đủ.
+Bản sửa lifecycle Phase 1 hỗ trợ **Khởi động khi giả lập đang tắt, chưa có ADB**.
+Start kiểm tra đúng index + snapshot + selected + không protected, gửi `launch --index N`,
+chờ Android rồi mới resolve/verify ADB. Restart dùng `quit --index N` → chờ dừng →
+`launch --index N` → chờ Android → resolve/verify ADB mới. Không dùng serial cũ qua restart.
+Các thao tác ADB/game vẫn cần ADB đã xác minh. Chưa nghiệm thu LDPlayer thật.
+Xem [tiến độ và artifact mới nhất](docs/PROGRESS.md).
 
 ## Dùng bản portable trên Windows
 
@@ -38,7 +36,8 @@ trong LDPlayer Multi để kiểm thử Phase 1. Ngoại lệ cho cold start ch�
 5. Mở `.exe`. Không cần Python, pip, Git hoặc IDE trên máy người dùng cuối.
 6. Nếu không tự tìm thấy LDPlayer, chọn thư mục chứa console và adb của **cùng bản cài đặt**.
 7. Đánh dấu **Bảo vệ** cho acc chính trước; chọn riêng các clone cần thao tác.
-8. Khởi động clone bằng LDPlayer Multi, chọn nó trong dropdown, bấm **Kết nối / xác minh ADB**.
+8. Chọn clone đang tắt trong dropdown, bấm **Khởi động**. App chờ Android và tự xác minh ADB.
+   Với clone đang chạy sẵn, bấm **Kết nối / xác minh ADB**.
 9. Liệt kê ứng dụng để tìm đúng package game, nhập package rồi Lưu; ứng dụng không đoán tên gói.
 10. Chụp màn hình và đối chiếu nội dung tài khoản trước khi kiểm tra các thao tác khác.
 
@@ -54,8 +53,14 @@ Nếu phát hiện đổi tên, biến mất hoặc xuất hiện lại, app thu
 Metadata tách theo đường dẫn bản cài LDPlayer để không nhầm index giữa hai bản cài.
 
 Mỗi thao tác thủ công dùng snapshot bất biến cho đúng một instance, chỉ tồn tại trong lúc thao tác.
-Execution layer luôn kiểm tra lại whitelist hiện hành và danh sách thật. Không `quitall`, không default
+Execution layer kiểm tra lại whitelist hiện hành và danh sách thật trước lifecycle, trong mỗi lần
+poll trạng thái và trước ADB dispatch. Query trạng thái chỉ đọc, không cần ADB hoặc selection.
+Start/Stop/Restart trong UI vẫn yêu cầu selected + không protected. Không `quitall`, không default
 ADB device, không fallback index 0, không đoán serial theo công thức cổng. Xem [SAFETY.md](docs/SAFETY.md).
+
+Chờ Android tối đa 120 giây; chờ dừng tối đa 60 giây, cộng thời gian CLI đang xử lý (tối đa 20 giây/lệnh).
+Nếu startup/ADB thất bại, chỉ thao tác của instance đó bị hủy. Không tự tắt instance đã khởi động,
+không chuyển sang instance khác; xem log và làm mới trạng thái trước khi thử lại.
 
 ## Phát triển và kiểm thử
 

@@ -287,6 +287,8 @@ class Window(QMainWindow):
         self.worker = None
         self.content.setEnabled(True)
         self.statusBar().showMessage("Sẵn sàng")
+        if self.mode in {"launch", "quit", "reboot"}:
+            QTimer.singleShot(0, self.refresh)
 
     @Slot(str)
     def job_error(self, message):
@@ -315,8 +317,9 @@ class Window(QMainWindow):
         elif self.mode == "refresh":
             self.instances = result
             self.render()
-        elif self.mode == "verify":
+        elif self.mode in {"verify", "launch", "reboot"}:
             self.adb_status.setText(str(result))
+            self.logs.appendPlainText(str(result))
         elif self.mode == "screenshot":
             self.show_capture(result)
         elif self.mode == "packages":

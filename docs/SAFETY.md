@@ -2,9 +2,23 @@
 
 ## Luồng thực thi
 
-UI → Manager.execute → refresh list2 → snapshot một instance → kiểm tra quyền hiện hành →
+Lifecycle và ADB-dependent operations là hai nhóm riêng, không có ADB prerequisite cho launch.
+
+Start: UI → Manager.execute → refresh list2 → snapshot một instance → kiểm tra quyền/index →
+`launch --index N` nếu đang tắt → poll list2 chờ Android → resolve/verify ADB → trả kết quả.
+Nếu đang chạy/đang khởi động, chờ Android của chính instance đó, không gửi launch trùng lặp.
+
+Restart: kiểm tra quyền/index → `quit --index N` → poll tới trạng thái đã dừng → kiểm tra lại quyền/index →
+`launch --index N` → poll tới Android sẵn sàng → resolve/verify ADB mới. Không dùng CLI reboot,
+không cache Target/serial từ trước restart. Stop cũng chỉ cần index và guard, không cần ADB.
+
+Query trạng thái (`refresh`/`query(index)`) chỉ đọc list2, có thể đọc instance protected hoặc unchecked,
+không gửi lệnh ADB hay lifecycle mutation. Index chỉ định phải hợp lệ và tồn tại duy nhất.
+
+ADB-dependent: UI → Manager.execute → refresh list2 → snapshot một instance → kiểm tra quyền/index →
 CLI indexed ADB get-serialno → CLI indexed Android boot ID → adb devices → adb -s SERIAL đọc boot ID →
 đối chiếu boot ID lần nữa → kiểm tra quyền → gửi đúng một lệnh có target rõ ràng → xóa snapshot.
+Screenshot, input, packages và game control không tự launch instance đang tắt.
 
 Chỉ các probe nhận dạng read-only được phép thực hiện trong quá trình xác minh trước khi có
 ADB đã xác minh. Probe CLI có index rõ ràng và chỉ chạy sau whitelist/queue guard;
@@ -16,24 +30,31 @@ trong transport là chi tiết nội bộ, UI không gọi trực tiếp. Python
 độc hại; Phase 1 không hỗ trợ plugin/script tùy ý. `ADB.connect` chỉ hỗ trợ endpoint loopback rõ ràng;
 UI dùng resolver CLI của LDPlayer, không tự tính port hoặc fallback connect ngầm.
 
-## Sáu điều kiện
+## Guard theo loại thao tác
 
 1. Index tồn tại duy nhất trong list2 hiện tại.
 2. Cặp index/tên trong snapshot của thao tác đang thực thi.
 3. SQLite vẫn selected.
 4. SQLite không protected.
 5. Index/tên trùng khớp, cùng namespace bản cài LDPlayer.
-6. ADB explicit serial online, boot ID trùng CLI index, không thay đổi khi verify lại.
+6. **Riêng thao tác phụ thuộc ADB:** explicit serial online, boot ID trùng CLI index, không thay đổi khi verify lại.
+
+Lifecycle mutation áp dụng điều kiện 1–5; ADB-dependent áp dụng cả 1–6. UI không có đường bypass
+selected/protected cho Start/Stop/Restart. Query read-only không phải automation mutation.
 
 Sai bất kỳ điều kiện nào: hủy instance và log lỗi, không thử index/serial khác.
 Mỗi thao tác xác minh mới; không cache quyền ADB qua reboot. Timeout process là 20 giây mỗi lệnh.
 Nếu lệnh điều khiển timeout, kết quả có thể chưa rõ: không retry tự động; refresh để kiểm tra.
 
-## Khởi động khi đang tắt
+## Chờ lifecycle và lỗi khởi động
 
-Theo nguyên tắc tuyệt đối đã yêu cầu, cold start hiện bị chặn do không có Android/ADB để verify.
-Không tự ý áp dụng ngoại lệ cho lệnh launch. Có thể khởi động thủ công bằng LDPlayer Multi trước.
-Đây là mâu thuẫn giữa yêu cầu cold start và điều kiện ADB bắt buộc; cần quyết định rõ của chủ dự án.
+Poll list2 mỗi giây, kiểm tra snapshot và quyền hiện hành trong mỗi lần poll.
+Deadline monotonic: 120 giây chờ Android, 60 giây chờ dừng; process đang chạy có timeout riêng 20 giây.
+Nếu bị thu hồi selection/protection, đổi tên hoặc biến mất thì hủy ngay tại lần kiểm tra tiếp theo.
+Không start sau stop timeout. Không resolve ADB trước Android-ready. Không gameplay operation sau
+resolver failure. Snapshot được giải phóng trong finally; không queue continuation sang instance khác.
+Không rollback bằng quit/quitall khi ADB lỗi: instance vừa khởi động có thể vẫn đang chạy; UI refresh
+read-only để người dùng thấy trạng thái. Chỉ retry khi người dùng yêu cầu một thao tác mới.
 
 ## Trạng thái thay đổi
 
