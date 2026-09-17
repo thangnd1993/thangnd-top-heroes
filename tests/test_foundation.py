@@ -35,7 +35,7 @@ def test_transitional_android_state_is_running_but_not_ready():
 
 @pytest.mark.parametrize(
     "text",
-    ["garbage", "0,x,0,0,2,1,1", "-1,x,0,0,0,-1,-1", "0,,0,0,0,-1,-1", "0,x,0,0,0,-1,-1\n0,y,0,0,0,-1,-1"],
+    ["garbage", "0,x,0,0,3,1,1", "-1,x,0,0,0,-1,-1", "0,,0,0,0,-1,-1", "0,x,0,0,0,-1,-1\n0,y,0,0,0,-1,-1"],
 )
 def test_bad_list_fails_closed(text):
     with pytest.raises(ValueError):
