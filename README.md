@@ -19,6 +19,10 @@ Không đăng nhập game, không lưu mật khẩu, không gameplay macro, sche
 Các điều khiển cho phase tương lai được vô hiệu hóa và có chú thích. OpenCV sẽ bổ sung khi
 cần nhận dạng hình ảnh; Phase 1 chụp PNG trực tiếp qua ADB và xem bằng Qt.
 
+Bản thử đã build và pass 75 tests trên Windows:
+[tải portable V0.1.0](https://github.com/thangnd1993/thangnd-top-heroes/actions/runs/35202851053/artifacts/10489185027).
+Chưa nghiệm thu LDPlayer thật; xem các giới hạn dưới đây trước khi thử.
+
 **Giới hạn Khởi động:** chính sách hiện tại yêu cầu xác minh ADB trước mọi lệnh điều khiển.
 Vì instance đã tắt không có ADB, nút Khởi động sẽ chặn instance này. Hãy khởi động thủ công
 trong LDPlayer Multi để kiểm thử Phase 1. Ngoại lệ cho cold start chưa được người dùng duyệt;
