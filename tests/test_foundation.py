@@ -1,11 +1,12 @@
 import subprocess
+from pathlib import Path
 
 import pytest
 
 from top_heroes_auto.adb.client import valid_boot_id, validate_package
 from top_heroes_auto.app.process import CommandError, Process
 from top_heroes_auto.automation.guard import SafetyError, create_snapshot, require_selected
-from top_heroes_auto.ldplayer.client import Instance, inspect_folder, parse_list2
+from top_heroes_auto.ldplayer.client import Instance, display_icon_folder, inspect_folder, parse_list2
 from top_heroes_auto.storage.store import Store
 
 
@@ -40,6 +41,23 @@ def test_discovery_requires_console_and_adb(tmp_path):
     assert inspect_folder(tmp_path) is None
     (tmp_path / "adb.exe").touch()
     assert inspect_folder(tmp_path).console.name == "dnconsole.exe"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        '"D:\\LDPlayer\\LDPlayer9\\dnplayer.exe",0',
+        '"D:\\LDPlayer\\LDPlayer9\\dnplayer.exe" --background',
+        "D:\\LDPlayer\\LDPlayer9\\dnplayer.exe,0",
+    ],
+)
+def test_display_icon_folder_when_registry_install_location_is_blank(value):
+    assert display_icon_folder(value) == Path("D:/LDPlayer/LDPlayer9")
+
+
+@pytest.mark.parametrize("value", ["", '"D:\\LDPlayer\\broken.exe', "D:\\LDPlayer\\not-an-exe.dll,0"])
+def test_display_icon_folder_rejects_malformed_or_non_executable_paths(value):
+    assert display_icon_folder(value) is None
 
 
 def test_persistence_and_new_defaults(rig, tmp_path):
