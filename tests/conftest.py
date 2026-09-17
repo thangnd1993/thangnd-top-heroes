@@ -1,0 +1,52 @@
+import pytest
+
+from top_heroes_auto.app.service import Manager
+from top_heroes_auto.ldplayer.client import Installation, LDPlayer
+from top_heroes_auto.storage.store import Store
+
+BOOT = "ce068632-fc3e-4090-a8d7-ae8d9fe353f5"
+
+
+class FakeProcess:
+    def __init__(self):
+        self.calls = []
+        self.listing = "0,Main-Thang,1,2,1,101,102\n7,Farm-007,3,4,1,201,202\n"
+        self.serial = "emulator-5568"
+        self.device_boot = BOOT
+        self.devices_output = "List of devices attached\nemulator-5568\tdevice\n"
+        self.hook = None
+
+    def run(self, args, timeout=20):
+        self.calls.append(args)
+        if self.hook:
+            self.hook(args)
+        if args[1:] == ["list2"]:
+            return self.listing.encode()
+        if args[1] == "adb":
+            assert args[2:4] == ["--index", "7"]
+            return (self.serial if args[-1] == "get-serialno" else BOOT).encode()
+        if args[1:] == ["devices"]:
+            return self.devices_output.encode()
+        if args[1:3] == ["-s", self.serial]:
+            if args[-1] == "/proc/sys/kernel/random/boot_id":
+                return self.device_boot.encode()
+            if "screencap" in args:
+                return b"\x89PNG\r\n\x1a\nmock-png"
+            return b"package:com.example.game\n"
+        if args[1] in ("launch", "quit", "reboot"):
+            assert args[2:] == ["--index", "7"]
+            return b""
+        raise AssertionError(f"Unexpected command: {args}")
+
+
+@pytest.fixture
+def rig(tmp_path):
+    store = Store(tmp_path / "config.sqlite3")
+    process = FakeProcess()
+    ld = LDPlayer(Installation(tmp_path / "ldconsole.exe", tmp_path / "adb.exe"), process)
+    manager = Manager(ld, store, tmp_path)
+    manager.refresh()
+    manager.protect(0, True)
+    manager.select(7, True)
+    process.calls.clear()
+    return manager, process, store
