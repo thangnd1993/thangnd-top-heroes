@@ -1,9 +1,11 @@
 import os
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
 from top_heroes_auto.app.process import Process, decode
+from top_heroes_auto.automation.guard import SafetyError
 
 
 @dataclass(frozen=True)
@@ -65,6 +67,18 @@ def parse_list2(output: str) -> tuple[Instance, ...]:
         # proves the instance is running through its PID, but is not ADB-ready.
         result.append(Instance(index, name, android == 1, pid, vbox, width, height, dpi))
     return tuple(result)
+
+
+def parse_indexed_adb_serial(output: str) -> str:
+    """Parse only the serial explicitly named by LDPlayer's indexed ADB command."""
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    if len(lines) == 1 and re.fullmatch(r"[A-Za-z0-9._:\-]+", lines[0]):
+        return lines[0]
+    if len(lines) == 1:
+        match = re.fullmatch(r"(?:adb\.exe: |error: )?device '([A-Za-z0-9._:\-]+)' not found", lines[0])
+        if match:
+            return match.group(1)
+    raise SafetyError("LDPlayer không cung cấp đúng một ADB serial cho instance được chỉ định.")
 
 
 @dataclass(frozen=True)
@@ -180,3 +194,8 @@ class LDPlayer:
         return decode(
             self._indexed("adb", index, "--command", "shell cat /proc/sys/kernel/random/boot_id")
         ).strip()
+
+    def adb_serial(self, index: int) -> str:
+        return parse_indexed_adb_serial(
+            decode(self._indexed("adb", index, "--command", "get-serialno"))
+        )

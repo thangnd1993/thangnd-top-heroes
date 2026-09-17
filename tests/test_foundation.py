@@ -6,7 +6,13 @@ import pytest
 from top_heroes_auto.adb.client import valid_boot_id, validate_package
 from top_heroes_auto.app.process import CommandError, Process
 from top_heroes_auto.automation.guard import SafetyError, create_snapshot, require_selected
-from top_heroes_auto.ldplayer.client import Instance, display_icon_folder, inspect_folder, parse_list2
+from top_heroes_auto.ldplayer.client import (
+    Instance,
+    display_icon_folder,
+    inspect_folder,
+    parse_indexed_adb_serial,
+    parse_list2,
+)
 from top_heroes_auto.storage.store import Store
 
 
@@ -44,6 +50,24 @@ def test_bad_list_fails_closed(text):
 
 def test_empty_list():
     assert parse_list2("\n") == ()
+
+
+@pytest.mark.parametrize(
+    "output",
+    [
+        "emulator-5562\n",
+        "error: device 'emulator-5562' not found\n",
+        "adb.exe: device 'emulator-5562' not found\n",
+    ],
+)
+def test_indexed_adb_serial_uses_only_ldplayer_authoritative_output(output):
+    assert parse_indexed_adb_serial(output) == "emulator-5562"
+
+
+@pytest.mark.parametrize("output", ["", "one\ntwo\n", "error: no devices", "device '-d' not found"])
+def test_indexed_adb_serial_fails_closed_without_one_safe_candidate(output):
+    with pytest.raises(SafetyError):
+        parse_indexed_adb_serial(output)
 
 
 def test_discovery_requires_console_and_adb(tmp_path):

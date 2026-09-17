@@ -118,6 +118,7 @@ def test_failed_resolution_is_local_no_cleanup_of_other_instances(rig):
     manager, process, store = rig
     process.listing = STOPPED
     process.devices_output = "List of devices attached\n"
+    manager.ADB_RESOLVE_TIMEOUT = 0
     with pytest.raises(SafetyError, match="ADB"):
         manager.execute(7, "launch")
     assert manager._active is None
@@ -128,6 +129,24 @@ def test_failed_resolution_is_local_no_cleanup_of_other_instances(rig):
     # Failure does not poison the manager; explicit retry can verify the running target.
     process.devices_output = "List of devices attached\nemulator-5568\tdevice\n"
     assert "emulator-5568" in manager.execute(7, "verify")
+
+
+def test_resolver_never_falls_back_to_first_or_multiple_adb_devices(rig):
+    manager, process, _ = rig
+    manager.ADB_RESOLVE_TIMEOUT = 0
+    process.serial = "emulator-5568"
+    process.devices_output = "List of devices attached\nemulator-5554\tdevice\n127.0.0.1:6123\tdevice\n"
+    with pytest.raises(SafetyError, match="emulator-5568"):
+        manager.execute(7, "verify")
+    forbidden = (["-s", "emulator-5554"], ["-s", "127.0.0.1:6123"])
+    assert not any(call[1:3] in forbidden for call in process.calls)
+
+
+def test_resolver_rejects_candidate_with_unmatched_boot_identity(rig):
+    manager, process, _ = rig
+    process.device_boot = NEW_BOOT
+    with pytest.raises(SafetyError, match="không khớp"):
+        manager.execute(7, "verify")
 
 
 @pytest.mark.parametrize("action", ["launch", "reboot"])

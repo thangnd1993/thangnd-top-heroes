@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from top_heroes_auto.adb.client import ADB, Target, valid_boot_id, validate_package, validate_serial
-from top_heroes_auto.app.process import decode
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError, create_snapshot, require_selected
 from top_heroes_auto.ldplayer.client import Instance, LDPlayer
 from top_heroes_auto.storage.store import Store
@@ -19,6 +18,7 @@ class Manager:
     START_TIMEOUT = 120.0
     STOP_TIMEOUT = 60.0
     POLL_INTERVAL = 1.0
+    ADB_RESOLVE_TIMEOUT = 30.0
 
     def __init__(self, ld: LDPlayer, store: Store, data_dir: Path):
         self.ld, self.store, self.data_dir = ld, store, data_dir
@@ -96,19 +96,29 @@ class Manager:
         instance = self._check(index)
         if not instance.android_started:
             raise SafetyError("Android chưa sẵn sàng; không thể xác minh ADB.")
-        # Ask the CLI for its indexed transport, NOT a formula or default adb target.
-        serial = validate_serial(decode(self.ld._indexed("adb", index, "--command", "get-serialno")).strip())
-        expected = valid_boot_id(self.ld.boot_id(index))
-        self._check(index)
-        if self.adb.devices().get(serial) != "device":
-            raise SafetyError("ADB target chưa kết nối hoặc chưa được cấp quyền.")
-        if self.adb.boot_id(serial) != expected:
-            raise SafetyError("ADB target không khớp Android boot ID của LDPlayer index.")
-        self._check(index)
-        if valid_boot_id(self.ld.boot_id(index)) != expected:
-            raise SafetyError("Android đã khởi động lại trong lúc xác minh.")
-        log.info("[%s / #%s] Đã xác minh ADB %s", instance.name, index, serial)
-        return Target(index, instance.name, serial, expected)
+        deadline = time.monotonic() + self.ADB_RESOLVE_TIMEOUT
+        while True:
+            self._check(index)
+            # This serial comes from LDPlayer's documented --index mechanism,
+            # never from a port formula or the first global adb device.
+            serial = validate_serial(self.ld.adb_serial(index))
+            devices = self.adb.devices()
+            if devices.get(serial) == "device":
+                expected = valid_boot_id(self.ld.boot_id(index))
+                self._check(index)
+                if self.adb.boot_id(serial) != expected:
+                    raise SafetyError("ADB target không khớp Android boot ID của LDPlayer index.")
+                self._check(index)
+                if valid_boot_id(self.ld.boot_id(index)) != expected:
+                    raise SafetyError("Android đã khởi động lại trong lúc xác minh.")
+                log.info("[%s / #%s] Đã xác minh ADB %s", instance.name, index, serial)
+                return Target(index, instance.name, serial, expected)
+            if time.monotonic() >= deadline:
+                raise SafetyError(
+                    f"LDPlayer xác định ADB {serial} cho #{index}, nhưng target không sẵn sàng; "
+                    "kiểm tra ADB debugging của đúng instance."
+                )
+            time.sleep(self.POLL_INTERVAL)
 
     def execute(self, index: int, action: str, package: str = "", values: tuple = ()):
         """One explicit manual action = one short-lived immutable queue.
