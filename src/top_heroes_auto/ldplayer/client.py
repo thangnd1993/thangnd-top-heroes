@@ -71,10 +71,11 @@ def parse_list2(output: str) -> tuple[Instance, ...]:
 def parse_indexed_adb_serial(output: str) -> str:
     """Parse only the serial explicitly named by LDPlayer's indexed ADB command."""
     lines = [line.strip() for line in output.splitlines() if line.strip()]
-    if len(lines) == 1 and re.fullmatch(r"[A-Za-z0-9._:\-]+", lines[0]):
+    serial_pattern = r"[A-Za-z0-9][A-Za-z0-9._:\-]*"
+    if len(lines) == 1 and re.fullmatch(serial_pattern, lines[0]):
         return lines[0]
     if len(lines) == 1:
-        match = re.fullmatch(r"(?:adb\.exe: |error: )?device '([A-Za-z0-9._:\-]+)' not found", lines[0])
+        match = re.fullmatch(rf"(?:adb\.exe: |error: )?device '({serial_pattern})' not found", lines[0])
         if match:
             return match.group(1)
     raise ValueError("LDPlayer không cung cấp đúng một ADB serial cho instance được chỉ định.")

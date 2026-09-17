@@ -191,6 +191,7 @@ def test_adb_mismatch_blocks_action(rig):
 @pytest.mark.parametrize("state", ["offline", "unauthorized", "missing"])
 def test_device_not_ready(rig, state):
     manager, process, _ = rig
+    manager.ADB_RESOLVE_TIMEOUT = 0
     process.devices_output = f"List of devices attached\nemulator-5568\t{state}\n"
     with pytest.raises(SafetyError):
         manager.execute(7, "packages")
