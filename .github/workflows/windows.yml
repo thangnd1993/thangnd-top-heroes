@@ -1,7 +1,7 @@
 name: Windows Phase 1
 on:
   push:
-    branches: [main]
+    branches: [main, codex/phase1-diagnostic-cli]
   pull_request:
   workflow_dispatch:
 permissions:
