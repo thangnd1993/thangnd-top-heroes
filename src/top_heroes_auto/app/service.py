@@ -101,7 +101,12 @@ class Manager:
             self._check(index)
             # This serial comes from LDPlayer's documented --index mechanism,
             # never from a port formula or the first global adb device.
-            serial = validate_serial(self.ld.adb_serial(index))
+            try:
+                serial = validate_serial(self.ld.adb_serial(index))
+            except ValueError as exc:
+                raise SafetyError(
+                    "LDPlayer không cung cấp đúng một ADB serial cho instance được chỉ định."
+                ) from exc
             devices = self.adb.devices()
             if devices.get(serial) == "device":
                 expected = valid_boot_id(self.ld.boot_id(index))

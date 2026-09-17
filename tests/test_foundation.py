@@ -66,7 +66,7 @@ def test_indexed_adb_serial_uses_only_ldplayer_authoritative_output(output):
 
 @pytest.mark.parametrize("output", ["", "one\ntwo\n", "error: no devices", "device '-d' not found"])
 def test_indexed_adb_serial_fails_closed_without_one_safe_candidate(output):
-    with pytest.raises(SafetyError):
+    with pytest.raises(ValueError):
         parse_indexed_adb_serial(output)
 
 
