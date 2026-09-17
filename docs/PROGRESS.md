@@ -2,7 +2,7 @@
 
 ## Phase 1 — Sửa blocker lifecycle Start/Restart
 
-- Trạng thái: đã sửa và pass **103 tests** trên macOS; đang build portable Windows mới.
+- Trạng thái: đã sửa và pass **103 tests** trên macOS và Windows; portable Windows mới đã build thành công.
   **Phase 1 chưa được nghiệm thu**, không chuyển sang Phase 2.
 - Root cause: execute gọi resolver ADB vô điều kiện trước khi phân loại lifecycle/ADB-dependent;
   cold start bị chặn và CLI reboot không bảo đảm đã chờ stop/start rồi verify transport mới.
@@ -15,7 +15,15 @@
   Phủ đủ 9 yêu cầu: cold start không có ADB, thứ tự resolve, protected/unchecked, restart đổi serial/boot,
   failure isolation, exact index, không fallback 0, không quitall; thêm wait/timeout/revocation/identity changes.
 - Local: `pytest -q` **103 passed**; `ruff check .` pass. LDPlayer thật: chưa test trên macOS.
-- Windows build / CI / commit / artifact mới: sẽ ghi bằng chứng sau khi build hoàn tất.
+- Windows CI: **103 passed in 16.39s** (Python 3.12, Windows x64), lint pass,
+  PyInstaller build pass, `.exe --smoke-test` mở GUI và thoát sạch code 0.
+- [GitHub Actions — success](https://github.com/thangnd1993/thangnd-top-heroes/actions/runs/35204186113).
+- [Tải portable Windows đã sửa lifecycle](https://github.com/thangnd1993/thangnd-top-heroes/actions/runs/35204186113/artifacts/10489670505).
+  Đăng nhập GitHub, tải ZIP, giải nén toàn bộ và chạy `TopHeroesAutoManager.exe` cạnh `_internal/`.
+- Commit code/build: `637b3534c1720d4fb744bbe91582e9110367ba37`, đã push `origin/main`.
+  Commit báo cáo kết quả build được push tiếp theo, chỉ thay tài liệu.
+- Output CI: `dist/TopHeroesAutoManager/TopHeroesAutoManager.exe`.
+  Bản tải local tách khỏi build cũ: `dist/phase1-lifecycle/TopHeroesAutoManager/`.
 - Tài liệu: README, SAFETY, WINDOWS_TEST cập nhật theo lifecycle mới.
 - Next: bàn giao lại Phase 1 để người dùng kiểm thử Windows thật, không làm Phase 2.
 

@@ -24,7 +24,9 @@ Start kiểm tra đúng index + snapshot + selected + không protected, gửi `l
 chờ Android rồi mới resolve/verify ADB. Restart dùng `quit --index N` → chờ dừng →
 `launch --index N` → chờ Android → resolve/verify ADB mới. Không dùng serial cũ qua restart.
 Các thao tác ADB/game vẫn cần ADB đã xác minh. Chưa nghiệm thu LDPlayer thật.
-Xem [tiến độ và artifact mới nhất](docs/PROGRESS.md).
+**103 tests pass trên Windows và macOS**; Windows portable + GUI smoke test pass.
+[Tải portable sửa lifecycle](https://github.com/thangnd1993/thangnd-top-heroes/actions/runs/35204186113/artifacts/10489670505).
+Xem [tiến độ và kết quả build](docs/PROGRESS.md).
 
 ## Dùng bản portable trên Windows
 
