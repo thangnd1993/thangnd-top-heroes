@@ -81,7 +81,7 @@ def _view(manager: Manager, instances):
 
 
 def list_command(manager: Manager, data: Path):
-    rows = _view(manager, manager.refresh())
+    rows = _view(manager, manager.list_readonly())
     print(json.dumps(rows, ensure_ascii=False, indent=2))
     return {"instances": rows, "timestamps": {"finished": _stamp()}}
 

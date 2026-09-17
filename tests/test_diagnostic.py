@@ -27,6 +27,9 @@ class DiagnosticManager:
         self.store.merge(self.namespace, tuple(self.instances))
         return tuple(self.instances)
 
+    def list_readonly(self):
+        return tuple(self.instances)
+
     def query(self, index):
         matches = [item for item in self.refresh() if item.index == index]
         if len(matches) != 1:

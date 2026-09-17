@@ -34,6 +34,11 @@ class Manager:
             log.info("Đọc danh sách LDPlayer: %s giả lập (chỉ đọc).", len(instances))
             return instances
 
+    def list_readonly(self):
+        """Read the live Multi list without changing persisted instance metadata."""
+        with self._lock:
+            return self.ld.list_instances()
+
     def select(self, index: int, selected: bool):
         with self._lock:
             self.store.select(self.namespace, index, selected)
