@@ -176,7 +176,10 @@ def test_command(manager: Manager, data: Path, index: int, name: str):
     finally:
         if game_started:
             manager.execute(index, "close_game", package)
-        if started:
+        # launch may have started the exact instance before its ADB verification
+        # raises. Observe the live target rather than trusting a successful return.
+        target_is_running = any(item.index == index and item.running for item in manager.refresh())
+        if started or target_is_running:
             report["cleanup_stop_result"], report["cleanup_stop_changed"] = lifecycle("quit")
 
 

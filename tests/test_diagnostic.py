@@ -134,3 +134,21 @@ def test_diagnostic_stops_exact_target_when_package_identity_is_not_safe(tmp_pat
         run_test_command(manager, tmp_path, 4, "3-Chíp")
     assert manager.calls[-1][1] == "quit"
     assert all(call[0] == 4 for call in manager.calls)
+
+
+def test_diagnostic_stops_target_if_launch_started_before_verify_failed(tmp_path):
+    manager = DiagnosticManager(tmp_path)
+    manager.protect(0, True)
+    original = manager.execute
+
+    def launch_starts_then_fails(index, action, package="", values=()):
+        if action == "launch":
+            manager.instances[1] = replace(manager.instances[1], android_started=True, pid=400)
+            raise SafetyError("ADB verification failed after launch")
+        return original(index, action, package, values)
+
+    manager.execute = launch_starts_then_fails
+    with pytest.raises(SafetyError, match="ADB verification failed"):
+        run_test_command(manager, tmp_path, 4, "3-Chíp")
+    assert manager.calls[-1][1] == "quit"
+    assert all(call[0] == 4 for call in manager.calls)
