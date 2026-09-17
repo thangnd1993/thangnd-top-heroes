@@ -123,6 +123,7 @@ class Manager:
             "tap",
             "swipe",
             "keyevent",
+            "harmless",
         }
         if action not in allowed:
             raise SafetyError("Thao tác không được hỗ trợ.")
@@ -153,6 +154,8 @@ class Manager:
                 log.info("[%s / #%s] Thao tác: %s", instance.name, index, action)
                 if action == "verify":
                     return f"Đã xác minh ADB: {target.serial}"
+                if action == "harmless":
+                    return self.adb._shell(target.serial, "echo", "phase1-diagnostic")
                 if action in {"launch", "reboot"}:
                     return f"[{instance.name} / #{index}] Android sẵn sàng; đã xác minh ADB: {target.serial}"
                 if action == "packages":
