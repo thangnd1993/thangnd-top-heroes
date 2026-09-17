@@ -82,7 +82,7 @@ def _view(manager: Manager, instances):
 
 def list_command(manager: Manager, data: Path):
     rows = _view(manager, manager.list_readonly())
-    print(json.dumps(rows, ensure_ascii=False, indent=2))
+    print(json.dumps(rows, ensure_ascii=True, indent=2))
     return {"instances": rows, "timestamps": {"finished": _stamp()}}
 
 
@@ -93,7 +93,7 @@ def protect_command(manager: Manager, data: Path, index: int, name: str):
     if not meta.protected or meta.selected:
         raise SafetyError("Không thể lưu Protected state an toàn.")
     result = {"index": index, "name": name, "protected": meta.protected, "selected": meta.selected}
-    print(json.dumps(result, ensure_ascii=False))
+    print(json.dumps(result, ensure_ascii=True))
     return {"protection": result, "timestamps": {"finished": _stamp()}}
 
 
@@ -168,7 +168,7 @@ def main(argv: list[str], data: Path) -> int:
             report.update(protect_command(manager, data, args.index, args.name))
         elif args.command == "show":
             report["instance"] = _view(manager, (_instance(manager, args.index, args.name),))[0]
-            print(json.dumps(report["instance"], ensure_ascii=False, indent=2))
+            print(json.dumps(report["instance"], ensure_ascii=True, indent=2))
         else:
             report.update(test_command(manager, data, args.index, args.name))
         report["status"] = "passed"
