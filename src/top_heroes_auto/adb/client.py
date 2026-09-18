@@ -87,7 +87,7 @@ class ADB:
     def _read_apk(self, serial: str, remote: str) -> bytes:
         path = PurePosixPath(remote)
         if (
-            not re.fullmatch(r"/[A-Za-z0-9_./\-]+/base\.apk", remote)
+            not re.fullmatch(r"/[A-Za-z0-9_./=\-]+/base\.apk", remote)
             or not path.is_absolute()
             or ".." in path.parts
         ):

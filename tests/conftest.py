@@ -39,7 +39,7 @@ class FakeProcess:
             if "exec-out" in args and "cat" in args:
                 return b"PKmock-apk"
             if "pm" in args and "path" in args:
-                return b"package:/data/app/mock/base.apk\n"
+                return b"package:/data/app/com.example.game-AbCd123==/base.apk\n"
             return b"package:com.example.game\n"
         if args[0].endswith("aapt.exe"):
             return b"application-label:'Th\xe1\xbb\x9di \xc4\x90\xe1\xba\xa1i Anh H\xc3\xb9ng'\n"

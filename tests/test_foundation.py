@@ -219,7 +219,13 @@ def test_package_badging_reads_only_verified_base_apk(rig):
     output = manager.execute(7, "package_badging", "com.example.game")
     assert "Thời Đại Anh Hùng" in output
     read = next(call for call in process.calls if "exec-out" in call)
-    assert read[1:] == ["-s", "emulator-5568", "exec-out", "cat", "/data/app/mock/base.apk"]
+    assert read[1:] == [
+        "-s",
+        "emulator-5568",
+        "exec-out",
+        "cat",
+        "/data/app/com.example.game-AbCd123==/base.apk",
+    ]
     assert not list((manager.data_dir / "diagnostics" / "apk-metadata").glob("*.apk"))
 
 
