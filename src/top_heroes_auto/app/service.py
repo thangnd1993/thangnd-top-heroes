@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from top_heroes_auto.adb.client import ADB, Target, valid_boot_id, validate_package, validate_serial
-from top_heroes_auto.app.process import decode
+from top_heroes_auto.app.process import CommandError, decode
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError, create_snapshot, require_selected
 from top_heroes_auto.ldplayer.client import Instance, LDPlayer
 from top_heroes_auto.storage.store import Store
@@ -135,7 +135,7 @@ class Manager:
                 expected = valid_boot_id(self.ld.adb_command(
                     index, "shell cat /proc/sys/kernel/random/boot_id"
                 ))
-            except Exception:
+            except (CommandError, SafetyError, ValueError):
                 expected = None
             candidates = [serial]
             endpoint = self._local_endpoint(serial)
@@ -153,7 +153,7 @@ class Manager:
                     candidates.append(endpoint)
                 except SafetyError:
                     raise
-                except Exception:
+                except CommandError:
                     pass
             target_serial = next((item for item in candidates if devices.get(item) == "device"), None)
             if target_serial and expected:
