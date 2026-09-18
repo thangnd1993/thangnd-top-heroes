@@ -174,7 +174,22 @@ class Manager:
                     self._stop(index)
                 if action in {"launch", "reboot"}:
                     self._start(index)
-                target = self._resolve(index)
+                try:
+                    target = self._resolve(index)
+                except SafetyError:
+                    if action not in {"launch", "reboot"}:
+                        raise
+                    # LDPlayer occasionally reaches Android-ready without
+                    # creating its per-instance NAT/ADB listener. Retry one
+                    # exact-target lifecycle only; never restart shared ADB.
+                    log.warning("[#%s] ADB chưa đăng ký; thử lại đúng instance một lần", index)
+                    self._stop(index)
+                    self._start(index)
+                    try:
+                        target = self._resolve(index)
+                    except Exception:
+                        self._stop(index)
+                        raise
                 self._check(index)
                 # Revalidate explicit transport immediately before sending the action.
                 if self.adb.boot_id(target.serial) != target.boot_id:

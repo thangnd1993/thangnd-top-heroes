@@ -124,12 +124,35 @@ def test_failed_resolution_is_local_no_cleanup_of_other_instances(rig):
         manager.execute(7, "launch")
     assert manager._active is None
     assert_only_target_seven(process.calls)
-    assert not any(call[1] in ("quit", "reboot") for call in process.calls)
+    assert not any(call[1] == "reboot" for call in process.calls)
+    assert sum(call[1] == "quit" for call in process.calls) == 2
+    assert not manager.query(7).running
     assert process.listing.splitlines()[0] == STOPPED.splitlines()[0]
     assert store.metadata(manager.namespace, 0).protected
-    # Failure does not poison the manager; explicit retry can verify the running target.
+    # Failure does not poison the manager; an explicit retry can start and verify it.
     process.devices_output = "List of devices attached\nemulator-5568\tdevice\n"
-    assert "emulator-5568" in manager.execute(7, "verify")
+    assert "emulator-5568" in manager.execute(7, "launch")
+
+
+def test_launch_recovers_once_when_first_boot_has_no_adb_listener(rig):
+    manager, process, _ = rig
+    manager.ADB_RESOLVE_TIMEOUT = 0
+    process.listing = STOPPED
+    process.devices_output = "List of devices attached\n"
+    launches = 0
+
+    def hook(args):
+        nonlocal launches
+        if args[1] == "launch":
+            launches += 1
+            if launches == 2:
+                process.devices_output = "List of devices attached\nemulator-5568\tdevice\n"
+
+    process.hook = hook
+    assert "emulator-5568" in manager.execute(7, "launch")
+    assert launches == 2
+    assert sum(call[1] == "quit" for call in process.calls) == 1
+    assert_only_target_seven(process.calls)
 
 
 def test_resolver_never_falls_back_to_first_or_multiple_adb_devices(rig):
