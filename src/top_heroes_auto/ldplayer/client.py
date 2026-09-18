@@ -195,6 +195,12 @@ class LDPlayer:
             self._indexed("adb", index, "--command", "shell cat /proc/sys/kernel/random/boot_id")
         ).strip()
 
+    def adb_command(self, index: int, command: str) -> str:
+        """Run a command through LDPlayer's explicitly indexed ADB boundary."""
+        if not command or "\x00" in command:
+            raise ValueError("Lệnh ADB được khóa theo index không hợp lệ.")
+        return decode(self._indexed("adb", index, "--command", command)).strip()
+
     def adb_serial(self, index: int) -> str:
         return parse_indexed_adb_serial(
             decode(self._indexed("adb", index, "--command", "get-serialno"))

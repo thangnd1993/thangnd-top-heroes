@@ -59,6 +59,11 @@ class ADB:
         """Idempotently start only the bundled ADB server; never restart it."""
         return decode(self.process.run([self.executable, "start-server"]))
 
+    def restart_server(self):
+        """Restart the bundled daemon only after the caller proves it is safe."""
+        self.process.run([self.executable, "kill-server"])
+        return self.start_server()
+
     def _target(self, serial: str, *args: str) -> bytes:
         return self.process.run([self.executable, "-s", validate_serial(serial), *args])
 

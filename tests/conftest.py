@@ -31,7 +31,11 @@ class FakeProcess:
             return self.devices_output.encode()
         if args[1:] == ["start-server"]:
             return b""
-        if args[1:3] == ["-s", self.serial]:
+        if args[1:] == ["kill-server"]:
+            return b""
+        if args[1] == "connect":
+            return f"connected to {args[2]}".encode()
+        if args[1] == "-s":
             if args[-1] == "/proc/sys/kernel/random/boot_id":
                 return self.device_boot.encode()
             if "screencap" in args:

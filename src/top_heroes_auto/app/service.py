@@ -1,6 +1,7 @@
 """Only this execution layer may dispatch UI-requested device actions."""
 
 import logging
+import re
 import threading
 import time
 from datetime import datetime, timezone
@@ -20,6 +21,19 @@ class Manager:
     STOP_TIMEOUT = 60.0
     POLL_INTERVAL = 1.0
     ADB_RESOLVE_TIMEOUT = 30.0
+
+    @staticmethod
+    def _local_endpoint(serial: str) -> str | None:
+        """Map only LDPlayer's reported emulator serial to its adjacent ADB TCP port.
+
+        The endpoint is still untrusted until its Android boot ID matches the
+        instance-scoped LDPlayer channel.
+        """
+        match = re.fullmatch(r"emulator-([0-9]{4,5})", serial)
+        if not match:
+            return None
+        port = int(match.group(1)) + 1
+        return f"127.0.0.1:{port}" if port <= 65535 else None
 
     def __init__(self, ld: LDPlayer, store: Store, data_dir: Path):
         self.ld, self.store, self.data_dir = ld, store, data_dir
@@ -103,6 +117,7 @@ class Manager:
             raise SafetyError("Android chưa sẵn sàng; không thể xác minh ADB.")
         self.adb.start_server()
         deadline = time.monotonic() + self.ADB_RESOLVE_TIMEOUT
+        recovered_server = False
         while True:
             self._check(index)
             # This serial comes from LDPlayer's documented --index mechanism,
@@ -114,17 +129,59 @@ class Manager:
                     "LDPlayer không cung cấp đúng một ADB serial cho instance được chỉ định."
                 ) from exc
             devices = self.adb.devices()
-            if devices.get(serial) == "device":
-                expected = valid_boot_id(self.ld.boot_id(index))
+            try:
+                # Strategy B is authoritative identity, even when global
+                # enumeration has not registered the transport yet.
+                expected = valid_boot_id(self.ld.adb_command(
+                    index, "shell cat /proc/sys/kernel/random/boot_id"
+                ))
+            except Exception:
+                expected = None
+            candidates = [serial]
+            endpoint = self._local_endpoint(serial)
+            if endpoint and expected and devices.get(serial) != "device":
+                # Strategy C: connect only the endpoint implied by the serial
+                # LDPlayer itself reported. Acceptance still requires boot-ID
+                # equality with the indexed channel.
+                try:
+                    before_connect = set(devices)
+                    self.adb.connect(endpoint)
+                    devices = self.adb.devices()
+                    unexpected = set(devices) - before_connect - {endpoint}
+                    if unexpected:
+                        raise SafetyError("ADB connect trả về target mới không rõ nguồn gốc.")
+                    candidates.append(endpoint)
+                except SafetyError:
+                    raise
+                except Exception:
+                    pass
+            target_serial = next((item for item in candidates if devices.get(item) == "device"), None)
+            if target_serial and expected:
                 self._check(index)
-                if self.adb.boot_id(serial) != expected:
+                if self.adb.boot_id(target_serial) != expected:
                     raise SafetyError("ADB target không khớp Android boot ID của LDPlayer index.")
                 self._check(index)
-                if valid_boot_id(self.ld.boot_id(index)) != expected:
+                if (
+                    valid_boot_id(
+                        self.ld.adb_command(index, "shell cat /proc/sys/kernel/random/boot_id")
+                    )
+                    != expected
+                ):
                     raise SafetyError("Android đã khởi động lại trong lúc xác minh.")
-                log.info("[%s / #%s] Đã xác minh ADB %s", instance.name, index, serial)
-                return Target(index, instance.name, serial, expected)
+                log.info("[%s / #%s] Đã xác minh ADB %s", instance.name, index, target_serial)
+                return Target(index, instance.name, target_serial, expected)
             if time.monotonic() >= deadline:
+                # Shared-daemon recovery is allowed once, and only when no
+                # other Android device is present and no other LDPlayer is
+                # running. It is never the normal first strategy.
+                others_running = any(
+                    item.index != index and item.running for item in self.ld.list_instances()
+                )
+                if not recovered_server and not devices and not others_running:
+                    recovered_server = True
+                    self.adb.restart_server()
+                    deadline = time.monotonic() + self.ADB_RESOLVE_TIMEOUT
+                    continue
                 raise SafetyError(
                     f"LDPlayer xác định ADB {serial} cho #{index}, nhưng target không sẵn sàng; "
                     "kiểm tra ADB debugging của đúng instance."

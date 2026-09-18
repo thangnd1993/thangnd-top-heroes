@@ -7,6 +7,7 @@ from top_heroes_auto.automation.guard import SafetyError
 STOPPED = "0,Main-Thang,1,2,1,101,102\n7,Farm-007,0,0,0,-1,-1\n"
 RUNNING = "0,Main-Thang,1,2,1,101,102\n7,Farm-007,3,4,1,201,202\n"
 NEW_BOOT = "bb068632-fc3e-4090-a8d7-ae8d9fe353f5"
+ONLY_TARGET_RUNNING = "7,Farm-007,3,4,1,201,202\n"
 
 
 def assert_only_target_seven(calls):
@@ -171,6 +172,83 @@ def test_resolver_rejects_candidate_with_unmatched_boot_identity(rig):
     process.device_boot = NEW_BOOT
     with pytest.raises(SafetyError, match="không khớp"):
         manager.execute(7, "verify")
+
+
+def test_resolver_connects_verified_endpoint_when_global_serial_is_missing(rig):
+    manager, process, _ = rig
+    process.listing = ONLY_TARGET_RUNNING
+    process.devices_output = "List of devices attached\n"
+
+    def hook(args):
+        if args[1] == "connect":
+            assert args[2] == "127.0.0.1:5569"
+            process.devices_output = "List of devices attached\n127.0.0.1:5569\tdevice\n"
+
+    process.hook = hook
+    result = manager.execute(7, "verify")
+    assert "127.0.0.1:5569" in result
+    assert any(call[1:] == ["connect", "127.0.0.1:5569"] for call in process.calls)
+
+
+def test_connected_endpoint_boot_mismatch_is_rejected(rig):
+    manager, process, _ = rig
+    process.listing = ONLY_TARGET_RUNNING
+    process.devices_output = "List of devices attached\n"
+    process.device_boot = NEW_BOOT
+
+    def hook(args):
+        if args[1] == "connect":
+            process.devices_output = "List of devices attached\n127.0.0.1:5569\tdevice\n"
+
+    process.hook = hook
+    with pytest.raises(SafetyError, match="không khớp"):
+        manager.execute(7, "verify")
+
+
+def test_connect_rejects_multiple_new_targets(rig):
+    manager, process, _ = rig
+    process.listing = ONLY_TARGET_RUNNING
+    process.devices_output = "List of devices attached\n"
+
+    def hook(args):
+        if args[1] == "connect":
+            process.devices_output = (
+                "List of devices attached\n"
+                "127.0.0.1:5569\tdevice\n"
+                "emulator-9998\tdevice\n"
+            )
+
+    process.hook = hook
+    with pytest.raises(SafetyError, match="không rõ nguồn gốc"):
+        manager.execute(7, "verify")
+
+
+def test_shared_adb_restart_requires_no_devices_and_no_other_running_instance(rig):
+    manager, process, _ = rig
+    manager.ADB_RESOLVE_TIMEOUT = 0
+    process.devices_output = "List of devices attached\n"
+    with pytest.raises(SafetyError):
+        manager.execute(7, "verify")
+    assert not any(call[1] == "kill-server" for call in process.calls)
+
+
+def test_shared_adb_restart_allowed_once_under_safe_preconditions(rig):
+    manager, process, _ = rig
+    manager.ADB_RESOLVE_TIMEOUT = 0
+    process.listing = ONLY_TARGET_RUNNING
+    process.devices_output = "List of devices attached\n"
+    kills = 0
+
+    def hook(args):
+        nonlocal kills
+        if args[1] == "kill-server":
+            kills += 1
+        if args[1] == "start-server" and kills:
+            process.devices_output = "List of devices attached\nemulator-5568\tdevice\n"
+
+    process.hook = hook
+    assert "emulator-5568" in manager.execute(7, "verify")
+    assert kills == 1
 
 
 @pytest.mark.parametrize("action", ["launch", "reboot"])
