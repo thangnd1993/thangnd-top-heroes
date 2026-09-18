@@ -11,10 +11,10 @@ NEW_BOOT = "bb068632-fc3e-4090-a8d7-ae8d9fe353f5"
 
 def assert_only_target_seven(calls):
     for call in calls:
-        assert "quitall" not in call and "reboot" not in call
+        assert "quitall" not in call and "reboot" not in call and "kill-server" not in call
         if "--index" in call:
             assert call[call.index("--index") + 1] == "7"
-        if call[0].endswith("adb.exe") and call[1] != "devices":
+        if call[0].endswith("adb.exe") and call[1] not in ("devices", "start-server"):
             assert call[1] == "-s" and call[2]
 
 
@@ -36,7 +36,8 @@ def test_stopped_launch_needs_no_existing_adb_and_resolves_after_launch(rig):
 
     process.hook = hook
     assert "emulator-5568" in manager.execute(7, "launch")
-    assert next(call for call in process.calls if call[1] != "list2")[1:] == ["launch", "--index", "7"]
+    commands = [call[1] for call in process.calls if call[1] != "list2"]
+    assert commands[:2] == ["start-server", "launch"]
     assert_only_target_seven(process.calls)
     assert manager._active is None
 
@@ -83,7 +84,7 @@ def test_restart_discards_previous_target_and_resolves_new_serial_and_boot(rig):
     process.hook = hook
     assert "127.0.0.1:6123" in manager.execute(7, "reboot")
     commands = [call[1] for call in process.calls if call[1] != "list2"]
-    assert commands[:2] == ["quit", "launch"]
+    assert commands[:3] == ["quit", "start-server", "launch"]
     assert all("emulator-5568" not in call for call in process.calls)
     assert any(call[-1] == "get-serialno" for call in process.calls)
     assert_only_target_seven(process.calls)
@@ -179,7 +180,7 @@ def test_start_timeout_never_resolves_adb_or_sends_game_commands(rig, monkeypatc
     monkeypatch.setattr(manager, "START_TIMEOUT", 0)
     with pytest.raises(SafetyError, match="Hết thời gian"):
         manager.execute(7, action)
-    assert all(call[1] in ("list2", "launch") for call in process.calls)
+    assert all(call[1] in ("list2", "start-server", "launch") for call in process.calls)
     assert manager._active is None
 
 

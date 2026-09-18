@@ -81,6 +81,10 @@ class Manager:
     def _start(self, index: int):
         instance = self._check(index)
         if not instance.running:
+            # Start the bundled daemon before Android boots so LDPlayer can
+            # register its indexed emulator transport. This is idempotent and
+            # never kills/restarts a shared ADB server.
+            self.adb.start_server()
             log.info("[%s / #%s] Khởi động đúng instance bằng index (chưa cần ADB)", instance.name, index)
             self.ld._indexed("launch", index)
         log.info("[%s / #%s] Chờ Android sẵn sàng", instance.name, index)
@@ -97,6 +101,7 @@ class Manager:
         instance = self._check(index)
         if not instance.android_started:
             raise SafetyError("Android chưa sẵn sàng; không thể xác minh ADB.")
+        self.adb.start_server()
         deadline = time.monotonic() + self.ADB_RESOLVE_TIMEOUT
         while True:
             self._check(index)

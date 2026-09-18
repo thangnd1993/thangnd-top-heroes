@@ -55,6 +55,10 @@ class ADB:
                 devices[serial] = fields[1]
         return devices
 
+    def start_server(self):
+        """Idempotently start only the bundled ADB server; never restart it."""
+        return decode(self.process.run([self.executable, "start-server"]))
+
     def _target(self, serial: str, *args: str) -> bytes:
         return self.process.run([self.executable, "-s", validate_serial(serial), *args])
 

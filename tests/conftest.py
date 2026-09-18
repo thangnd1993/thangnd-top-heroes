@@ -29,6 +29,8 @@ class FakeProcess:
             return (self.serial if args[-1] == "get-serialno" else self.cli_boot).encode()
         if args[1:] == ["devices"]:
             return self.devices_output.encode()
+        if args[1:] == ["start-server"]:
+            return b""
         if args[1:3] == ["-s", self.serial]:
             if args[-1] == "/proc/sys/kernel/random/boot_id":
                 return self.device_boot.encode()
