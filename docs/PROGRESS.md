@@ -1,9 +1,30 @@
 # Tiến độ
 
-## Phase 1 — Sửa blocker lifecycle Start/Restart
+## Phase 1 — Windows Foundation + LDPlayer Multi — COMPLETE
 
-- Trạng thái: đã sửa và pass **103 tests** trên macOS và Windows; portable Windows mới đã build thành công.
-  **Phase 1 chưa được nghiệm thu**, không chuyển sang Phase 2.
+- Trạng thái: **COMPLETE**. Real Windows LDPlayer integration: **PASSED** ngày 2026-09-18.
+- LDPlayer version: `9.5.31.0`; path: `D:\LDPlayer\LDPlayer9`.
+- Protected main: `0 / Queen` (`protected=true`, `selected=false`); không có lifecycle/ADB/game mutation.
+- Test clone duy nhất: `4 / 3-Chíp`; discovery đủ 12 instance và giữ đúng tên Unicode.
+- ADB mapping đã xác minh: LDPlayer-scoped serial `emulator-5562`; explicit endpoint
+  `127.0.0.1:5563` có cùng Android boot ID trong phép kiểm tra recovery.
+- Diagnostic thật pass: start, Android-ready (bao gồm transitional state 2), harmless shell,
+  screenshot, package discovery, game launch/stop, restart, ADB re-verification, exact stop và isolation.
+- App label `Thời Đại Anh Hùng` được đối chiếu bằng APK metadata; package xác định duy nhất:
+  `com.greenmushroom.boomblitz.gp.vn`; launcher: `com.rivergame.gp.AppActivity`.
+- Resolver giữ fail-closed: không first-device/index-0 fallback; ưu tiên serial đã đăng ký, sau đó
+  indexed identity và explicit loopback connection có boot-ID verification. Shared ADB restart chỉ được
+  phép khi không có device khác và không có LDPlayer instance khác chạy.
+- CI branch run: [35347373605](https://github.com/thangnd1993/thangnd-top-heroes/actions/runs/35347373605) —
+  lint pass, pytest pass, PyInstaller/portable build pass, executable smoke pass.
+- Artifact: `TopHeroesAutoManager-Windows-x64` (`10547612861`); EXE SHA-256
+  `7853e1f4ab5979b813238b811e2ac0f51205fa9600c607d6b9ea481b45a5c62f`.
+- Diagnostic report: `%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\reports\phase1-windows-acceptance.json`.
+- Không chuyển sang Phase 2.
+
+## Lịch sử sửa blocker lifecycle Start/Restart
+
+- Trạng thái lịch sử: lifecycle fix đã được CI xác minh trước vòng nghiệm thu Windows thật.
 - Root cause: execute gọi resolver ADB vô điều kiện trước khi phân loại lifecycle/ADB-dependent;
   cold start bị chặn và CLI reboot không bảo đảm đã chờ stop/start rồi verify transport mới.
 - Fix: lifecycle index-first, selected/protected/snapshot guard giữ nguyên. Start → wait Android →

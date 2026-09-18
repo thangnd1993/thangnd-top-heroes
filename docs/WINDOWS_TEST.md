@@ -1,6 +1,28 @@
 # Nghiệm thu trên Windows thật
 
-Chưa thực hiện trên máy phát triển macOS. Các dòng dưới là checklist, không phải kết quả đã đạt.
+## Kết quả Phase 1
+
+Real Windows LDPlayer integration: **PASSED**
+
+- Ngày: 2026-09-18
+- LDPlayer version: `9.5.31.0`
+- LDPlayer path: `D:\LDPlayer\LDPlayer9`
+- Số instance phát hiện: 12
+- Protected main: `0 / Queen` (`protected=true`, `selected=false`)
+- Test clone: `4 / 3-Chíp`
+- ADB target: `emulator-5562` (đã đối chiếu boot identity; không dùng default device)
+- Screenshot trước game: `%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\3-Chíp\instance-4-20260918-130633-484976Z.png`
+- Screenshot sau launch: `%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\3-Chíp\instance-4-20260918-130654-229291Z.png`
+- App label: `Thời Đại Anh Hùng`
+- Package: `com.greenmushroom.boomblitz.gp.vn`
+- Launcher: `com.rivergame.gp.AppActivity`
+- Start, Android ready, harmless shell, screenshot, package discovery, game launch/stop,
+  restart, ADB re-verification, exact stop: **PASSED**
+- Isolation: **PASSED**; mọi instance khác giữ nguyên và cuối cùng cả 12 instance đều stopped.
+- Queen chỉ được kiểm tra persisted protection; không nhận lifecycle/ADB/game mutation.
+- CI/artifact: run `35347373605`, artifact `10547612861`, lint/pytest/build/smoke đều pass.
+
+## Checklist tham chiếu
 
 Ghi lại Windows version, LDPlayer version, console path, ADB path, `list2` và thời gian chạy.
 Đóng các phiên manager khác trước khi kiểm thử. Không xóa/đổi tên instance khi một lệnh đang chạy.
