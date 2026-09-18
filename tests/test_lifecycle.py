@@ -16,7 +16,10 @@ def assert_only_target_seven(calls):
         if "--index" in call:
             assert call[call.index("--index") + 1] == "7"
         if call[0].endswith("adb.exe") and call[1] not in ("devices", "start-server"):
-            assert call[1] == "-s" and call[2]
+            if call[1] == "connect":
+                assert call[2] == "127.0.0.1:5569"
+            else:
+                assert call[1] == "-s" and call[2]
 
 
 def test_stopped_launch_needs_no_existing_adb_and_resolves_after_launch(rig):
