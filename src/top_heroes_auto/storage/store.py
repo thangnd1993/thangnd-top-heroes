@@ -1,6 +1,8 @@
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from enum import StrEnum
 from pathlib import Path
 
 from top_heroes_auto.ldplayer.client import Instance
@@ -10,6 +12,29 @@ from top_heroes_auto.ldplayer.client import Instance
 class Metadata:
     selected: bool = False
     protected: bool = False
+
+
+class RunStatus(StrEnum):
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    INTERRUPTED = "INTERRUPTED"
+
+
+class AccountStatus(StrEnum):
+    QUEUED = "QUEUED"
+    STARTING = "STARTING"
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    SKIPPED = "SKIPPED"
+
+
+def _stamp() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 class Store:
@@ -26,7 +51,26 @@ class Store:
                     selected INTEGER NOT NULL DEFAULT 0, protected INTEGER NOT NULL DEFAULT 0,
                     present INTEGER NOT NULL DEFAULT 1,
                     PRIMARY KEY(namespace, idx), CHECK (NOT (selected AND protected)));
+                CREATE TABLE IF NOT EXISTS runs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, namespace TEXT NOT NULL,
+                    created_at TEXT NOT NULL, started_at TEXT, finished_at TEXT,
+                    status TEXT NOT NULL, max_concurrency INTEGER NOT NULL,
+                    requested_account_count INTEGER NOT NULL,
+                    completed_count INTEGER NOT NULL DEFAULT 0,
+                    failed_count INTEGER NOT NULL DEFAULT 0,
+                    cancelled_count INTEGER NOT NULL DEFAULT 0);
+                CREATE TABLE IF NOT EXISTS run_accounts (
+                    run_id INTEGER NOT NULL, instance_index INTEGER NOT NULL,
+                    instance_name TEXT NOT NULL, status TEXT NOT NULL,
+                    started_at TEXT, finished_at TEXT, error TEXT NOT NULL DEFAULT '',
+                    retry_count INTEGER NOT NULL DEFAULT 0, started_by_run INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY(run_id, instance_index),
+                    FOREIGN KEY(run_id) REFERENCES runs(id));
             """)
+            db.execute(
+                "UPDATE runs SET status=?, finished_at=COALESCE(finished_at, ?) WHERE status IN (?, ?)",
+                (RunStatus.INTERRUPTED, _stamp(), RunStatus.QUEUED, RunStatus.RUNNING),
+            )
 
     @contextmanager
     def connect(self):
@@ -98,3 +142,76 @@ class Store:
                        WHERE namespace=? AND idx=? AND present=1""",
                 (protected, protected, namespace, index),
             )
+
+    def create_run(self, namespace: str, members: tuple[tuple[int, str], ...], max_concurrency: int) -> int:
+        if max_concurrency not in (1, 2, 3, 4):
+            raise ValueError("Concurrency phải từ 1 đến 4.")
+        if not members:
+            raise ValueError("Không có giả lập hợp lệ trong hàng đợi.")
+        with self.connect() as db:
+            cursor = db.execute(
+                """INSERT INTO runs(namespace,created_at,status,max_concurrency,requested_account_count)
+                   VALUES (?,?,?,?,?)""",
+                (namespace, _stamp(), RunStatus.QUEUED, max_concurrency, len(members)),
+            )
+            run_id = cursor.lastrowid
+            db.executemany(
+                """INSERT INTO run_accounts(run_id,instance_index,instance_name,status)
+                   VALUES (?,?,?,?)""",
+                [(run_id, index, name, AccountStatus.QUEUED) for index, name in members],
+            )
+        return int(run_id)
+
+    def set_run_status(self, run_id: int, status: RunStatus):
+        with self.connect() as db:
+            db.execute(
+                "UPDATE runs SET status=?, started_at=COALESCE(started_at,?), finished_at=? WHERE id=?",
+                (status, _stamp(), _stamp() if status not in (RunStatus.QUEUED, RunStatus.RUNNING) else None, run_id),
+            )
+
+    def set_account_status(
+        self, run_id: int, index: int, status: AccountStatus, error: str = "", started_by_run: bool | None = None
+    ):
+        with self.connect() as db:
+            final = status in (AccountStatus.SUCCESS, AccountStatus.FAILED, AccountStatus.CANCELLED, AccountStatus.SKIPPED)
+            fields = "status=?, error=?, started_at=COALESCE(started_at,?), finished_at=?"
+            values = [status, error[:1000], _stamp(), _stamp() if final else None]
+            if started_by_run is not None:
+                fields += ", started_by_run=?"
+                values.append(started_by_run)
+            values.extend((run_id, index))
+            db.execute(f"UPDATE run_accounts SET {fields} WHERE run_id=? AND instance_index=?", values)
+
+    def finish_run(self, run_id: int, status: RunStatus):
+        with self.connect() as db:
+            counts = dict(
+                db.execute(
+                    "SELECT status,COUNT(*) FROM run_accounts WHERE run_id=? GROUP BY status", (run_id,)
+                ).fetchall()
+            )
+            db.execute(
+                """UPDATE runs SET status=?,finished_at=?,completed_count=?,failed_count=?,cancelled_count=? WHERE id=?""",
+                (
+                    status,
+                    _stamp(),
+                    counts.get(AccountStatus.SUCCESS, 0),
+                    counts.get(AccountStatus.FAILED, 0),
+                    counts.get(AccountStatus.CANCELLED, 0),
+                    run_id,
+                ),
+            )
+
+    def run_accounts(self, run_id: int):
+        with self.connect() as db:
+            return db.execute(
+                """SELECT instance_index,instance_name,status,error,retry_count,started_by_run
+                   FROM run_accounts WHERE run_id=? ORDER BY instance_index""", (run_id,)
+            ).fetchall()
+
+    def retry_members(self, run_id: int) -> tuple[tuple[int, str], ...]:
+        with self.connect() as db:
+            rows = db.execute(
+                """SELECT instance_index,instance_name FROM run_accounts
+                   WHERE run_id=? AND status=? ORDER BY instance_index""", (run_id, AccountStatus.FAILED)
+            ).fetchall()
+        return tuple((int(index), str(name)) for index, name in rows)

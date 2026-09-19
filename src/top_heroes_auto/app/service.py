@@ -9,7 +9,13 @@ from pathlib import Path
 
 from top_heroes_auto.adb.client import ADB, Target, valid_boot_id, validate_package, validate_serial
 from top_heroes_auto.app.process import CommandError, decode
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError, create_snapshot, require_selected
+from top_heroes_auto.automation.guard import (
+    RunSnapshot,
+    SafetyError,
+    create_snapshot,
+    require_run_member,
+    require_selected,
+)
 from top_heroes_auto.ldplayer.client import Instance, LDPlayer
 from top_heroes_auto.storage.store import Store
 
@@ -109,6 +115,8 @@ class Manager:
             raise SafetyError("Không có hàng đợi thao tác đang hoạt động.")
         current = self.ld.list_instances()
         self.store.merge(self.namespace, current)
+        if self._active.immutable:
+            return require_run_member(self.store, self._active, current, index)
         return require_selected(self.store, self._active, current, index)
 
     def _resolve(self, index: int) -> Target:
@@ -188,7 +196,9 @@ class Manager:
                 )
             time.sleep(self.POLL_INTERVAL)
 
-    def execute(self, index: int, action: str, package: str = "", values: tuple = ()):
+    def execute(
+        self, index: int, action: str, package: str = "", values: tuple = (), snapshot: RunSnapshot | None = None
+    ):
         """One explicit manual action = one short-lived immutable queue.
 
         Selection edits use the same lock. Revocation before dispatch is checked again.
@@ -215,9 +225,14 @@ class Manager:
             raise SafetyError("Thao tác không được hỗ trợ.")
         with self._lock:
             current = self.refresh()
-            snapshot = create_snapshot(self.store, self.namespace, current)
+            immutable_snapshot = snapshot is not None
+            snapshot = snapshot or create_snapshot(self.store, self.namespace, current)
             # Restrict membership to the exact UI target, not every selected instance.
-            self._active = RunSnapshot(self.namespace, tuple(m for m in snapshot.members if m[0] == index))
+            self._active = RunSnapshot(
+                self.namespace,
+                tuple(m for m in snapshot.members if m[0] == index),
+                immutable_snapshot,
+            )
             try:
                 instance = self._check(index)
                 # Lifecycle dispatch targets the verified LDPlayer index. A stopped

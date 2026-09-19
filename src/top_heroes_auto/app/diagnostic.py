@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from top_heroes_auto.app.process import Process
+from top_heroes_auto.app.run_queue import RunController
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.ldplayer.client import LDPlayer, discover
@@ -182,11 +183,59 @@ def parser():
     root = argparse.ArgumentParser(prog="TopHeroesAutoManager.exe diagnostic")
     commands = root.add_subparsers(dest="command", required=True)
     commands.add_parser("list")
-    for command in ("protect", "show", "test"):
+    for command in ("protect", "show", "test", "run-selected"):
         child = commands.add_parser(command)
         child.add_argument("--index", type=int, required=True)
         child.add_argument("--name", required=True)
+        if command == "run-selected":
+            child.add_argument("--concurrency", type=int, choices=(1, 2, 3, 4), default=1)
+    members = commands.add_parser("run-members")
+    members.add_argument(
+        "--member",
+        action="append",
+        required=True,
+        help="Exact member in INDEX:NAME form; repeat once per explicitly authorized clone.",
+    )
+    members.add_argument("--concurrency", type=int, choices=(1, 2, 3, 4), required=True)
     return root
+
+
+def _members(values: list[str]) -> tuple[tuple[int, str], ...]:
+    """Parse exact, non-ambiguous diagnostic members without any fallback."""
+    parsed = []
+    for value in values:
+        index, separator, name = value.partition(":")
+        if not separator or not name:
+            raise SafetyError("Mỗi --member phải có dạng INDEX:NAME chính xác.")
+        try:
+            parsed.append((int(index), name))
+        except ValueError as exc:
+            raise SafetyError("Member index không hợp lệ; không fallback về index 0.") from exc
+    members = tuple(parsed)
+    if len(set(members)) != len(members):
+        raise SafetyError("Diagnostic members bị trùng lặp.")
+    return members
+
+
+def _run_members(manager: Manager, data: Path, members: tuple[tuple[int, str], ...], concurrency: int):
+    main = _instance(manager, 0, "Queen")
+    if not manager.store.metadata(manager.namespace, main.index).protected:
+        raise SafetyError("Queen must be Protected before diagnostic testing.")
+    # Query every requested target before a run exists or a worker can mutate it.
+    for index, name in members:
+        _instance(manager, index, name)
+    controller = RunController(
+        manager.store,
+        lambda: Manager(LDPlayer(manager.ld.installation, Process()), manager.store, data),
+    )
+    run = controller.create_members(manager, members, concurrency)
+    rows = controller.execute(run)
+    return {
+        "id": run.id,
+        "snapshot": list(run.snapshot.members),
+        "max_concurrency": run.max_concurrency,
+        "accounts": [list(row) for row in rows],
+    }
 
 
 def main(argv: list[str], data: Path) -> int:
@@ -201,8 +250,13 @@ def main(argv: list[str], data: Path) -> int:
         elif args.command == "show":
             report["instance"] = _view(manager, (_instance(manager, args.index, args.name),))[0]
             print(json.dumps(report["instance"], ensure_ascii=True, indent=2))
-        else:
+        elif args.command == "test":
             report.update(test_command(manager, data, args.index, args.name))
+        elif args.command == "run-selected":
+            target = _instance(manager, args.index, args.name)
+            report["phase2_run"] = _run_members(manager, data, ((target.index, target.name),), args.concurrency)
+        else:
+            report["phase2_run"] = _run_members(manager, data, _members(args.member), args.concurrency)
         report["status"] = "passed"
         return 0
     except Exception as exc:
