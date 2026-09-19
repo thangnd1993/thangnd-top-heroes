@@ -146,6 +146,24 @@ class HomeRecoveryEngine:
             if detection.state == ScreenState.GAME_HOME:
                 return finish(RecoveryStatus.SUCCESS if result.actions else RecoveryStatus.ALREADY_HOME)
             if detection.state == ScreenState.UNKNOWN:
+                if loading_started is not None:
+                    if self.clock() - loading_started >= self.loading_timeout:
+                        return finish(
+                            RecoveryStatus.LOADING_TIMEOUT,
+                            "Loading transition remained UNKNOWN past timeout; no input sent.",
+                        )
+                    if cancelled():
+                        return finish(RecoveryStatus.CANCELLED)
+                    result.actions.append("wait")
+                    result.steps[-1] = RecoveryStep(
+                        step.number,
+                        step.state,
+                        step.confidence,
+                        step.screenshot,
+                        "wait",
+                    )
+                    self.sleep(self.loading_interval)
+                    continue
                 unknown_count += 1
                 if unknown_count >= self.unknown_confirmations:
                     return finish(RecoveryStatus.UNKNOWN_SCREEN, "Screen remained UNKNOWN; no input sent.")

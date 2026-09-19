@@ -95,6 +95,35 @@ def test_game_loading_waits_without_input_and_times_out():
     assert result.actions == ["wait", "wait"]
 
 
+def test_transient_unknown_after_verified_loading_waits_without_input():
+    port = Port(
+        ScreenState.ANDROID_HOME,
+        ScreenState.GAME_LOADING,
+        ScreenState.UNKNOWN,
+        ScreenState.UNKNOWN,
+        ScreenState.GAME_HOME,
+    )
+    result = HomeRecoveryEngine(sleep=lambda _: None).ensure_game_home(port)
+    assert result.status == RecoveryStatus.SUCCESS
+    assert result.actions == ["launch_game", "wait", "wait", "wait"]
+    assert port.launches == 1
+
+
+def test_unknown_loading_transition_is_still_bounded_by_loading_timeout():
+    clock = Clock()
+    port = Port(ScreenState.GAME_LOADING, ScreenState.UNKNOWN)
+    result = HomeRecoveryEngine(
+        loading_timeout=3,
+        loading_interval=2,
+        max_duration=20,
+        clock=clock,
+        sleep=clock.sleep,
+    ).ensure_game_home(port)
+    assert result.status == RecoveryStatus.LOADING_TIMEOUT
+    assert result.actions == ["wait", "wait"]
+    assert port.launches == 0
+
+
 def test_unknown_confirms_with_new_screenshot_then_fails_closed():
     port = Port(ScreenState.UNKNOWN)
     result = HomeRecoveryEngine(sleep=lambda _: None).ensure_game_home(port)
