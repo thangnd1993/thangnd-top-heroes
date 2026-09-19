@@ -22,6 +22,8 @@ def write_overlay(screen, detection, path: Path) -> Path:
             )
     cv2.putText(image, f"{detection.state.value} {detection.confidence:.3f}", (18, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 220, 30), 2)
     path.parent.mkdir(parents=True, exist_ok=True)
-    if not cv2.imwrite(str(path), image):
+    encoded, png_data = cv2.imencode(".png", image)
+    if not encoded:
         raise OSError(f"Cannot write debug overlay: {path}")
+    path.write_bytes(png_data.tobytes())
     return path

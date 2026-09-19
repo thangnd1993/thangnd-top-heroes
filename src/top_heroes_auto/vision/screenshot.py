@@ -29,8 +29,10 @@ class ScreenshotService:
         if folder is not None:
             folder.mkdir(parents=True, exist_ok=True)
             source = folder / f"{stamp}-{safe_tag or 'capture'}.png"
-            if not cv2.imwrite(str(source), image):
+            encoded, png_data = cv2.imencode(".png", image)
+            if not encoded:
                 raise OSError(f"Cannot persist screenshot: {source}")
+            source.write_bytes(png_data.tobytes())
             metadata = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "instance": {"index": target.index, "name": target.name},

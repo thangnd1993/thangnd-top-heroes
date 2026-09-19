@@ -52,6 +52,13 @@ def test_valid_screenshot_decode_and_normalize():
     assert captured.normalized.shape[:2] == (720, 1280)
 
 
+def test_screenshot_persists_to_unicode_folder(tmp_path):
+    target = Target(4, "3-Chíp", "emulator-5562", BOOT_ID)
+    captured = ScreenshotService(lambda _: png(patterned())).take(target, tmp_path / "3-Chíp", "trang-chủ")
+    assert captured.source_image.is_file()
+    assert captured.source_image.with_suffix(".json").is_file()
+
+
 @pytest.mark.parametrize("payload", [b"not-png", b"\x89PNG\r\n\x1a\nbroken"])
 def test_corrupt_screenshot_is_rejected(payload):
     with pytest.raises(ScreenshotInvalid, match="SCREENSHOT_INVALID"):
@@ -131,7 +138,7 @@ def test_debug_overlay_and_stability(tmp_path):
     captured = screen()
     template = captured.normalized[100:220, 100:300]
     result = ScreenDetector((anchor(tmp_path, ScreenState.ANDROID_HOME, "android", template),)).detect(captured)
-    output = write_overlay(captured, result, tmp_path / "debug" / "overlay.png")
+    output = write_overlay(captured, result, tmp_path / "debug-Chíp" / "overlay.png")
     assert output.is_file()
     stable, difference = screen_stability(captured, captured)
     assert stable and difference == 0
