@@ -199,6 +199,7 @@ class HomeRecoveryEngine:
                 except (CommandError, OSError, SafetyError, ValueError) as exc:
                     return finish(RecoveryStatus.ACTION_FAILED, str(exc))
                 launched = True
+                loading_started = self.clock()
                 result.actions.append("launch_game")
                 result.steps[-1] = RecoveryStep(
                     step.number,

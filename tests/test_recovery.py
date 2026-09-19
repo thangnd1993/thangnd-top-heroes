@@ -124,6 +124,19 @@ def test_transient_unknown_after_verified_loading_waits_without_input():
     assert port.launches == 1
 
 
+def test_launch_opens_bounded_loading_window_before_loading_anchor_appears():
+    port = Port(
+        ScreenState.ANDROID_HOME,
+        ScreenState.UNKNOWN,
+        ScreenState.UNKNOWN,
+        ScreenState.GAME_HOME,
+    )
+    result = HomeRecoveryEngine(sleep=lambda _: None).ensure_game_home(port)
+    assert result.status == RecoveryStatus.SUCCESS
+    assert result.actions == ["launch_game", "wait", "wait"]
+    assert port.launches == 1
+
+
 def test_unknown_loading_transition_is_still_bounded_by_loading_timeout():
     clock = Clock()
     port = Port(ScreenState.GAME_LOADING, ScreenState.UNKNOWN)
