@@ -137,6 +137,26 @@ def test_known_task_panel_is_closed_and_reentered_from_verified_home():
     ]
 
 
+def test_verified_post_claim_panel_is_closed_without_retrying_claim():
+    port = Port(
+        ScreenState.GAME_HOME,
+        ScreenState.IDLE_ENTRY_AVAILABLE,
+        ScreenState.IDLE_REWARD_CLAIMABLE,
+        ScreenState.IDLE_REWARD_CLAIMED,
+        ScreenState.IDLE_REWARD_NOT_CLAIMABLE,
+        ScreenState.IDLE_ENTRY_NOT_AVAILABLE,
+        ScreenState.GAME_HOME,
+    )
+    result = task().run(port)
+    assert result.status == IdleRewardStatus.SUCCESS
+    assert result.claim_dispatched and result.cleanup_succeeded
+    assert port.actions.count(("tap", "idle-claim-button")) == 1
+    assert port.actions[-2:] == [
+        ("back", ScreenState.IDLE_REWARD_NOT_CLAIMABLE.value),
+        ("back", ScreenState.IDLE_ENTRY_NOT_AVAILABLE.value),
+    ]
+
+
 def test_unavailable_entry_never_opens_or_claims_reward():
     port = Port(
         ScreenState.GAME_HOME,

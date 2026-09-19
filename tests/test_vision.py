@@ -238,6 +238,12 @@ def test_repository_templates_fail_closed_on_unrelated_image():
             (362, 915),
         ),
         (
+            ScreenState.IDLE_REWARD_NOT_CLAIMABLE,
+            [("idle-empty-message", 585, 145), ("idle-title", 1080, 175)],
+            None,
+            None,
+        ),
+        (
             ScreenState.IDLE_REWARD_CLAIMED,
             [("idle-claimed-banner", 900, 60), ("idle-claimed-continue", 225, 230)],
             "idle-claimed-continue",
@@ -265,9 +271,13 @@ def test_versioned_idle_reward_anchors_and_portrait_mapping(
 
 def test_idle_reward_templates_have_no_stamina_action_anchor():
     anchors = load_anchors(idle_reward_template_folder())
-    assert len(anchors) == 9
+    assert len(anchors) == 11
     assert not any("hourglass" in anchor.id or "stamina" in anchor.id for anchor in anchors)
-    assert not any(anchor.state == ScreenState.IDLE_REWARD_NOT_CLAIMABLE for anchor in anchors)
+    unavailable = [anchor for anchor in anchors if anchor.state == ScreenState.IDLE_REWARD_NOT_CLAIMABLE]
+    assert {anchor.id for anchor in unavailable} == {
+        "idle-empty-message",
+        "idle-title-not-claimable",
+    }
 
 
 @pytest.mark.parametrize(

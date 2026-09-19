@@ -9,9 +9,9 @@ hourglass is excluded from every action anchor because it can spend stamina.
 
 The reward panel is claimable only after that entry gate and then requires the verified title,
 claim button, and minimum green accumulation segment. A gray remainder is not a not-available
-signal because partially accumulated rewards contain both green and gray segments. Immediately
-post-claim panels therefore fail closed as `UNKNOWN`; the entry screen is the authoritative
-not-available state.
+signal because partially accumulated rewards contain both green and gray segments. The panel is
+classified not claimable only when its title and unique no-reward message both match; the entry
+screen remains the authoritative availability gate before opening it.
 
 The claimable chest has separate closed and open/glowing animation anchors. Both keep the strict
 `0.9` threshold so animation coverage does not weaken the not-available guard.

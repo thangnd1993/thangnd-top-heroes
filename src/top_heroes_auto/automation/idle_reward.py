@@ -295,8 +295,25 @@ class IdleRewardTask:
                 "dismiss_verified_reward",
                 lambda: port.tap(claimed.detection, "idle-claimed-continue"),
             )
-            final = observe_until("final-home", {ScreenState.GAME_HOME})
-            if final is None or final.detection.state != ScreenState.GAME_HOME:
+            final = observe_until(
+                "final-home",
+                {ScreenState.GAME_HOME, ScreenState.IDLE_REWARD_NOT_CLAIMABLE},
+            )
+            if final and final.detection.state == ScreenState.IDLE_REWARD_NOT_CLAIMABLE:
+                action(
+                    "close_claimed_idle_reward",
+                    lambda: port.back(final.detection),
+                )
+                entry = observe_until(
+                    "claimed-adventure",
+                    {ScreenState.IDLE_ENTRY_AVAILABLE, ScreenState.IDLE_ENTRY_NOT_AVAILABLE},
+                )
+                if entry is None or not return_from_adventure(entry):
+                    return finish(
+                        IdleRewardStatus.CLEANUP_FAILED,
+                        "Claim succeeded but the post-claim panel did not return Home.",
+                    )
+            elif final is None or final.detection.state != ScreenState.GAME_HOME:
                 return finish(IdleRewardStatus.CLEANUP_FAILED, "Claim succeeded but GAME_HOME was not restored.")
             result.cleanup_succeeded = True
             return finish(IdleRewardStatus.SUCCESS)
