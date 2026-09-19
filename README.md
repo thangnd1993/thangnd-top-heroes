@@ -3,6 +3,31 @@
 Ứng dụng desktop **Windows**, Python 3.12 + PySide6, quản lý LDPlayer theo nguyên tắc
 **một instance = một tài khoản**. Phát triển bởi Thang Nguyen.
 
+Phase 1 và Phase 2 đã nghiệm thu trên LDPlayer thật. Phase 3 bổ sung pipeline screenshot Android
+qua ADB target đã xác minh và nhận diện màn hình fail-closed bằng OpenCV. Chưa có gameplay automation.
+
+## Nhận diện màn hình Phase 3
+
+- Một chu kỳ dùng đúng một ảnh chụp từ explicit ADB target; không phụ thuộc vị trí cửa sổ emulator.
+- PNG được kiểm tra decode/kích thước/blank, chuẩn hóa về không gian tham chiếu 1280x720 và giữ
+  scale để ánh xạ bounding box về tọa độ thiết bị.
+- Các trạng thái typed hiện có: `UNKNOWN`, `ANDROID_HOME`, `GAME_LOADING`, `GAME_HOME`,
+  `POPUP_GENERIC`, `CONNECTION_ERROR`, `UPDATE_NOTICE`.
+- Detector dùng các anchor crop thật trong `assets/templates/`, ROI chuẩn hóa, threshold và vai trò
+  required/optional. Thiếu anchor bắt buộc hoặc có hai state gần ngang nhau sẽ trả `UNKNOWN`.
+- UI có nút **Nhận diện màn hình** và hiển thị trạng thái/độ tin cậy cơ bản.
+
+Diagnostic headless an toàn:
+
+```powershell
+TopHeroesAutoManager.exe vision capture --index 4 --name "3-Chíp" --tag sample
+TopHeroesAutoManager.exe vision detect --index 4 --name "3-Chíp" --tag check --debug
+```
+
+Ảnh, metadata UTF-8, detection JSON và overlay tùy chọn được lưu dưới
+`%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\vision\`. Lệnh luôn kiểm tra exact index/name,
+selection/protection, `Queen` Protected và explicit ADB target trước khi capture.
+
 ## Phạm vi Phase 1
 
 - GUI tiếng Việt, giao diện xanh đậm, tìm kiếm/lọc, chọn hiển thị và bảo vệ từng instance.
@@ -15,9 +40,8 @@
 - Worker thread với timeout subprocess, log UI và file xoay vòng.
 - pytest, kiểm thử GUI offscreen, PyInstaller portable và GitHub Actions Windows.
 
-Không đăng nhập game, không lưu mật khẩu, không gameplay macro, scheduler hoặc concurrency runner.
-Các điều khiển cho phase tương lai được vô hiệu hóa và có chú thích. OpenCV sẽ bổ sung khi
-cần nhận dạng hình ảnh; Phase 1 chụp PNG trực tiếp qua ADB và xem bằng Qt.
+Không đăng nhập game, không lưu mật khẩu và không gameplay macro. Phase 2 đã có queue/concurrency
+lifecycle; Phase 3 chỉ nhận diện hình ảnh, không click hoặc recovery tự động.
 
 Bản sửa lifecycle Phase 1 hỗ trợ **Khởi động khi giả lập đang tắt, chưa có ADB**.
 Start kiểm tra đúng index + snapshot + selected + không protected, gửi `launch --index N`,
@@ -100,6 +124,8 @@ Windows: `%LOCALAPPDATA%\TopHeroesAutoManager\`
 - `config.sqlite3`: cấu hình và metadata, không thông tin đăng nhập.
 - `logs/app.log`: DEBUG/INFO/WARNING/ERROR, tối đa 2 MB mỗi tệp, 3 bản lưu.
 - `screenshots/instance-<index>-<UTC timestamp>.png`: màn hình Android từ ADB.
+- `diagnostics/vision/<instance>/`: ảnh chụp, metadata và detection JSON Phase 3.
+- `diagnostics/vision/debug/`: overlay anchor/confidence khi bật `--debug`.
 
 Ảnh được giữ nguyên để đối chiếu, không tự xóa. Sao lưu cơ sở dữ liệu khi app đã đóng.
 macOS development dùng `~/.local/share/TopHeroesAutoManager/`.
@@ -108,10 +134,11 @@ macOS development dùng `~/.local/share/TopHeroesAutoManager/`.
 
 `app/`: orchestration, process boundary, logging startup; `ui/`: Qt;
 `ldplayer/`: discovery và parser; `adb/`: transport; `automation/`: safety guard/snapshot;
-`storage/`: SQLite. Chưa tạo engine vision/scheduler không sử dụng.
+`storage/`: SQLite; `vision/`: capture, normalize, template matcher, detector, coordinate model,
+debug overlay và stability helper.
 
 Tài liệu CLI nguồn: [LDPlayer command line interface](https://www.ldplayer.net/support/introduction-to-ldplayer-command-line-interface.html).
 `list2` có 7 trường: index, tên, 2 window handles, Android started, PID, VBox PID.
 Không có resolution, DPI, serial hoặc trạng thái game; UI hiển thị **Chưa đọc/Chưa kiểm tra**.
 
-Xem [tiến độ](docs/PROGRESS.md). Dừng ở Phase 1; Phase 2 chỉ thực hiện khi được yêu cầu.
+Xem [tiến độ](docs/PROGRESS.md). Phase 3 dừng ở nền tảng nhận diện; chưa bắt đầu Phase 4.

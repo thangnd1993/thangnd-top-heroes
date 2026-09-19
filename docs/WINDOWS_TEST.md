@@ -1,5 +1,33 @@
 # Nghiệm thu trên Windows thật
 
+## Phase 3 — Screen recognition result
+
+Real Windows Phase 3 visual acceptance: **PASSED** (2026-09-19).
+
+- Fresh artifact: CI run `35441526597`, commit `2fbaa46`, artifact `10583942593`; verified SHA-256
+  `62afeb1d0ca5ce6240ba1e6c35abb0e24457c9aed48b2be927675f9f90717c84`.
+- Scope: only `4 / 3-Chíp`; exact ADB target `emulator-5562`. `0 / Queen` remained Protected and
+  unselected. No other instance received lifecycle or ADB mutation.
+- Android launcher: `ANDROID_HOME`, confidence `1.0`, 26.886 ms.
+- Real HHGames startup screen: `GAME_LOADING`, confidence `1.0`, 34.595 ms.
+- Real Thời Đại Anh Hùng home: `GAME_HOME`, confidence `0.998736`, 30.023 ms, both configured
+  home anchors matched. No gameplay menu click was performed.
+- Synthetic unrelated/corrupt/blank/conflicting inputs cover `UNKNOWN` and invalid fail-closed paths.
+- Full screenshots, UTF-8 metadata/detection reports and debug overlays are under
+  `%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\vision\`.
+- Cleanup: stopped exact package then exact index 4 because the test started it; all 12 instances
+  were stopped afterward, matching the pre-run baseline.
+
+Headless verification commands:
+
+```powershell
+TopHeroesAutoManager.exe vision capture --index 4 --name "3-Chíp" --tag sample
+TopHeroesAutoManager.exe vision detect --index 4 --name "3-Chíp" --tag acceptance --debug
+```
+
+These commands fail closed unless exact identity, selection/protection rules, Queen protection and
+explicit ADB verification all pass. Phase 3 does not close popups, press Back or automate gameplay.
+
 ## Phase 2 — Concurrency result
 
 Real Windows Phase 2 concurrency acceptance: **PASSED** (2026-09-19).

@@ -1,5 +1,28 @@
 # Tiến độ
 
+## Phase 3 — Screenshot Pipeline + Screen Recognition — COMPLETE
+
+- Trạng thái: **COMPLETE**. Real Windows acceptance: **PASSED** ngày 2026-09-19 trên duy nhất
+  `4 / 3-Chíp`; `0 / Queen` vẫn Protected, unselected và không nhận mutation.
+- Fresh portable: CI run `35441526597`, commit `2fbaa46`, artifact `10583942593`, artifact SHA-256
+  `62afeb1d0ca5ce6240ba1e6c35abb0e24457c9aed48b2be927675f9f90717c84`.
+- Exact ADB target: `emulator-5562`; ảnh thật 1280x720, normalized 1280x720, scale 1.0/1.0.
+- `ANDROID_HOME`: confidence `1.0`, 26.886 ms. `GAME_LOADING`: confidence `1.0`, 34.595 ms.
+  `GAME_HOME`: confidence `0.998736`, 30.023 ms với required world-button và optional bottom-nav.
+- `UNKNOWN` fail-closed, negative matching, threshold boundary và state conflict được regression-test
+  bằng fixture synthetic; không tạo điều kiện game nguy hiểm chỉ để lấy ảnh.
+- Template crop thật được version trong `assets/templates/{android,loading,home}`; full screenshots và
+  debug overlays ở `%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\vision`, không commit vào Git.
+- Screenshot service validate PNG/dimensions/nonblank, normalize orientation/resolution, giữ original/
+  normalized coordinates và chỉ dispatch tới verified explicit target. Một detection cycle dùng một ảnh.
+- Detector tổng hợp required/optional anchors theo weight; thiếu required hoặc conflict trong margin 0.03
+  trả `UNKNOWN`. Detection JSON giữ Unicode UTF-8 và overlay là tùy chọn.
+- Cleanup/isolation pass: stop đúng package và index 4; cuối run cả 12 instance stopped như baseline.
+  Không default ADB, first-device/index-0 fallback, global LDPlayer op hoặc gameplay clicks.
+- Local: Ruff pass; 16 vision tests pass; 158 non-GUI tests pass. CI Windows lint, full pytest,
+  PyInstaller portable và executable smoke: pass.
+- Branch: `codex/phase3-screen-recognition`. Không merge main và không bắt đầu Phase 4.
+
 ## Phase 2 — Run Selected Queue + Concurrency — COMPLETE
 
 - Trạng thái: **COMPLETE**. Real Windows concurrency acceptance: **PASSED** ngày 2026-09-19,

@@ -168,3 +168,8 @@ def test_repository_templates_load_and_have_unique_ids():
     }
     assert len({anchor.id for anchor in anchors}) == len(anchors)
     assert all(anchor.template.is_file() for anchor in anchors)
+
+
+def test_repository_templates_fail_closed_on_unrelated_image():
+    result = ScreenDetector.from_folder(Path("assets/templates")).detect(screen(patterned(seed=2026)))
+    assert result.state == ScreenState.UNKNOWN
