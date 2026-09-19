@@ -1,5 +1,16 @@
 # Nghiệm thu trên Windows thật
 
+## Phase 2 — Single-account result
+
+Real Windows Phase 2 single-account lifecycle: **PASSED** (2026-09-19).
+
+- Artifact CI: run `35429129052`, commit `2591e58`, concurrency `1`.
+- Immutable snapshot: `4 / 3-Chíp` only; Run ID `1`.
+- Lifecycle: start → Android ready → verified `emulator-5562` → harmless health check → target-only cleanup.
+- Result/history: SUCCESS, `started_by_run=true`, persisted after process exit.
+- Queen stayed Protected with no mutation. No gameplay and no multi-instance execution.
+- Next acceptance requires explicitly authorized second clone for concurrency `2`.
+
 ## Kết quả Phase 1
 
 Real Windows LDPlayer integration: **PASSED**

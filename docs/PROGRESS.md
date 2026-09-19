@@ -1,5 +1,19 @@
 # Tiến độ
 
+## Phase 2 — Run Selected Queue + Concurrency — single-account acceptance
+
+- Trạng thái: **READY FOR MULTI-INSTANCE ACCEPTANCE**. Real Windows single-account lifecycle: **PASSED**
+  ngày 2026-09-19, bằng fresh portable artifact từ CI run `35429129052` (commit `2591e58`).
+- Test duy nhất: `4 / 3-Chíp`, max concurrency `1`; immutable snapshot chỉ chứa `[[4, "3-Chíp"]]`.
+- Run ID `1`: account SUCCESS, explicit ADB `emulator-5562`, harmless health check pass,
+  `started_by_run=true`; cleanup dừng lại đúng instance 4.
+- Persistence pass sau khi process kết thúc: run history và per-account result được đọc lại từ SQLite
+  (`SUCCESS`, completed=1, failed=0, cancelled=0).
+- Isolation pass: Queen không mutation; instance khác không bị lifecycle mutation. Chicken đã running
+  trước test và được giữ nguyên running. Không gameplay automation, không multi-instance test.
+- Chưa merge main và chưa chạy concurrency=2. Cần người dùng chỉ định đúng một clone thứ hai trước
+  multi-instance acceptance.
+
 ## Phase 1 — Windows Foundation + LDPlayer Multi — COMPLETE
 
 - Trạng thái: **COMPLETE**. Real Windows LDPlayer integration: **PASSED** ngày 2026-09-18.
