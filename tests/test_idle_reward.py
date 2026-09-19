@@ -23,8 +23,8 @@ ANCHORS = {
 }
 
 
-def detection(state: ScreenState) -> ScreenDetection:
-    anchor = ANCHORS.get(state)
+def detection(state: ScreenState, anchor_override: str | None = None) -> ScreenDetection:
+    anchor = anchor_override or ANCHORS.get(state)
     evidence = ()
     if anchor:
         evidence = (
@@ -49,15 +49,19 @@ def detection(state: ScreenState) -> ScreenDetection:
 
 
 class Port:
-    def __init__(self, *states: ScreenState):
+    def __init__(self, *states: ScreenState, entry_anchor: str | None = None):
         self.states = list(states)
         self.actions = []
         self.observations = 0
+        self.entry_anchor = entry_anchor
 
     def observe(self, tag):
         self.observations += 1
         state = self.states.pop(0) if len(self.states) > 1 else self.states[0]
-        return IdleRewardObservation(detection(state), Path(f"{tag}.png"), "emulator-5562")
+        override = self.entry_anchor if state == ScreenState.IDLE_ENTRY_AVAILABLE else None
+        return IdleRewardObservation(
+            detection(state, override), Path(f"{tag}.png"), "emulator-5562"
+        )
 
     def tap(self, current, anchor_id):
         matches = [item for item in current.evidence if item.anchor_id == anchor_id and item.matched]
@@ -92,6 +96,20 @@ def test_claimable_flow_claims_once_and_returns_home():
         ("tap", "idle-claim-button"),
         ("tap", "idle-claimed-continue"),
     ]
+
+
+def test_claimable_open_animation_uses_its_verified_action_anchor():
+    port = Port(
+        ScreenState.GAME_HOME,
+        ScreenState.IDLE_ENTRY_AVAILABLE,
+        ScreenState.IDLE_REWARD_CLAIMABLE,
+        ScreenState.IDLE_REWARD_CLAIMED,
+        ScreenState.GAME_HOME,
+        entry_anchor="idle-entry-available-open",
+    )
+    result = task().run(port)
+    assert result.status == IdleRewardStatus.SUCCESS
+    assert ("tap", "idle-entry-available-open") in port.actions
 
 
 def test_unavailable_entry_never_opens_or_claims_reward():

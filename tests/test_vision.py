@@ -220,6 +220,12 @@ def test_repository_templates_fail_closed_on_unrelated_image():
             (87, 957),
         ),
         (
+            ScreenState.IDLE_ENTRY_AVAILABLE,
+            [("idle-entry-available-open", 230, 10)],
+            "idle-entry-available-open",
+            (87, 957),
+        ),
+        (
             ScreenState.IDLE_ENTRY_NOT_AVAILABLE,
             [("idle-entry-not-available", 230, 10)],
             "idle-entry-not-available",
@@ -265,7 +271,7 @@ def test_versioned_idle_reward_anchors_and_portrait_mapping(
 
 def test_idle_reward_templates_have_no_stamina_action_anchor():
     anchors = load_anchors(idle_reward_template_folder())
-    assert len(anchors) == 10
+    assert len(anchors) == 11
     assert not any("hourglass" in anchor.id or "stamina" in anchor.id for anchor in anchors)
 
 

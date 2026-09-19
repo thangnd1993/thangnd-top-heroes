@@ -1,0 +1,20 @@
+{
+  "id": "idle-entry-available-open",
+  "state": "IDLE_ENTRY_AVAILABLE",
+  "template": "idle-entry-available-open.png",
+  "expected_region": [
+    0.15,
+    0.0,
+    0.4,
+    0.28
+  ],
+  "threshold": 0.9,
+  "required": true,
+  "weight": 1.0,
+  "variant": "open",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Real claimable Adventure chest in its alternate open/glowing animation frame."
+}

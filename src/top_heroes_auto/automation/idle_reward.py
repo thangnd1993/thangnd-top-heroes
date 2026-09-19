@@ -12,6 +12,10 @@ from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.vision.image_normalizer import ScreenshotInvalid
 from top_heroes_auto.vision.models import ScreenDetection, ScreenState
 
+IDLE_ENTRY_ACTION_ANCHORS = frozenset(
+    {"idle-entry-available", "idle-entry-available-open"}
+)
+
 
 class IdleRewardStatus(StrEnum):
     SUCCESS = "SUCCESS"
@@ -200,9 +204,23 @@ class IdleRewardTask:
                 result.cleanup_succeeded = True
                 return finish(IdleRewardStatus.NOT_AVAILABLE)
 
+            entry_anchor = next(
+                (
+                    item.anchor_id
+                    for item in entry.detection.evidence
+                    if item.matched and item.anchor_id in IDLE_ENTRY_ACTION_ANCHORS
+                ),
+                None,
+            )
+            if entry_anchor is None:
+                return finish(
+                    IdleRewardStatus.UNKNOWN_SCREEN,
+                    "Claimable Idle Reward entry action anchor was not verified.",
+                )
+
             action(
                 "open_idle_reward",
-                lambda: port.tap(entry.detection, "idle-entry-available"),
+                lambda: port.tap(entry.detection, entry_anchor),
             )
             reward = observe_until(
                 "idle-reward",
