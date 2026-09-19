@@ -9,6 +9,7 @@ from typing import Protocol
 
 from top_heroes_auto.app.process import CommandError
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.vision.image_normalizer import ScreenshotInvalid
 from top_heroes_auto.vision.models import ScreenDetection, ScreenState
 
 
@@ -132,6 +133,22 @@ class HomeRecoveryEngine:
                 return finish(RecoveryStatus.LIMIT_REACHED, "Recovery exceeded max duration.")
             try:
                 observation = port.observe(number)
+            except ScreenshotInvalid as exc:
+                if loading_started is None:
+                    return finish(RecoveryStatus.ADB_ERROR, str(exc))
+                if self.clock() - loading_started >= self.loading_timeout:
+                    return finish(
+                        RecoveryStatus.LOADING_TIMEOUT,
+                        "Loading transition remained blank past timeout; no input sent.",
+                    )
+                result.steps.append(
+                    RecoveryStep(number, ScreenState.UNKNOWN, 0.0, None, "wait")
+                )
+                result.actions.append("wait")
+                if cancelled():
+                    return finish(RecoveryStatus.CANCELLED)
+                self.sleep(self.loading_interval)
+                continue
             except (CommandError, OSError, SafetyError, ValueError) as exc:
                 return finish(RecoveryStatus.ADB_ERROR, str(exc))
             detection = observation.detection

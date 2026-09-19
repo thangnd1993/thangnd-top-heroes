@@ -16,6 +16,7 @@ from top_heroes_auto.automation.recovery import (
     RecoveryResult,
     RecoveryStatus,
 )
+from top_heroes_auto.vision.image_normalizer import ScreenshotInvalid
 from top_heroes_auto.vision.models import (
     AnchorEvidence,
     BoundingBox,
@@ -61,6 +62,20 @@ class Clock:
 
     def sleep(self, seconds):
         self.value += seconds
+
+
+class BlankDuringLoadingPort(Port):
+    def observe(self, step):
+        if step == 2:
+            self.observations += 1
+            raise ScreenshotInvalid("Image is blank or effectively uniform.")
+        return super().observe(step)
+
+
+class BlankPort(Port):
+    def observe(self, step):
+        self.observations += 1
+        raise ScreenshotInvalid("Image is blank or effectively uniform.")
 
 
 def test_already_game_home_short_circuits_without_input():
@@ -121,6 +136,23 @@ def test_unknown_loading_transition_is_still_bounded_by_loading_timeout():
     ).ensure_game_home(port)
     assert result.status == RecoveryStatus.LOADING_TIMEOUT
     assert result.actions == ["wait", "wait"]
+    assert port.launches == 0
+
+
+def test_blank_frame_after_verified_loading_waits_without_input():
+    port = BlankDuringLoadingPort(ScreenState.GAME_LOADING, ScreenState.GAME_HOME)
+    result = HomeRecoveryEngine(sleep=lambda _: None).ensure_game_home(port)
+    assert result.status == RecoveryStatus.SUCCESS
+    assert result.states_seen == ["GAME_LOADING", "UNKNOWN", "GAME_HOME"]
+    assert result.actions == ["wait", "wait"]
+    assert port.launches == 0
+
+
+def test_blank_frame_before_verified_loading_fails_closed():
+    port = BlankPort(ScreenState.UNKNOWN)
+    result = HomeRecoveryEngine(sleep=lambda _: None).ensure_game_home(port)
+    assert result.status == RecoveryStatus.ADB_ERROR
+    assert result.actions == []
     assert port.launches == 0
 
 
