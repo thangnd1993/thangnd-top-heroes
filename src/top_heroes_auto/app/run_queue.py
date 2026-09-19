@@ -32,6 +32,21 @@ class RunController:
         run_id = self.store.create_run(manager.namespace, snapshot.members, max_concurrency)
         return QueueRun(run_id, RunSnapshot(snapshot.namespace, snapshot.members, True), max_concurrency)
 
+    def create_members(self, manager: Manager, members: tuple[tuple[int, str], ...], max_concurrency: int) -> QueueRun:
+        """Create an exact diagnostic snapshot without editing other selections."""
+        current = {(item.index, item.name) for item in manager.refresh()}
+        safe = tuple(
+            member
+            for member in members
+            if member in current
+            and self.store.metadata(manager.namespace, member[0]).selected
+            and not self.store.metadata(manager.namespace, member[0]).protected
+        )
+        if safe != members:
+            raise SafetyError("Diagnostic target không còn selected, bị bảo vệ hoặc đổi identity.")
+        run_id = self.store.create_run(manager.namespace, safe, max_concurrency)
+        return QueueRun(run_id, RunSnapshot(manager.namespace, safe, True), max_concurrency)
+
     def retry_failed(self, manager: Manager, prior_run_id: int, max_concurrency: int) -> QueueRun:
         candidates = self.store.retry_members(prior_run_id)
         current = manager.refresh()

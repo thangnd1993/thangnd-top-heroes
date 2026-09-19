@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from top_heroes_auto.app.process import Process
+from top_heroes_auto.app.run_queue import RunController
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.ldplayer.client import LDPlayer, discover
@@ -182,10 +183,12 @@ def parser():
     root = argparse.ArgumentParser(prog="TopHeroesAutoManager.exe diagnostic")
     commands = root.add_subparsers(dest="command", required=True)
     commands.add_parser("list")
-    for command in ("protect", "show", "test"):
+    for command in ("protect", "show", "test", "run-selected"):
         child = commands.add_parser(command)
         child.add_argument("--index", type=int, required=True)
         child.add_argument("--name", required=True)
+        if command == "run-selected":
+            child.add_argument("--concurrency", type=int, choices=(1, 2, 3, 4), default=1)
     return root
 
 
@@ -201,8 +204,25 @@ def main(argv: list[str], data: Path) -> int:
         elif args.command == "show":
             report["instance"] = _view(manager, (_instance(manager, args.index, args.name),))[0]
             print(json.dumps(report["instance"], ensure_ascii=True, indent=2))
-        else:
+        elif args.command == "test":
             report.update(test_command(manager, data, args.index, args.name))
+        else:
+            target = _instance(manager, args.index, args.name)
+            main = _instance(manager, 0, "Queen")
+            if not manager.store.metadata(manager.namespace, main.index).protected:
+                raise SafetyError("Queen must be Protected before diagnostic testing.")
+            controller = RunController(
+                manager.store,
+                lambda: Manager(LDPlayer(manager.ld.installation, Process()), manager.store, data),
+            )
+            run = controller.create_members(manager, ((target.index, target.name),), args.concurrency)
+            rows = controller.execute(run)
+            report["phase2_run"] = {
+                "id": run.id,
+                "snapshot": list(run.snapshot.members),
+                "max_concurrency": run.max_concurrency,
+                "accounts": [list(row) for row in rows],
+            }
         report["status"] = "passed"
         return 0
     except Exception as exc:
