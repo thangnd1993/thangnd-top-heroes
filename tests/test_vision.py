@@ -7,10 +7,10 @@ import numpy as np
 import pytest
 
 from top_heroes_auto.adb.client import Target
-from top_heroes_auto.app.vision_cli import _capture
+from top_heroes_auto.app.vision_cli import _capture, _write_detection_report
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.vision.debug import write_overlay
-from top_heroes_auto.vision.detector import ScreenDetector
+from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.image_normalizer import ImageNormalizer, ScreenshotInvalid
 from top_heroes_auto.vision.models import BoundingBox, NormalizedRect, ScreenState, VisualAnchor
 from top_heroes_auto.vision.screenshot import ScreenshotService
@@ -57,6 +57,13 @@ def test_screenshot_persists_to_unicode_folder(tmp_path):
     captured = ScreenshotService(lambda _: png(patterned())).take(target, tmp_path / "3-Chíp", "trang-chủ")
     assert captured.source_image.is_file()
     assert captured.source_image.with_suffix(".json").is_file()
+
+
+def test_detection_report_persists_unicode_as_utf8(tmp_path):
+    target = Target(4, "3-Chíp", "emulator-5562", BOOT_ID)
+    captured = ScreenshotService(lambda _: png(patterned())).take(target, tmp_path / "3-Chíp")
+    report = _write_detection_report(captured, {"instance": {"name": "3-Chíp"}, "state": "UNKNOWN"})
+    assert "3-Chíp" in report.read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize("payload", [b"not-png", b"\x89PNG\r\n\x1a\nbroken"])
@@ -150,3 +157,14 @@ def test_protected_target_rejected_before_capture(rig, tmp_path):
     manager.refresh()
     with pytest.raises(SafetyError, match="selected and not Protected"):
         _capture(manager, tmp_path, 0, "Queen", "protected")
+
+
+def test_repository_templates_load_and_have_unique_ids():
+    anchors = load_anchors(Path("assets/templates"))
+    assert {anchor.state for anchor in anchors} >= {
+        ScreenState.ANDROID_HOME,
+        ScreenState.GAME_LOADING,
+        ScreenState.GAME_HOME,
+    }
+    assert len({anchor.id for anchor in anchors}) == len(anchors)
+    assert all(anchor.template.is_file() for anchor in anchors)

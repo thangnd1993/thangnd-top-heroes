@@ -1,0 +1,19 @@
+{
+  "id": "android-launcher-search",
+  "state": "ANDROID_HOME",
+  "template": "android-launcher-search.png",
+  "expected_region": [
+    0.25,
+    0.03,
+    0.75,
+    0.18
+  ],
+  "threshold": 0.88,
+  "required": true,
+  "weight": 1.0,
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "LDPlayer launcher search bar from verified 4 / 3-Chíp."
+}

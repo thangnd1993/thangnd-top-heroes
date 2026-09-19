@@ -8,5 +8,6 @@ build/
 dist/
 logs/
 screenshots/
+/artifacts/
 *.sqlite3*
 .DS_Store

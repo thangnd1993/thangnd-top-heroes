@@ -1,0 +1,19 @@
+{
+  "id": "hhgames-logo",
+  "state": "GAME_LOADING",
+  "template": "hhgames-logo.png",
+  "expected_region": [
+    0.3,
+    0.15,
+    0.7,
+    0.8
+  ],
+  "threshold": 0.9,
+  "required": true,
+  "weight": 1.0,
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "HHGames startup logo from verified Thời Đại Anh Hùng launch."
+}

@@ -47,6 +47,14 @@ def _capture(manager, data: Path, index: int, name: str, tag: str):
     return ScreenshotService(exact_capture).take(target, folder, tag)
 
 
+def _write_detection_report(screen, result: dict) -> Path:
+    if screen.source_image is None:
+        raise ValueError("A persisted screenshot is required for a diagnostic report.")
+    report = screen.source_image.with_name(f"{screen.source_image.stem}-detection.json")
+    report.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    return report
+
+
 def main(argv: list[str], data: Path) -> int:
     args = parser().parse_args(argv)
     manager = _manager(data)
@@ -72,6 +80,7 @@ def main(argv: list[str], data: Path) -> int:
                 detection.state.value,
                 detection.confidence,
             )
+            result["detection_report"] = str(_write_detection_report(screen, result))
         print(json.dumps(result, ensure_ascii=True, indent=2))
         return 0
     except Exception as exc:

@@ -1,0 +1,19 @@
+{
+  "id": "home-world-button",
+  "state": "GAME_HOME",
+  "template": "home-world-button.png",
+  "expected_region": [
+    0.0,
+    0.75,
+    0.2,
+    1.0
+  ],
+  "threshold": 0.86,
+  "required": true,
+  "weight": 1.0,
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "World navigation anchor on real game home; no gameplay interaction used."
+}

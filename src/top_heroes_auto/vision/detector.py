@@ -31,6 +31,9 @@ def load_anchors(folder: Path) -> tuple[VisualAnchor, ...]:
                 float(item.get("weight", 1.0)),
             )
         )
+    ids = [anchor.id for anchor in anchors]
+    if len(ids) != len(set(ids)):
+        raise ValueError("Vision anchor IDs must be unique.")
     return tuple(anchors)
 
 

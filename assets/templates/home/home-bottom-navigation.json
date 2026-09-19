@@ -1,0 +1,19 @@
+{
+  "id": "home-bottom-navigation",
+  "state": "GAME_HOME",
+  "template": "home-bottom-navigation.png",
+  "expected_region": [
+    0.1,
+    0.75,
+    0.45,
+    1.0
+  ],
+  "threshold": 0.82,
+  "required": false,
+  "weight": 1.0,
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Optional navigation cluster on real game home."
+}
