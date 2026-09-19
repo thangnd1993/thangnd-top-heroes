@@ -13,6 +13,10 @@ signal because partially accumulated rewards contain both green and gray segment
 classified not claimable only when its title and unique no-reward message both match; the entry
 screen remains the authoritative availability gate before opening it.
 
+The immediate post-claim variant instead matches the gray *start* of the accumulation bar in a
+tightly bounded region. This is mutually exclusive with the green minimum-fill anchor and cannot
+slide down to the gray remainder of a partially filled bar.
+
 The claimable chest has separate closed and open/glowing animation anchors. Both keep the strict
 `0.9` threshold so animation coverage does not weaken the not-available guard.
 
