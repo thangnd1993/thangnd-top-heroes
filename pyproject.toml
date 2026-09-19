@@ -7,7 +7,7 @@ name = "top-heroes-auto-manager"
 version = "0.1.0"
 description = "Windows LDPlayer manager with explicit safe selection"
 requires-python = ">=3.12"
-dependencies = ["PySide6>=6.8,<7"]
+dependencies = ["PySide6>=6.8,<7", "numpy>=2,<3", "opencv-python-headless>=4.10,<5"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "ruff>=0.11,<1", "pyinstaller>=6.11,<7"]

@@ -36,6 +36,9 @@ from top_heroes_auto.app.service import Manager
 from top_heroes_auto.ldplayer.client import LDPlayer, discover, inspect_folder
 from top_heroes_auto.storage.store import AccountStatus
 from top_heroes_auto.ui.theme import STYLE
+from top_heroes_auto.vision.detector import ScreenDetector
+from top_heroes_auto.vision.resources import template_folder
+from top_heroes_auto.vision.screenshot import ScreenshotService
 
 
 class Worker(QThread):
@@ -216,6 +219,11 @@ class Window(QMainWindow):
             ("Chụp màn hình Android", "screenshot"),
         ):
             self.action_buttons.append(self.button(adb, title, lambda _, a=action: self.action(a)))
+        vision = self.group(panels, "Nhận diện màn hình")
+        self.vision_status = QLabel("Màn hình hiện tại: Chưa nhận diện\nĐộ tin cậy: —")
+        self.vision_status.setWordWrap(True)
+        vision.addWidget(self.vision_status)
+        self.action_buttons.append(self.button(vision, "Nhận diện màn hình", self.detect_screen))
         options = self.group(panels, "Tùy chọn thực thi")
         options.addWidget(QLabel("Số giả lập chạy đồng thời"))
         self.concurrency = QSpinBox()
@@ -333,6 +341,23 @@ class Window(QMainWindow):
             self.logs.appendPlainText(str(result))
         elif self.mode == "screenshot":
             self.show_capture(result)
+        elif self.mode == "vision":
+            labels = {
+                "UNKNOWN": "Không xác định",
+                "ANDROID_HOME": "Màn hình Android",
+                "GAME_LOADING": "Đang tải game",
+                "GAME_HOME": "Trang chủ game",
+                "POPUP_GENERIC": "Popup",
+                "CONNECTION_ERROR": "Lỗi kết nối",
+                "UPDATE_NOTICE": "Thông báo cập nhật",
+            }
+            self.vision_status.setText(
+                f"Màn hình hiện tại: {labels.get(result.state.value, result.state.value)}\n"
+                f"Độ tin cậy: {result.confidence:.0%}"
+            )
+            self.logs.appendPlainText(
+                f"Nhận diện {result.state.value} · {result.confidence:.3f} · {result.duration_ms:.1f} ms"
+            )
         elif self.mode == "packages":
             dialog = QDialog(self)
             dialog.setWindowTitle("Ứng dụng đã cài trên giả lập đã chọn")
@@ -487,6 +512,19 @@ class Window(QMainWindow):
         if index is not None and self.manager:
             package = self.package.text().strip()
             self.run_job(action, lambda: self.manager.execute(index, action, package))
+
+    def detect_screen(self):
+        index = self.target.currentData()
+        if index is None or not self.manager:
+            return
+
+        def work():
+            target, payload = self.manager.capture_verified(index)
+            service = ScreenshotService(lambda serial: payload if serial == target.serial else b"")
+            screen = service.take(target)
+            return ScreenDetector.from_folder(template_folder()).detect(screen)
+
+        self.run_job("vision", work)
 
     def _queue_factory(self):
         installation = self.manager.ld.installation

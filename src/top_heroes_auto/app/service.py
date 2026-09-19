@@ -196,6 +196,30 @@ class Manager:
                 )
             time.sleep(self.POLL_INTERVAL)
 
+    def capture_verified(self, index: int, snapshot: RunSnapshot | None = None) -> tuple[Target, bytes]:
+        """Capture exactly one PNG through a freshly verified explicit target."""
+        with self._lock:
+            current = self.refresh()
+            immutable_snapshot = snapshot is not None
+            snapshot = snapshot or create_snapshot(self.store, self.namespace, current)
+            self._active = RunSnapshot(
+                self.namespace,
+                tuple(member for member in snapshot.members if member[0] == index),
+                immutable_snapshot,
+            )
+            try:
+                target = self._resolve(index)
+                self._check(index)
+                if self.adb.boot_id(target.serial) != target.boot_id:
+                    raise SafetyError("ADB target đã thay đổi; hủy chụp màn hình.")
+                self._check(index)
+                return target, self.adb._capture(target.serial)
+            except Exception:
+                log.exception("[#%s] Hủy capture đã xác minh", index)
+                raise
+            finally:
+                self._active = None
+
     def execute(
         self, index: int, action: str, package: str = "", values: tuple = (), snapshot: RunSnapshot | None = None
     ):

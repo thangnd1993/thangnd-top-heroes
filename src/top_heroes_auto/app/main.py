@@ -18,6 +18,10 @@ def main(argv: list[str] | None = None):
         from top_heroes_auto.app.diagnostic import main as diagnostic_main
 
         return diagnostic_main(argv[1:], data_directory())
+    if argv and argv[0] == "vision":
+        from top_heroes_auto.app.vision_cli import main as vision_main
+
+        return vision_main(argv[1:], data_directory())
 
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QApplication
