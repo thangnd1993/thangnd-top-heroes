@@ -80,7 +80,7 @@ class RunController:
             self.store.set_account_status(run.id, index, AccountStatus.SUCCESS, started_by_run=started_by_run)
             self.progress(run.id, index, AccountStatus.SUCCESS, "Hoàn tất")
             return AccountStatus.SUCCESS
-        except Exception as exc:
+        except (RuntimeError, ValueError) as exc:
             status = AccountStatus.CANCELLED if self.cancelled.is_set() else AccountStatus.FAILED
             self.store.set_account_status(run.id, index, status, str(exc), started_by_run)
             self.progress(run.id, index, status, str(exc))
@@ -90,7 +90,7 @@ class RunController:
             if started_by_run:
                 try:
                     manager.execute(index, "quit", snapshot=run.snapshot)
-                except Exception:
+                except RuntimeError:
                     logging.getLogger("top_heroes_auto").exception("Run target cleanup failed")
 
     def execute(self, run: QueueRun):
