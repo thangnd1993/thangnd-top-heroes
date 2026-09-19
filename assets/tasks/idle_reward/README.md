@@ -9,3 +9,5 @@ hourglass is excluded from every action anchor because it can spend stamina.
 
 The claimable chest has separate closed and open/glowing animation anchors. Both keep the strict
 `0.9` threshold so animation coverage does not weaken the not-available guard.
+
+The Adventure portal action anchor uses only its stable blue core and excludes the animated flame.

@@ -212,7 +212,7 @@ def test_repository_templates_fail_closed_on_unrelated_image():
 @pytest.mark.parametrize(
     ("expected", "placements", "action_anchor", "device_center"),
     [
-        (ScreenState.GAME_HOME, [("idle-adventure-portal", 735, 410)], "idle-adventure-portal", (467, 485)),
+        (ScreenState.GAME_HOME, [("idle-adventure-portal", 770, 420)], "idle-adventure-portal", (465, 470)),
         (
             ScreenState.IDLE_ENTRY_AVAILABLE,
             [("idle-entry-available", 230, 10)],
@@ -278,7 +278,7 @@ def test_idle_reward_templates_have_no_stamina_action_anchor():
 @pytest.mark.parametrize(
     ("filename", "expected", "action_anchor", "device_center"),
     [
-        ("phase5-final-home.png", ScreenState.GAME_HOME, "idle-adventure-portal", (467, 485)),
+        ("phase5-final-home.png", ScreenState.GAME_HOME, "idle-adventure-portal", (465, 470)),
         (
             "phase5-adventure-portal-result.png",
             ScreenState.IDLE_ENTRY_AVAILABLE,
