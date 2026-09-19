@@ -181,8 +181,45 @@ class IdleRewardTask:
             home = observe_until("return-home", {ScreenState.GAME_HOME})
             return bool(home and home.detection.state == ScreenState.GAME_HOME)
 
+        def recover_task_context(observation: IdleRewardObservation) -> IdleRewardObservation | None:
+            state = observation.detection.state
+            if state in {
+                ScreenState.IDLE_REWARD_CLAIMABLE,
+                ScreenState.IDLE_REWARD_NOT_CLAIMABLE,
+            }:
+                action(
+                    "close_existing_idle_reward",
+                    lambda: port.back(observation.detection),
+                )
+                observation = observe_until(
+                    "existing-adventure",
+                    {ScreenState.IDLE_ENTRY_AVAILABLE, ScreenState.IDLE_ENTRY_NOT_AVAILABLE},
+                )
+                if observation is None or observation.detection.state not in {
+                    ScreenState.IDLE_ENTRY_AVAILABLE,
+                    ScreenState.IDLE_ENTRY_NOT_AVAILABLE,
+                }:
+                    return None
+                state = observation.detection.state
+            if state in {
+                ScreenState.IDLE_ENTRY_AVAILABLE,
+                ScreenState.IDLE_ENTRY_NOT_AVAILABLE,
+            }:
+                action(
+                    "leave_existing_adventure",
+                    lambda: port.back(observation.detection),
+                )
+                return observe_until("existing-return-home", {ScreenState.GAME_HOME})
+            return observation
+
         try:
             home = observe("game-home")
+            home = recover_task_context(home)
+            if home is None:
+                return finish(
+                    IdleRewardStatus.UNKNOWN_SCREEN,
+                    "Known Idle Reward context did not return to GAME_HOME.",
+                )
             if home.detection.state != ScreenState.GAME_HOME:
                 return finish(IdleRewardStatus.UNKNOWN_SCREEN, "GAME_HOME portal anchor was not verified.")
             action(

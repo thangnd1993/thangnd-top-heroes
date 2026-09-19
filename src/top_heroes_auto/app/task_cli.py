@@ -119,7 +119,11 @@ def run_idle_reward_diagnostic(
             cancelled=cancelled,
             cleanup_owned=False,
         )
-        if recovery.status not in {RecoveryStatus.SUCCESS, RecoveryStatus.ALREADY_HOME}:
+        if recovery.status not in {
+            RecoveryStatus.SUCCESS,
+            RecoveryStatus.ALREADY_HOME,
+            RecoveryStatus.UNKNOWN_SCREEN,
+        }:
             status = (
                 IdleRewardStatus.CANCELLED
                 if recovery.status == RecoveryStatus.CANCELLED

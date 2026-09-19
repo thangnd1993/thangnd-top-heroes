@@ -8,9 +8,11 @@ import pytest
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.idle_reward import (
     IdleRewardObservation,
+    IdleRewardResult,
     IdleRewardStatus,
     IdleRewardTask,
 )
+from top_heroes_auto.automation.recovery import RecoveryResult, RecoveryStatus
 from top_heroes_auto.storage.store import Store
 from top_heroes_auto.vision.models import AnchorEvidence, BoundingBox, ScreenDetection, ScreenState
 
@@ -112,6 +114,29 @@ def test_claimable_open_animation_uses_its_verified_action_anchor():
     assert ("tap", "idle-entry-available-open") in port.actions
 
 
+def test_known_task_panel_is_closed_and_reentered_from_verified_home():
+    port = Port(
+        ScreenState.IDLE_REWARD_CLAIMABLE,
+        ScreenState.IDLE_ENTRY_AVAILABLE,
+        ScreenState.GAME_HOME,
+        ScreenState.IDLE_ENTRY_AVAILABLE,
+        ScreenState.IDLE_REWARD_CLAIMABLE,
+        ScreenState.IDLE_REWARD_CLAIMED,
+        ScreenState.GAME_HOME,
+    )
+    result = task().run(port)
+    assert result.status == IdleRewardStatus.SUCCESS
+    assert result.claim_dispatched
+    assert port.actions == [
+        ("back", ScreenState.IDLE_REWARD_CLAIMABLE.value),
+        ("back", ScreenState.IDLE_ENTRY_AVAILABLE.value),
+        ("tap", "idle-adventure-portal"),
+        ("tap", "idle-entry-available"),
+        ("tap", "idle-claim-button"),
+        ("tap", "idle-claimed-continue"),
+    ]
+
+
 def test_unavailable_entry_never_opens_or_claims_reward():
     port = Port(
         ScreenState.GAME_HOME,
@@ -210,4 +235,40 @@ def test_protected_target_is_rejected_before_mutation(rig, tmp_path):
     process.calls.clear()
     with pytest.raises(SafetyError, match="selected and not Protected"):
         run_idle_reward_diagnostic(manager, tmp_path, 7, "Farm-007")
+    assert not any(call[1] in {"launch", "quit", "-s"} for call in process.calls if len(call) > 1)
+
+
+def test_task_specific_recovery_gets_safe_chance_after_generic_unknown(
+    rig, tmp_path, monkeypatch
+):
+    from top_heroes_auto.app.task_cli import run_idle_reward_diagnostic
+
+    manager, process, _ = rig
+    process.listing = process.listing.replace("Main-Thang", "Queen")
+    manager.refresh()
+    recovery_report = tmp_path / "generic-recovery.json"
+    recovery_report.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(
+        "top_heroes_auto.app.task_cli.run_home_recovery",
+        lambda *args, **kwargs: (
+            RecoveryResult(RecoveryStatus.UNKNOWN_SCREEN),
+            recovery_report,
+            False,
+        ),
+    )
+
+    class SafeTaskFallback:
+        def run(self, port, cancelled):
+            return IdleRewardResult(IdleRewardStatus.NOT_AVAILABLE)
+
+    result, report, started, _ = run_idle_reward_diagnostic(
+        manager,
+        tmp_path,
+        7,
+        "Farm-007",
+        task=SafeTaskFallback(),
+    )
+    assert result.status == IdleRewardStatus.NOT_AVAILABLE
+    assert report.is_file()
+    assert not started
     assert not any(call[1] in {"launch", "quit", "-s"} for call in process.calls if len(call) > 1)
