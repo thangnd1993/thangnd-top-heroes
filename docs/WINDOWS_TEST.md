@@ -1,5 +1,35 @@
 # Nghiệm thu trên Windows thật
 
+## Phase 4 — Safe home recovery result
+
+Real Windows Phase 4 recovery acceptance: **PASSED** (2026-09-19).
+
+- Fresh artifact: CI run `35444434273`, commit `097e155`, artifact `10584592524`; verified SHA-256
+  `794a460ca253c40e2dee35d16bcf99d193806871486afec2b15faba39b091b9a`.
+- Scope: only `4 / 3-Chíp`, explicit ADB `emulator-5562`; `0 / Queen` remained Protected and
+  unselected. No lifecycle/ADB/game mutation was sent to another instance.
+- Stopped scenario: recovery started index 4, launched only verified package
+  `com.greenmushroom.boomblitz.gp.vn`, waited without input through loading/blank frames, reached
+  `GAME_HOME`, returned `SUCCESS`, then cleaned up because the run owned the start.
+- Already-home scenario: one fresh capture detected `GAME_HOME` at confidence `0.998662`, returned
+  `ALREADY_HOME`, actions `[]`, and did not request cleanup.
+- Android-home scenario: detected `ANDROID_HOME`, launched the verified package once, waited through
+  bounded transition frames, reached `GAME_HOME` at confidence `0.979019`, and returned `SUCCESS`.
+- Synthetic unrelated `UNKNOWN`: two confirmation captures, no input, then `UNKNOWN_SCREEN`.
+- Limits: 30 steps, 120-second overall duration, 90-second loading/launch window, 5-second poll.
+  Cancellation is checked before captures/actions and before further waits.
+- No real popup appeared naturally, so no speculative popup template/action was added. The typed
+  `PopupHandler` framework is ready for a future real, unambiguous safe fixture.
+
+Headless recovery command:
+
+```powershell
+TopHeroesAutoManager.exe recovery home --index 4 --name "3-Chíp"
+```
+
+Each run writes UTF-8 JSON plus evidence under
+`%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\recovery\<account>\<run-id>\`.
+
 ## Phase 3 — Screen recognition result
 
 Real Windows Phase 3 visual acceptance: **PASSED** (2026-09-19).

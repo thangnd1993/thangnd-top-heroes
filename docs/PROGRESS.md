@@ -1,5 +1,32 @@
 # Tiến độ
 
+## Phase 4 — Popup Handling + Safe Home Recovery — COMPLETE
+
+- Trạng thái: **COMPLETE**. Real Windows acceptance: **PASSED** ngày 2026-09-19 trên duy nhất
+  `4 / 3-Chíp`; `0 / Queen` vẫn Protected, unselected và không nhận mutation.
+- Fresh portable: CI run `35444434273`, commit `097e155`, artifact `10584592524`, SHA-256
+  `794a460ca253c40e2dee35d16bcf99d193806871486afec2b15faba39b091b9a`.
+- Recovery engine giữ snapshot exact index/name, verified explicit ADB target, một screenshot mỗi step,
+  action có precondition, postcondition bằng ảnh mới, cancellation và giới hạn 30 steps/120 giây.
+  Loading/launch transition giới hạn 90 giây, poll 5 giây; không click trong loading.
+- Scenario A (stopped): `ANDROID_HOME → launch_game → GAME_LOADING/UNKNOWN transition → GAME_HOME`,
+  `SUCCESS`, ADB `emulator-5562`, `started_by_run=true`, cleanup đúng index 4.
+- Scenario B (đã ở game home): `ALREADY_HOME`, actions rỗng, confidence `0.998662`, không cleanup
+  instance không do run sở hữu. Scenario C (Android Home): launch package đã verify rồi `SUCCESS`,
+  GAME_HOME confidence `0.979019`, không gameplay click.
+- Scenario D synthetic: `UNKNOWN` được chụp xác nhận hai lần rồi fail-closed; không input/mutation.
+  Blank/cropped frames chỉ được wait trong launch/loading window đã xác nhận và vẫn chịu timeout.
+- Safe input abstraction chỉ tap khi có đúng một detected anchor với bounding box đã map về device;
+  UNKNOWN hoặc thiếu evidence trả `DO NOT TAP`. Popup framework đã sẵn sàng nhưng chưa đăng ký handler
+  vì không có real popup xuất hiện tự nhiên: **No real popup fixture available**.
+- Diagnostic: `TopHeroesAutoManager.exe recovery home --index 4 --name "3-Chíp"`; report/screenshots
+  nằm dưới `%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\recovery\` và không commit vào Git.
+- Targeted local: 74 recovery/vision/lifecycle tests pass; Ruff pass. CI run `35444434273` lint,
+  full pytest, Windows portable build và executable smoke đều pass.
+- Isolation pass: Queen và các instance ngoài index 4 giữ nguyên; không default ADB, first-device/index-0
+  fallback, `quitall`, global operation, blind click hoặc gameplay/daily-task automation.
+- Branch: `codex/phase4-home-recovery`. Không bắt đầu Phase 5.
+
 ## Phase 3 — Screenshot Pipeline + Screen Recognition — COMPLETE
 
 - Trạng thái: **COMPLETE**. Real Windows acceptance: **PASSED** ngày 2026-09-19 trên duy nhất

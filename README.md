@@ -3,8 +3,26 @@
 Ứng dụng desktop **Windows**, Python 3.12 + PySide6, quản lý LDPlayer theo nguyên tắc
 **một instance = một tài khoản**. Phát triển bởi Thang Nguyen.
 
-Phase 1 và Phase 2 đã nghiệm thu trên LDPlayer thật. Phase 3 bổ sung pipeline screenshot Android
-qua ADB target đã xác minh và nhận diện màn hình fail-closed bằng OpenCV. Chưa có gameplay automation.
+Phase 1–4 đã nghiệm thu trên LDPlayer thật. Phase 3 bổ sung pipeline screenshot Android và nhận diện
+fail-closed bằng OpenCV; Phase 4 bổ sung recovery có guard để về trang chủ game. Chưa có gameplay automation.
+
+## Recovery về trang chủ game — Phase 4
+
+- UI có nút **Về trang chủ game**; CLI tương đương:
+
+  ```powershell
+  TopHeroesAutoManager.exe recovery home --index 4 --name "3-Chíp"
+  ```
+
+- Mỗi step chụp đúng một ảnh từ explicit verified ADB target, nhận diện state rồi mới quyết định tối đa
+  một action. `GAME_HOME` trả ngay; `ANDROID_HOME` chỉ launch package đã xác minh; `GAME_LOADING` chỉ wait.
+- Recovery giới hạn 30 steps/120 giây; launch/loading tối đa 90 giây, poll 5 giây. Frame đen/UNKNOWN chỉ
+  được wait trong transition window đã mở bởi launch/loading đã xác minh. UNKNOWN độc lập được xác nhận
+  bằng ảnh mới rồi fail-closed, không tap hay Back.
+- Tap chỉ hợp lệ khi detector trả đúng anchor và bounding box; tọa độ được map về device. Popup framework
+  đã sẵn sàng nhưng chưa có handler thật vì chưa thu được real popup an toàn, không mơ hồ.
+- Report JSON và ảnh evidence nằm trong
+  `%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\recovery\<account>\<run-id>\`.
 
 ## Nhận diện màn hình Phase 3
 
@@ -126,6 +144,7 @@ Windows: `%LOCALAPPDATA%\TopHeroesAutoManager\`
 - `screenshots/instance-<index>-<UTC timestamp>.png`: màn hình Android từ ADB.
 - `diagnostics/vision/<instance>/`: ảnh chụp, metadata và detection JSON Phase 3.
 - `diagnostics/vision/debug/`: overlay anchor/confidence khi bật `--debug`.
+- `diagnostics/recovery/<instance>/<run-id>/`: ảnh từng step và report JSON Phase 4.
 
 Ảnh được giữ nguyên để đối chiếu, không tự xóa. Sao lưu cơ sở dữ liệu khi app đã đóng.
 macOS development dùng `~/.local/share/TopHeroesAutoManager/`.
@@ -141,4 +160,4 @@ Tài liệu CLI nguồn: [LDPlayer command line interface](https://www.ldplayer.
 `list2` có 7 trường: index, tên, 2 window handles, Android started, PID, VBox PID.
 Không có resolution, DPI, serial hoặc trạng thái game; UI hiển thị **Chưa đọc/Chưa kiểm tra**.
 
-Xem [tiến độ](docs/PROGRESS.md). Phase 3 dừng ở nền tảng nhận diện; chưa bắt đầu Phase 4.
+Xem [tiến độ](docs/PROGRESS.md). Phase 4 dừng ở recovery an toàn về GAME_HOME; chưa bắt đầu Phase 5.
