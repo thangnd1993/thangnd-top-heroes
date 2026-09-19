@@ -1,25 +1,33 @@
 # Nghiệm thu trên Windows thật
 
-## Phase 5 — Idle Reward evidence and pending portable acceptance
+## Phase 5 — Idle Reward result
 
-Current status: **PARTIAL**. Real UI evidence was collected on `4 / 3-Chíp` only with explicit ADB
-`emulator-5562`; `0 / Queen` remained Protected. All 12 LDPlayer instances were stopped after the
-collection run.
+Real Windows Phase 5 acceptance: **PASSED** (2026-09-20).
 
-- Home entry: blue `Cấp 4` Adventure portal beside the fortress.
-- Adventure claimable entry: lower-left chest with green glow plus red notification dot.
-- Real screen title: `Thưởng Treo Máy`; free action: blue `Nhận` button.
-- Forbidden adjacent action: hourglass `6/6`; it can spend stamina and has no action anchor.
-- Claim verification: one Claim tap produced `Chúc Mừng Nhận` with the expected reward quantities;
-  the verified `Nhấn để tiếp tục` target returned directly to `GAME_HOME`.
-- Immediate second-run evidence: entry had no glow/dot. The panel's blue Claim button still existed at
-  8 seconds, proving the button alone is unsafe. Automation returns `NOT_AVAILABLE` from the entry
-  indicator and never sends a second Claim tap.
-- Full evidence is outside Git; only stable crops are versioned in `assets/tasks/idle_reward/`.
-- Local targeted suite: 60 passed; Ruff passed. Full pytest/PyInstaller/smoke and fresh portable real
-  diagnostic remain pending GitHub Actions.
+- Scope: only `4 / 3-Chíp`, explicit ADB `emulator-5562`; `0 / Queen` remained Protected and
+  unselected. `5 / 4-Em Pé` and all other instances received no mutation.
+- Final artifact: CI run `35469961859`, commit `43e3458`, artifact `10592886746`; verified SHA-256
+  `67f648a2d0b41f466cde9049ee6177c29d9092396b755c4b347a1590cb695936`.
+- Claim run ID `5`: exact route and visual preconditions passed, Claim was dispatched once, reward
+  popup and continuation were verified, and no retry was sent. A real post-claim panel cleanup issue
+  was then fixed with new regression coverage and a new CI artifact.
+- Final run ID `7`: `NOT_AVAILABLE`, `claim_dispatched=false`, `cleanup_succeeded=true`, final state
+  `GAME_HOME`, `isolation_changed_indices=[]`. This proves the second run does not double-claim and
+  that the final artifact closes the verified post-claim panel and returns Home.
+- Run IDs `5` and `7`, statuses and report paths persisted in `%LOCALAPPDATA%\TopHeroesAutoManager\config.sqlite3`
+  and were read back after each portable process exited.
+- Home action uses the stable core of blue `Cấp 4` Adventure portal. Claimability uses the Adventure
+  chest glow/red dot plus verified panel title/button/minimum green fill. Post-claim variants require
+  either the unique no-reward message or the gray *start* of the bar in a tightly bounded region.
+- The adjacent hourglass `6/6` remains forbidden and has no action anchor. Unknown/ambiguous screens
+  do not receive input; each action requires a newly captured verified state.
+- Final lifecycle ownership: `3-Chíp` was already running, so the task left it running. Queen stayed
+  stopped/Protected; index 1 and 7 remained in their pre-run running state; every other instance kept
+  its baseline state.
+- Local targeted final: 66 tests passed and Ruff passed. CI lint, full pytest, PyInstaller portable,
+  executable smoke and artifact upload all passed.
 
-Portable acceptance command after CI passes:
+Portable diagnostic command:
 
 ```powershell
 TopHeroesAutoManager.exe task idle-reward --index 4 --name "3-Chíp"
