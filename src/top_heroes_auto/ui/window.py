@@ -33,8 +33,8 @@ from PySide6.QtWidgets import (
 from top_heroes_auto.app.process import Process
 from top_heroes_auto.app.run_queue import RunController
 from top_heroes_auto.app.service import Manager
-from top_heroes_auto.storage.store import AccountStatus
 from top_heroes_auto.ldplayer.client import LDPlayer, discover, inspect_folder
+from top_heroes_auto.storage.store import AccountStatus
 from top_heroes_auto.ui.theme import STYLE
 
 
