@@ -31,7 +31,9 @@ from PySide6.QtWidgets import (
 )
 
 from top_heroes_auto.app.process import Process
+from top_heroes_auto.app.run_queue import RunController
 from top_heroes_auto.app.service import Manager
+from top_heroes_auto.storage.store import AccountStatus
 from top_heroes_auto.ldplayer.client import LDPlayer, discover, inspect_folder
 from top_heroes_auto.ui.theme import STYLE
 
@@ -67,6 +69,8 @@ class UILogHandler(logging.Handler):
 
 
 class Window(QMainWindow):
+    run_progress = Signal(int, int, object, str)
+
     def __init__(self, store, data_dir):
         super().__init__()
         self.store, self.data_dir = store, data_dir
@@ -74,6 +78,8 @@ class Window(QMainWindow):
         self.instances = ()
         self.worker = None
         self.mode = ""
+        self.run_controller = None
+        self.run_states = {}
         self.setWindowTitle("Top Heroes Auto Manager — V0.1.0")
         self.resize(1440, 920)
         self.setMinimumSize(1080, 740)
@@ -179,14 +185,12 @@ class Window(QMainWindow):
         self.button(status, "Kiểm tra lại", self.discover_ld)
         self.button(status, "Chọn thư mục LDPlayer", self.pick_folder)
         auto = self.group(panels, "Điều khiển tự động")
-        self.auto_start = self.button(auto, "Bắt đầu tự động (0)", lambda: None)
-        for button in (
-            self.auto_start,
-            self.button(auto, "Dừng tất cả", lambda: None),
-            self.button(auto, "Tạm dừng", lambda: None),
-        ):
+        self.auto_start = self.button(auto, "Bắt đầu tự động (0)", self.start_selected)
+        self.auto_stop = self.button(auto, "Dừng tự động", self.stop_run)
+        self.auto_pause = self.button(auto, "Tạm dừng", self.pause_run)
+        self.retry_failed = self.button(auto, "Thử lại lỗi", self.retry_run)
+        for button in (self.auto_stop, self.auto_pause, self.retry_failed):
             button.setEnabled(False)
-            button.setToolTip("Phase 1 chưa có gameplay automation; không gửi lệnh toàn cục.")
         actions = self.group(panels, "Thao tác với giả lập đã chọn")
         self.target = QComboBox()
         self.target.currentIndexChanged.connect(self.target_changed)
@@ -213,17 +217,13 @@ class Window(QMainWindow):
         ):
             self.action_buttons.append(self.button(adb, title, lambda _, a=action: self.action(a)))
         options = self.group(panels, "Tùy chọn thực thi")
-        options.addWidget(QLabel("Chưa áp dụng trong Phase 1"))
-        for title in ("Số giả lập chạy đồng thời", "Thời gian chờ giữa các tác vụ (giây)"):
-            options.addWidget(QLabel(title))
-            spin = QSpinBox()
-            spin.setMinimum(1)
-            spin.setEnabled(False)
-            options.addWidget(spin)
-        for title in ("Tự động đóng game sau khi xong", "Tự động tắt giả lập sau khi xong"):
-            check = QCheckBox(title)
-            check.setEnabled(False)
-            options.addWidget(check)
+        options.addWidget(QLabel("Số giả lập chạy đồng thời"))
+        self.concurrency = QSpinBox()
+        self.concurrency.setRange(1, 4)
+        self.concurrency.setValue(int(self.store.get("max_concurrency", "1")))
+        self.concurrency.valueChanged.connect(lambda value: self.store.set("max_concurrency", str(value)))
+        options.addWidget(self.concurrency)
+        options.addWidget(QLabel("Phase 2 chỉ kiểm tra lifecycle; không mở game."))
         panels.addStretch()
         scroll.setWidget(right)
         splitter.addWidget(scroll)
@@ -235,6 +235,7 @@ class Window(QMainWindow):
         self.logs.setMaximumHeight(155)
         layout.addWidget(self.logs)
         self.bridge = LogBridge(self)
+        self.run_progress.connect(self.update_run_progress)
         self.bridge.message.connect(self.logs.appendPlainText)
         self.log_handler = UILogHandler(self.bridge)
         logging.getLogger("top_heroes_auto").addHandler(self.log_handler)
@@ -273,7 +274,12 @@ class Window(QMainWindow):
         if self.worker is not None:
             return
         self.mode = mode
-        self.content.setEnabled(False)
+        if mode != "run":
+            self.content.setEnabled(False)
+        else:
+            for button in self.action_buttons:
+                button.setEnabled(False)
+            self.target.setEnabled(False)
         self.statusBar().showMessage("Đang xử lý…")
         self.worker = Worker(function, self)
         self.worker.result.connect(self.job_result)
@@ -286,6 +292,11 @@ class Window(QMainWindow):
         self.worker.deleteLater()
         self.worker = None
         self.content.setEnabled(True)
+        self.auto_stop.setEnabled(False)
+        self.auto_pause.setEnabled(False)
+        self.auto_pause.setText("Tạm dừng")
+        if self.mode == "run":
+            self.retry_failed.setEnabled(True)
         self.statusBar().showMessage("Sẵn sàng")
         if self.mode in {"launch", "quit", "reboot"}:
             QTimer.singleShot(0, self.refresh)
@@ -331,6 +342,15 @@ class Window(QMainWindow):
             text.setReadOnly(True)
             box.addWidget(text)
             dialog.exec()
+        elif self.mode == "run":
+            run_id, rows = result
+            counts = {"SUCCESS": 0, "FAILED": 0, "CANCELLED": 0}
+            for _, _, status, _, _, _ in rows:
+                counts[str(status)] = counts.get(str(status), 0) + 1
+            self.logs.appendPlainText(
+                f"RUN {run_id}: Thành công {counts['SUCCESS']} · Lỗi {counts['FAILED']} · Đã hủy {counts['CANCELLED']}"
+            )
+            self.render()
         else:
             self.logs.appendPlainText(str(result) or "Đã gửi lệnh.")
             self.adb_status.setText("Cần xác minh lại trước thao tác tiếp theo")
@@ -407,7 +427,7 @@ class Window(QMainWindow):
                     3: "Đang chạy" if instance.running else "Đã dừng",
                     4: "Chưa kiểm tra",
                     5: "Chưa đọc",
-                    7: "Chưa triển khai",
+                    7: self.run_states.get(instance.index, "Chưa chạy"),
                 }
                 for column, text in values.items():
                     self.table.setItem(row, column, QTableWidgetItem(text))
@@ -426,6 +446,7 @@ class Window(QMainWindow):
         self.target.blockSignals(False)
         self.summary.setText(f"{len(self.instances)} giả lập · {count} được chọn · Giả lập mới luôn bỏ chọn")
         self.auto_start.setText(f"Bắt đầu tự động ({count})")
+        self.auto_start.setEnabled(self.manager is not None and self.worker is None and count > 0)
         self.target_changed()
 
     def target_changed(self):
@@ -438,7 +459,7 @@ class Window(QMainWindow):
         )
         self.adb_status.setText("Chưa xác minh ADB cho thao tác tiếp theo")
         for button in self.action_buttons:
-            button.setEnabled(instance is not None)
+            button.setEnabled(instance is not None and not (self.worker is not None and self.mode == "run"))
 
     def set_selection(self, index, value):
         try:
@@ -466,6 +487,64 @@ class Window(QMainWindow):
         if index is not None and self.manager:
             package = self.package.text().strip()
             self.run_job(action, lambda: self.manager.execute(index, action, package))
+
+    def _queue_factory(self):
+        installation = self.manager.ld.installation
+        return Manager(LDPlayer(installation, Process()), self.store, self.data_dir)
+
+    def start_selected(self):
+        if not self.manager or self.worker:
+            return
+        self.run_states = {}
+        self.run_controller = RunController(self.store, self._queue_factory, self.run_progress.emit)
+
+        def work():
+            run = self.run_controller.create(self.manager, self.concurrency.value())
+            self.current_run_id = run.id
+            return run.id, self.run_controller.execute(run)
+
+        self.auto_start.setEnabled(False)
+        self.auto_stop.setEnabled(True)
+        self.auto_pause.setEnabled(True)
+        self.run_job("run", work)
+
+    def stop_run(self):
+        if self.run_controller:
+            self.run_controller.cancel()
+            self.auto_stop.setEnabled(False)
+            self.auto_pause.setEnabled(False)
+
+    def pause_run(self):
+        if self.run_controller:
+            paused = self.auto_pause.text() == "Tạm dừng"
+            self.run_controller.pause(paused)
+            self.auto_pause.setText("Tiếp tục" if paused else "Tạm dừng")
+
+    def retry_run(self):
+        if not self.manager or self.worker or not hasattr(self, "current_run_id"):
+            return
+        self.run_controller = RunController(self.store, self._queue_factory, self.run_progress.emit)
+
+        def work():
+            run = self.run_controller.retry_failed(self.manager, self.current_run_id, self.concurrency.value())
+            self.current_run_id = run.id
+            return run.id, self.run_controller.execute(run)
+
+        self.run_job("run", work)
+
+    @Slot(int, int, object, str)
+    def update_run_progress(self, run_id, index, status, detail):
+        labels = {
+            AccountStatus.QUEUED: "Đang chờ",
+            AccountStatus.STARTING: "Đang khởi động",
+            AccountStatus.RUNNING: "Đang chạy",
+            AccountStatus.SUCCESS: "Thành công",
+            AccountStatus.FAILED: "Lỗi",
+            AccountStatus.CANCELLED: "Đã hủy",
+        }
+        self.run_states[index] = labels.get(status, str(status))
+        self.logs.appendPlainText(f"[Run {run_id}] [#{index}] {detail}")
+        self.render()
 
     def save_package(self):
         from top_heroes_auto.adb.client import validate_package
