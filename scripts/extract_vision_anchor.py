@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--region", required=True, help="normalized left,top,right,bottom")
     parser.add_argument("--threshold", type=float, required=True)
     parser.add_argument("--optional", action="store_true")
+    parser.add_argument("--variant", default="default")
     parser.add_argument("--notes", default="Cropped from a verified real Android screenshot.")
     args = parser.parse_args()
     image = cv2.imdecode(np.frombuffer(args.image.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
@@ -41,6 +42,7 @@ def main():
         "threshold": args.threshold,
         "required": not args.optional,
         "weight": 1.0,
+        "variant": args.variant,
         "reference_resolution": [1280, 720],
         "notes": args.notes,
     }

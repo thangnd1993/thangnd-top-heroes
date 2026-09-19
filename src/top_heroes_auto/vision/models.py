@@ -88,6 +88,7 @@ class VisualAnchor:
     threshold: float
     required: bool = True
     weight: float = 1.0
+    variant: str = "default"
 
 
 @dataclass(frozen=True)

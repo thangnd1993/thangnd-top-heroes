@@ -29,6 +29,7 @@ def load_anchors(folder: Path) -> tuple[VisualAnchor, ...]:
                 float(item["threshold"]),
                 bool(item.get("required", True)),
                 float(item.get("weight", 1.0)),
+                str(item.get("variant", "default")),
             )
         )
     ids = [anchor.id for anchor in anchors]
@@ -52,9 +53,9 @@ class ScreenDetector:
         weights = {anchor.id: anchor.weight for anchor in self.anchors}
         required = {anchor.id for anchor in self.anchors if anchor.required}
         for anchor in self.anchors:
-            grouped[anchor.state].append(match_anchor(screen, anchor))
+            grouped[(anchor.state, anchor.variant)].append(match_anchor(screen, anchor))
         candidates = []
-        for state, evidence in grouped.items():
+        for (state, _variant), evidence in grouped.items():
             if any(item.anchor_id in required and not item.matched for item in evidence):
                 continue
             total = sum(weights[item.anchor_id] for item in evidence)
@@ -64,7 +65,11 @@ class ScreenDetector:
         state, confidence, evidence = ScreenState.UNKNOWN, 0.0, ()
         if candidates:
             confidence, state, evidence = candidates[0]
-            if len(candidates) > 1 and candidates[1][0] >= confidence - self.conflict_margin:
+            if (
+                len(candidates) > 1
+                and candidates[1][1] != state
+                and candidates[1][0] >= confidence - self.conflict_margin
+            ):
                 state = ScreenState.UNKNOWN
                 evidence = candidates[0][2] + candidates[1][2]
         duration = (time.perf_counter() - started) * 1000

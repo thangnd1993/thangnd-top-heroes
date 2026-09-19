@@ -127,6 +127,31 @@ def test_conflicting_state_evidence_fails_closed(tmp_path):
     assert len(result.evidence) == 2
 
 
+def test_alternative_variants_for_same_state_do_not_require_each_other(tmp_path):
+    captured = screen()
+    matching = anchor(
+        tmp_path,
+        ScreenState.GAME_LOADING,
+        "landscape",
+        captured.normalized[200:320, 300:500],
+    )
+    missing = VisualAnchor(
+        "rotated",
+        ScreenState.GAME_LOADING,
+        tmp_path / "missing.png",
+        NormalizedRect(0, 0, 1, 1),
+        0.95,
+        True,
+        1.0,
+        "rotated",
+    )
+    assert ScreenDetector((matching,)).detect(captured).state == ScreenState.GAME_LOADING
+    # A second required variant is an alternative, not an additional AND precondition.
+    negative_image = patterned(100, 60, 99)
+    assert cv2.imwrite(str(missing.template), negative_image)
+    assert ScreenDetector((matching, missing)).detect(captured).state == ScreenState.GAME_LOADING
+
+
 def test_one_capture_can_evaluate_all_states(tmp_path):
     calls = []
 
