@@ -1,0 +1,10 @@
+{
+  "id": "idle-claimed-banner",
+  "state": "IDLE_REWARD_CLAIMED",
+  "template": "idle-claimed-banner.png",
+  "expected_region": [0.68, 0.02, 0.9, 0.98],
+  "threshold": 0.9,
+  "required": true,
+  "weight": 1.0,
+  "reference_resolution": [1280, 720]
+}

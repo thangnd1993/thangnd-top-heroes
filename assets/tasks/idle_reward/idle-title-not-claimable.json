@@ -1,0 +1,10 @@
+{
+  "id": "idle-title-not-claimable",
+  "state": "IDLE_REWARD_NOT_CLAIMABLE",
+  "template": "idle-title.png",
+  "expected_region": [0.8, 0.15, 0.98, 0.85],
+  "threshold": 0.9,
+  "required": true,
+  "weight": 1.0,
+  "reference_resolution": [1280, 720]
+}

@@ -1,5 +1,31 @@
 # Tiến độ
 
+## Phase 5 — Idle Reward — PARTIAL
+
+- Trạng thái: **PARTIAL**. Đã thu evidence thật ngày 2026-09-19 trên duy nhất `4 / 3-Chíp`, explicit
+  ADB `emulator-5562`; `0 / Queen` vẫn Protected và không nhận mutation. Chưa dùng `5 / 4-Em Pé`.
+- Thuật ngữ UI thật: cổng Adventure `Cấp 4`, task screen `Thưởng Treo Máy`, free action `Nhận`,
+  success popup `Chúc Mừng Nhận`, confirmation `Nhấn để tiếp tục`.
+- Scenario A manual evidence PASS: entry rương Adventure có viền xanh + chấm đỏ, tích lũy 8 giờ,
+  claim đúng một lần, popup số thưởng xuất hiện, confirmation trở về `GAME_HOME`.
+- Scenario B manual evidence PASS: ngay sau claim entry mất viền xanh/chấm đỏ. Panel vẫn giữ nút
+  `Nhận` ở mức 8 giây, nên implementation dùng **entry indicator làm claimability gate** và không bấm
+  Claim lần hai. Đồng hồ cát `6/6` cạnh nút Claim là forbidden target vì có thể dùng stamina.
+- Real templates nằm trong `assets/tasks/idle_reward/`; full screenshots chỉ ở diagnostics/artifacts
+  local. Detector phân biệt `IDLE_ENTRY_AVAILABLE`, `IDLE_ENTRY_NOT_AVAILABLE`,
+  `IDLE_REWARD_CLAIMABLE`, `IDLE_REWARD_NOT_CLAIMABLE`, `IDLE_REWARD_CLAIMED`.
+- Đã sửa mapping portrait an toàn: screenshot portrait được normalize landscape nhưng action box được
+  inverse-transform về tọa độ device. Fixture thật xác nhận portal `(467,485)`, entry `(87,957)`,
+  Claim `(362,915)`, popup continue `(360,1015)`.
+- Task engine có precondition, bounded observation, cancellation, một action/một ảnh mới,
+  no-double-claim, `ACTION_RESULT_UNCERTAIN`, cleanup riêng và report machine-readable.
+- CLI: `TopHeroesAutoManager.exe task idle-reward --index 4 --name "3-Chíp"`; UI có
+  **Thưởng treo máy** / **Chạy thử tác vụ**; SQLite persist `task_runs`.
+- Targeted local: 60 Phase 5/vision/recovery tests pass; Ruff pass. UI test local chưa chạy vì không
+  cài PySide6 theo policy; GitHub Actions sẽ chạy full pytest, packaging và smoke test.
+- Còn lại để COMPLETE: CI xanh, fresh portable artifact và rerun real diagnostic từ artifact đó.
+- Branch: `codex/phase5-idle-reward`. Không triển khai task khác và không bắt đầu Phase 6.
+
 ## Phase 4 — Popup Handling + Safe Home Recovery — COMPLETE
 
 - Trạng thái: **COMPLETE**. Real Windows acceptance: **PASSED** ngày 2026-09-19 trên duy nhất

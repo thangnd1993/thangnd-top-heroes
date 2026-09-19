@@ -3,8 +3,27 @@
 Ứng dụng desktop **Windows**, Python 3.12 + PySide6, quản lý LDPlayer theo nguyên tắc
 **một instance = một tài khoản**. Phát triển bởi Thang Nguyen.
 
-Phase 1–4 đã nghiệm thu trên LDPlayer thật. Phase 3 bổ sung pipeline screenshot Android và nhận diện
-fail-closed bằng OpenCV; Phase 4 bổ sung recovery có guard để về trang chủ game. Chưa có gameplay automation.
+Phase 1–4 đã nghiệm thu trên LDPlayer thật. Phase 5 đang bổ sung gameplay task đầu tiên:
+**Thưởng Treo Máy**, với visual evidence thật và nguyên tắc fail-closed.
+
+## Thưởng Treo Máy — Phase 5
+
+- UI có mục **Thưởng treo máy** và nút **Chạy thử tác vụ**. CLI scoped tương đương:
+
+  ```powershell
+  TopHeroesAutoManager.exe task idle-reward --index 4 --name "3-Chíp"
+  ```
+
+- Luồng an toàn: xác minh `GAME_HOME` → cổng Adventure `Cấp 4` → rương có viền xanh/chấm đỏ →
+  màn `Thưởng Treo Máy` đầy 8 giờ → đúng nút xanh `Nhận` → popup `Chúc Mừng Nhận` → `GAME_HOME`.
+- Nút đồng hồ cát `6/6` cạnh `Nhận` có thể dùng stamina và không thuộc bất kỳ action anchor nào.
+- Nút `Nhận` vẫn hiện ngay sau khi đã claim. Vì vậy task chỉ claim khi entry ngoài Adventure có đồng thời
+  viền xanh và chấm đỏ; entry không sáng trả `NOT_AVAILABLE` và không mở/không bấm Claim.
+- Claim chỉ dispatch một lần. Nếu ảnh sau claim mơ hồ hoặc cancellation xảy ra sau dispatch, task trả
+  `ACTION_RESULT_UNCERTAIN` và tuyệt đối không thử claim lại.
+- Evidence/report được lưu dưới
+  `%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\tasks\idle-reward\<account>\<run-id>\`;
+  kết quả task được persist riêng trong SQLite.
 
 ## Recovery về trang chủ game — Phase 4
 
@@ -28,7 +47,7 @@ fail-closed bằng OpenCV; Phase 4 bổ sung recovery có guard để về trang
 
 - Một chu kỳ dùng đúng một ảnh chụp từ explicit ADB target; không phụ thuộc vị trí cửa sổ emulator.
 - PNG được kiểm tra decode/kích thước/blank, chuẩn hóa về không gian tham chiếu 1280x720 và giữ
-  scale để ánh xạ bounding box về tọa độ thiết bị.
+  transform orientation để ánh xạ bounding box về đúng tọa độ thiết bị portrait/landscape.
 - Các trạng thái typed hiện có: `UNKNOWN`, `ANDROID_HOME`, `GAME_LOADING`, `GAME_HOME`,
   `POPUP_GENERIC`, `CONNECTION_ERROR`, `UPDATE_NOTICE`.
 - Detector dùng các anchor crop thật trong `assets/templates/`, ROI chuẩn hóa, threshold và vai trò
@@ -145,6 +164,7 @@ Windows: `%LOCALAPPDATA%\TopHeroesAutoManager\`
 - `diagnostics/vision/<instance>/`: ảnh chụp, metadata và detection JSON Phase 3.
 - `diagnostics/vision/debug/`: overlay anchor/confidence khi bật `--debug`.
 - `diagnostics/recovery/<instance>/<run-id>/`: ảnh từng step và report JSON Phase 4.
+- `diagnostics/tasks/idle-reward/<instance>/<run-id>/`: evidence và report JSON Phase 5.
 
 Ảnh được giữ nguyên để đối chiếu, không tự xóa. Sao lưu cơ sở dữ liệu khi app đã đóng.
 macOS development dùng `~/.local/share/TopHeroesAutoManager/`.
@@ -160,4 +180,4 @@ Tài liệu CLI nguồn: [LDPlayer command line interface](https://www.ldplayer.
 `list2` có 7 trường: index, tên, 2 window handles, Android started, PID, VBox PID.
 Không có resolution, DPI, serial hoặc trạng thái game; UI hiển thị **Chưa đọc/Chưa kiểm tra**.
 
-Xem [tiến độ](docs/PROGRESS.md). Phase 4 dừng ở recovery an toàn về GAME_HOME; chưa bắt đầu Phase 5.
+Xem [tiến độ](docs/PROGRESS.md). Phase 5 chỉ triển khai Thưởng Treo Máy; chưa bắt đầu Phase 6.

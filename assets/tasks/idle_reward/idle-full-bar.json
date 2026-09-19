@@ -1,0 +1,11 @@
+{
+  "id": "idle-full-bar",
+  "state": "IDLE_REWARD_CLAIMABLE",
+  "template": "idle-full-bar.png",
+  "expected_region": [0.63, 0.15, 0.8, 0.9],
+  "threshold": 0.9,
+  "required": true,
+  "weight": 1.5,
+  "reference_resolution": [1280, 720],
+  "notes": "Real green 8-hour accumulation bar."
+}

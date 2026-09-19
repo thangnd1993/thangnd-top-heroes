@@ -7,6 +7,7 @@ on:
       - codex/phase2-run-queue
       - codex/phase3-screen-recognition
       - codex/phase4-home-recovery
+      - codex/phase5-idle-reward
   pull_request:
   workflow_dispatch:
 permissions:

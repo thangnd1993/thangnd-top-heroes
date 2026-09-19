@@ -1,0 +1,10 @@
+{
+  "id": "idle-entry-not-available",
+  "state": "IDLE_ENTRY_NOT_AVAILABLE",
+  "template": "idle-entry-not-available.png",
+  "expected_region": [0.15, 0.0, 0.4, 0.28],
+  "threshold": 0.9,
+  "required": true,
+  "reference_resolution": [1280, 720],
+  "notes": "Same real Adventure chest immediately after claim, without glow or red dot."
+}

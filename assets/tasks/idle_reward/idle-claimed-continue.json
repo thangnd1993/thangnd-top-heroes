@@ -1,0 +1,11 @@
+{
+  "id": "idle-claimed-continue",
+  "state": "IDLE_REWARD_CLAIMED",
+  "template": "idle-claimed-continue.png",
+  "expected_region": [0.12, 0.2, 0.35, 0.8],
+  "threshold": 0.9,
+  "required": true,
+  "weight": 1.0,
+  "reference_resolution": [1280, 720],
+  "notes": "Verified harmless Nhấn để tiếp tục target on the reward receipt popup."
+}

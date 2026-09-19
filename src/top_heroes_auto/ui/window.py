@@ -34,6 +34,7 @@ from top_heroes_auto.app.process import Process
 from top_heroes_auto.app.recovery_cli import run_home_recovery
 from top_heroes_auto.app.run_queue import RunController
 from top_heroes_auto.app.service import Manager
+from top_heroes_auto.app.task_cli import run_idle_reward_diagnostic
 from top_heroes_auto.ldplayer.client import LDPlayer, discover, inspect_folder
 from top_heroes_auto.storage.store import AccountStatus
 from top_heroes_auto.ui.theme import STYLE
@@ -104,9 +105,11 @@ class Window(QMainWindow):
         for title in ("Trang chủ", "Danh sách giả lập", "Hồ sơ tác vụ", "Lịch chạy", "Nhật ký", "Cài đặt"):
             button = QPushButton(title)
             nav.addWidget(button)
-            if title in ("Hồ sơ tác vụ", "Lịch chạy"):
+            if title == "Lịch chạy":
                 button.setEnabled(False)
                 button.setToolTip("Chưa triển khai trong Phase 1")
+            elif title == "Hồ sơ tác vụ":
+                button.clicked.connect(lambda: self.idle_reward_enabled.setFocus())
             elif title == "Cài đặt":
                 button.clicked.connect(self.settings)
             elif title == "Nhật ký":
@@ -226,6 +229,19 @@ class Window(QMainWindow):
         vision.addWidget(self.vision_status)
         self.action_buttons.append(self.button(vision, "Nhận diện màn hình", self.detect_screen))
         self.action_buttons.append(self.button(vision, "Về trang chủ game", self.recover_home))
+        tasks = self.group(panels, "Hồ sơ tác vụ")
+        self.idle_reward_enabled = QCheckBox("Thưởng treo máy")
+        self.idle_reward_enabled.setChecked(self.store.get("task_idle_reward_enabled", "1") == "1")
+        self.idle_reward_enabled.toggled.connect(
+            lambda value: self.store.set("task_idle_reward_enabled", "1" if value else "0")
+        )
+        self.idle_reward_enabled.toggled.connect(lambda _: self.target_changed())
+        tasks.addWidget(self.idle_reward_enabled)
+        self.idle_reward_status = QLabel("Kết quả gần nhất: —")
+        self.idle_reward_status.setWordWrap(True)
+        tasks.addWidget(self.idle_reward_status)
+        self.idle_reward_button = self.button(tasks, "Chạy thử tác vụ", self.run_idle_reward)
+        self.action_buttons.append(self.idle_reward_button)
         options = self.group(panels, "Tùy chọn thực thi")
         options.addWidget(QLabel("Số giả lập chạy đồng thời"))
         self.concurrency = QSpinBox()
@@ -308,12 +324,14 @@ class Window(QMainWindow):
         if self.mode == "run":
             self.retry_failed.setEnabled(True)
         self.statusBar().showMessage("Sẵn sàng")
-        if self.mode in {"launch", "quit", "reboot"}:
+        if self.mode in {"launch", "quit", "reboot", "idle-reward"}:
             QTimer.singleShot(0, self.refresh)
 
     @Slot(str)
     def job_error(self, message):
         self.adb_status.setText("Chưa xác minh / thao tác bị chặn")
+        if self.mode == "idle-reward":
+            self.idle_reward_status.setText("Kết quả gần nhất: Lỗi")
         if self.mode in ("discover", "refresh"):
             self.instances = ()
             self.render()
@@ -375,6 +393,20 @@ class Window(QMainWindow):
             )
             self.logs.appendPlainText(
                 f"Recovery {recovery.status.value} · started_by_run={started} · report={report}"
+            )
+        elif self.mode == "idle-reward":
+            task_result, report, started, task_run_id = result
+            labels = {
+                "SUCCESS": "Thành công",
+                "NOT_AVAILABLE": "Chưa thể nhận",
+                "CANCELLED": "Đã hủy",
+            }
+            self.idle_reward_status.setText(
+                f"Kết quả gần nhất: {labels.get(task_result.status.value, 'Lỗi')}\n"
+                f"Task run #{task_run_id} · ADB: {task_result.adb_target or '—'}"
+            )
+            self.logs.appendPlainText(
+                f"Idle Reward {task_result.status.value} · started_by_run={started} · report={report}"
             )
         elif self.mode == "packages":
             dialog = QDialog(self)
@@ -501,8 +533,22 @@ class Window(QMainWindow):
             ("Đang chạy" if instance.running else "Đã dừng") if instance else "Chưa chọn giả lập"
         )
         self.adb_status.setText("Chưa xác minh ADB cho thao tác tiếp theo")
+        if self.manager and index is not None:
+            latest = self.store.latest_task_run(self.manager.namespace, "idle-reward", index)
+            if latest:
+                labels = {"SUCCESS": "Thành công", "NOT_AVAILABLE": "Chưa thể nhận"}
+                self.idle_reward_status.setText(
+                    f"Kết quả gần nhất: {labels.get(latest[2], 'Lỗi')} · #{latest[0]}"
+                )
+            else:
+                self.idle_reward_status.setText("Kết quả gần nhất: —")
         for button in self.action_buttons:
             button.setEnabled(instance is not None and not (self.worker is not None and self.mode == "run"))
+        self.idle_reward_button.setEnabled(
+            instance is not None
+            and self.idle_reward_enabled.isChecked()
+            and not (self.worker is not None and self.mode == "run")
+        )
 
     def set_selection(self, index, value):
         try:
@@ -555,6 +601,24 @@ class Window(QMainWindow):
         self.run_job(
             "recovery",
             lambda: run_home_recovery(self.manager, self.data_dir, index, instance.name),
+        )
+
+    def run_idle_reward(self):
+        index = self.target.currentData()
+        if index is None or not self.manager or not self.idle_reward_enabled.isChecked():
+            return
+        instance = next((item for item in self.instances if item.index == index), None)
+        if instance is None:
+            return
+        self.idle_reward_status.setText("Kết quả gần nhất: Đang chạy…")
+        self.run_job(
+            "idle-reward",
+            lambda: run_idle_reward_diagnostic(
+                self.manager,
+                self.data_dir,
+                index,
+                instance.name,
+            ),
         )
 
     def _queue_factory(self):

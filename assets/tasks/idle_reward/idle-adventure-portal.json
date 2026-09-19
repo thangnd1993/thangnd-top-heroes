@@ -1,0 +1,10 @@
+{
+  "id": "idle-adventure-portal",
+  "state": "GAME_HOME",
+  "template": "idle-adventure-portal.png",
+  "expected_region": [0.5, 0.45, 0.75, 0.8],
+  "threshold": 0.9,
+  "required": true,
+  "reference_resolution": [1280, 720],
+  "notes": "Real Cấp 4 blue Adventure portal beside the fortress on 3-Chíp."
+}

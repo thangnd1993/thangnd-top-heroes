@@ -1,5 +1,33 @@
 # Nghiệm thu trên Windows thật
 
+## Phase 5 — Idle Reward evidence and pending portable acceptance
+
+Current status: **PARTIAL**. Real UI evidence was collected on `4 / 3-Chíp` only with explicit ADB
+`emulator-5562`; `0 / Queen` remained Protected. All 12 LDPlayer instances were stopped after the
+collection run.
+
+- Home entry: blue `Cấp 4` Adventure portal beside the fortress.
+- Adventure claimable entry: lower-left chest with green glow plus red notification dot.
+- Real screen title: `Thưởng Treo Máy`; free action: blue `Nhận` button.
+- Forbidden adjacent action: hourglass `6/6`; it can spend stamina and has no action anchor.
+- Claim verification: one Claim tap produced `Chúc Mừng Nhận` with the expected reward quantities;
+  the verified `Nhấn để tiếp tục` target returned directly to `GAME_HOME`.
+- Immediate second-run evidence: entry had no glow/dot. The panel's blue Claim button still existed at
+  8 seconds, proving the button alone is unsafe. Automation returns `NOT_AVAILABLE` from the entry
+  indicator and never sends a second Claim tap.
+- Full evidence is outside Git; only stable crops are versioned in `assets/tasks/idle_reward/`.
+- Local targeted suite: 60 passed; Ruff passed. Full pytest/PyInstaller/smoke and fresh portable real
+  diagnostic remain pending GitHub Actions.
+
+Portable acceptance command after CI passes:
+
+```powershell
+TopHeroesAutoManager.exe task idle-reward --index 4 --name "3-Chíp"
+```
+
+Expected evidence is stored under
+`%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\tasks\idle-reward\3-Chíp\<run-id>\`.
+
 ## Phase 4 — Safe home recovery result
 
 Real Windows Phase 4 recovery acceptance: **PASSED** (2026-09-19).

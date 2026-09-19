@@ -1,0 +1,10 @@
+{
+  "id": "idle-entry-available",
+  "state": "IDLE_ENTRY_AVAILABLE",
+  "template": "idle-entry-available.png",
+  "expected_region": [0.15, 0.0, 0.4, 0.28],
+  "threshold": 0.9,
+  "required": true,
+  "reference_resolution": [1280, 720],
+  "notes": "Real Adventure chest with green glow and red availability dot."
+}
