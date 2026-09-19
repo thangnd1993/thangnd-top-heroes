@@ -1,15 +1,20 @@
 # Nghiệm thu trên Windows thật
 
-## Phase 2 — Single-account result
+## Phase 2 — Concurrency result
 
-Real Windows Phase 2 single-account lifecycle: **PASSED** (2026-09-19).
+Real Windows Phase 2 concurrency acceptance: **PASSED** (2026-09-19).
 
-- Artifact CI: run `35429129052`, commit `2591e58`, concurrency `1`.
-- Immutable snapshot: `4 / 3-Chíp` only; Run ID `1`.
-- Lifecycle: start → Android ready → verified `emulator-5562` → harmless health check → target-only cleanup.
-- Result/history: SUCCESS, `started_by_run=true`, persisted after process exit.
-- Queen stayed Protected with no mutation. No gameplay and no multi-instance execution.
-- Next acceptance requires explicitly authorized second clone for concurrency `2`.
+- Artifact CI: run `35430067613`, commit `e1db0ad`, digest
+  `9d30ab45a4e8ae156380cfe158bc5a9980dbf02f8ae12f0a9f88ad054b2bc839`.
+- Remediation before acceptance: index 5 had `basicSettings.adbDebug=0`; its config was backed up
+  and only that field was changed to `1`. Single-account Run ID `3` then passed.
+- Immutable Run ID `4`: `4 / 3-Chíp` and `5 / 4-Em Pé` only; max concurrency `2`.
+- Explicit ADB targets: `3-Chíp → emulator-5562`; `4-Em Pé → emulator-5564`. Both were active
+  concurrently, verified separately, health-checked, and target-cleaned.
+- Result/history: both SUCCESS, `started_by_run=true`, retry=0; run summary and both account rows
+  persisted after process exit.
+- Queen remained Protected with no mutation. Chicken was already running and remained untouched; no
+  gameplay, default ADB selection, first-device fallback, index-0 fallback, or global operation.
 
 ## Kết quả Phase 1
 

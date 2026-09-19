@@ -1,18 +1,21 @@
 # Tiến độ
 
-## Phase 2 — Run Selected Queue + Concurrency — single-account acceptance
+## Phase 2 — Run Selected Queue + Concurrency — COMPLETE
 
-- Trạng thái: **READY FOR MULTI-INSTANCE ACCEPTANCE**. Real Windows single-account lifecycle: **PASSED**
-  ngày 2026-09-19, bằng fresh portable artifact từ CI run `35429129052` (commit `2591e58`).
-- Test duy nhất: `4 / 3-Chíp`, max concurrency `1`; immutable snapshot chỉ chứa `[[4, "3-Chíp"]]`.
-- Run ID `1`: account SUCCESS, explicit ADB `emulator-5562`, harmless health check pass,
-  `started_by_run=true`; cleanup dừng lại đúng instance 4.
-- Persistence pass sau khi process kết thúc: run history và per-account result được đọc lại từ SQLite
-  (`SUCCESS`, completed=1, failed=0, cancelled=0).
-- Isolation pass: Queen không mutation; instance khác không bị lifecycle mutation. Chicken đã running
-  trước test và được giữ nguyên running. Không gameplay automation, không multi-instance test.
-- Chưa merge main và chưa chạy concurrency=2. Cần người dùng chỉ định đúng một clone thứ hai trước
-  multi-instance acceptance.
+- Trạng thái: **COMPLETE**. Real Windows concurrency acceptance: **PASSED** ngày 2026-09-19,
+  dùng portable artifact đã được CI run `35430067613` xác minh (commit `e1db0ad`).
+- Remediation môi trường duy nhất: `5 / 4-Em Pé` có `basicSettings.adbDebug=0`, trong khi
+  `4 / 3-Chíp` là `1`. Đã sao lưu `leidian5.config.phase2-adb-backup` và chỉ đổi đúng field
+  `basicSettings.adbDebug` thành `1`; sau đó single-account Run ID `3` PASS.
+- Multi-instance Run ID `4`: immutable snapshot `[[4, "3-Chíp"], [5, "4-Em Pé"]]`,
+  max concurrency `2`. Cả hai worker active đồng thời với target độc lập: `emulator-5562` và
+  `emulator-5564`; harmless health check pass, retry=0, `started_by_run=true`, cleanup dừng đúng
+  hai target.
+- Persistence pass sau process exit: Run `4` = SUCCESS, completed=2, failed=0, cancelled=0;
+  hai RunAccount đều SUCCESS và persisted trong SQLite.
+- Isolation pass: Queen không mutation; instance ngoài 4/5 không có lifecycle mutation. Chicken đã
+  running từ trước và được giữ nguyên running. Không gameplay automation và không dùng default ADB,
+  first-device fallback, index-0 fallback hoặc global LDPlayer operation.
 
 ## Phase 1 — Windows Foundation + LDPlayer Multi — COMPLETE
 
