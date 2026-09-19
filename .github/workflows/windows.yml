@@ -1,7 +1,12 @@
 name: Windows Validation
 on:
   push:
-    branches: [main, codex/phase1-diagnostic-cli, codex/phase2-run-queue, codex/phase3-screen-recognition]
+    branches:
+      - main
+      - codex/phase1-diagnostic-cli
+      - codex/phase2-run-queue
+      - codex/phase3-screen-recognition
+      - codex/phase4-home-recovery
   pull_request:
   workflow_dispatch:
 permissions:
