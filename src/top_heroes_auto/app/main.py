@@ -22,6 +22,10 @@ def main(argv: list[str] | None = None):
         from top_heroes_auto.app.vision_cli import main as vision_main
 
         return vision_main(argv[1:], data_directory())
+    if argv and argv[0] == "recovery":
+        from top_heroes_auto.app.recovery_cli import main as recovery_main
+
+        return recovery_main(argv[1:], data_directory())
 
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QApplication

@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 )
 
 from top_heroes_auto.app.process import Process
+from top_heroes_auto.app.recovery_cli import run_home_recovery
 from top_heroes_auto.app.run_queue import RunController
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.ldplayer.client import LDPlayer, discover, inspect_folder
@@ -224,6 +225,7 @@ class Window(QMainWindow):
         self.vision_status.setWordWrap(True)
         vision.addWidget(self.vision_status)
         self.action_buttons.append(self.button(vision, "Nhận diện màn hình", self.detect_screen))
+        self.action_buttons.append(self.button(vision, "Về trang chủ game", self.recover_home))
         options = self.group(panels, "Tùy chọn thực thi")
         options.addWidget(QLabel("Số giả lập chạy đồng thời"))
         self.concurrency = QSpinBox()
@@ -357,6 +359,22 @@ class Window(QMainWindow):
             )
             self.logs.appendPlainText(
                 f"Nhận diện {result.state.value} · {result.confidence:.3f} · {result.duration_ms:.1f} ms"
+            )
+        elif self.mode == "recovery":
+            recovery, report, started = result
+            labels = {
+                "SUCCESS": "Đã về trang chủ game",
+                "ALREADY_HOME": "Đã ở trang chủ game",
+                "UNKNOWN_SCREEN": "Không thể xác định màn hình",
+                "LOADING_TIMEOUT": "Game tải quá thời gian",
+                "CANCELLED": "Đã hủy",
+            }
+            self.vision_status.setText(
+                f"Trạng thái: {labels.get(recovery.status.value, recovery.status.value)}\n"
+                f"Bước: {len(recovery.steps)} · ADB: {recovery.adb_target or '—'}"
+            )
+            self.logs.appendPlainText(
+                f"Recovery {recovery.status.value} · started_by_run={started} · report={report}"
             )
         elif self.mode == "packages":
             dialog = QDialog(self)
@@ -525,6 +543,19 @@ class Window(QMainWindow):
             return ScreenDetector.from_folder(template_folder()).detect(screen)
 
         self.run_job("vision", work)
+
+    def recover_home(self):
+        index = self.target.currentData()
+        if index is None or not self.manager:
+            return
+        instance = next((item for item in self.instances if item.index == index), None)
+        if instance is None:
+            return
+        self.vision_status.setText("Trạng thái: Đang xử lý\nĐang xử lý: Khôi phục trang chủ game")
+        self.run_job(
+            "recovery",
+            lambda: run_home_recovery(self.manager, self.data_dir, index, instance.name),
+        )
 
     def _queue_factory(self):
         installation = self.manager.ld.installation
