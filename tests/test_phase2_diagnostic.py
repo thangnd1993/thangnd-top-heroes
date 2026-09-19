@@ -12,7 +12,9 @@ def test_exact_diagnostic_snapshot_does_not_include_other_selected_instance(rig)
 
 
 def test_exact_two_member_diagnostic_snapshot_is_ordered_and_immutable(rig):
-    manager, _, store = rig
+    manager, process, store = rig
+    process.listing += "8,Farm-008,0,0,0,-1,-1\n"
+    manager.refresh()
     manager.select(8, True)
     controller = RunController(store, lambda: manager)
 

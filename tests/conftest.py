@@ -10,7 +10,7 @@ BOOT = "ce068632-fc3e-4090-a8d7-ae8d9fe353f5"
 class FakeProcess:
     def __init__(self):
         self.calls = []
-        self.listing = "0,Main-Thang,1,2,1,101,102\n7,Farm-007,3,4,1,201,202\n8,Farm-008,0,0,0,-1,-1\n"
+        self.listing = "0,Main-Thang,1,2,1,101,102\n7,Farm-007,3,4,1,201,202\n"
         self.serial = "emulator-5568"
         self.device_boot = BOOT
         self.cli_boot = BOOT
