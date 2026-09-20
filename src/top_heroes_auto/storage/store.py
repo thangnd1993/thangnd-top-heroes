@@ -66,10 +66,21 @@ class Store:
                     retry_count INTEGER NOT NULL DEFAULT 0, started_by_run INTEGER NOT NULL DEFAULT 0,
                     PRIMARY KEY(run_id, instance_index),
                     FOREIGN KEY(run_id) REFERENCES runs(id));
+                CREATE TABLE IF NOT EXISTS task_runs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    namespace TEXT NOT NULL, task TEXT NOT NULL,
+                    instance_index INTEGER NOT NULL, instance_name TEXT NOT NULL,
+                    status TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT,
+                    error TEXT NOT NULL DEFAULT '', report_path TEXT NOT NULL DEFAULT '');
             """)
             db.execute(
                 "UPDATE runs SET status=?, finished_at=COALESCE(finished_at, ?) WHERE status IN (?, ?)",
                 (RunStatus.INTERRUPTED, _stamp(), RunStatus.QUEUED, RunStatus.RUNNING),
+            )
+            db.execute(
+                """UPDATE task_runs SET status='INTERRUPTED',finished_at=COALESCE(finished_at,?)
+                   WHERE status='RUNNING'""",
+                (_stamp(),),
             )
 
     @contextmanager
@@ -215,3 +226,38 @@ class Store:
                    WHERE run_id=? AND status=? ORDER BY instance_index""", (run_id, AccountStatus.FAILED)
             ).fetchall()
         return tuple((int(index), str(name)) for index, name in rows)
+
+    def create_task_run(self, namespace: str, task: str, index: int, name: str) -> int:
+        with self.connect() as db:
+            cursor = db.execute(
+                """INSERT INTO task_runs(
+                       namespace,task,instance_index,instance_name,status,started_at
+                   ) VALUES (?,?,?,?,?,?)""",
+                (namespace, task, index, name, "RUNNING", _stamp()),
+            )
+        return int(cursor.lastrowid)
+
+    def finish_task_run(
+        self,
+        task_run_id: int,
+        status: str,
+        *,
+        error: str = "",
+        report_path: str = "",
+    ):
+        with self.connect() as db:
+            db.execute(
+                """UPDATE task_runs SET status=?,finished_at=?,error=?,report_path=?
+                   WHERE id=?""",
+                (status, _stamp(), error[:1000], report_path, task_run_id),
+            )
+
+    def latest_task_run(self, namespace: str, task: str, index: int):
+        with self.connect() as db:
+            return db.execute(
+                """SELECT id,instance_name,status,started_at,finished_at,error,report_path
+                   FROM task_runs
+                   WHERE namespace=? AND task=? AND instance_index=?
+                   ORDER BY id DESC LIMIT 1""",
+                (namespace, task, index),
+            ).fetchone()

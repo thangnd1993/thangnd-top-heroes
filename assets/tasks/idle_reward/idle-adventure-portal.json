@@ -1,0 +1,20 @@
+{
+  "id": "idle-adventure-portal",
+  "state": "GAME_HOME",
+  "template": "idle-adventure-portal.png",
+  "expected_region": [
+    0.5,
+    0.45,
+    0.8,
+    0.8
+  ],
+  "threshold": 0.9,
+  "required": true,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Stable core of the real blue Adventure portal beside the fortress; excludes animated flame."
+}

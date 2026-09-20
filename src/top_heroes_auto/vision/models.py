@@ -16,6 +16,11 @@ class ScreenState(StrEnum):
     POPUP_GENERIC = "POPUP_GENERIC"
     CONNECTION_ERROR = "CONNECTION_ERROR"
     UPDATE_NOTICE = "UPDATE_NOTICE"
+    IDLE_ENTRY_AVAILABLE = "IDLE_ENTRY_AVAILABLE"
+    IDLE_ENTRY_NOT_AVAILABLE = "IDLE_ENTRY_NOT_AVAILABLE"
+    IDLE_REWARD_CLAIMABLE = "IDLE_REWARD_CLAIMABLE"
+    IDLE_REWARD_NOT_CLAIMABLE = "IDLE_REWARD_NOT_CLAIMABLE"
+    IDLE_REWARD_CLAIMED = "IDLE_REWARD_CLAIMED"
 
 
 @dataclass(frozen=True)
@@ -74,9 +79,22 @@ class CapturedScreen:
     scale_to_original: tuple[float, float]
     source_image: Path | None = None
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    device_size: tuple[int, int] | None = None
+    rotated_from_portrait: bool = False
 
     def to_device_box(self, normalized_box: BoundingBox) -> BoundingBox:
-        return normalized_box.scale(*self.scale_to_original)
+        box = normalized_box.scale(*self.scale_to_original)
+        if not self.rotated_from_portrait:
+            return box
+        if self.device_size is None:
+            raise ValueError("Portrait capture is missing device dimensions.")
+        _, device_height = self.device_size
+        return BoundingBox(
+            box.y,
+            device_height - box.x - box.width,
+            box.height,
+            box.width,
+        )
 
 
 @dataclass(frozen=True)

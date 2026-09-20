@@ -13,6 +13,7 @@ from top_heroes_auto.vision.debug import write_overlay
 from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.image_normalizer import ImageNormalizer, ScreenshotInvalid
 from top_heroes_auto.vision.models import BoundingBox, NormalizedRect, ScreenState, VisualAnchor
+from top_heroes_auto.vision.resources import idle_reward_template_folder
 from top_heroes_auto.vision.screenshot import ScreenshotService
 from top_heroes_auto.vision.stability import screen_stability
 
@@ -88,6 +89,14 @@ def test_coordinate_conversion_round_trip():
     box = BoundingBox(128, 72, 256, 144)
     assert box.normalized(1280, 720) == NormalizedRect(0.1, 0.1, 0.3, 0.3)
     assert captured.to_device_box(box) == BoundingBox(64, 36, 128, 72)
+
+
+def test_portrait_coordinate_conversion_returns_device_portrait_box():
+    captured = screen(patterned(720, 1280))
+    assert captured.rotated_from_portrait
+    assert captured.device_size == (720, 1280)
+    mapped = captured.to_device_box(BoundingBox(735, 410, 120, 115))
+    assert mapped == BoundingBox(410, 425, 115, 120)
 
 
 def test_exact_target_screenshot_dispatch(rig):
@@ -198,3 +207,126 @@ def test_repository_templates_load_and_have_unique_ids():
 def test_repository_templates_fail_closed_on_unrelated_image():
     result = ScreenDetector.from_folder(Path("assets/templates")).detect(screen(patterned(seed=2026)))
     assert result.state == ScreenState.UNKNOWN
+
+
+@pytest.mark.parametrize(
+    ("expected", "placements", "action_anchor", "device_center"),
+    [
+        (ScreenState.GAME_HOME, [("idle-adventure-portal", 770, 420)], "idle-adventure-portal", (465, 470)),
+        (
+            ScreenState.IDLE_ENTRY_AVAILABLE,
+            [("idle-entry-available", 230, 10)],
+            "idle-entry-available",
+            (87, 957),
+        ),
+        (
+            ScreenState.IDLE_ENTRY_AVAILABLE,
+            [("idle-entry-available-open", 230, 10)],
+            "idle-entry-available-open",
+            (87, 957),
+        ),
+        (
+            ScreenState.IDLE_ENTRY_NOT_AVAILABLE,
+            [("idle-entry-not-available", 230, 10)],
+            "idle-entry-not-available",
+            (87, 957),
+        ),
+        (
+            ScreenState.IDLE_REWARD_CLAIMABLE,
+            [("idle-claim-button", 315, 240), ("idle-full-bar", 875, 200), ("idle-title", 1080, 175)],
+            "idle-claim-button",
+            (362, 915),
+        ),
+        (
+            ScreenState.IDLE_REWARD_NOT_CLAIMABLE,
+            [("idle-empty-message", 585, 145), ("idle-title", 1080, 175)],
+            None,
+            None,
+        ),
+        (
+            ScreenState.IDLE_REWARD_NOT_CLAIMABLE,
+            [("idle-empty-start", 875, 200), ("idle-title", 1080, 175)],
+            None,
+            None,
+        ),
+        (
+            ScreenState.IDLE_REWARD_CLAIMED,
+            [("idle-claimed-banner", 900, 60), ("idle-claimed-continue", 225, 230)],
+            "idle-claimed-continue",
+            (360, 1015),
+        ),
+    ],
+)
+def test_versioned_idle_reward_anchors_and_portrait_mapping(
+    expected, placements, action_anchor, device_center
+):
+    folder = idle_reward_template_folder()
+    canvas = patterned(1280, 720, seed=91)
+    for name, x, y in placements:
+        template = cv2.imread(str(folder / f"{name}.png"))
+        height, width = template.shape[:2]
+        canvas[y : y + height, x : x + width] = template
+    portrait = cv2.rotate(canvas, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    captured = screen(portrait)
+    result = ScreenDetector.from_folder(folder).detect(captured)
+    assert result.state == expected
+    if action_anchor:
+        evidence = next(item for item in result.evidence if item.anchor_id == action_anchor)
+        assert evidence.device_box.center == device_center
+
+
+def test_idle_reward_templates_have_no_stamina_action_anchor():
+    anchors = load_anchors(idle_reward_template_folder())
+    assert len(anchors) == 13
+    assert not any("hourglass" in anchor.id or "stamina" in anchor.id for anchor in anchors)
+    unavailable = [anchor for anchor in anchors if anchor.state == ScreenState.IDLE_REWARD_NOT_CLAIMABLE]
+    assert {anchor.id for anchor in unavailable} == {
+        "idle-empty-message",
+        "idle-empty-start",
+        "idle-title-not-claimable",
+        "idle-title-not-claimable-empty-start",
+    }
+
+
+@pytest.mark.parametrize(
+    ("filename", "expected", "action_anchor", "device_center"),
+    [
+        ("phase5-final-home.png", ScreenState.GAME_HOME, "idle-adventure-portal", (465, 470)),
+        (
+            "phase5-adventure-portal-result.png",
+            ScreenState.IDLE_ENTRY_AVAILABLE,
+            "idle-entry-available",
+            (87, 957),
+        ),
+        (
+            "phase5-adventure-second-run.png",
+            ScreenState.IDLE_ENTRY_NOT_AVAILABLE,
+            "idle-entry-not-available",
+            (87, 957),
+        ),
+        (
+            "phase5-idle-reward-screen.png",
+            ScreenState.IDLE_REWARD_CLAIMABLE,
+            "idle-claim-button",
+            (362, 915),
+        ),
+        ("phase5-not-claimable.png", ScreenState.IDLE_REWARD_NOT_CLAIMABLE, None, None),
+        (
+            "phase5-post-claim.png",
+            ScreenState.IDLE_REWARD_CLAIMED,
+            "idle-claimed-continue",
+            (360, 1015),
+        ),
+    ],
+)
+def test_real_idle_reward_fixtures(filename, expected, action_anchor, device_center):
+    fixture = Path("artifacts") / filename
+    if not fixture.is_file():
+        pytest.skip("Real-account full screenshot intentionally remains outside Git.")
+    target = Target(4, "3-Chíp", "emulator-5562", BOOT_ID)
+    captured = ScreenshotService(lambda _: fixture.read_bytes()).take(target)
+    result = ScreenDetector.from_folder(idle_reward_template_folder()).detect(captured)
+    assert result.state == expected
+    if action_anchor:
+        evidence = next(item for item in result.evidence if item.anchor_id == action_anchor)
+        assert evidence.device_box.center == device_center

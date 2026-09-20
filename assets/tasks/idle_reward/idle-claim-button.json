@@ -1,0 +1,11 @@
+{
+  "id": "idle-claim-button",
+  "state": "IDLE_REWARD_CLAIMABLE",
+  "template": "idle-claim-button.png",
+  "expected_region": [0.2, 0.25, 0.4, 0.78],
+  "threshold": 0.9,
+  "required": true,
+  "weight": 1.0,
+  "reference_resolution": [1280, 720],
+  "notes": "Verified free blue Nhận target; does not include the stamina hourglass."
+}

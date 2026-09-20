@@ -1,0 +1,20 @@
+{
+  "id": "idle-empty-message",
+  "state": "IDLE_REWARD_NOT_CLAIMABLE",
+  "template": "idle-empty-message.png",
+  "expected_region": [
+    0.35,
+    0.1,
+    0.65,
+    0.9
+  ],
+  "threshold": 0.9,
+  "required": true,
+  "weight": 1.0,
+  "variant": "empty-message",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Stable real post-claim message stating that no reward is currently available."
+}

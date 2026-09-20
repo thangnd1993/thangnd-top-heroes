@@ -20,7 +20,9 @@ class ScreenshotService:
         self.normalizer = normalizer or ImageNormalizer()
 
     def take(self, target: Target, folder: Path | None = None, tag: str = "capture") -> CapturedScreen:
-        image = self.normalizer.decode(self.capture(target.serial))
+        image, device_size, rotated_from_portrait = self.normalizer.decode_with_orientation(
+            self.capture(target.serial)
+        )
         normalized, scale = self.normalizer.normalize(image)
         height, width = image.shape[:2]
         safe_tag = "".join(char if char.isalnum() or char in "-_" else "-" for char in tag).strip("-")
@@ -39,6 +41,8 @@ class ScreenshotService:
                 "adb_target": target.serial,
                 "boot_id": target.boot_id,
                 "original_resolution": [width, height],
+                "device_resolution": list(device_size),
+                "rotated_from_portrait": rotated_from_portrait,
                 "normalized_resolution": list(self.normalizer.reference_size),
                 "scale_to_original": list(scale),
                 "source_image": str(source),
@@ -57,4 +61,6 @@ class ScreenshotService:
             self.normalizer.reference_size,
             scale,
             source,
+            device_size=device_size,
+            rotated_from_portrait=rotated_from_portrait,
         )

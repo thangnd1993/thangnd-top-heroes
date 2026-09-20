@@ -1,5 +1,40 @@
 # Tiến độ
 
+## Phase 5 — Idle Reward — COMPLETE
+
+- Trạng thái: **COMPLETE**. Real Windows acceptance pass ngày 2026-09-20 trên duy nhất
+  `4 / 3-Chíp`, explicit ADB `emulator-5562`; `0 / Queen` vẫn Protected/unselected và không nhận
+  mutation. Không dùng `5 / 4-Em Pé` và không bắt đầu Phase 6.
+- Final portable: CI run `35469961859`, commit `43e3458`, artifact `10592886746`, SHA-256
+  `67f648a2d0b41f466cde9049ee6177c29d9092396b755c4b347a1590cb695936`; lint, full pytest,
+  PyInstaller build, executable smoke và artifact upload đều pass.
+- Real claim evidence (task Run ID `5`, fresh CI artifact của `ee83c23`): verified `GAME_HOME` →
+  Adventure entry → `Thưởng Treo Máy`; Claim được dispatch đúng một lần, popup `Chúc Mừng Nhận`
+  và `Nhấn để tiếp tục` đều được verify. Không có claim retry.
+- Lỗi cleanup thực tế sau Claim đã được sửa: popup có thể trở lại panel thay vì Home. Detector mới
+  nhận riêng thông điệp không có thưởng và gray start của accumulation bar; cleanup chỉ dùng Back
+  sau evidence mới, qua Adventure rồi verify `GAME_HOME`.
+- Final no-double-claim/cleanup evidence (task Run ID `7`, final artifact): `NOT_AVAILABLE`,
+  `claim_dispatched=false`, `cleanup_succeeded=true`, final state `GAME_HOME`, ADB
+  `emulator-5562`, `isolation_changed_indices=[]`. Run history và report path đọc lại được từ SQLite
+  sau process exit.
+- Claimability gate là chest Adventure có glow xanh + red dot. Nút `Nhận` một mình không đủ vì vẫn
+  xuất hiện sau Claim; hourglass `6/6` không có action anchor vì có thể dùng stamina. Partial bar có cả
+  xanh và xám, nên gray-start detector bị giới hạn vùng và loại trừ với minimum green-fill detector.
+- Đã sửa các integration bug thật: alternate open chest frame, portal flame animation, bar-state
+  conflict, task-specific recovery từ panel/Adventure và hai biến thể post-claim. Threshold action
+  anchors vẫn `0.9`; không nới safety guard hay cho phép click UNKNOWN.
+- Task engine giữ exact snapshot, bounded observation, cancellation, một action/một screenshot mới,
+  no-double-claim, `ACTION_RESULT_UNCERTAIN`, verified cleanup và machine-readable report. CLI:
+  `TopHeroesAutoManager.exe task idle-reward --index 4 --name "3-Chíp"`; UI có **Thưởng treo máy** /
+  **Chạy thử tác vụ**; SQLite persist `task_runs`.
+- Portrait mapping đã được verify bằng action thật; stable portal core `(465,470)`, entry `(87,957)`,
+  Claim `(362,915)`, popup continue `(360,1015)` theo device coordinates.
+- Local targeted final: 66 Phase 5/vision/recovery tests pass; Ruff và diff check pass. Final state giữ
+  `3-Chíp` running vì `started_by_run=false`; Queen stopped/Protected, các instance khác giữ nguyên
+  baseline, kể cả index 1 và 7 đang chạy từ trước.
+- Branch: `codex/phase5-idle-reward`. Phase 6 chưa bắt đầu.
+
 ## Phase 4 — Popup Handling + Safe Home Recovery — COMPLETE
 
 - Trạng thái: **COMPLETE**. Real Windows acceptance: **PASSED** ngày 2026-09-19 trên duy nhất
