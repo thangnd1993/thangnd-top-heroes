@@ -1,5 +1,23 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## Current authorization — 2026-09-21 (supersedes historical target below)
+
+- Remaining Phase 6 real survey and acceptance target is **only `2 / 5-Emmmmm`**.
+- `4 / 3-Chíp` is no longer authorized for any Phase 6 device operation, including
+  lifecycle, ADB, screenshot collection, survey or acceptance. Its evidence below
+  is historical and its coordinates are not authoritative for the new account.
+- Queen remains Protected and must receive no mutation. Other running instances
+  are external state and must be preserved.
+- Read-only preflight verified index 2/name `5-Emmmmm`, stopped, not Protected,
+  currently unselected, and `basicSettings.adbDebug=0`. Confirmation to back up the
+  index 2 config and enable ADB is pending; do not silently change it or start live
+  work before that requirement is resolved. Explicit ADB identity must be verified
+  before screenshots/gameplay; no serial may be inferred from index or old evidence.
+- User explicitly authorized normal pushes of this branch to
+  `thangnd1993/thangnd-top-heroes`, subsequent Phase 6 commits, and safe merge/push
+  to main only after all Phase 6 criteria pass. No force push/history rewrite.
+- Phase 7 remains out of scope (future target also index 2 unless changed).
+
 Branch `codex/phase6-vip-pack-recruit` was created from accepted Phase 5 merge
 `33cb313576e4c6ca7770988cdac1c5996337ca51`. At the resumption inventory the tracked
 working tree was clean, no Phase 6 implementation commits existed, and all 12
