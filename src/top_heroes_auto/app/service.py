@@ -221,7 +221,8 @@ class Manager:
                 self._active = None
 
     def execute(
-        self, index: int, action: str, package: str = "", values: tuple = (), snapshot: RunSnapshot | None = None
+        self, index: int, action: str, package: str = "", values: tuple = (), snapshot: RunSnapshot | None = None,
+        *, observed_target: Target | None = None,
     ):
         """One explicit manual action = one short-lived immutable queue.
 
@@ -247,6 +248,8 @@ class Manager:
         }
         if action not in allowed:
             raise SafetyError("Thao tác không được hỗ trợ.")
+        if observed_target is not None and action not in {"tap", "swipe", "keyevent"}:
+            raise SafetyError("Screenshot-bound identity is only valid for evidence-guarded input.")
         with self._lock:
             current = self.refresh()
             immutable_snapshot = snapshot is not None
@@ -291,6 +294,12 @@ class Manager:
                 if self.adb.boot_id(target.serial) != target.boot_id:
                     raise SafetyError("ADB target đã thay đổi; hủy thao tác.")
                 self._check(index)
+                if observed_target is not None:
+                    if target != observed_target:
+                        raise SafetyError("Current ADB identity differs from the action's screenshot.")
+                    # Visual actions must respect a live selection revocation,
+                    # even when a queue snapshot captured earlier membership.
+                    require_selected(self.store, self._active, self.ld.list_instances(), index)
                 log.info("[%s / #%s] Thao tác: %s", instance.name, index, action)
                 if action == "verify":
                     return f"Đã xác minh ADB: {target.serial}"

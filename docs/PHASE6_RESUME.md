@@ -8,11 +8,18 @@
   is historical and its coordinates are not authoritative for the new account.
 - Queen remains Protected and must receive no mutation. Other running instances
   are external state and must be preserved.
-- Read-only preflight verified index 2/name `5-Emmmmm`, stopped, not Protected,
-  currently unselected, and `basicSettings.adbDebug=0`. Confirmation to back up the
-  index 2 config and enable ADB is pending; do not silently change it or start live
-  work before that requirement is resolved. Explicit ADB identity must be verified
-  before screenshots/gameplay; no serial may be inferred from index or old evidence.
+- User confirmed **Yes, enable ADB for index 2**. Backed up
+  `D:\LDPlayer\LDPlayer9\vms\config\leidian2.config` to the same directory as
+  `leidian2.config.phase6-adb-backup-20260921`; changed only
+  `basicSettings.adbDebug` from 0 to 1 and verified the parsed configuration diff.
+  Do not repeat this completed configuration change or overwrite its backup.
+- Index 2 was selected after exact identity/not-Protected verification. Its scoped
+  ADB was verified as `emulator-5558` with boot ID
+  `70b1cc0e-24e0-465f-9e54-4025067f47aa` during this survey. These are historical
+  evidence only; resolve and verify again on the next start.
+- At this checkpoint index 2 is **stopped** after verified Home and owned-start
+  cleanup. Indices 1 (`anh Ry`) and 7 (`Happy`) were already running externally and
+  remain running. Queen and index 4 remain stopped and untouched.
 - User explicitly authorized normal pushes of this branch to
   `thangnd1993/thangnd-top-heroes`, subsequent Phase 6 commits, and safe merge/push
   to main only after all Phase 6 criteria pass. No force push/history rewrite.
@@ -45,7 +52,42 @@ Original screenshots and metadata remain in
 `%LOCALAPPDATA%/TopHeroesAutoManager/diagnostics/vision/3-Chíp/`.
 Portrait inspection copies remain in ignored `artifacts/phase6-*.png`.
 
-## Exact unfinished point
+## Current unfinished point — index 2 survey checkpoint
+
+- See [PHASE6_SURVEY.md](PHASE6_SURVEY.md) for actual per-tab coverage and evidence.
+  No reward, recruit, purchase or resource-consuming action was performed on index 2.
+- VIP currently showed an explicit free daily reward and green Nhận; recruit showed
+  `Miễn Phí 3/3`, 277 tickets and 4114 diamonds. Availability was preserved for a
+  fresh production artifact. Do not assume it will remain available next session.
+- Surveyed daily offers/packs, weekly packs/card, permanent/monthly cards, growth
+  and prestige funds, diamond shop, vertical lists and the horizontal right boundary.
+  Some gift icons lack independent free-cost evidence: **do not claim them**.
+- Native capture failed twice with `SetIsBorderRequired failed: No such interface
+  supported (0x80004002)`. Authorized survey used the accepted Manager/verified ADB
+  pipeline, not unverified device selection. `scripts/phase6_survey.py` is a manual
+  one-action evidence tool, not a production task or acceptance runner.
+- A transient empty LDPlayer inventory marked all 12 persisted rows absent and
+  cleared selection. The guard stopped post-navigation capture; no tap was blindly
+  retried. Raw SQLite still retained Queen protection. Added empty-inventory
+  rejection before metadata mutation, verified current inventory/protection, and
+  restored only authorized index 2 selection. No other selection/protection changed.
+- Added screenshot-bound optional `observed_target` input dispatch: exact account,
+  serial and boot must match at dispatch; live selection revocation is respected.
+- Added durable claim-intent storage and a journalled explorer adapter. RESERVED
+  commits before dispatch and blocks retries across restarts, rename and cycle
+  changes until a verified receipt exists. A real adapter must prove a cycle;
+  screenshot hashes, boot IDs and guessed midnight resets are not cycle evidence.
+- Targeted results: inventory/foundation 90 passed; reward/journal/vision 41 passed;
+  observed-target/lifecycle 44 passed. These are mock regressions, not production
+  acceptance. Do not repeat the full suite locally.
+- Push authorization is resolved. Foundation commit `9db7a1c` full Windows CI passed:
+  [35525124909](https://github.com/thangnd1993/thangnd-top-heroes/actions/runs/35525124909).
+- Next: complete production visual adapters and task/CLI/UI integration, prove free
+  shop gift semantics or report UNKNOWN without tapping, finish bounded coverage,
+  targeted tests, new passing CI artifact and real acceptance. **Phase 6 is NOT
+  COMPLETE. Do not merge main or start Phase 7.**
+
+## Historical unfinished point — former target (not authorization)
 
 The last original capture is `20260920-125155-889857Z-phase6-shop-explore-tab1-scroll1`;
 portrait copy `artifacts/phase6-shop-tab1-scroll1-portrait.png`. It shows the shop's
@@ -73,10 +115,8 @@ been exhaustively surveyed. Do not represent this first viewport as a complete s
   Use fresh passing artifacts for production acceptance. Preserve all earlier tests.
 - Update README, PROGRESS and WINDOWS_TEST with honest per-task acceptance status.
 
-Real mutation scope remains only selected/unprotected `4 / 3-Chíp`; Queen is
-Protected/unselected and must never receive mutation. Reverify index/name and ADB
-identity for every live operation; old `emulator-5562` and boot ID are historical
-evidence, not permission to reuse an unverified connection.
+The historical target `4 / 3-Chíp` is now revoked. Only the current authorization
+section above applies. Queen remains Protected and must never receive mutation.
 
 ## Resumed work
 

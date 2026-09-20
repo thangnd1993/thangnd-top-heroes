@@ -183,7 +183,12 @@ class LDPlayer:
         self.installation, self.process = installation, process
 
     def list_instances(self) -> tuple[Instance, ...]:
-        return parse_list2(decode(self.process.run([str(self.installation.console), "list2"])))
+        instances = parse_list2(decode(self.process.run([str(self.installation.console), "list2"])))
+        # LDPlayer can transiently return success with empty stdout. Never let
+        # that erase persisted presence/selection or authorize a device action.
+        if not instances:
+            raise ValueError("LDPlayer returned an empty inventory; no instance state was accepted.")
+        return instances
 
     def _indexed(self, command: str, index: int, *args: str) -> bytes:
         if type(index) is not int or index < 0:

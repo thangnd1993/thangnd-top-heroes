@@ -133,12 +133,24 @@ def test_rename_remove_reappear_reset_selection_preserve_protection(rig):
     manager.refresh()
     assert not store.metadata(manager.namespace, 7).selected
     manager.protect(7, True)
-    process.listing = ""
+    process.listing = "0,Main-Thang,0,0,0,-1,-1"
     manager.refresh()
     process.listing = "7,New,0,0,0,-1,-1"
     manager.refresh()
     assert store.metadata(manager.namespace, 7).protected
     assert not store.metadata(manager.namespace, 7).selected
+
+
+def test_empty_live_inventory_preserves_metadata_and_blocks_dispatch(rig):
+    manager, process, store = rig
+    process.listing = "\n"
+    with pytest.raises(ValueError, match="empty inventory"):
+        manager.refresh()
+    assert store.metadata(manager.namespace, 7).selected
+    assert store.metadata(manager.namespace, 0).protected
+    with pytest.raises(ValueError, match="empty inventory"):
+        manager.execute(7, "tap", values=(100, 100))
+    assert all(call[1] == "list2" for call in process.calls)
 
 
 def test_installations_do_not_share_whitelist(rig):

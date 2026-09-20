@@ -72,6 +72,16 @@ class Store:
                     instance_index INTEGER NOT NULL, instance_name TEXT NOT NULL,
                     status TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT,
                     error TEXT NOT NULL DEFAULT '', report_path TEXT NOT NULL DEFAULT '');
+                CREATE TABLE IF NOT EXISTS reward_claims (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    namespace TEXT NOT NULL, instance_index INTEGER NOT NULL,
+                    instance_name TEXT NOT NULL, reward_id TEXT NOT NULL,
+                    cycle_key TEXT NOT NULL, task_run_id INTEGER NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('RESERVED','VERIFIED')),
+                    reserved_at TEXT NOT NULL, verified_at TEXT,
+                    before_evidence TEXT NOT NULL, after_evidence TEXT,
+                    UNIQUE(namespace,instance_index,reward_id,cycle_key),
+                    FOREIGN KEY(task_run_id) REFERENCES task_runs(id));
             """)
             db.execute(
                 "UPDATE runs SET status=?, finished_at=COALESCE(finished_at, ?) WHERE status IN (?, ?)",
@@ -261,3 +271,63 @@ class Store:
                    ORDER BY id DESC LIMIT 1""",
                 (namespace, task, index),
             ).fetchone()
+
+    def reserve_reward_claim(
+        self, task_run_id: int, reward_id: str, cycle_key: str, before_evidence: str,
+        *, expected_instance: tuple[int, str] | None = None,
+    ) -> int:
+        """Commit intent BEFORE input; interruption must never make it retryable.
+
+        cycle_key must identify a visually proven reward opportunity, not a
+        screenshot hash, process/boot ID, or an assumed local-midnight reset.
+        An unresolved attempt blocks ALL cycles and survives instance renaming.
+        There is deliberately no automatic expiry, retry or reset operation.
+        """
+        if not all(isinstance(v, str) and v.strip() for v in (reward_id, cycle_key, before_evidence)):
+            raise ValueError("Reward identity, proven cycle and before evidence are required.")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            run = db.execute(
+                "SELECT namespace,instance_index,instance_name,status FROM task_runs WHERE id=?",
+                (task_run_id,),
+            ).fetchone()
+            if run is None or run[3] != "RUNNING":
+                raise ValueError("Claim reservation requires an active task run.")
+            namespace, index, name, _ = run
+            if expected_instance is not None and expected_instance != (index, name):
+                raise ValueError("Claim evidence does not belong to the task run's account.")
+            existing = db.execute(
+                """SELECT id FROM reward_claims WHERE namespace=? AND instance_index=?
+                   AND reward_id=? AND (cycle_key=? OR status='RESERVED')""",
+                (namespace, index, reward_id, cycle_key),
+            ).fetchone()
+            if existing:
+                raise ValueError("Reward already attempted or unresolved; automatic retry forbidden.")
+            cursor = db.execute(
+                """INSERT INTO reward_claims(namespace,instance_index,instance_name,reward_id,
+                   cycle_key,task_run_id,status,reserved_at,before_evidence)
+                   VALUES (?,?,?,?,?,?,'RESERVED',?,?)""",
+                (namespace, index, name, reward_id, cycle_key, task_run_id, _stamp(), before_evidence),
+            )
+            return int(cursor.lastrowid)
+
+    def verify_reward_claim(self, claim_id: int, task_run_id: int, after_evidence: str):
+        """A receipt is permanent and belongs only to its reserving task run."""
+        if not isinstance(after_evidence, str) or not after_evidence.strip():
+            raise ValueError("Verified postcondition evidence is required.")
+        with self.connect() as db:
+            cursor = db.execute(
+                """UPDATE reward_claims SET status='VERIFIED',verified_at=?,after_evidence=?
+                   WHERE id=? AND task_run_id=? AND status='RESERVED'""",
+                (_stamp(), after_evidence, claim_id, task_run_id),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("Claim is missing, belongs to another run, or is already final.")
+
+    def reward_claims(self, namespace: str, index: int):
+        with self.connect() as db:
+            db.row_factory = sqlite3.Row
+            return [dict(row) for row in db.execute(
+                """SELECT * FROM reward_claims WHERE namespace=? AND instance_index=? ORDER BY id""",
+                (namespace, index),
+            )]
