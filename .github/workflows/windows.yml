@@ -8,6 +8,7 @@ on:
       - codex/phase3-screen-recognition
       - codex/phase4-home-recovery
       - codex/phase5-idle-reward
+      - codex/phase6-vip-pack-recruit
   pull_request:
   workflow_dispatch:
 permissions:

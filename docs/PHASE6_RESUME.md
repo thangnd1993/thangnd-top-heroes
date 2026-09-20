@@ -84,3 +84,12 @@ evidence, not permission to reuse an unverified connection.
   stopped, then all 12 instances were verified stopped. Queen remained untouched.
 - Targeted foundation tests: **32 passed**. No completed real reward action was
   replayed and no Phase 6 production acceptance is claimed.
+- Foundation committed locally as `63dfc86`. Ruff and `git diff --check` passed.
+- Added the Phase 6 branch to the existing Windows CI push filter. Publishing was
+  rejected by automatic approval review: destination considered unverified and
+  source-upload authorization insufficient. No push occurred and no Phase 6 CI or
+  portable result is claimed. The recovered original request specifies commit →
+  push → CI; repository origin is `https://github.com/thangnd1993/thangnd-top-heroes.git`.
+- Next live step after LDPlayer app access is available: scoped recovery if stopped,
+  current screenshot verification, reopen Tiệm, resume beyond the already examined
+  daily-offer viewport. Never repeat the preserved VIP/gift/recruit claims blindly.
