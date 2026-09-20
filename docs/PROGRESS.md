@@ -1,5 +1,17 @@
 # Tiến độ
 
+## Phase 6 — VIP / Free Pack / Free Recruit — PARTIAL
+
+- Resumed branch: `codex/phase6-vip-pack-recruit`, based on accepted `33cb313`.
+- Previous session already observed one free VIP claim, the daily shop gift (20
+  diamonds), and one free recruit. Those claims were not repeated on resume.
+- Added and tested the shared free-only guard, bounded explorer, current-frame
+  unique target search, content fingerprints and red-dot discovery primitives.
+- Production task adapters/CLI/UI/persistence and full shop coverage remain pending.
+  Native `3-Chíp` screen inspection returned `Computer Use app approval timed out`.
+- Detailed completed/remaining work and original evidence: [PHASE6_RESUME.md](PHASE6_RESUME.md).
+- Phase 5 acceptance below is historical and remains unchanged.
+
 ## Phase 5 — Idle Reward — COMPLETE
 
 - Trạng thái: **COMPLETE**. Real Windows acceptance pass ngày 2026-09-20 trên duy nhất

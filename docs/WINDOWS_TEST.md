@@ -1,5 +1,17 @@
 # Nghiệm thu trên Windows thật
 
+## Phase 6 — resumed foundation, acceptance pending
+
+The prior session collected real free VIP, daily gift and recruit evidence on
+`4 / 3-Chíp`. These are manual collection results, not acceptance of production
+Phase 6 task commands. The resume preserved them without repeating claims.
+
+The shared guard/explorer and visual primitives have targeted synthetic tests.
+They are not yet connected to live tasks. Remaining acceptance includes complete
+nested shop/scroll coverage, production adapters, unavailable paths, reporting and
+persistence, fresh CI portable verification and per-task Windows acceptance.
+See [PHASE6_RESUME.md](PHASE6_RESUME.md) for exact evidence and the app-access blocker.
+
 ## Phase 5 — Idle Reward result
 
 Real Windows Phase 5 acceptance: **PASSED** (2026-09-20).

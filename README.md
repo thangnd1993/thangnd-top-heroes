@@ -3,8 +3,9 @@
 Ứng dụng desktop **Windows**, Python 3.12 + PySide6, quản lý LDPlayer theo nguyên tắc
 **một instance = một tài khoản**. Phát triển bởi Thang Nguyen.
 
-Phase 1–4 đã nghiệm thu trên LDPlayer thật. Phase 5 đang bổ sung gameplay task đầu tiên:
-**Thưởng Treo Máy**, với visual evidence thật và nguyên tắc fail-closed.
+Phase 1–5 đã nghiệm thu trên LDPlayer thật. Phase 6 (VIP / Gói miễn phí / Chiêu mộ
+miễn phí) đang ở trạng thái **PARTIAL**: đã có evidence thật và nền tảng guard/explorer,
+chưa có các task Phase 6 chạy từ UI/CLI. Xem [checkpoint tiếp tục](docs/PHASE6_RESUME.md).
 
 ## Thưởng Treo Máy — Phase 5
 

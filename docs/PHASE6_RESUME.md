@@ -1,0 +1,86 @@
+# Phase 6 interruption checkpoint — 2026-09-20
+
+Branch `codex/phase6-vip-pack-recruit` was created from accepted Phase 5 merge
+`33cb313576e4c6ca7770988cdac1c5996337ca51`. At the resumption inventory the tracked
+working tree was clean, no Phase 6 implementation commits existed, and all 12
+LDPlayer instances were stopped. No Python, ADB, LDPlayer or task worker was running.
+
+## Preserve completed real actions
+
+The interrupted task was `Run Phase 1 LDPlayer acceptance`, task ID
+`01a0af6f-f17a-7e00-bfa4-4aeb41210253`; its latest turn contains Phase 6 and the later
+Free Reward Explorer product requirements. Do not repeat its claims to collect fixtures.
+
+- VIP: `VIP6 mỗi ngày có thể nhận miễn phí` / `Nhận` was tapped once; reward popup
+  was verified and the claim button changed to a countdown.
+- Free Pack: the gift on `Ưu Đãi Mỗi Ngày` yielded 20 diamonds. The later screenshot
+  shows `Đã nhận`. `Gói Mỗi Ngày` displayed paid offers, not the free gift.
+- Free Recruit: `Miễn Phí 3/3` was tapped once. Result/continue was observed;
+  subsequent screen shows `2/3`, progress 146 → 147, tickets unchanged at 265 and
+  diamonds unchanged at 4142. A cooldown remains; the `Miễn Phí` label alone does
+  not prove another attempt is currently available.
+- Home was verified after recruit. These were manual evidence collection actions,
+  not acceptance of a Phase 6 production implementation. SQLite contains only
+  Phase 5 `idle-reward` task runs (latest ID 7).
+
+Original screenshots and metadata remain in
+`%LOCALAPPDATA%/TopHeroesAutoManager/diagnostics/vision/3-Chíp/`.
+Portrait inspection copies remain in ignored `artifacts/phase6-*.png`.
+
+## Exact unfinished point
+
+The last original capture is `20260920-125155-889857Z-phase6-shop-explore-tab1-scroll1`;
+portrait copy `artifacts/phase6-shop-tab1-scroll1-portrait.png`. It shows the shop's
+`Ưu Đãi Mỗi Ngày` tab with the already claimed gift and paid offers after a vertical
+scroll. Remaining shop tabs, nested pages and horizontal/vertical content have not
+been exhaustively surveyed. Do not represent this first viewport as a complete scan.
+
+## Remaining implementation
+
+- Reuse accepted target guards, screenshot/vision pipeline, safe input, recovery,
+  task reporting, persistence, cancellation and lifecycle ownership.
+- Add `vip_reward`, `free_pack`, `free_recruit`, individual CLI/UI and sequence with
+  verified Home between tasks; no Phase 7 or unrelated gameplay.
+- Central free-only guard: reject money, diamonds, premium currency, tickets,
+  rare items, speedups, any resource cost, and ambiguous identity. Red dots are
+  discovery signals only. Require fresh precondition and postcondition; never retry
+  a dispatched claim with an uncertain result.
+- Reusable Free Reward Explorer: known safe menus, nested tabs, vertical/horizontal
+  traversal, fingerprints/visited states, bounded depth/steps/scrolls, diagnostic
+  UNKNOWN for unsupported UI. Prioritize genuinely free diamond rewards.
+- Detect targets independently on each account's current screenshot. Building
+  positions from 3-Chíp are not authoritative on another account. Cached positions
+  may only be hints followed by current visual verification.
+- Targeted tests, then commit/push and GitHub Actions full pytest/lint/portable/smoke.
+  Use fresh passing artifacts for production acceptance. Preserve all earlier tests.
+- Update README, PROGRESS and WINDOWS_TEST with honest per-task acceptance status.
+
+Real mutation scope remains only selected/unprotected `4 / 3-Chíp`; Queen is
+Protected/unselected and must never receive mutation. Reverify index/name and ADB
+identity for every live operation; old `emulator-5562` and boot ID are historical
+evidence, not permission to reuse an unverified connection.
+
+## Resumed work
+
+- Added `automation/free_rewards.py`: free-only guard and adapter-driven bounded
+  explorer; fresh account/transport evidence, independent free/availability anchors,
+  diamond priority, no retry after claim dispatch, separate claim/recovery outcomes,
+  nested navigation postconditions, scroll bounds and repeated-content detection.
+- Added `vision/exploration.py`: current-frame unique target matching across account
+  layouts, explicit content fingerprints, and red-dot candidates without claim authority.
+- These are foundation components only. They are deliberately not wired to live CLI/UI
+  tasks: real screen adapters, durable claim-attempt persistence, safe scroll/return-home
+  adapters and the remaining shop survey are still required before production use.
+- Accepted Phase 4 recovery resumed only index 4, successfully reaching GAME_HOME.
+  Report: `diagnostics/recovery/3-Chíp/20260920-155436-608211Z/report.json` in AppData.
+  This run owns that start (`started_by_run=true`). No Phase 6 claim was repeated.
+- Native window inventory found `3-Chíp`, but inspection returned
+  `Computer Use app approval timed out`. Shop navigation has not proceeded past this
+  access boundary. No alternate input mechanism was used to bypass it.
+- Sandboxed `ldconsole list2` incorrectly reported all instances stopped while the
+  actual window existed. An elevated read-only `list2` confirmed index 4 running and
+  all other instances stopped. Use the real process view for lifecycle decisions.
+- Ownership cleanup completed through the accepted Manager: only index 4 was
+  stopped, then all 12 instances were verified stopped. Queen remained untouched.
+- Targeted foundation tests: **32 passed**. No completed real reward action was
+  replayed and no Phase 6 production acceptance is claimed.
