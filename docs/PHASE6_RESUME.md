@@ -1,5 +1,34 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## 2026-09-22 fresh-artifact shop navigation acceptance (Phase 6 still PARTIAL)
+
+- Commit `476e1a8` passed Windows CI run `35656740331`: full Ruff, pytest,
+  PyInstaller build, executable smoke and artifact upload `10665326562`.
+  The downloaded archive is 105,261,941 bytes, SHA-256
+  `CD79AEC2E8BAD6910D740504F3BAB9F8043D52C1DB3E18B838CE2CB288BF2F9D`.
+- Earlier artifact `92a85fc` produced task run 8: standard Home recovery
+  started only index 2, but timed out on a Stranger Things popup. No shop tap,
+  claim or purchase occurred; owned cleanup succeeded. A Phase-6-shop-only
+  known-promo handler now matches its title uniquely on a fresh frame, binds
+  account/serial/boot, sends at most one observed-target Back, and verifies
+  fresh Home. Default Phase 4/5 recovery remains unchanged. Astra final safety
+  review approved; parent reran 98 focused regressions, Ruff and diff checks.
+- Fresh artifact task run 9 succeeded on only `2 / 5-Emmmmm`: after bounded
+  `LOADING_TIMEOUT`, one recognized promo Back produced same-boot `GAME_HOME`
+  (confidence 0.989572); then four current-frame-guarded taps completed
+  Home → Tiệm daily → information popup → daily → Home. Report:
+  `diagnostics/tasks/shop-navigation-survey/5-Emmmmm/20260921-212914-623760Z/report.json`
+  in local app data. Explicit ADB was `emulator-5558`, boot ID
+  `5636e549-fdab-44d0-b9a5-6b106402b8bc`. `claims=[]`, `journal_rows=0`,
+  owned cleanup succeeded and before/after inventories were identical. Queen
+  and revoked index 4 stayed stopped and untouched.
+- The live daily-offer information text describes purchases and an activation
+  ticket. The red-marked gift is **not proven zero-cost** and was not tapped.
+  This is navigation-only acceptance, **not** Free Pack, VIP, Free Recruit,
+  complete nested shop traversal, or Phase 6 completion. Do not merge main or
+  start Phase 7. Next work is production bounded submenu/scroll coverage and
+  independent free-cost/postclaim receipts for guarded reward acceptance.
+
 ## 2026-09-22 continued implementation (still not acceptance)
 
 - Authorized index `2 / 5-Emmmmm` was started only through guarded Home

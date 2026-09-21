@@ -1,6 +1,18 @@
 # Nghiệm thu trên Windows thật
 
-## Phase 6 — guarded checkpoint, acceptance pending
+## Phase 6 — shop navigation accepted, reward acceptance pending
+
+Fresh navigation-only acceptance **PASSED** on 2026-09-22 local time: commit
+`476e1a8`, CI run `35656740331`, artifact `10665326562`, archive SHA-256
+`CD79AEC2E8BAD6910D740504F3BAB9F8043D52C1DB3E18B838CE2CB288BF2F9D`.
+Task run 9 used only `2 / 5-Emmmmm`, explicit `emulator-5558` and boot
+`5636e549-fdab-44d0-b9a5-6b106402b8bc`. A known promo was dismissed by
+one current-frame-guarded Back, then same-boot Home was verified. Four
+evidence-bound shop navigation taps returned to Home. Report:
+`%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\tasks\shop-navigation-survey\5-Emmmmm\20260921-212914-623760Z\report.json`.
+It records `claims=[]`, `journal_rows=0`, successful owned cleanup, and no
+other-instance change. This does **not** certify Free Pack, VIP, Recruit or
+exhaustive Tiệm traversal. The gift remains cost-ambiguous and untouched.
 
 Tuyến khảo sát mới, **chỉ điều hướng và không nhận quà**, dùng lệnh:
 
@@ -10,17 +22,17 @@ TopHeroesAutoManager.exe task shop-navigation-survey --index 2 --name "5-Emmmmm"
 
 Chỉ chạy bằng artifact CI mới đúng commit, sau khi xác minh `2 / 5-Emmmmm`
 được chọn/không Protected, Queen Protected, ADB/boot tường minh và game đúng.
-Tối đa bốn tap: vào Tiệm daily, mở thông tin, đóng popup, thoát về Home;
+Tối đa bốn shop tap: vào Tiệm daily, mở thông tin, đóng popup, thoát về Home;
 mỗi tap cần ảnh nguồn và ảnh đích mới. Report phải ghi Home cuối, quyền sở
 hữu/cleanup, isolation và `claims=[]`, `journal_rows=0`. Kết quả SUCCESS chỉ
 chứng minh tuyến thông tin này; không chứng minh gift miễn phí hay quét hết
-tab/cuộn Tiệm. Nghiệm thu thật của tuyến mới vẫn chờ CI/artifact của mã mới.
+tab/cuộn Tiệm. Tuyến điều hướng này đã qua nghiệm thu; các task nhận quà và
+traversal đầy đủ vẫn chờ bằng chứng riêng.
 
-UI Phase 6 and bounded shop-discovery primitives were added after the
-previous passing artifact. The current code has 109 focused local tests
-including offscreen UI and remains fail-closed for missing receipt/zero-cost
-evidence. A fresh CI artifact and real task acceptance of this new code
-are still required; the earlier artifact below cannot certify these edits.
+The earlier UI and shop-discovery checkpoint had 109 focused local tests.
+Commit `476e1a8` has since passed fresh full CI and the narrow real shop
+navigation route above. Missing receipt/zero-cost evidence still blocks
+reward claims; this artifact does not certify the broader Phase 6 tasks.
 
 The prior session collected real free VIP, daily gift and recruit evidence on
 `4 / 3-Chíp`. These are manual collection results, not acceptance of production

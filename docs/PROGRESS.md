@@ -2,11 +2,21 @@
 
 ## Phase 6 — VIP / Free Pack / Free Recruit — PARTIAL
 
-- 2026-09-22: đã thêm tuyến `shop-navigation-survey` tách khỏi Free Pack:
+- 2026-09-22: artifact CI `10665326562` của commit `476e1a8` qua full
+  lint/test/build/smoke (run `35656740331`). Nghiệm thu task run 9 trên đúng
+  `2 / 5-Emmmmm` thành công **chỉ ở tuyến điều hướng**: popup sự kiện được
+  nhận diện từ ảnh mới, đúng serial/boot, một Back rồi xác minh Home; bốn
+  tap có bằng chứng đi Tiệm daily → thông tin → đóng → Home. Không claim,
+  mua, dùng vé hoặc tạo journal. Owned cleanup thành công, Queen và index 4
+  không đổi. Hướng dẫn Tiệm nói rõ mua gói/vé; gift red dot vẫn chưa chứng
+  minh miễn phí nên không chạm. VIP/Recruit vẫn thiếu receipt độc lập và
+  nested traversal production chưa hoàn tất; Phase 6 tiếp tục PARTIAL.
+- Trước nghiệm thu task run 9, đã thêm tuyến `shop-navigation-survey` tách khỏi Free Pack:
   chỉ Home → Tiệm daily → popup thông tin → đóng → Home, tối đa bốn tap có
   bằng chứng ảnh mới; không claim/journal/mua/vé/scroll. UI/CLI và report có
   guard đúng index 2, ownership cleanup tường minh. 105 test liên quan và
-  Ruff pass; cần CI/artifact mới và nghiệm thu điều hướng thật. Đây không là
+  Ruff pass ở checkpoint đó; CI/artifact và nghiệm thu điều hướng đã hoàn tất
+  ở task run 9 nêu trên. Đây không là
   nghiệm thu Free Pack hay toàn bộ Tiệm; Phase 6 vẫn PARTIAL.
 - Các commit `53c2462`, `6a4f9b8`, `4a08d22`, `ddbd959` đã qua CI Windows
   đầy đủ; artifact của `4a08d22` đã tải và kiểm SHA-256. Không có claim thật

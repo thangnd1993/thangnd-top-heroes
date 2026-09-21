@@ -1,5 +1,20 @@
 # Phase 6 real survey — 2 / 5-Emmmmm
 
+## Fresh artifact navigation acceptance — 2026-09-22 (no claims)
+
+Task run 9 from CI artifact `10665326562` completed the guarded daily-shop
+information route on only index 2. Its observed Stranger Things popup matched
+`promo-stranger-title` at 0.999993. One Back returned to `GAME_HOME` at
+0.989572 on the same `emulator-5558` / boot
+`5636e549-fdab-44d0-b9a5-6b106402b8bc`. Fresh screenshots then proved
+daily shop, help popup, daily shop again, and Home after four guarded shop
+taps. Visual inspection of the fresh daily/help frames showed voucher-priced
+offers and text about purchases/activation tickets; a red dot on the gift did
+not establish free cost. No gift, VIP, Recruit, ticket or purchase action was
+performed. Report and capture paths are in `PHASE6_RESUME.md`; owned index 2
+was stopped and Queen/index 4 remained untouched. This is not full shop
+coverage or reward-task acceptance.
+
 ## Guarded continuation — 2026-09-22 (no claims)
 
 Before lifecycle mutation, exact `2 / 5-Emmmmm` was stopped, selected, and
