@@ -42,6 +42,11 @@ from top_heroes_auto.app.phase6_shop_navigation_tasks import (
     SHOP_NAVIGATION_TASK,
     run_phase6_shop_navigation,
 )
+from top_heroes_auto.app.phase6_shop_survey_tasks import (
+    SHOP_SURVEY_LABEL,
+    SHOP_SURVEY_TASK,
+    run_phase6_shop_survey,
+)
 from top_heroes_auto.app.process import Process
 from top_heroes_auto.app.recovery_cli import run_home_recovery
 from top_heroes_auto.app.run_queue import RunController
@@ -282,6 +287,13 @@ class Window(QMainWindow):
         )
         self.phase6_buttons.append(self.phase6_shop_survey_button)
         self.action_buttons.append(self.phase6_shop_survey_button)
+        self.phase6_shop_broad_survey_button = self.button(
+            tasks,
+            SHOP_SURVEY_LABEL,
+            self.run_phase6_shop_survey,
+        )
+        self.phase6_buttons.append(self.phase6_shop_broad_survey_button)
+        self.action_buttons.append(self.phase6_shop_broad_survey_button)
         self.phase6_cancel_button = self.button(tasks, "Hủy Phase 6", self.cancel_phase6)
         self.phase6_cancel_button.setEnabled(False)
         options = self.group(panels, "Tùy chọn thực thi")
@@ -477,6 +489,17 @@ class Window(QMainWindow):
                     detail = f"{SHOP_NAVIGATION_LABEL}: {status}"
                     if navigation_status:
                         detail += f" · navigation={navigation_status}"
+                elif task == SHOP_SURVEY_TASK:
+                    survey = getattr(result, "survey", None)
+                    survey_status = getattr(survey, "status", None)
+                    survey_status = getattr(survey_status, "value", survey_status)
+                    detail = f"{SHOP_SURVEY_LABEL}: {status}"
+                    if survey_status:
+                        detail += f" · survey={survey_status}"
+                    if survey is not None:
+                        detail += f" · coverage={'complete' if survey.coverage_complete else 'partial'}"
+                        if survey.partial_reasons:
+                            detail += f" · gaps={','.join(survey.partial_reasons[:2])}"
                 else:
                     detail = f"Phase 6 {task}: {status}"
                 if error:
@@ -799,6 +822,25 @@ class Window(QMainWindow):
         self.run_job(
             "phase6",
             lambda: run_phase6_shop_navigation(
+                self.manager,
+                self.data_dir,
+                index,
+                name,
+                cancelled=self.phase6_cancelled.is_set,
+                promo_recovery_factory=promo_recovery_factory,
+            ),
+        )
+
+    def run_phase6_shop_survey(self):
+        target = self._phase6_target()
+        if target is None or self.worker:
+            return
+        index, name = target
+        self.phase6_cancelled.clear()
+        self.phase6_status.setText(f"{SHOP_SURVEY_LABEL}: đang chạy…")
+        self.run_job(
+            "phase6",
+            lambda: run_phase6_shop_survey(
                 self.manager,
                 self.data_dir,
                 index,

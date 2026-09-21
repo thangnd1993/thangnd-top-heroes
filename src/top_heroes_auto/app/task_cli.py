@@ -15,10 +15,15 @@ from top_heroes_auto.app.free_reward_tasks import (
     run_free_reward_sequence,
     run_free_reward_task,
 )
-from top_heroes_auto.app.phase6_runtime import promo_recovery_factory
+from top_heroes_auto.app.phase6_runtime import promo_recovery_factory, shop_survey_factory
 from top_heroes_auto.app.phase6_shop_navigation_tasks import (
     SHOP_NAVIGATION_TASK,
     run_phase6_shop_navigation,
+)
+from top_heroes_auto.app.phase6_shop_survey_tasks import (
+    SHOP_SURVEY_TASK,
+    SURVEY_SUCCESS_STATUSES,
+    run_phase6_shop_survey,
 )
 from top_heroes_auto.app.recovery_cli import run_home_recovery
 from top_heroes_auto.app.service import Manager
@@ -206,6 +211,12 @@ def parser():
     )
     survey.add_argument("--index", type=int, required=True)
     survey.add_argument("--name", required=True)
+    broad_survey = commands.add_parser(
+        SHOP_SURVEY_TASK,
+        help="khảo sát Tiệm (phạm vi một phần) / không nhận quà",
+    )
+    broad_survey.add_argument("--index", type=int, required=True)
+    broad_survey.add_argument("--name", required=True)
     return root
 
 
@@ -241,6 +252,17 @@ def main(argv: list[str], data: Path) -> int:
         )
         print(json.dumps(result.as_dict(), ensure_ascii=True, indent=2))
         return 0 if result.status == "SUCCESS" else 2
+    if args.command == SHOP_SURVEY_TASK:
+        result = run_phase6_shop_survey(
+            manager,
+            data,
+            args.index,
+            args.name,
+            promo_recovery_factory=promo_recovery_factory,
+            survey_factory=shop_survey_factory,
+        )
+        print(json.dumps(result.as_dict(), ensure_ascii=True, indent=2))
+        return 0 if result.status in SURVEY_SUCCESS_STATUSES else 2
     results = run_free_reward_sequence(
         manager,
         data,

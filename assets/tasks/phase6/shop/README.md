@@ -18,6 +18,11 @@ captures and are intentionally separate from reward/cost evidence:
 Every action still requires a unique match in a fresh current-account frame,
 an exact target/boot identity, and a fresh destination check. These anchors do
 not authorize a gift, purchase, ticket use, claim, scroll, or resource spend.
-The route is not wired into the CLI or live worker yet. The daily gift remains
+The fixed four-action navigation route is wired to the dedicated
+`shop-navigation-survey` CLI/UI task. A separate claim-free `shop-survey`
+task now packages only the qualified Home → daily-offer → information-popup
+→ daily-offer → Home path. It deliberately reports `PARTIAL` because no
+neighboring tab, scroll boundary, zero-cost gift, or reward postcondition has
+been independently qualified. The daily gift remains
 `UNKNOWN`/`NOT_IMPLEMENTED` until independent zero-cost and postcondition
 evidence exists.

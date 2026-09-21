@@ -75,6 +75,10 @@ class RewardScreen:
     red_dot_candidates: tuple[str, ...] = ()
     # True only if adapter accounts for all content/tabs, including unsupported UI.
     coverage_known: bool = False
+    # Newer observation-only adapters may declare explicit directional
+    # surfaces.  Keep this after the legacy fields for positional
+    # compatibility with existing reward adapters.
+    scroll_directions: tuple[str, ...] = ()
 
 
 def verified_anchor(detection: ScreenDetection, anchor_id: str):

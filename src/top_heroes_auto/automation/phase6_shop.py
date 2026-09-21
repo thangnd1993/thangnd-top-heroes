@@ -6,7 +6,7 @@ red dots and gift-shaped controls are recorded as diagnostics only, and claims
 remain disabled unless the caller supplies independent post evidence and opts
 in explicitly.
 
-The survey path models scrolling at the axis level only.  It deliberately
+The survey path accepts explicit directional scroll surfaces, but deliberately
 reports partial coverage for any scroll-bearing page until independent
 up/down or left/right boundary evidence is available.
 """
@@ -72,6 +72,11 @@ class ShopVisualProfile:
     coverage_known: bool = False
     claim_enabled: bool = False
     page_state: ScreenState = ScreenState.FREE_REWARD_PAGE
+    # Newer observation-only adapters may declare explicit directional
+    # surfaces and masked fingerprint regions.  Keep these after the legacy
+    # fields so positional profile construction remains compatible.
+    scroll_directions: tuple[str, ...] = ()
+    fingerprint_regions: tuple[NormalizedRect, ...] = ()
 
     def __post_init__(self):
         if not self.task.strip() or not self.page.strip():
@@ -89,6 +94,14 @@ class ShopVisualProfile:
             raise ValueError("Only bounded vertical or horizontal shop scrolling is supported.")
         if len(set(self.scroll_axes)) != len(self.scroll_axes):
             raise ValueError("Shop scroll axes must be unique.")
+        if any(direction not in {"up", "down", "left", "right"} for direction in self.scroll_directions):
+            raise ValueError("Shop scroll directions must be up, down, left, or right.")
+        if len(set(self.scroll_directions)) != len(self.scroll_directions):
+            raise ValueError("Shop scroll directions must be unique.")
+        if self.scroll_axes and self.scroll_directions:
+            raise ValueError("Declare legacy scroll axes or explicit directions, not both.")
+        if any(not isinstance(region, NormalizedRect) for region in self.fingerprint_regions):
+            raise ValueError("Shop fingerprint regions must be normalized rectangles.")
         for route in self.routes:
             if route.role not in known:
                 raise ValueError(f"Shop route {route.id!r} references missing role {route.role!r}.")
@@ -131,6 +144,7 @@ class ShopSurveyLimits:
     max_steps: int = 40
     max_depth: int = 3
     max_scrolls_per_axis: int = 3
+    max_scrolls_per_direction: int | None = None
     max_seconds: float = 60.0
 
     def __post_init__(self):
@@ -138,6 +152,12 @@ class ShopSurveyLimits:
             raise ValueError("Shop survey bounds must be positive, with non-negative depth.")
         if self.max_seconds <= 0:
             raise ValueError("Shop survey timeout must be positive.")
+        if self.max_scrolls_per_direction is not None and self.max_scrolls_per_direction <= 0:
+            raise ValueError("Directional scroll budget must be positive when declared.")
+
+    @property
+    def scroll_budget(self) -> int:
+        return self.max_scrolls_per_direction or self.max_scrolls_per_axis
 
 
 @dataclass
@@ -187,6 +207,7 @@ class _SurveyContext:
     route_obligations: set[str]
     scroll_counts: dict[str, int]
     no_progress: set[str]
+    tab_parent: "_SurveyContext | None" = None
 
 
 @dataclass(frozen=True)
@@ -293,6 +314,7 @@ class ShopSurveyEngine:
                 "red_dot_candidates": list(observation.screen.red_dot_candidates),
                 "routes": [route.id for route in observation.screen.routes],
                 "scroll_axes": list(observation.screen.scroll_axes),
+                "scroll_directions": list(observation.screen.scroll_directions),
                 "rewards": [
                     {
                         "reward_id": reward.reward_id,
@@ -358,7 +380,8 @@ class ShopSurveyEngine:
                 if not screen.coverage_known:
                     coverage = False
                     self._reason(result, "coverage_unknown_or_dynamic")
-                if screen.scroll_axes:
+                scroll_surfaces = screen.scroll_directions or screen.scroll_axes
+                if scroll_surfaces:
                     # Scroll surfaces are represented by axis only in this
                     # milestone. Reverse boundaries (up/down or left/right)
                     # are not independently evidenced, so coverage remains
@@ -379,16 +402,41 @@ class ShopSurveyEngine:
                         if pending.route is None:
                             raise SafetyError("Shop survey navigation lost its route state.")
                         if pending.route.kind == "parent":
-                            if len(contexts) <= 1:
-                                raise SafetyError("Shop survey parent edge has no nested context.")
-                            contexts.pop()
+                            current = contexts[-1]
+                            if current.tab_parent is not None:
+                                if pending.route.destination != current.tab_parent.page:
+                                    raise SafetyError("Shop survey tab parent destination is not verified.")
+                                restored = current.tab_parent
+                                restored.routes_seen.update(current.routes_seen)
+                                restored.route_obligations.update(current.route_obligations)
+                                contexts[-1] = restored
+                            else:
+                                if len(contexts) <= 1:
+                                    raise SafetyError("Shop survey parent edge has no nested context.")
+                                contexts.pop()
                         else:
-                            depth = contexts[-1].depth + 1
+                            # A tab changes the current sibling page without
+                            # increasing nested depth. A submenu creates a
+                            # nested context that must later backtrack to its
+                            # actual parent.
+                            depth = contexts[-1].depth + (1 if pending.route.kind == "submenu" else 0)
                             if depth > self.limits.max_depth:
                                 result.status = ShopSurveyStatus.PARTIAL
                                 self._reason(result, "depth_bound")
                                 break
-                            contexts.append(_SurveyContext(screen.page, depth, set(), set(), {}, set()))
+                            if pending.route.kind == "tab":
+                                previous = contexts[-1]
+                                contexts[-1] = _SurveyContext(
+                                    screen.page,
+                                    depth,
+                                    set(previous.routes_seen),
+                                    set(previous.route_obligations),
+                                    {},
+                                    set(),
+                                    previous.tab_parent or previous,
+                                )
+                            else:
+                                contexts.append(_SurveyContext(screen.page, depth, set(), set(), {}, set()))
                     elif pending.kind == "scroll":
                         context = contexts[-1]
                         if pending.axis is None or pending.previous_fingerprint is None:
@@ -410,7 +458,16 @@ class ShopSurveyEngine:
                 current_route_ids = {
                     route.id for route in screen.routes if route.kind != "parent"
                 }
-                missing_routes = context.route_obligations - context.routes_seen - current_route_ids
+                # A lateral tab temporarily replaces the current page.  Its
+                # retained obligations belong to the tab parent and must be
+                # checked only after the declared parent edge restores that
+                # page, otherwise a valid backtrack is blocked before it can
+                # expose a disappeared sibling.
+                missing_routes = (
+                    set()
+                    if context.tab_parent is not None
+                    else context.route_obligations - context.routes_seen - current_route_ids
+                )
                 if missing_routes:
                     coverage = False
                     for route_id in sorted(missing_routes):
@@ -428,7 +485,7 @@ class ShopSurveyEngine:
 
                 route = self._select_route(screen, context)
                 if route is not None:
-                    if context.depth >= self.limits.max_depth:
+                    if route.kind == "submenu" and context.depth >= self.limits.max_depth:
                         coverage = False
                         self._reason(result, "depth_bound")
                     else:
@@ -442,18 +499,18 @@ class ShopSurveyEngine:
                 axis = next(
                     (
                         axis
-                        for axis in screen.scroll_axes
-                        if axis in {"vertical", "horizontal"}
+                        for axis in scroll_surfaces
+                        if axis in {"vertical", "horizontal", "up", "down", "left", "right"}
                         and axis not in context.no_progress
-                        and context.scroll_counts.get(axis, 0) < self.limits.max_scrolls_per_axis
+                        and context.scroll_counts.get(axis, 0) < self.limits.scroll_budget
                     ),
                     None,
                 )
-                for declared_axis in screen.scroll_axes:
+                for declared_axis in scroll_surfaces:
                     if (
-                        declared_axis in {"vertical", "horizontal"}
+                        declared_axis in {"vertical", "horizontal", "up", "down", "left", "right"}
                         and declared_axis not in context.no_progress
-                        and context.scroll_counts.get(declared_axis, 0) >= self.limits.max_scrolls_per_axis
+                        and context.scroll_counts.get(declared_axis, 0) >= self.limits.scroll_budget
                     ):
                         coverage = False
                         self._reason(result, f"scroll_bound:{screen.page}:{declared_axis}")
@@ -476,7 +533,7 @@ class ShopSurveyEngine:
                     port.scroll(observation, axis, point)
                     continue
 
-                if context.depth > 0:
+                if len(contexts) > 1 or context.tab_parent is not None:
                     parent = next(
                         (
                             route
@@ -490,7 +547,14 @@ class ShopSurveyEngine:
                         self._reason(result, f"missing_backtrack:{screen.page}")
                         result.status = ShopSurveyStatus.PARTIAL
                         break
-                    if len(contexts) < 2 or parent.destination != contexts[-2].page:
+                    expected_parent = (
+                        context.tab_parent.page
+                        if context.tab_parent is not None
+                        else contexts[-2].page
+                        if len(contexts) >= 2
+                        else None
+                    )
+                    if expected_parent is None or parent.destination != expected_parent:
                         coverage = False
                         self._reason(result, f"invalid_backtrack_destination:{parent.id}")
                         result.status = ShopSurveyStatus.PARTIAL
@@ -558,10 +622,13 @@ class FrameShopAdapter:
             for route in self.profile.routes
             if _strong(evidence.get(route.role))
         )
-        axes = tuple(
-            axis for axis in self.profile.scroll_axes
-            if _strong(evidence.get(f"scroll:{axis}"))
+        axes = tuple(axis for axis in self.profile.scroll_axes if _strong(evidence.get(f"scroll:{axis}")))
+        directions = tuple(
+            direction
+            for direction in self.profile.scroll_directions
+            if _strong(evidence.get(f"scroll:{direction}"))
         )
+        fingerprint_regions = self.profile.fingerprint_regions or (NormalizedRect(0, 0, 1, 1),)
         rewards = tuple(self._reward(rule, evidence) for rule in self.profile.rewards)
         screen = RewardScreen(
             detection=detection,
@@ -571,7 +638,7 @@ class FrameShopAdapter:
             boot_id=captured.boot_id,
             capture_id=_capture_id(captured),
             page=self.profile.page,
-            fingerprint=content_fingerprint(captured, (NormalizedRect(0, 0, 1, 1),)),
+            fingerprint=content_fingerprint(captured, fingerprint_regions),
             rewards=rewards,
             routes=routes,
             scroll_axes=axes,
@@ -590,7 +657,12 @@ class FrameShopAdapter:
                     _strong(evidence.get(f"scroll:{axis}"))
                     for axis in self.profile.scroll_axes
                 )
+                and all(
+                    _strong(evidence.get(f"scroll:{direction}"))
+                    for direction in self.profile.scroll_directions
+                )
             ),
+            scroll_directions=directions,
         )
         return ShopFrameObservation(captured, screen, evidence)
 
@@ -643,6 +715,41 @@ class FrameShopAdapter:
             ambiguous=ambiguous,
             diamond_reward=rule.diamond_reward,
         )
+
+
+class ShopProfileRegistry:
+    """Resolve a fresh frame to exactly one independently qualified profile.
+
+    The registry is intentionally strict: a missing page anchor or two page
+    anchors matching the same frame is a safety block, never a reason to pick
+    the first profile or reuse a prior route.  Profiles may declare only the
+    surfaces that have been qualified for the current account.
+    """
+
+    def __init__(
+        self,
+        profiles: Iterable[ShopVisualProfile],
+        matcher: Matcher = unique_current_anchor,
+    ):
+        self.profiles = tuple(profiles)
+        if not self.profiles:
+            raise ValueError("At least one independently qualified shop profile is required.")
+        pages = [profile.page for profile in self.profiles]
+        if len(pages) != len(set(pages)):
+            raise ValueError("Shop profile page names must be unique.")
+        self.matcher = matcher
+
+    def observe(self, captured: CapturedScreen) -> ShopFrameObservation:
+        matches = []
+        for profile in self.profiles:
+            observation = FrameShopAdapter(profile, self.matcher).observe(captured)
+            if _strong(observation.evidence.get("page")):
+                matches.append(observation)
+        if len(matches) != 1:
+            if not matches:
+                raise SafetyError("Current frame has no uniquely verified shop page.")
+            raise SafetyError("Current frame ambiguously matches multiple shop pages.")
+        return matches[0]
 
 
 class ManagerShopPort(ExplorerPort):
@@ -737,12 +844,122 @@ class ManagerShopPort(ExplorerPort):
         raise SafetyError("Shop cleanup requires an explicit fresh Home route.")
 
 
+class ManagerShopSurveyPort:
+    """Manager bridge for the claim-free, observation-only survey engine.
+
+    This port exposes only fresh observation, navigation, and bounded scroll
+    dispatch.  It deliberately has no ``claim`` or journal-facing methods.
+    Every input is bound to the exact screenshot target that authorized it;
+    after dispatch the observation is invalidated so one frame cannot authorize
+    a repeated action.
+    """
+
+    def __init__(
+        self,
+        manager: Manager,
+        snapshot: RunSnapshot,
+        index: int,
+        name: str,
+        registry: ShopProfileRegistry,
+        folder: Path | None = None,
+    ):
+        self.manager = manager
+        self.snapshot = snapshot
+        self.index = index
+        self.name = name
+        self.registry = registry
+        self.folder = folder
+        self._last: ShopFrameObservation | None = None
+        self._target: Target | None = None
+
+    def observe(self) -> ShopFrameObservation:
+        # Any new capture supersedes the previous action authority, including
+        # a capture that later fails semantic page resolution.
+        self._last = None
+        target, payload = self.manager.capture_verified(self.index, self.snapshot)
+        if (target.index, target.name) != (self.index, self.name):
+            raise SafetyError("Shop survey capture identity changed.")
+        if self._target and (target.serial, target.boot_id) != (self._target.serial, self._target.boot_id):
+            raise SafetyError("Shop survey transport identity changed.")
+        self._target = target
+        captured = ScreenshotService(
+            lambda serial: payload if serial == target.serial else b""
+        ).take(target, self.folder, "phase6-shop-survey")
+        observation = self.registry.observe(captured)
+        self._last = observation
+        return observation
+
+    def _current(self, observation: ShopFrameObservation) -> ShopFrameObservation:
+        if self._last is None or self._last is not observation:
+            raise SafetyError("Shop survey action evidence is stale; capture a fresh frame.")
+        if self._target is None:
+            raise SafetyError("Shop survey action has no verified transport target.")
+        return observation
+
+    def _dispatch(self, action: str, values: tuple[int, ...]) -> None:
+        if self._target is None:
+            raise SafetyError("Shop survey action has no verified transport target.")
+        self.manager.execute(
+            self.index,
+            action,
+            values=values,
+            snapshot=self.snapshot,
+            observed_target=self._target,
+        )
+        # A successful dispatch consumes the frame's action authority.  The
+        # engine must observe again before it can dispatch anything else.
+        self._last = None
+
+    @staticmethod
+    def _verified_point(observation: ShopFrameObservation, anchor_id: str, point: tuple[int, int]) -> None:
+        matches = [item for item in observation.evidence.values() if item.anchor_id == anchor_id]
+        if len(matches) != 1 or not _strong(matches[0]) or matches[0].device_box is None:
+            raise SafetyError("Shop survey action anchor is missing or ambiguous.")
+        if matches[0].device_box.center != point:
+            raise SafetyError("Shop survey action point is not from the current frame.")
+
+    def navigate(self, observation: ShopFrameObservation, route: Route, point: tuple[int, int]) -> None:
+        current = self._current(observation)
+        self._verified_point(current, route.anchor, point)
+        self._dispatch("tap", point)
+
+    def backtrack(self, observation: ShopFrameObservation, route: Route, point: tuple[int, int]) -> None:
+        current = self._current(observation)
+        self._verified_point(current, route.anchor, point)
+        self._dispatch("tap", point)
+
+    def scroll(self, observation: ShopFrameObservation, direction: str, point: tuple[int, int]) -> None:
+        current = self._current(observation)
+        evidence = current.evidence.get(f"scroll:{direction}")
+        if not _strong(evidence) or evidence.device_box is None:
+            raise SafetyError("No current-frame verified shop scroll surface.")
+        box = evidence.device_box
+        if box.width <= 1 or box.height <= 1:
+            raise SafetyError("Shop scroll surface is unusable.")
+        cx, cy = box.center
+        if (cx, cy) != point:
+            raise SafetyError("Shop survey scroll point is not from the current frame.")
+        if direction in {"vertical", "up"}:
+            values = (cx, box.y + round(box.height * 0.8), cx, box.y + round(box.height * 0.2), 300)
+        elif direction == "down":
+            values = (cx, box.y + round(box.height * 0.2), cx, box.y + round(box.height * 0.8), 300)
+        elif direction in {"horizontal", "left"}:
+            values = (box.x + round(box.width * 0.8), cy, box.x + round(box.width * 0.2), cy, 300)
+        elif direction == "right":
+            values = (box.x + round(box.width * 0.2), cy, box.x + round(box.width * 0.8), cy, 300)
+        else:
+            raise SafetyError("Unsupported shop scroll direction.")
+        self._dispatch("swipe", values)
+
+
 def free_pack_profile(
     anchors: dict[str, VisualAnchor],
     *,
     rewards: Iterable[RewardRule] = (),
     routes: Iterable[ShopRouteRule] = (),
     scroll_axes: Iterable[str] = (),
+    scroll_directions: Iterable[str] = (),
+    fingerprint_regions: Iterable[NormalizedRect] = (),
     coverage_known: bool = False,
     claim_enabled: bool = False,
 ) -> ShopVisualProfile:
@@ -757,4 +974,6 @@ def free_pack_profile(
         tuple(scroll_axes),
         coverage_known=coverage_known,
         claim_enabled=claim_enabled,
+        scroll_directions=tuple(scroll_directions),
+        fingerprint_regions=tuple(fingerprint_regions),
     )

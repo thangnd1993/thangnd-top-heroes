@@ -10,6 +10,12 @@ from top_heroes_auto.app.phase6_shop_navigation_tasks import (
     SHOP_NAVIGATION_TASK,
     ShopNavigationTaskResult,
 )
+from top_heroes_auto.app.phase6_shop_survey_tasks import (
+    SHOP_SURVEY_LABEL,
+    SHOP_SURVEY_TASK,
+    ShopSurveyTaskResult,
+)
+from top_heroes_auto.automation.phase6_shop import ShopSurveyResult, ShopSurveyStatus
 from top_heroes_auto.automation.phase6_shop_navigation import (
     ShopNavigationResult,
     ShopNavigationStatus,
@@ -139,4 +145,52 @@ def test_phase6_controls_require_exact_target_and_use_worker_cancellation(rig, t
     window.render()
     assert window.phase6_status.text() == "Phase 6 free-pack: NOT_IMPLEMENTED"
     window.worker = None
+    window.close()
+
+
+def test_partial_shop_survey_button_is_separate_and_reports_coverage(rig, tmp_path, monkeypatch):
+    manager, process, store = rig
+    QApplication.instance() or QApplication([])
+    monkeypatch.setattr(Window, "discover_ld", lambda self: None)
+    window = Window(store, tmp_path)
+    window.manager = manager
+    window.instances = manager.refresh()
+    process.listing = "0,Queen,0,0,0,-1,-1\n2,5-Emmmmm,0,0,0,-1,-1\n"
+    manager.refresh()
+    manager.protect(0, True)
+    manager.select(2, True)
+    window.instances = manager.list_readonly()
+    window.render()
+
+    assert window.phase6_shop_broad_survey_button.text() == SHOP_SURVEY_LABEL
+    assert window.phase6_shop_broad_survey_button.isEnabled()
+    calls = []
+
+    def fake_survey(*args, **kwargs):
+        calls.append((args, kwargs))
+        return ShopSurveyTaskResult(
+            SHOP_SURVEY_TASK,
+            ShopSurveyStatus.PARTIAL.value,
+            survey=ShopSurveyResult(
+                status=ShopSurveyStatus.PARTIAL,
+                partial_reasons=["unsupported_tabs"],
+            ),
+        )
+
+    def fake_run_job(mode, function):
+        window.mode = mode
+        function_result = function()
+        window.job_result(function_result)
+
+    monkeypatch.setattr(window_module, "run_phase6_shop_survey", fake_survey)
+    monkeypatch.setattr(window, "run_job", fake_run_job)
+    window.run_phase6_shop_survey()
+
+    assert calls[0][0][0] is manager
+    assert calls[0][0][2:] == (2, "5-Emmmmm")
+    assert calls[0][1]["promo_recovery_factory"] is window_module.promo_recovery_factory
+    assert SHOP_SURVEY_LABEL in window.phase6_status.text()
+    assert "survey=PARTIAL" in window.phase6_status.text()
+    assert "coverage=partial" in window.phase6_status.text()
+    assert "unsupported_tabs" in window.phase6_status.text()
     window.close()

@@ -24,6 +24,14 @@ from top_heroes_auto.automation.phase6_promo_recovery import (
     GuardedPromoRecovery,
     ManagerPromoRecoveryPort,
 )
+from top_heroes_auto.automation.phase6_shop import (
+    ManagerShopSurveyPort,
+    ShopProfileRegistry,
+    ShopRouteRule,
+    ShopSurveyEngine,
+    ShopSurveyLimits,
+    ShopVisualProfile,
+)
 from top_heroes_auto.automation.phase6_shop_navigation import (
     GuardedShopNavigation,
     ManagerShopNavigationPort,
@@ -145,6 +153,81 @@ def shop_navigation_factory(
         destination_observations=3,
         destination_wait_seconds=0.25,
     ).run(index, name, cancelled)
+
+
+def shop_survey_registry() -> ShopProfileRegistry:
+    """Load only the independently qualified Home/daily/help surfaces.
+
+    No neighboring tab or scroll boundary is packaged: the resulting survey
+    therefore reports ``PARTIAL`` even when this small route completes.  The
+    profile is navigation-only and contains no reward or claim rule.
+    """
+
+    shop = phase6_asset_root() / "shop"
+    home = phase6_asset_root() / "home"
+    home_page = _anchor(template_folder() / "home", "home-bottom-navigation")
+    daily_page = _anchor(shop, "phase6-daily-page")
+    popup_page = _anchor(shop, "phase6-daily-info-popup")
+    return ShopProfileRegistry(
+        (
+            ShopVisualProfile(
+                "phase6-shop-survey",
+                "game-home",
+                (("page", home_page), ("shop-entry", _anchor(home, "home-shop-entry"))),
+                routes=(
+                    ShopRouteRule("home-shop-entry", "shop-entry", "daily-offer", "submenu"),
+                ),
+                coverage_known=False,
+                claim_enabled=False,
+                page_state=ScreenState.GAME_HOME,
+            ),
+            ShopVisualProfile(
+                "phase6-shop-survey",
+                "daily-offer",
+                (
+                    ("page", daily_page),
+                    ("info-entry", _anchor(shop, "phase6-daily-info-button")),
+                    ("exit", _anchor(shop, "phase6-daily-exit")),
+                ),
+                routes=(
+                    ShopRouteRule("daily-info", "info-entry", "daily-info-popup", "submenu"),
+                    ShopRouteRule("daily-exit", "exit", "game-home", "parent"),
+                ),
+                coverage_known=False,
+                claim_enabled=False,
+            ),
+            ShopVisualProfile(
+                "phase6-shop-survey",
+                "daily-info-popup",
+                (
+                    ("page", popup_page),
+                    ("close", _anchor(shop, "phase6-daily-info-close")),
+                ),
+                routes=(
+                    ShopRouteRule("daily-info-close", "close", "daily-offer", "parent"),
+                ),
+                coverage_known=False,
+                claim_enabled=False,
+            ),
+        )
+    )
+
+
+def shop_survey_factory(
+    manager,
+    snapshot,
+    index,
+    name,
+    folder,
+    cancelled=lambda: False,
+):
+    """Run the bounded claim-free survey over qualified surfaces only."""
+
+    registry = shop_survey_registry()
+    port = ManagerShopSurveyPort(manager, snapshot, index, name, registry, folder)
+    return ShopSurveyEngine(
+        ShopSurveyLimits(max_steps=12, max_depth=2, max_scrolls_per_direction=1, max_seconds=30.0)
+    ).run(port, index, name, cancelled)
 
 
 def promo_recovery_factory(

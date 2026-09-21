@@ -15,6 +15,9 @@ from top_heroes_auto.app.phase6_shop_navigation_tasks import (
     SHOP_NAVIGATION_TASK,
     ShopNavigationTaskResult,
 )
+from top_heroes_auto.app.phase6_shop_survey_tasks import (
+    SHOP_SURVEY_TASK,
+)
 from top_heroes_auto.app.task_cli import parser as task_parser
 from top_heroes_auto.automation.free_rewards import (
     Cost,
@@ -241,6 +244,13 @@ def test_packaged_routes_compose_only_from_independent_current_frame_anchors(tmp
     assert recruit_route.first_destination.id == "tavern-selected-name"
     assert recruit_route.second_destination is not None
     assert recruit_route.second_destination is recruit.anchor_map["page"]
+
+
+def test_cli_parser_exposes_claim_free_partial_shop_survey():
+    args = task_parser().parse_args([SHOP_SURVEY_TASK, "--index", "2", "--name", "5-Emmmmm"])
+    assert args.command == SHOP_SURVEY_TASK
+    assert args.index == 2
+    assert args.name == "5-Emmmmm"
 
 
 def test_malformed_profile_still_finishes_task_run_and_report(rig, tmp_path, monkeypatch):

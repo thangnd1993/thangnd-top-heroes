@@ -4,10 +4,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from top_heroes_auto.app.phase6_runtime import shop_survey_registry
 from top_heroes_auto.automation.free_rewards import Cost, RewardEvidence, RewardScreen, Route
+from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
 from top_heroes_auto.automation.phase6_shop import (
     FrameShopAdapter,
+    ManagerShopSurveyPort,
     ShopFrameObservation,
+    ShopProfileRegistry,
     ShopRouteRule,
     ShopSurveyEngine,
     ShopSurveyLimits,
@@ -33,6 +37,7 @@ def _observation(
     *,
     routes=(),
     axes=(),
+    directions=(),
     fingerprint=None,
     coverage=True,
     identity=IDENTITY,
@@ -79,6 +84,17 @@ def _observation(
             box,
             box,
         )
+    for number, direction in enumerate(directions):
+        box = BoundingBox(10 + number * 20, 70, 120, 30)
+        evidence[f"scroll:{direction}"] = AnchorEvidence(
+            f"scroll:{direction}",
+            ScreenState.FREE_REWARD_PAGE,
+            0.99,
+            0.9,
+            True,
+            box,
+            box,
+        )
     detection = ScreenDetection(
         state,
         0.99 if state != ScreenState.UNKNOWN else 0.2,
@@ -99,6 +115,7 @@ def _observation(
         rewards=tuple(rewards),
         routes=tuple(routes),
         scroll_axes=tuple(axes),
+        scroll_directions=tuple(directions),
         red_dot_candidates=tuple(red_dots),
         coverage_known=coverage,
     )
@@ -357,6 +374,190 @@ def test_cancellation_after_observation_does_not_dispatch_another_action():
     assert result.status == ShopSurveyStatus.CANCELLED
     assert [action[0:2] for action in port.actions] == [("navigate", "weekly")]
     assert result.claims == []
+
+
+def test_profile_registry_requires_one_current_page_match():
+    page = VisualAnchor(
+        "qualified-page",
+        ScreenState.FREE_REWARD_PAGE,
+        Path("page.png"),
+        NormalizedRect(0, 0, 1, 1),
+        0.9,
+    )
+    profile = ShopVisualProfile("survey", "daily", (("page", page),))
+
+    def matcher(frame, anchor):
+        matched = frame.timestamp == "daily" and anchor.id == "qualified-page"
+        box = BoundingBox(20, 20, 12, 12) if matched else None
+        return AnchorEvidence(anchor.id, anchor.state, 0.99 if matched else 0, 0.9, matched, box, box)
+
+    registry = ShopProfileRegistry((profile,), matcher)
+    assert registry.observe(_observation("daily", "unused").captured).screen.page == "daily"
+    with pytest.raises(SafetyError, match="no uniquely verified"):
+        registry.observe(_observation("other", "unused").captured)
+
+
+def test_profile_registry_rejects_duplicate_page_names():
+    anchor = VisualAnchor(
+        "page",
+        ScreenState.FREE_REWARD_PAGE,
+        Path("page.png"),
+        NormalizedRect(0, 0, 1, 1),
+        0.9,
+    )
+    with pytest.raises(ValueError, match="page names"):
+        ShopProfileRegistry(
+            (ShopVisualProfile("survey", "same", (("page", anchor),)),
+             ShopVisualProfile("survey", "same", (("page", anchor),))),
+        )
+
+
+def test_manager_shop_survey_port_consumes_frame_and_maps_directional_swipe(monkeypatch, tmp_path):
+    page = VisualAnchor(
+        "qualified-page",
+        ScreenState.FREE_REWARD_PAGE,
+        Path("page.png"),
+        NormalizedRect(0, 0, 1, 1),
+        0.9,
+    )
+    surface = VisualAnchor(
+        "scroll-up",
+        ScreenState.FREE_REWARD_PAGE,
+        Path("scroll.png"),
+        NormalizedRect(0, 0, 1, 1),
+        0.9,
+    )
+    profile = ShopVisualProfile(
+        "survey",
+        "daily",
+        (("page", page), ("scroll:up", surface)),
+        scroll_directions=("up",),
+    )
+
+    def matcher(frame, anchor):
+        matched = anchor.id in {"qualified-page", "scroll-up"}
+        box = BoundingBox(20, 20, 100, 40) if matched else None
+        return AnchorEvidence(anchor.id, anchor.state, 0.99, 0.9, matched, box, box)
+
+    class ManagerStub:
+        def __init__(self):
+            self.actions = []
+
+        def capture_verified(self, index, snapshot):
+            return Target(index, "5-Emmmmm", "emulator-5558", "boot-2"), b"ignored"
+
+        def execute(self, index, action, **kwargs):
+            self.actions.append((index, action, kwargs))
+
+    from top_heroes_auto.adb.client import Target
+    from top_heroes_auto.vision.screenshot import ScreenshotService
+
+    captured = _observation("frame", "unused", directions=("up",)).captured
+    monkeypatch.setattr(ScreenshotService, "take", lambda *args, **kwargs: captured)
+    manager = ManagerStub()
+    port = ManagerShopSurveyPort(
+        manager,
+        RunSnapshot("ns", ((2, "5-Emmmmm"),), True),
+        2,
+        "5-Emmmmm",
+        ShopProfileRegistry((profile,), matcher),
+        tmp_path,
+    )
+    observation = port.observe()
+    port.scroll(observation, "up", (70, 40))
+    assert manager.actions[0][1] == "swipe"
+    assert manager.actions[0][2]["observed_target"].boot_id == "boot-2"
+    assert manager.actions[0][2]["values"] == (70, 52, 70, 28, 300)
+    with pytest.raises(SafetyError, match="stale"):
+        port.scroll(observation, "up", (70, 40))
+
+
+def test_lateral_tabs_replace_context_and_retain_sibling_obligations():
+    tabs = tuple(
+        Route(f"tab-{letter}", f"anchor-{letter}", f"tab-{letter}", "tab")
+        for letter in ("a", "b", "c")
+    )
+    frames = [_observation("root-1", "root", routes=tabs)]
+    for number, letter in enumerate(("a", "b", "c"), start=2):
+        frames.extend(
+            (
+                _observation(f"tab-{letter}", f"tab-{letter}", routes=(Route(f"back-{letter}", f"back-{letter}", "root", "parent"),)),
+                _observation(f"root-{number}", "root", routes=tabs[number - 2 :]),
+            )
+        )
+    frames.append(_observation("root-final", "root"))
+    port = SurveyPort(*frames)
+
+    result = ShopSurveyEngine(ShopSurveyLimits(max_depth=0)).run(port, *IDENTITY[:2])
+
+    assert result.status == ShopSurveyStatus.COMPLETE
+    assert [action[0:2] for action in port.actions] == [
+        ("navigate", "tab-a"),
+        ("backtrack", "back-a"),
+        ("navigate", "tab-b"),
+        ("backtrack", "back-b"),
+        ("navigate", "tab-c"),
+        ("backtrack", "back-c"),
+    ]
+
+
+def test_packaged_registry_route_is_partial_and_claim_free():
+    packaged = shop_survey_registry()
+    wanted = {
+        "home-1": {"home-bottom-navigation", "home-shop-entry"},
+        "daily-1": {"phase6-daily-page", "phase6-daily-info-button", "phase6-daily-exit"},
+        "popup": {"phase6-daily-info-popup", "phase6-daily-info-close"},
+        "daily-2": {"phase6-daily-page", "phase6-daily-exit"},
+        "home-2": {"home-bottom-navigation"},
+    }
+
+    def matcher(frame, anchor):
+        matched = anchor.id in wanted[frame.timestamp]
+        box = BoundingBox(20, 20, 16, 16) if matched else None
+        return AnchorEvidence(anchor.id, anchor.state, 0.99 if matched else 0.0, 0.9, matched, box, box)
+
+    registry = ShopProfileRegistry(packaged.profiles, matcher)
+
+    class Port:
+        def __init__(self):
+            self.frames = iter(
+                _observation(stamp, "unused").captured
+                for stamp in ("home-1", "daily-1", "popup", "daily-2", "home-2")
+            )
+            self.actions = []
+
+        def observe(self):
+            return registry.observe(next(self.frames))
+
+        def navigate(self, observation, route, point):
+            self.actions.append(("navigate", route.id, point))
+
+        def backtrack(self, observation, route, point):
+            self.actions.append(("backtrack", route.id, point))
+
+        def scroll(self, observation, direction, point):
+            self.actions.append(("scroll", direction, point))
+
+    port = Port()
+    result = ShopSurveyEngine().run(port, *IDENTITY[:2])
+
+    assert result.status == ShopSurveyStatus.PARTIAL
+    assert result.coverage_complete is False
+    assert [item[0:2] for item in port.actions] == [
+        ("navigate", "home-shop-entry"),
+        ("navigate", "daily-info"),
+        ("backtrack", "daily-info-close"),
+        ("backtrack", "daily-exit"),
+    ]
+    assert [item["page"] for item in result.visited] == [
+        "game-home",
+        "daily-offer",
+        "daily-info-popup",
+        "daily-offer",
+        "game-home",
+    ]
+    assert result.claims == []
+    assert result.journal_rows == 0
 
 
 def test_serial_or_boot_change_fails_closed_before_follow_up_action():
