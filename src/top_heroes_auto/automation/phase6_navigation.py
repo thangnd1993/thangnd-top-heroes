@@ -9,6 +9,7 @@ next action; an uncertain or missing destination stops the route.
 from __future__ import annotations
 
 import hashlib
+import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -137,10 +138,21 @@ class GuardedEntryNavigator:
         port: EntryPort,
         profile: EntryProfile,
         home_detector: Callable[[CapturedScreen], ScreenDetection],
+        *,
+        destination_observations: int = 1,
+        destination_wait_seconds: float = 0.0,
+        sleep: Callable[[float], None] = time.sleep,
     ):
+        if destination_observations < 1:
+            raise ValueError("At least one destination observation is required.")
+        if destination_wait_seconds < 0:
+            raise ValueError("Destination wait cannot be negative.")
         self.port = port
         self.profile = profile
         self.home_detector = home_detector
+        self.destination_observations = destination_observations
+        self.destination_wait_seconds = destination_wait_seconds
+        self.sleep = sleep
         self._identity: tuple[int, str, str, str] | None = None
 
     @staticmethod
@@ -194,13 +206,55 @@ class GuardedEntryNavigator:
         except (OSError, RuntimeError) as exc:
             raise _ActionUncertain(str(exc)) from exc
         result.actions.append(action_name)
-        after = self.port.observe(destination_name)
-        identity = (after.target.index, after.target.name, after.target.serial, after.target.boot_id)
-        if identity != self._identity:
-            raise SafetyError("Entry destination target identity changed.")
-        result.captures.append(after.capture_id)
-        self._destination(after.screen, destination_anchor)
-        return after
+        return self._observe_destination(
+            result,
+            destination_anchor,
+            destination_name,
+            cancelled,
+        )
+
+    def _observe_destination(
+        self,
+        result: NavigationResult,
+        destination_anchor: VisualAnchor,
+        destination_name: str,
+        cancelled: Callable[[], bool],
+    ) -> EntryFrame:
+        """Wait for a delayed destination using fresh frames only.
+
+        A destination transition can take more than one capture.  Polling is
+        deliberately bounded and never dispatches another input.  Transport
+        identity is checked on every frame so a boot/serial change fails
+        immediately instead of waiting on an unrelated target.
+        """
+        last_error: SafetyError | None = None
+        for attempt in range(self.destination_observations):
+            if cancelled():
+                raise _Cancelled("Entry navigation cancelled while observing destination.")
+            if attempt:
+                if self.destination_wait_seconds:
+                    self.sleep(self.destination_wait_seconds)
+                if cancelled():
+                    raise _Cancelled("Entry navigation cancelled while waiting for destination.")
+            try:
+                after = self.port.observe(destination_name)
+            except StopIteration:
+                break
+            identity = (after.target.index, after.target.name, after.target.serial, after.target.boot_id)
+            if identity != self._identity:
+                raise SafetyError("Entry destination target identity changed.")
+            result.captures.append(after.capture_id)
+            try:
+                self._destination(after.screen, destination_anchor)
+            except SafetyError as exc:
+                last_error = exc
+                continue
+            return after
+        detail = str(last_error) if last_error else "no fresh destination frame was available"
+        raise SafetyError(
+            f"Entry destination remained unverified after "
+            f"{self.destination_observations} bounded observations: {detail}"
+        )
 
     def run(self, cancelled: Callable[[], bool] = lambda: False) -> NavigationResult:
         result = NavigationResult(NavigationStatus.BLOCKED)

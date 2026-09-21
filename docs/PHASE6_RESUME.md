@@ -23,8 +23,18 @@
 - The Astra safety review approved the targeted journal, coverage,
   cancellation and UI-result fixes. Parent reran 109 focused tests including
   offscreen UI, plus changed-module Ruff and diff checks successfully.
-  Full CI/fresh artifact and real production acceptance for this new code
-  remain open at this checkpoint. Do not merge main or start Phase 7.
+  Commit `53c2462` passed Windows CI run `35638066955`: full Ruff, pytest,
+  PyInstaller build, executable smoke, and fresh artifact upload
+  (`10656758476`). This verifies the build, not a real reward claim.
+  Real production acceptance remains open. Do not merge main or start Phase 7.
+- An offline follow-up aligned the packaged Tavern match threshold with the
+  guarded survey threshold (`0.97`, rejecting observed `0.9449`/`0.8363`)
+  and added at most three fresh destination observations without repeating an
+  input. Cancellation and boot/serial identity are checked during the wait.
+  Focused navigation/assets tests passed (22); parent independently reran
+  102 related tests and Ruff. Astra's final safety review approved the diff.
+  These synthetic/offline checks do not prove live Tavern recognition or
+  authorize a VIP/Recruit claim; receipt anchors remain absent.
 
 ## Reviewed safe checkpoint — 2026-09-22 (Phase 6 still PARTIAL)
 

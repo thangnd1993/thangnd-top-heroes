@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import pytest
 
+import top_heroes_auto.automation.phase6_navigation as navigation_module
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
 from top_heroes_auto.automation.phase6_navigation import (
@@ -15,6 +16,8 @@ from top_heroes_auto.automation.phase6_navigation import (
     vip_entry_profile,
 )
 from top_heroes_auto.vision.models import (
+    AnchorEvidence,
+    BoundingBox,
     CapturedScreen,
     NormalizedRect,
     ScreenDetection,
@@ -117,6 +120,32 @@ def test_recruit_route_requires_selected_tavern_before_second_action(tmp_path):
     assert len(port.taps) == 1
 
 
+def test_recruit_route_accepts_selected_name_before_recruit_action(tmp_path):
+    tavern, tavern_image = _anchor(tmp_path, "home-tavern", ScreenState.GAME_HOME, 21)
+    selected, selected_image = _anchor(tmp_path, "tavern-selected-name", ScreenState.GAME_HOME, 22)
+    entry, entry_image = _anchor(tmp_path, "tavern-recruit-entry", ScreenState.GAME_HOME, 23)
+    page, page_image = _anchor(tmp_path, "recruit-page", ScreenState.FREE_REWARD_PAGE, 24)
+    templates = {
+        "tavern": (tavern, tavern_image),
+        "selected": (selected, selected_image),
+        "entry": (entry, entry_image),
+        "page": (page, page_image),
+    }
+    port = Port([
+        EntryFrame(IDENTITY, _capture(templates, ("tavern",), stamp="home")),
+        EntryFrame(IDENTITY, _capture(templates, ("selected", "entry"), stamp="selected")),
+        EntryFrame(IDENTITY, _capture(templates, ("page",), stamp="recruit")),
+    ])
+    result = GuardedEntryNavigator(
+        port,
+        recruit_entry_profile(tavern, selected, entry, page),
+        home_detector,
+    ).run()
+    assert result.status == NavigationStatus.SUCCESS
+    assert result.actions == ["tap:home-tavern", "tap:tavern-recruit-entry"]
+    assert len(port.taps) == 2
+
+
 def test_cancellation_between_recruit_steps_dispatches_no_second_tap(tmp_path):
     tavern, tavern_image = _anchor(tmp_path, "home-tavern", ScreenState.GAME_HOME, 31)
     selected, selected_image = _anchor(tmp_path, "tavern-selected-name", ScreenState.GAME_HOME, 32)
@@ -173,6 +202,152 @@ def test_destination_missing_dispatches_once_and_never_retries(tmp_path):
     ])
     result = GuardedEntryNavigator(port, vip_entry_profile(home, page), home_detector).run()
     assert result.status == NavigationStatus.DESTINATION_UNVERIFIED
+    assert len(port.taps) == 1
+
+
+def test_delayed_destination_is_observed_without_repeating_input(tmp_path):
+    home, home_image = _anchor(tmp_path, "home-vip-entry", ScreenState.GAME_HOME, 41)
+    page, page_image = _anchor(tmp_path, "vip-page", ScreenState.FREE_REWARD_PAGE, 42)
+    templates = {"home": (home, home_image), "page": (page, page_image)}
+    port = Port([
+        EntryFrame(IDENTITY, _capture(templates, ("home",), stamp="home")),
+        EntryFrame(IDENTITY, _capture(templates, (), stamp="transition")),
+        EntryFrame(IDENTITY, _capture(templates, ("page",), stamp="vip")),
+    ])
+    result = GuardedEntryNavigator(
+        port,
+        vip_entry_profile(home, page),
+        home_detector,
+        destination_observations=3,
+        destination_wait_seconds=0,
+    ).run()
+    assert result.status == NavigationStatus.SUCCESS
+    assert len(port.taps) == 1
+    assert len(result.captures) == 3
+
+
+def test_destination_observation_timeout_never_repeats_input(tmp_path):
+    home, home_image = _anchor(tmp_path, "home-vip-entry", ScreenState.GAME_HOME, 43)
+    page, page_image = _anchor(tmp_path, "vip-page", ScreenState.FREE_REWARD_PAGE, 44)
+    templates = {"home": (home, home_image), "page": (page, page_image)}
+    port = Port([
+        EntryFrame(IDENTITY, _capture(templates, ("home",), stamp="home")),
+        EntryFrame(IDENTITY, _capture(templates, (), stamp="transition-1")),
+        EntryFrame(IDENTITY, _capture(templates, (), stamp="transition-2")),
+        EntryFrame(IDENTITY, _capture(templates, (), stamp="transition-3")),
+    ])
+    result = GuardedEntryNavigator(
+        port,
+        vip_entry_profile(home, page),
+        home_detector,
+        destination_observations=3,
+        destination_wait_seconds=0,
+    ).run()
+    assert result.status == NavigationStatus.DESTINATION_UNVERIFIED
+    assert "3 bounded observations" in result.error
+    assert len(port.taps) == 1
+    assert len(result.captures) == 4
+
+
+def test_boot_change_during_delayed_destination_fails_closed(tmp_path):
+    home, home_image = _anchor(tmp_path, "home-vip-entry", ScreenState.GAME_HOME, 45)
+    page, page_image = _anchor(tmp_path, "vip-page", ScreenState.FREE_REWARD_PAGE, 46)
+    templates = {"home": (home, home_image), "page": (page, page_image)}
+    changed = replace(IDENTITY, boot_id="ce068632-fc3e-4090-a8d7-ae8d9fe353f5")
+    port = Port([
+        EntryFrame(IDENTITY, _capture(templates, ("home",), stamp="home")),
+        EntryFrame(IDENTITY, _capture(templates, (), stamp="transition")),
+        EntryFrame(changed, _capture(templates, ("page",), stamp="wrong-boot", target=changed)),
+    ])
+    result = GuardedEntryNavigator(
+        port,
+        vip_entry_profile(home, page),
+        home_detector,
+        destination_observations=3,
+        destination_wait_seconds=0,
+    ).run()
+    assert result.status == NavigationStatus.DESTINATION_UNVERIFIED
+    assert "identity changed" in result.error
+    assert len(port.taps) == 1
+    assert len(result.captures) == 2
+
+
+def test_cancellation_during_delayed_destination_stops_observation(tmp_path):
+    home, home_image = _anchor(tmp_path, "home-vip-entry", ScreenState.GAME_HOME, 47)
+    page, page_image = _anchor(tmp_path, "vip-page", ScreenState.FREE_REWARD_PAGE, 48)
+    templates = {"home": (home, home_image), "page": (page, page_image)}
+    cancelled = False
+
+    class CancellingDestinationPort(Port):
+        def observe(self, tag):
+            nonlocal cancelled
+            frame = super().observe(tag)
+            if tag == "vip-reward-after-step-1":
+                cancelled = True
+            return frame
+
+    port = CancellingDestinationPort([
+        EntryFrame(IDENTITY, _capture(templates, ("home",), stamp="home")),
+        EntryFrame(IDENTITY, _capture(templates, (), stamp="transition")),
+        EntryFrame(IDENTITY, _capture(templates, ("page",), stamp="vip")),
+    ])
+    result = GuardedEntryNavigator(
+        port,
+        vip_entry_profile(home, page),
+        home_detector,
+        destination_observations=3,
+        destination_wait_seconds=0,
+    ).run(lambda: cancelled)
+    assert result.status == NavigationStatus.CANCELLED
+    assert len(port.taps) == 1
+    assert len(result.captures) == 2
+
+
+@pytest.mark.parametrize("score", [0.9449, 0.8363])
+def test_surveyed_animated_tavern_matches_dispatch_zero(tmp_path, monkeypatch, score):
+    home, home_image = _anchor(tmp_path, "home-tavern", ScreenState.GAME_HOME, 49)
+    page, page_image = _anchor(tmp_path, "vip-page", ScreenState.FREE_REWARD_PAGE, 50)
+    templates = {"home": (home, home_image), "page": (page, page_image)}
+    port = Port([EntryFrame(IDENTITY, _capture(templates, ("home",), stamp="home"))])
+
+    def surveyed_match(screen, anchor):
+        return AnchorEvidence(
+            anchor.id,
+            anchor.state,
+            score,
+            0.97,
+            False,
+        )
+
+    monkeypatch.setattr(navigation_module, "unique_current_anchor", surveyed_match)
+    result = GuardedEntryNavigator(port, vip_entry_profile(home, page), home_detector).run()
+    assert result.status == NavigationStatus.BLOCKED
+    assert not port.taps
+
+
+def test_stable_tavern_match_dispatches_once(tmp_path, monkeypatch):
+    home, home_image = _anchor(tmp_path, "home-tavern", ScreenState.GAME_HOME, 51)
+    page, page_image = _anchor(tmp_path, "vip-page", ScreenState.FREE_REWARD_PAGE, 52)
+    templates = {"home": (home, home_image), "page": (page, page_image)}
+    port = Port([
+        EntryFrame(IDENTITY, _capture(templates, ("home",), stamp="home")),
+        EntryFrame(IDENTITY, _capture(templates, ("page",), stamp="vip")),
+    ])
+
+    def stable_match(screen, anchor):
+        return AnchorEvidence(
+            anchor.id,
+            anchor.state,
+            0.9888,
+            0.97,
+            True,
+            BoundingBox(12, 20, 16, 14),
+            BoundingBox(12, 20, 16, 14),
+        )
+
+    monkeypatch.setattr(navigation_module, "unique_current_anchor", stable_match)
+    result = GuardedEntryNavigator(port, vip_entry_profile(home, page), home_detector).run()
+    assert result.status == NavigationStatus.SUCCESS
     assert len(port.taps) == 1
 
 

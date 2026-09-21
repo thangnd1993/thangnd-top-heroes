@@ -35,3 +35,11 @@ def test_home_route_assets_are_navigation_evidence_only():
     }
     assert all(anchor.state == ScreenState.GAME_HOME for anchor in anchors)
     assert not any("claim" in anchor.id or "post" in anchor.id for anchor in anchors)
+
+
+def test_tavern_action_anchor_rejects_surveyed_animated_matches():
+    anchors = {anchor.id: anchor for anchor in load_anchors(ASSETS / "home")}
+    tavern = anchors["home-tavern"]
+    assert tavern.threshold == pytest.approx(0.97)
+    assert 0.9449 < tavern.threshold
+    assert 0.8363 < tavern.threshold

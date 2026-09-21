@@ -8,7 +8,7 @@
     0.9,
     0.85
   ],
-  "threshold": 0.9,
+  "threshold": 0.97,
   "required": false,
   "weight": 1.0,
   "variant": "default",
@@ -16,5 +16,5 @@
     1280,
     720
   ],
-  "notes": "Index 2 Home survey crop; current-frame match and destination verification required."
+  "notes": "Index 2 Home survey crop; stable current-frame match required. Surveyed animated matches 0.9449/0.8363 are rejected; destination verification remains required."
 }

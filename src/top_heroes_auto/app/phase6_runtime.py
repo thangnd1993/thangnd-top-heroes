@@ -62,7 +62,15 @@ def entry_navigator_factory(manager, snapshot, index, name, profile, folder, can
     route = _entry_profile(profile.task, profile)
     port = ManagerEntryPort(manager, snapshot, index, name, folder)
     detector = ScreenDetector.from_folder(template_folder())
-    return GuardedEntryNavigator(port, route, detector.detect).run(cancelled)
+    return GuardedEntryNavigator(
+        port,
+        route,
+        detector.detect,
+        # A transition may need a few fresh captures.  This is observation
+        # only: no action is retried and each frame remains target-bound.
+        destination_observations=3,
+        destination_wait_seconds=0.25,
+    ).run(cancelled)
 
 
 def reward_port_factory(manager, snapshot, index, name, profile, folder):
