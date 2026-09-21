@@ -2,6 +2,13 @@
 
 ## Phase 6 — VIP / Free Pack / Free Recruit — PARTIAL
 
+- 2026-09-22: hạ tầng khảo sát Tiệm một phần `ca14c96` qua CI Windows đầy đủ
+  (run `35662061780`, artifact `10666928804`), nhưng nghiệm thu thật task
+  run 10 **dừng an toàn**: popup Stranger Things xuất hiện muộn sau đúng một
+  tap Home→Tiệm; trang đích bị từ chối, không claim/mua/vé/journal, owned
+  index 2 đã dừng, Queen/index 4 không đổi. Cần xử lý interstitial có bằng
+  chứng sau hành động và artifact mới trước khi chạy lại. Chưa nghiệm thu
+  traversal tab/cuộn rộng hoặc reward tasks; xem `PHASE6_RESUME.md`.
 - 2026-09-22: artifact CI `10665326562` của commit `476e1a8` qua full
   lint/test/build/smoke (run `35656740331`). Nghiệm thu task run 9 trên đúng
   `2 / 5-Emmmmm` thành công **chỉ ở tuyến điều hướng**: popup sự kiện được

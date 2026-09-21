@@ -1,5 +1,29 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## 2026-09-22 partial shop-survey checkpoint (real run 10 blocked safely)
+
+- Observation-only partial-survey infrastructure commit `ca14c96` passed
+  Windows CI run `35662061780`: full Ruff, pytest, PyInstaller, executable
+  smoke and fresh artifact `10666928804`. The downloaded archive is
+  105,296,688 bytes, SHA-256
+  `633A96C5BDE64DF04D16B420B774200AB356EA8D4AE0E4176E24EEC3D2C697F6`.
+- Fresh artifact task run 10 on only `2 / 5-Emmmmm` was **SAFETY_BLOCKED**, not
+  accepted. Standard recovery reached `GAME_HOME` on explicit ADB
+  `emulator-5558`, boot ID `538776d2-082b-441c-a4f7-4b603a65fad3`.
+  After one current-frame-guarded Home→shop tap, a delayed Stranger Things
+  popup appeared in the next capture. The strict page registry refused it;
+  there was no further navigation, Back, claim, purchase, ticket use or journal
+  row. The known title matches at 0.999936 in that fresh frame. Owned cleanup
+  succeeded, all instances returned to their prior stopped state, and Queen
+  and revoked index 4 remained untouched. Durable report:
+  `diagnostics/tasks/shop-survey/5-Emmmmm/20260921-222627-200207Z/report.json`
+  in local app data. Do **not** rerun this artifact blindly. Next is a
+  reviewed, one-action known-promo interstitial handler after navigation,
+  with same-boot destination proof and no retry of the preceding shop tap.
+- The packaged survey currently knows only Home/daily/help; directional
+  traversal is tested infrastructure, not real multi-tab/scroll coverage.
+  Phase 6 remains PARTIAL; reward claims and final merge remain blocked.
+
 ## 2026-09-22 fresh-artifact shop navigation acceptance (Phase 6 still PARTIAL)
 
 - Commit `476e1a8` passed Windows CI run `35656740331`: full Ruff, pytest,

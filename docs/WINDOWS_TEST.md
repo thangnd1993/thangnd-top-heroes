@@ -2,6 +2,16 @@
 
 ## Phase 6 — shop navigation accepted, reward acceptance pending
 
+The newer observation-only `shop-survey` task (commit `ca14c96`, CI run
+`35662061780`, artifact `10666928804`, SHA-256
+`633A96C5BDE64DF04D16B420B774200AB356EA8D4AE0E4176E24EEC3D2C697F6`)
+has **not** passed real acceptance. Task run 10 reached Home on index 2, sent
+one verified shop-entry tap, then safely stopped because a delayed known
+Stranger Things popup occupied the fresh destination frame. It made no claim,
+purchase, ticket use or journal entry; owned cleanup and isolation passed.
+Do not rerun this artifact blindly. The earlier `shop-navigation-survey` run 9
+below remains accepted for its narrow route only.
+
 Fresh navigation-only acceptance **PASSED** on 2026-09-22 local time: commit
 `476e1a8`, CI run `35656740331`, artifact `10665326562`, archive SHA-256
 `CD79AEC2E8BAD6910D740504F3BAB9F8043D52C1DB3E18B838CE2CB288BF2F9D`.
