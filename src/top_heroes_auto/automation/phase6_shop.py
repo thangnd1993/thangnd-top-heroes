@@ -5,15 +5,21 @@ therefore an injectable discovery adapter, not a packaged Free Pack profile:
 red dots and gift-shaped controls are recorded as diagnostics only, and claims
 remain disabled unless the caller supplies independent post evidence and opts
 in explicitly.
+
+The survey path models scrolling at the axis level only.  It deliberately
+reports partial coverage for any scroll-bearing page until independent
+up/down or left/right boundary evidence is available.
 """
 
 from __future__ import annotations
 
 import hashlib
 import math
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
+from enum import StrEnum
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable, Protocol
 
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app.service import Manager
@@ -105,6 +111,97 @@ class ShopFrameObservation:
     evidence: dict[str, AnchorEvidence]
 
 
+class ShopSurveyStatus(StrEnum):
+    """Observation-only shop survey outcomes."""
+
+    COMPLETE = "COMPLETE"
+    PARTIAL = "PARTIAL"
+    UNKNOWN_SCREEN = "UNKNOWN_SCREEN"
+    CANCELLED = "CANCELLED"
+    TIMEOUT = "TIMEOUT"
+    IDENTITY_MISMATCH = "IDENTITY_MISMATCH"
+    SAFETY_BLOCKED = "SAFETY_BLOCKED"
+    ACTION_RESULT_UNCERTAIN = "ACTION_RESULT_UNCERTAIN"
+
+
+@dataclass(frozen=True)
+class ShopSurveyLimits:
+    """Small bounds for discovery; these are not claim/retry limits."""
+
+    max_steps: int = 40
+    max_depth: int = 3
+    max_scrolls_per_axis: int = 3
+    max_seconds: float = 60.0
+
+    def __post_init__(self):
+        if self.max_steps <= 0 or self.max_depth < 0 or self.max_scrolls_per_axis <= 0:
+            raise ValueError("Shop survey bounds must be positive, with non-negative depth.")
+        if self.max_seconds <= 0:
+            raise ValueError("Shop survey timeout must be positive.")
+
+
+@dataclass
+class ShopSurveyResult:
+    """Durable-safe survey data; this model has no claim or journal operation."""
+
+    status: ShopSurveyStatus = ShopSurveyStatus.UNKNOWN_SCREEN
+    visited: list[dict] = field(default_factory=list)
+    actions: list[str] = field(default_factory=list)
+    partial_reasons: list[str] = field(default_factory=list)
+    coverage_complete: bool = False
+    claims: list[str] = field(default_factory=list)
+    journal_rows: int = 0
+    error: str | None = None
+
+    def as_dict(self) -> dict:
+        return {
+            "result": self.status.value,
+            "visited": list(self.visited),
+            "actions": list(self.actions),
+            "partial_reasons": list(self.partial_reasons),
+            "coverage_complete": self.coverage_complete,
+            # Explicitly prove that this path did not claim or journal.
+            "claims": list(self.claims),
+            "journal_rows": self.journal_rows,
+            "error": self.error,
+        }
+
+
+class ShopSurveyPort(Protocol):
+    """Injectable observation/navigation boundary with no claim method."""
+
+    def observe(self) -> ShopFrameObservation: ...
+
+    def navigate(self, observation: ShopFrameObservation, route: Route, point: tuple[int, int]) -> None: ...
+
+    def scroll(self, observation: ShopFrameObservation, axis: str, point: tuple[int, int]) -> None: ...
+
+    def backtrack(self, observation: ShopFrameObservation, route: Route, point: tuple[int, int]) -> None: ...
+
+
+@dataclass
+class _SurveyContext:
+    page: str
+    depth: int
+    routes_seen: set[str]
+    route_obligations: set[str]
+    scroll_counts: dict[str, int]
+    no_progress: set[str]
+
+
+@dataclass(frozen=True)
+class _PendingSurveyAction:
+    kind: str
+    expected_page: str
+    previous_fingerprint: str | None = None
+    route: Route | None = None
+    axis: str | None = None
+
+
+class _SurveyIdentityMismatch(SafetyError):
+    pass
+
+
 def _capture_id(screen: CapturedScreen) -> str:
     if screen.source_image:
         return str(screen.source_image)
@@ -121,6 +218,316 @@ def _strong(evidence: AnchorEvidence | None) -> bool:
         and math.isfinite(evidence.threshold)
         and evidence.score >= max(0.9, evidence.threshold)
     )
+
+
+class ShopSurveyEngine:
+    """Traverse declared shop evidence without exposing a claim interface.
+
+    This engine is intentionally separate from ``FreeRewardExplorer``.  Its
+    port cannot claim a reward, and the engine never creates a journal adapter.
+    It may navigate declared sibling tabs, scroll a verified current surface,
+    and use a declared parent edge to backtrack.  Every action is followed by
+    a fresh, same-account frame before the next action is considered.
+    """
+
+    def __init__(
+        self,
+        limits: ShopSurveyLimits | None = None,
+        clock: Callable[[], float] = time.monotonic,
+    ):
+        self.limits = limits or ShopSurveyLimits()
+        self.clock = clock
+
+    @staticmethod
+    def _reason(result: ShopSurveyResult, reason: str) -> None:
+        if reason not in result.partial_reasons:
+            result.partial_reasons.append(reason)
+
+    @staticmethod
+    def _point(observation: ShopFrameObservation, anchor_id: str) -> tuple[int, int]:
+        matches = [item for item in observation.evidence.values() if item.anchor_id == anchor_id]
+        if len(matches) != 1:
+            raise SafetyError(f"Shop survey action anchor {anchor_id!r} is missing or ambiguous.")
+        evidence = matches[0]
+        if not _strong(evidence):
+            raise SafetyError(f"Shop survey action anchor {anchor_id!r} is missing or ambiguous.")
+        if evidence.device_box is None:
+            raise SafetyError(f"Shop survey action anchor {anchor_id!r} has no device point.")
+        return evidence.device_box.center
+
+    @staticmethod
+    def _identity(observation: ShopFrameObservation) -> tuple[int, str, str, str]:
+        captured = observation.captured
+        screen = observation.screen
+        captured_identity = captured.index, captured.name, captured.serial, captured.boot_id
+        screen_identity = screen.index, screen.name, screen.adb_target, screen.boot_id
+        if captured_identity != screen_identity:
+            raise _SurveyIdentityMismatch("Shop frame identity disagrees with its captured transport.")
+        if not all(screen_identity):
+            raise _SurveyIdentityMismatch("Shop frame is missing explicit account or transport identity.")
+        return screen_identity
+
+    def _record_frame(
+        self,
+        result: ShopSurveyResult,
+        observation: ShopFrameObservation,
+        expected: tuple[int, str],
+        identity: tuple[int, str, str, str] | None,
+        seen_captures: set[str],
+    ) -> tuple[int, str, str, str]:
+        current = self._identity(observation)
+        if current[:2] != expected:
+            raise _SurveyIdentityMismatch("Shop survey account identity changed.")
+        if identity is not None and current[2:] != identity[2:]:
+            raise _SurveyIdentityMismatch("Shop survey serial or boot identity changed.")
+        if not observation.screen.capture_id or observation.screen.capture_id in seen_captures:
+            raise SafetyError("Shop survey requires a fresh screenshot for every observation.")
+        seen_captures.add(observation.screen.capture_id)
+        result.visited.append(
+            {
+                "page": observation.screen.page,
+                "fingerprint": observation.screen.fingerprint,
+                "capture_id": observation.screen.capture_id,
+                "state": observation.screen.detection.state.value,
+                "screenshot": str(observation.screen.detection.source_image or ""),
+                "red_dot_candidates": list(observation.screen.red_dot_candidates),
+                "routes": [route.id for route in observation.screen.routes],
+                "scroll_axes": list(observation.screen.scroll_axes),
+                "rewards": [
+                    {
+                        "reward_id": reward.reward_id,
+                        "cost": reward.cost.value,
+                        "ambiguous": reward.ambiguous,
+                        "diamond_reward": reward.diamond_reward,
+                        "action_anchor": reward.action_anchor,
+                        "free_anchor": reward.free_anchor,
+                        "available_anchor": reward.available_anchor,
+                    }
+                    for reward in observation.screen.rewards
+                ],
+            }
+        )
+        return current
+
+    @staticmethod
+    def _select_route(screen: RewardScreen, context: _SurveyContext) -> Route | None:
+        for route in screen.routes:
+            if route.kind not in {"tab", "submenu", "parent"}:
+                raise SafetyError(f"Unsupported shop survey navigation edge: {route.kind!r}.")
+            if route.kind != "parent" and route.id not in context.routes_seen:
+                return route
+        return None
+
+    def run(
+        self,
+        port: ShopSurveyPort,
+        index: int,
+        name: str,
+        cancelled: Callable[[], bool] = lambda: False,
+    ) -> ShopSurveyResult:
+        result = ShopSurveyResult()
+        expected = index, name
+        identity: tuple[int, str, str, str] | None = None
+        seen_captures: set[str] = set()
+        contexts: list[_SurveyContext] = []
+        pending: _PendingSurveyAction | None = None
+        started = self.clock()
+        coverage = True
+
+        try:
+            for _ in range(self.limits.max_steps):
+                if cancelled():
+                    result.status = ShopSurveyStatus.CANCELLED
+                    break
+                if self.clock() - started >= self.limits.max_seconds:
+                    result.status = ShopSurveyStatus.TIMEOUT
+                    self._reason(result, "time_bound")
+                    break
+
+                observation = port.observe()
+                identity = self._record_frame(result, observation, expected, identity, seen_captures)
+                screen = observation.screen
+                if screen.detection.state == ScreenState.UNKNOWN or screen.detection.confidence < 0.9:
+                    result.status = ShopSurveyStatus.UNKNOWN_SCREEN
+                    self._reason(result, "unknown_or_low_confidence_screen")
+                    break
+                if not screen.page or not screen.fingerprint:
+                    result.status = ShopSurveyStatus.PARTIAL
+                    self._reason(result, "missing_page_identity")
+                    break
+                if not screen.coverage_known:
+                    coverage = False
+                    self._reason(result, "coverage_unknown_or_dynamic")
+                if screen.scroll_axes:
+                    # Scroll surfaces are represented by axis only in this
+                    # milestone. Reverse boundaries (up/down or left/right)
+                    # are not independently evidenced, so coverage remains
+                    # PARTIAL whenever a scroll surface is exposed.
+                    coverage = False
+                    self._reason(result, f"directional_scroll_coverage_unproven:{screen.page}")
+
+                if pending is not None:
+                    if screen.page != pending.expected_page:
+                        result.status = ShopSurveyStatus.PARTIAL
+                        self._reason(result, f"destination_unverified:{pending.expected_page}")
+                        result.error = (
+                            f"Expected {pending.expected_page!r}, observed {screen.page!r} "
+                            "after the last observation-only action."
+                        )
+                        break
+                    if pending.kind == "navigate":
+                        if pending.route is None:
+                            raise SafetyError("Shop survey navigation lost its route state.")
+                        if pending.route.kind == "parent":
+                            if len(contexts) <= 1:
+                                raise SafetyError("Shop survey parent edge has no nested context.")
+                            contexts.pop()
+                        else:
+                            depth = contexts[-1].depth + 1
+                            if depth > self.limits.max_depth:
+                                result.status = ShopSurveyStatus.PARTIAL
+                                self._reason(result, "depth_bound")
+                                break
+                            contexts.append(_SurveyContext(screen.page, depth, set(), set(), {}, set()))
+                    elif pending.kind == "scroll":
+                        context = contexts[-1]
+                        if pending.axis is None or pending.previous_fingerprint is None:
+                            raise SafetyError("Shop survey scroll lost its observation state.")
+                        if screen.fingerprint == pending.previous_fingerprint:
+                            context.no_progress.add(pending.axis)
+                            coverage = False
+                            self._reason(result, f"no_progress:{screen.page}:{pending.axis}")
+                    pending = None
+
+                if not contexts:
+                    contexts.append(_SurveyContext(screen.page, 0, set(), set(), {}, set()))
+                elif contexts[-1].page != screen.page:
+                    result.status = ShopSurveyStatus.PARTIAL
+                    self._reason(result, "unexpected_page_transition")
+                    break
+
+                context = contexts[-1]
+                current_route_ids = {
+                    route.id for route in screen.routes if route.kind != "parent"
+                }
+                missing_routes = context.route_obligations - context.routes_seen - current_route_ids
+                if missing_routes:
+                    coverage = False
+                    for route_id in sorted(missing_routes):
+                        self._reason(result, f"missing_route_after_backtrack:{route_id}")
+                    result.status = ShopSurveyStatus.PARTIAL
+                    break
+                context.route_obligations.update(current_route_ids)
+                if cancelled():
+                    result.status = ShopSurveyStatus.CANCELLED
+                    break
+                if self.clock() - started >= self.limits.max_seconds:
+                    result.status = ShopSurveyStatus.TIMEOUT
+                    self._reason(result, "time_bound_before_dispatch")
+                    break
+
+                route = self._select_route(screen, context)
+                if route is not None:
+                    if context.depth >= self.limits.max_depth:
+                        coverage = False
+                        self._reason(result, "depth_bound")
+                    else:
+                        context.routes_seen.add(route.id)
+                        point = self._point(observation, route.anchor)
+                        pending = _PendingSurveyAction("navigate", route.destination, route=route)
+                        result.actions.append(f"{route.kind}:{route.id}")
+                        port.navigate(observation, route, point)
+                        continue
+
+                axis = next(
+                    (
+                        axis
+                        for axis in screen.scroll_axes
+                        if axis in {"vertical", "horizontal"}
+                        and axis not in context.no_progress
+                        and context.scroll_counts.get(axis, 0) < self.limits.max_scrolls_per_axis
+                    ),
+                    None,
+                )
+                for declared_axis in screen.scroll_axes:
+                    if (
+                        declared_axis in {"vertical", "horizontal"}
+                        and declared_axis not in context.no_progress
+                        and context.scroll_counts.get(declared_axis, 0) >= self.limits.max_scrolls_per_axis
+                    ):
+                        coverage = False
+                        self._reason(result, f"scroll_bound:{screen.page}:{declared_axis}")
+                        context.no_progress.add(declared_axis)
+                if axis is not None:
+                    evidence = observation.evidence.get(f"scroll:{axis}")
+                    point = self._point(observation, f"scroll:{axis}")
+                    context.scroll_counts[axis] = context.scroll_counts.get(axis, 0) + 1
+                    pending = _PendingSurveyAction(
+                        "scroll",
+                        screen.page,
+                        previous_fingerprint=screen.fingerprint,
+                        axis=axis,
+                    )
+                    result.actions.append(f"scroll:{axis}")
+                    # Keep the local binding to make it clear that no route or
+                    # red-dot point is used for a scroll dispatch.
+                    if evidence is None:
+                        raise SafetyError("Shop survey scroll evidence disappeared before dispatch.")
+                    port.scroll(observation, axis, point)
+                    continue
+
+                if context.depth > 0:
+                    parent = next(
+                        (
+                            route
+                            for route in screen.routes
+                            if route.kind == "parent" and route.id not in context.routes_seen
+                        ),
+                        None,
+                    )
+                    if parent is None:
+                        coverage = False
+                        self._reason(result, f"missing_backtrack:{screen.page}")
+                        result.status = ShopSurveyStatus.PARTIAL
+                        break
+                    if len(contexts) < 2 or parent.destination != contexts[-2].page:
+                        coverage = False
+                        self._reason(result, f"invalid_backtrack_destination:{parent.id}")
+                        result.status = ShopSurveyStatus.PARTIAL
+                        break
+                    context.routes_seen.add(parent.id)
+                    point = self._point(observation, parent.anchor)
+                    pending = _PendingSurveyAction("navigate", parent.destination, route=parent)
+                    result.actions.append(f"backtrack:{parent.id}")
+                    port.backtrack(observation, parent, point)
+                    continue
+                elif any(route.kind == "parent" for route in screen.routes):
+                    coverage = False
+                    self._reason(result, f"invalid_root_parent:{screen.page}")
+
+                result.coverage_complete = coverage
+                result.status = ShopSurveyStatus.COMPLETE if coverage else ShopSurveyStatus.PARTIAL
+                break
+            else:
+                result.status = ShopSurveyStatus.PARTIAL
+                self._reason(result, "step_bound")
+            return result
+        except _SurveyIdentityMismatch as exc:
+            result.status = ShopSurveyStatus.IDENTITY_MISMATCH
+            result.error = str(exc)
+            return result
+        except SafetyError as exc:
+            result.status = ShopSurveyStatus.SAFETY_BLOCKED
+            result.error = str(exc)
+            return result
+        except (OSError, RuntimeError, ValueError) as exc:
+            result.status = (
+                ShopSurveyStatus.ACTION_RESULT_UNCERTAIN
+                if result.actions
+                else ShopSurveyStatus.SAFETY_BLOCKED
+            )
+            result.error = str(exc)
+            return result
 
 
 class FrameShopAdapter:

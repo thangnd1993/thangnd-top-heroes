@@ -35,6 +35,19 @@
   102 related tests and Ruff. Astra's final safety review approved the diff.
   These synthetic/offline checks do not prove live Tavern recognition or
   authorize a VIP/Recruit claim; receipt anchors remain absent.
+- Commit `6a4f9b8` passed Windows CI run `35639781713`: full lint/test,
+  PyInstaller build, executable smoke and artifact upload (`10657698681`).
+  The unauthenticated artifact-download API returned HTTP 401 locally, so
+  no real acceptance from that artifact is claimed.
+- Added an injectable, observation-only shop survey engine. It has no claim
+  or journal port, retains unvisited sibling obligations, validates the
+  actual parent destination before backtracking, and records reward/cost
+  candidates only as diagnostics. Missing routes and scroll-direction
+  boundaries force PARTIAL. Astra approved the blocking safety fixes;
+  developer ran 138 related tests and parent independently ran 116, with
+  Ruff/diff checks clean. No packaged index-2 shop route/scroll evidence is
+  yet sufficient to wire this to CLI/UI or conduct a live shop survey.
+  Free Pack remains NOT_IMPLEMENTED and no reward was claimed.
 
 ## Reviewed safe checkpoint — 2026-09-22 (Phase 6 still PARTIAL)
 
