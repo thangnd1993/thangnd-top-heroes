@@ -14,8 +14,10 @@
   represented as a successful claim or trigger an automatic retry of an
   uncertain quit. The configured Astra safety review approved the targeted
   fix; parent reran 93 focused reward/Phase-6/recovery tests, Ruff, and
-  `git diff --check` successfully. Full Windows CI/fresh portable remains to
-  be run after the checkpoint is pushed.
+  `git diff --check` successfully. Implementation checkpoint `b8be92a`
+  passed Windows CI run `35629610052`: full lint, pytest, PyInstaller build,
+  executable smoke, and fresh artifact upload (`10654057686`). This is a
+  verified build, not real Phase 6 task acceptance.
 - The latest guarded real survey used only `2 / 5-Emmmmm`, verified serial
   `emulator-5558` and boot ID
   `38300bf4-de4e-4f50-99e4-bee8c4d0b1ee`, performed navigation and scroll

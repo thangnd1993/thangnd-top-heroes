@@ -15,8 +15,10 @@ action was taken; the owned start was stopped afterward.
 CLI task/sequence scaffolding, guarded navigation, reward journal and reporting
 now have targeted regressions. Production claims remain blocked because index 2
 has no verified VIP/Recruit post-claim anchor and the daily gift has no independent
-zero-cost proof. UI controls, production nested traversal, fresh CI portable and
-real per-task acceptance remain open. No Phase 6 completion is claimed. See
+zero-cost proof. Checkpoint `b8be92a` passed full Windows CI run
+`35629610052` with fresh artifact `10654057686`; that artifact has not
+been used for real Phase 6 task acceptance. UI controls, production nested
+traversal and real per-task acceptance remain open. No Phase 6 completion is claimed. See
 [PHASE6_RESUME.md](PHASE6_RESUME.md) and [PHASE6_SURVEY.md](PHASE6_SURVEY.md).
 
 ## Phase 5 — Idle Reward result

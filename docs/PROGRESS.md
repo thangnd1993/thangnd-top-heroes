@@ -15,8 +15,10 @@
   mép trên Quỹ Xây Thành và mép dưới Tiệm Kim Cương. Chỉ điều hướng/scroll,
   không nhận thưởng, chiêu mộ hay mua; owned start đã dừng đúng index 2.
   `0 / Queen` và `4 / 3-Chíp` không bị tác động.
-- Hồi quy tập trung mới nhất do parent chạy: 93 passed; Ruff sạch. Full Windows
-  CI, artifact mới, UI, traversal production và nghiệm thu thật còn thiếu.
+- Hồi quy tập trung mới nhất do parent chạy: 93 passed; Ruff sạch. Checkpoint
+  `b8be92a` có Windows CI `35629610052` xanh: full lint/pytest, PyInstaller,
+  smoke và artifact mới `10654057686`. UI, traversal production và nghiệm
+  thu task thật vẫn thiếu; CI xanh không đồng nghĩa Phase 6 hoàn thành.
 - Detailed completed/remaining work and original evidence: [PHASE6_RESUME.md](PHASE6_RESUME.md).
 - Phase 5 acceptance below is historical and remains unchanged.
 
