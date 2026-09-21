@@ -1,0 +1,20 @@
+{
+  "id": "tavern-recruit-entry",
+  "state": "GAME_HOME",
+  "template": "tavern-recruit-entry.png",
+  "expected_region": [
+    0.68,
+    0.42,
+    0.87,
+    0.69
+  ],
+  "threshold": 0.9,
+  "required": false,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Index 2 selected Tavern survey crop; verify current name and destination."
+}

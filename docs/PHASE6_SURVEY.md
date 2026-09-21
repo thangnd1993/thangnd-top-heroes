@@ -1,5 +1,34 @@
 # Phase 6 real survey — 2 / 5-Emmmmm
 
+## Guarded continuation — 2026-09-21
+
+Only index `2 / 5-Emmmmm` was resumed. Manager verified explicit ADB
+`emulator-5558`, boot ID `38300bf4-de4e-4f50-99e4-bee8c4d0b1ee`,
+selection/not-Protected, and Queen protection. A stale Home-to-shop visual
+context failed before dispatch. A promo overlay was then dismissed through
+verified Back navigation; no claim or purchase was attempted.
+
+Fresh index-2 screenshots showed `Ưu Đãi Mỗi Ngày` with voucher-cost buttons
+`22/6`, `22/1`, `22/2`; its red-dot gift still had no independent zero-cost
+evidence and was not tapped. One rightward tab-strip swipe from the first daily
+tab left the same tab visible, confirming the left boundary. On `Quỹ Xây Thành`,
+a downward list swipe exposed the `Miễn Phí` header and Lv.1 row; a second
+swipe left the same top rows visible, confirming the upper boundary. The free
+row items shown there had checkmarks already. On `Tiệm Kim Cương`, a downward
+list scroll exposed the 4000/8000-diamond paid offers; a second scroll left
+the same bottom rows visible, confirming the lower boundary. All visible
+diamond-shop offers were VND-priced. No reward, recruit, purchase, or resource
+action occurred. The owned index-2 start was stopped afterward; Queen and
+revoked index 4 remained untouched.
+
+Evidence tags: `phase6-current-safe-checkpoint`,
+`phase6-shop-left-boundary`, `phase6-growth-scroll-up-1`,
+`phase6-growth-upper-repeat`, `phase6-diamond-scroll-down-1`,
+`phase6-diamond-lower-repeat` under the account's local vision diagnostics.
+These are development survey observations, not production acceptance or proof
+of a free pack. Dynamic/event content and production bounded traversal remain
+unverified.
+
 Development evidence only, collected 2026-09-20 UTC / 2026-09-21 local.
 No claim, purchase, recruit, premium action, or resource spending was performed.
 This is not acceptance of production tasks. No index 4 or Queen operation occurred.

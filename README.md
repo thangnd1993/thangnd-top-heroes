@@ -4,8 +4,13 @@
 **một instance = một tài khoản**. Phát triển bởi Thang Nguyen.
 
 Phase 1–5 đã nghiệm thu trên LDPlayer thật. Phase 6 (VIP / Gói miễn phí / Chiêu mộ
-miễn phí) đang ở trạng thái **PARTIAL**: đã có evidence thật và nền tảng guard/explorer,
-chưa có các task Phase 6 chạy từ UI/CLI. Xem [checkpoint tiếp tục](docs/PHASE6_RESUME.md).
+miễn phí) vẫn **PARTIAL**. CLI đã có lệnh `vip-reward`, `free-pack`,
+`free-recruit` và `free-rewards`, nhưng hiện chặn thao tác nhận thưởng:
+VIP/Recruit thiếu bằng chứng hậu điều kiện trên tài khoản được phép,
+Free Pack chưa chứng minh độc lập là không tốn tài nguyên. Chưa có nghiệm thu
+Phase 6 bằng bản portable. Chỉ `2 / 5-Emmmmm` được phép thử thật trong
+Phase 6; `0 / Queen` Protected, `4 / 3-Chíp` đã bị thu hồi quyền thử Phase 6.
+Xem [checkpoint tiếp tục](docs/PHASE6_RESUME.md).
 
 ## Thưởng Treo Máy — Phase 5
 

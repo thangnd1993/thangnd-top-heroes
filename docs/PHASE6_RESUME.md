@@ -1,5 +1,57 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## Reviewed safe checkpoint — 2026-09-22 (Phase 6 still PARTIAL)
+
+- The current work adds current-frame VIP/Recruit visual adapters, guarded
+  Home entry navigation, CLI task/sequence scaffolding, durable reward-intent
+  integration, and task/sequence reports. Phase 6 real claims are deliberately
+  blocked: index-2 VIP/Recruit lack independently verified post-claim evidence,
+  and the daily shop gift lacks independent zero-cost proof. Free Pack and
+  production nested shop traversal remain unsupported; no UI control or real
+  production acceptance is claimed.
+- Sequence Home/cleanup/persistence paths now preserve failure status, task
+  identity, ownership, and cleanup outcome. A lost report/DB write cannot be
+  represented as a successful claim or trigger an automatic retry of an
+  uncertain quit. The configured Astra safety review approved the targeted
+  fix; parent reran 93 focused reward/Phase-6/recovery tests, Ruff, and
+  `git diff --check` successfully. Full Windows CI/fresh portable remains to
+  be run after the checkpoint is pushed.
+- The latest guarded real survey used only `2 / 5-Emmmmm`, verified serial
+  `emulator-5558` and boot ID
+  `38300bf4-de4e-4f50-99e4-bee8c4d0b1ee`, performed navigation and scroll
+  only, then stopped its owned start. Queen and revoked index 4 received no
+  mutation. See `PHASE6_SURVEY.md` for observed boundaries/evidence tags.
+- Do not merge to main or start Phase 7. Next work is independent post-claim
+  evidence, free-pack zero-cost proof or explicit unsupported reporting,
+  production bounded nested traversal and UI integration, then full CI,
+  fresh artifact, scoped real acceptance, and only then final completion.
+
+## In-progress continuation — 2026-09-21 (not acceptance)
+
+- The continuation began from committed branch checkpoint `11b8019`; its
+  Phase 6 code and visual-fixture edits were preserved in place. Do not
+  discard them or repeat any real claim to recreate fixtures.
+- The 2026-09-21 continuation started only `2 / 5-Emmmmm` through guarded
+  Home recovery, verified explicit ADB `emulator-5558` and boot ID
+  `38300bf4-de4e-4f50-99e4-bee8c4d0b1ee`, then captured fresh same-account
+  screenshots for navigation-only shop survey. An attempted Home-to-shop action
+  first failed its visual context check and dispatched no input. A promo popup
+  was dismissed with one observed Back action; the earlier tap on its decorative
+  collaboration symbol had no effect. No reward, recruit, purchase, or resource
+  action was performed. The owned index-2 start was stopped after survey;
+  `0 / Queen` and revoked `4 / 3-Chíp` remained stopped and untouched.
+- The explorer now records paid/ambiguous candidates and continues bounded
+  safe discovery without claiming them. New current-frame VIP/Recruit adapter
+  primitives and index-2-derived precondition/Home-navigation crops are under
+  development. The generated crops matched saved same-account survey frames;
+  this is offline evidence only, not live acceptance or cross-account authority.
+- The local crops have **no independently verified post-claim anchor** for
+  index 2. The daily shop gift still lacks proof of zero cost. Live claims must
+  remain fail-closed. Task/CLI wiring remains fail-closed scaffolding. The shop
+  left-tab boundary, growth-fund upper boundary, and diamond-shop lower boundary
+  were verified in the new survey; production nested traversal, UI, CI/fresh
+  artifact, real acceptance, and final review remain open.
+
 ## Current authorization — 2026-09-21 (supersedes historical target below)
 
 - Remaining Phase 6 real survey and acceptance target is **only `2 / 5-Emmmmm`**.

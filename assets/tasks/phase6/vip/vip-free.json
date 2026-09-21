@@ -1,0 +1,20 @@
+{
+  "id": "vip-free",
+  "state": "FREE_REWARD_PAGE",
+  "template": "vip-free.png",
+  "expected_region": [
+    0.25,
+    0.15,
+    0.45,
+    0.95
+  ],
+  "threshold": 0.9,
+  "required": false,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Index 2 survey crop; match target anew in current account frame."
+}

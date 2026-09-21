@@ -1,16 +1,23 @@
 # Nghiệm thu trên Windows thật
 
-## Phase 6 — resumed foundation, acceptance pending
+## Phase 6 — guarded checkpoint, acceptance pending
 
 The prior session collected real free VIP, daily gift and recruit evidence on
 `4 / 3-Chíp`. These are manual collection results, not acceptance of production
 Phase 6 task commands. The resume preserved them without repeating claims.
 
-The shared guard/explorer and visual primitives have targeted synthetic tests.
-They are not yet connected to live tasks. Remaining acceptance includes complete
-nested shop/scroll coverage, production adapters, unavailable paths, reporting and
-persistence, fresh CI portable verification and per-task Windows acceptance.
-See [PHASE6_RESUME.md](PHASE6_RESUME.md) for exact evidence and the app-access blocker.
+The current authorized Phase 6 test clone is only `2 / 5-Emmmmm`; index 4 is
+revoked and Queen remains Protected. Index 2's newer survey checked the left
+shop-tab boundary, growth-fund upper boundary and diamond-shop lower boundary
+with fresh same-account screenshots. No reward, recruit, purchase or resource
+action was taken; the owned start was stopped afterward.
+
+CLI task/sequence scaffolding, guarded navigation, reward journal and reporting
+now have targeted regressions. Production claims remain blocked because index 2
+has no verified VIP/Recruit post-claim anchor and the daily gift has no independent
+zero-cost proof. UI controls, production nested traversal, fresh CI portable and
+real per-task acceptance remain open. No Phase 6 completion is claimed. See
+[PHASE6_RESUME.md](PHASE6_RESUME.md) and [PHASE6_SURVEY.md](PHASE6_SURVEY.md).
 
 ## Phase 5 — Idle Reward result
 

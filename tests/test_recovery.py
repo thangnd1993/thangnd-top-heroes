@@ -267,6 +267,66 @@ def test_run_owned_instance_is_started_and_cleaned_up(rig, tmp_path):
     assert lifecycle == ["launch", "quit"]
 
 
+def test_recovery_report_failure_cleans_only_instance_started_by_run(rig, tmp_path, monkeypatch):
+    manager, process, _ = rig
+    process.listing = "0,Queen,0,0,0,-1,-1\n7,Farm-007,0,0,0,-1,-1\n"
+    manager.refresh()
+
+    class AlreadyHome:
+        def ensure_game_home(self, port, cancelled):
+            return RecoveryResult(RecoveryStatus.ALREADY_HOME, adb_target="emulator-5568")
+
+    original_write_text = Path.write_text
+
+    def fail_report(path, data, *args, **kwargs):
+        if path.name == "report.json":
+            raise OSError("recovery report unavailable")
+        return original_write_text(path, data, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", fail_report)
+    with pytest.raises(OSError, match="recovery report unavailable"):
+        run_home_recovery(
+            manager,
+            tmp_path,
+            7,
+            "Farm-007",
+            cleanup_owned=False,
+            engine=AlreadyHome(),
+        )
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == ["launch", "quit"]
+
+
+def test_recovery_report_failure_does_not_stop_externally_running_instance(rig, tmp_path, monkeypatch):
+    manager, process, _ = rig
+    process.listing = "0,Queen,0,0,0,-1,-1\n7,Farm-007,3,4,1,201,202\n"
+    manager.refresh()
+
+    class AlreadyHome:
+        def ensure_game_home(self, port, cancelled):
+            return RecoveryResult(RecoveryStatus.ALREADY_HOME, adb_target="emulator-5568")
+
+    original_write_text = Path.write_text
+
+    def fail_report(path, data, *args, **kwargs):
+        if path.name == "report.json":
+            raise OSError("recovery report unavailable")
+        return original_write_text(path, data, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", fail_report)
+    with pytest.raises(OSError, match="recovery report unavailable"):
+        run_home_recovery(
+            manager,
+            tmp_path,
+            7,
+            "Farm-007",
+            cleanup_owned=False,
+            engine=AlreadyHome(),
+        )
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == []
+
+
 def test_protected_recovery_is_rejected_before_mutation(rig, tmp_path):
     manager, process, _ = rig
     process.listing = process.listing.replace("Main-Thang", "Queen")

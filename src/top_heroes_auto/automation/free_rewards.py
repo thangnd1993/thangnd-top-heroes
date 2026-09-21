@@ -161,6 +161,7 @@ class ExplorerResult:
     status: str = "UNKNOWN_SCREEN"
     claimed: list[str] = field(default_factory=list)
     attempted: list[str] = field(default_factory=list)
+    rejected: list[dict[str, str]] = field(default_factory=list)
     visited: list[dict] = field(default_factory=list)
     actions: list[str] = field(default_factory=list)
     coverage_complete: bool = False
@@ -192,6 +193,7 @@ class FreeRewardExplorer:
         content: dict[tuple[str, str], set[str]] = {}
         scroll_counts: dict[tuple[str, str], int] = {}
         exhausted: set[tuple[str, str]] = set()
+        rejected: set[tuple[str, str, str]] = set()
         coverage = True
         screen = None
         pending_reward = None
@@ -253,7 +255,23 @@ class FreeRewardExplorer:
                     result.status = "TIMEOUT"
                     break
                 rewards = sorted(screen.rewards, key=lambda reward: not reward.diamond_reward)
-                reward = next((r for r in rewards if r.reward_id not in guard.claim_attempts), None)
+                for candidate in rewards:
+                    if candidate.cost == Cost.FREE and not candidate.ambiguous:
+                        continue
+                    key = screen.page, screen.fingerprint, candidate.reward_id
+                    if key not in rejected:
+                        rejected.add(key)
+                        result.rejected.append({
+                            "page": screen.page,
+                            "reward_id": candidate.reward_id,
+                            "cost": candidate.cost.value,
+                            "reason": "ambiguous" if candidate.ambiguous or candidate.cost == Cost.UNKNOWN
+                            else "not_free",
+                        })
+                    if candidate.ambiguous or candidate.cost == Cost.UNKNOWN:
+                        coverage = False
+                reward = next((r for r in rewards if r.cost == Cost.FREE
+                               and not r.ambiguous and r.reward_id not in guard.claim_attempts), None)
                 if reward is not None:
                     point = guard.claim(screen, reward)
                     result.attempted.append(reward.reward_id)
@@ -308,6 +326,9 @@ class FreeRewardExplorer:
             if (screen is not None and guard.current is screen and pending_reward is None
                     and result.status in {"SUCCESS", "NOT_AVAILABLE", "PARTIAL"} and not cancelled()):
                 result.recovery_succeeded = port.return_home(screen)
+                if not result.recovery_succeeded:
+                    result.status = "CLEANUP_FAILED"
+                    result.error = result.error or "Verified GAME_HOME recovery failed."
             return result
         except (OSError, RuntimeError, ValueError) as exc:
             result.status = "ACTION_RESULT_UNCERTAIN" if pending_reward is not None else "SAFETY_BLOCKED"

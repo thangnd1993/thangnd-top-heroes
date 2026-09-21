@@ -1,0 +1,20 @@
+{
+  "id": "vip-claim",
+  "state": "FREE_REWARD_PAGE",
+  "template": "vip-claim.png",
+  "expected_region": [
+    0.25,
+    0.68,
+    0.42,
+    0.99
+  ],
+  "threshold": 0.9,
+  "required": false,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Index 2 survey crop; match target anew in current account frame."
+}

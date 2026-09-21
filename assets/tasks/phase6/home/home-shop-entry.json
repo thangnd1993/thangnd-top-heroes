@@ -1,0 +1,20 @@
+{
+  "id": "home-shop-entry",
+  "state": "GAME_HOME",
+  "template": "home-shop-entry.png",
+  "expected_region": [
+    0.85,
+    0.7,
+    1.0,
+    0.98
+  ],
+  "threshold": 0.9,
+  "required": false,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Index 2 Home survey crop; current-frame match and destination verification required."
+}

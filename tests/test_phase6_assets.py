@@ -1,0 +1,37 @@
+"""Versioned Phase 6 survey anchors are evidence, not claim authorization."""
+
+from pathlib import Path
+
+import cv2
+import pytest
+
+from top_heroes_auto.automation.phase6_visual import free_recruit_profile, vip_reward_profile
+from top_heroes_auto.vision.detector import load_anchors
+from top_heroes_auto.vision.models import ScreenState
+
+ASSETS = Path(__file__).resolve().parents[1] / "assets" / "tasks" / "phase6"
+
+
+@pytest.mark.parametrize("name", ["vip", "recruit"])
+def test_survey_anchors_are_valid_but_cannot_authorize_a_claim(name):
+    anchors = load_anchors(ASSETS / name)
+    roles = {anchor.id.removeprefix(f"{name}-"): anchor for anchor in anchors}
+    assert set(roles) == {"page", "free", "available", "claim", "home"}
+    assert all(anchor.state == ScreenState.FREE_REWARD_PAGE for anchor in anchors)
+    for anchor in anchors:
+        image = cv2.imread(str(anchor.template))
+        assert image is not None and min(image.shape[:2]) >= 10
+        assert image.std() >= 1
+    factory = vip_reward_profile if name == "vip" else free_recruit_profile
+    with pytest.raises(ValueError, match="post"):
+        factory(roles)
+
+
+def test_home_route_assets_are_navigation_evidence_only():
+    anchors = load_anchors(ASSETS / "home")
+    assert {anchor.id for anchor in anchors} == {
+        "home-vip-entry", "home-shop-entry", "home-tavern",
+        "tavern-selected-name", "tavern-recruit-entry",
+    }
+    assert all(anchor.state == ScreenState.GAME_HOME for anchor in anchors)
+    assert not any("claim" in anchor.id or "post" in anchor.id for anchor in anchors)

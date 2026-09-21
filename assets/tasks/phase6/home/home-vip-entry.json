@@ -1,0 +1,20 @@
+{
+  "id": "home-vip-entry",
+  "state": "GAME_HOME",
+  "template": "home-vip-entry.png",
+  "expected_region": [
+    0.8,
+    0.0,
+    1.0,
+    0.3
+  ],
+  "threshold": 0.9,
+  "required": false,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Index 2 Home survey crop; current-frame match and destination verification required."
+}

@@ -9,6 +9,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from top_heroes_auto.app.diagnostic import _instance, _manager, _only_target_changed, _state
+from top_heroes_auto.app.free_reward_tasks import (
+    PHASE6_TASKS,
+    SUCCESS_STATUSES,
+    run_free_reward_sequence,
+    run_free_reward_task,
+)
 from top_heroes_auto.app.recovery_cli import run_home_recovery
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.actions import SafeInputService
@@ -181,23 +187,45 @@ def parser():
     idle = commands.add_parser(TASK_NAME)
     idle.add_argument("--index", type=int, required=True)
     idle.add_argument("--name", required=True)
+    for task_name in PHASE6_TASKS:
+        phase6 = commands.add_parser(task_name)
+        phase6.add_argument("--index", type=int, required=True)
+        phase6.add_argument("--name", required=True)
+    sequence = commands.add_parser("free-rewards")
+    sequence.add_argument("--index", type=int, required=True)
+    sequence.add_argument("--name", required=True)
+    sequence.add_argument("--tasks", nargs="+", choices=PHASE6_TASKS, default=list(PHASE6_TASKS))
     return root
 
 
 def main(argv: list[str], data: Path) -> int:
     args = parser().parse_args(argv)
     manager = _manager(data)
-    result, report, started, task_run_id = run_idle_reward_diagnostic(
+    if args.command == TASK_NAME:
+        result, report, started, task_run_id = run_idle_reward_diagnostic(
+            manager,
+            data,
+            args.index,
+            args.name,
+        )
+        output = {
+            **result.as_dict(),
+            "task_run_id": task_run_id,
+            "started_by_run": started,
+            "report": str(report),
+        }
+        print(json.dumps(output, ensure_ascii=True, indent=2))
+        return 0 if result.status in {IdleRewardStatus.SUCCESS, IdleRewardStatus.NOT_AVAILABLE} else 2
+    if args.command in PHASE6_TASKS:
+        result = run_free_reward_task(manager, data, args.index, args.name, args.command)
+        print(json.dumps(result.as_dict(), ensure_ascii=True, indent=2))
+        return 0 if result.status in SUCCESS_STATUSES else 2
+    results = run_free_reward_sequence(
         manager,
         data,
         args.index,
         args.name,
+        tuple(args.tasks),
     )
-    output = {
-        **result.as_dict(),
-        "task_run_id": task_run_id,
-        "started_by_run": started,
-        "report": str(report),
-    }
-    print(json.dumps(output, ensure_ascii=True, indent=2))
-    return 0 if result.status in {IdleRewardStatus.SUCCESS, IdleRewardStatus.NOT_AVAILABLE} else 2
+    print(json.dumps({"results": [result.as_dict() for result in results]}, ensure_ascii=True, indent=2))
+    return 0 if results and all(result.status in SUCCESS_STATUSES for result in results) else 2

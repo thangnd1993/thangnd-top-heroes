@@ -1,0 +1,20 @@
+{
+  "id": "promo-stranger-title",
+  "state": "POPUP_GENERIC",
+  "template": "promo-stranger-title.png",
+  "expected_region": [
+    0.75,
+    0.35,
+    1.0,
+    0.9
+  ],
+  "threshold": 0.9,
+  "required": false,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Index 2 current event promotion; navigation-only popup recognition, not a reward target."
+}

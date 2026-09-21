@@ -62,14 +62,34 @@ def test_resource_and_unknown_costs_rejected(cost):
     r = reward(cost=cost)
     p = Port([screen(rewards=(r,))])
     result = FreeRewardExplorer().run(p, 4, "3-Chíp")
-    assert result.status == "SAFETY_BLOCKED"
-    assert not p.actions
+    assert result.status == "PARTIAL"
+    assert result.rejected == [{
+        "page": "shop", "reward_id": "gift", "cost": cost.value,
+        "reason": "ambiguous" if cost == Cost.UNKNOWN else "not_free",
+    }]
+    assert not any(action[0] == "claim" for action in p.actions)
 
 
 def test_ambiguous_free_reward_rejected():
     p = Port([screen(rewards=(reward(ambiguous=True),))])
-    assert FreeRewardExplorer().run(p, 4, "3-Chíp").status == "SAFETY_BLOCKED"
-    assert not p.actions
+    result = FreeRewardExplorer().run(p, 4, "3-Chíp")
+    assert result.status == "PARTIAL"
+    assert result.rejected[0]["reason"] == "ambiguous"
+    assert not any(action[0] == "claim" for action in p.actions)
+
+
+def test_paid_candidate_does_not_block_other_verified_free_reward():
+    paid = reward(reward_id="voucher-offer", cost=Cost.TICKETS, action_anchor="paid")
+    free = reward(reward_id="vip-free")
+    p = Port([
+        screen(rewards=(paid, free), coverage_known=True),
+        screen("2", rewards=(paid,), coverage_known=True),
+    ])
+    result = FreeRewardExplorer().run(p, 4, "3-Chíp")
+    assert result.status == "SUCCESS"
+    assert result.claimed == ["vip-free"]
+    assert result.rejected[0]["reward_id"] == "voucher-offer"
+    assert [action[0] for action in p.actions] == ["claim", "home"]
 
 
 def test_free_label_without_available_evidence_rejected():

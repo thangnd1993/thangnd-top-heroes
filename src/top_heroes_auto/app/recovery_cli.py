@@ -101,6 +101,7 @@ def run_home_recovery(
         raise SafetyError("Recovery target must be selected and not Protected.")
     snapshot = RunSnapshot(manager.namespace, ((index, name),), True)
     started_by_run = False
+    cleanup_attempted = False
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%fZ")
     folder = data / "diagnostics" / "recovery" / name / stamp
     folder.mkdir(parents=True, exist_ok=False)
@@ -120,19 +121,29 @@ def run_home_recovery(
 
     cleanup_performed = False
     if started_by_run and cleanup_owned:
+        cleanup_attempted = True
         manager.execute(index, "quit", snapshot=snapshot)
         cleanup_performed = True
-    report = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "instance": {"index": index, "name": name},
-        "package": GAME_PACKAGE,
-        "started_by_run": started_by_run,
-        "cleanup_requested": cleanup_owned,
-        "cleanup_performed": cleanup_performed,
-        **result.as_dict(),
-    }
     report_path = folder / "report.json"
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        report = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "instance": {"index": index, "name": name},
+            "package": GAME_PACKAGE,
+            "started_by_run": started_by_run,
+            "cleanup_requested": cleanup_owned,
+            "cleanup_performed": cleanup_performed,
+            **result.as_dict(),
+        }
+        report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:  # noqa: BLE001 - persistence failure must not leak an owned instance
+        if started_by_run and not cleanup_attempted:
+            cleanup_attempted = True
+            try:
+                manager.execute(index, "quit", snapshot=snapshot)
+            except Exception:  # noqa: BLE001 - preserve the original persistence failure
+                log.exception("[%s / #%s] Owned recovery cleanup failed after report failure", name, index)
+        raise
     return result, report_path, started_by_run
 
 

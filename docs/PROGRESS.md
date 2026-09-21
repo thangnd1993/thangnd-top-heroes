@@ -7,8 +7,16 @@
   diamonds), and one free recruit. Those claims were not repeated on resume.
 - Added and tested the shared free-only guard, bounded explorer, current-frame
   unique target search, content fingerprints and red-dot discovery primitives.
-- Production task adapters/CLI/UI/persistence and full shop coverage remain pending.
-  Native `3-Chíp` screen inspection returned `Computer Use app approval timed out`.
+- Đã thêm adapter ảnh theo frame hiện tại, điều hướng Home → VIP/Tavern có kiểm chứng,
+  CLI Phase 6, journal/report cho task và chuỗi tác vụ. Các lệnh hiện cố ý trả
+  `NOT_IMPLEMENTED`/`SAFETY_BLOCKED` trước claim khi thiếu hậu điều kiện;
+  Free Pack chưa có chứng cứ zero-cost nên không chạm quà có red dot.
+- Khảo sát bổ sung trên đúng `2 / 5-Emmmmm` xác nhận mép trái tab Tiệm,
+  mép trên Quỹ Xây Thành và mép dưới Tiệm Kim Cương. Chỉ điều hướng/scroll,
+  không nhận thưởng, chiêu mộ hay mua; owned start đã dừng đúng index 2.
+  `0 / Queen` và `4 / 3-Chíp` không bị tác động.
+- Hồi quy tập trung mới nhất do parent chạy: 93 passed; Ruff sạch. Full Windows
+  CI, artifact mới, UI, traversal production và nghiệm thu thật còn thiếu.
 - Detailed completed/remaining work and original evidence: [PHASE6_RESUME.md](PHASE6_RESUME.md).
 - Phase 5 acceptance below is historical and remains unchanged.
 

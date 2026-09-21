@@ -1,0 +1,20 @@
+{
+  "id": "recruit-free",
+  "state": "FREE_REWARD_PAGE",
+  "template": "recruit-free.png",
+  "expected_region": [
+    0.15,
+    0.05,
+    0.38,
+    0.53
+  ],
+  "threshold": 0.9,
+  "required": false,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Index 2 survey crop; match target anew in current account frame."
+}
