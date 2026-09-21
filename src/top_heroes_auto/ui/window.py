@@ -36,6 +36,7 @@ from top_heroes_auto.app.free_reward_tasks import (
     run_free_reward_sequence,
     run_free_reward_task,
 )
+from top_heroes_auto.app.phase6_runtime import promo_recovery_factory
 from top_heroes_auto.app.phase6_shop_navigation_tasks import (
     SHOP_NAVIGATION_LABEL,
     SHOP_NAVIGATION_TASK,
@@ -803,6 +804,7 @@ class Window(QMainWindow):
                 index,
                 name,
                 cancelled=self.phase6_cancelled.is_set,
+                promo_recovery_factory=promo_recovery_factory,
             ),
         )
 

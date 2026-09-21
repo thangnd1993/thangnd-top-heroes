@@ -20,6 +20,10 @@ from top_heroes_auto.automation.phase6_navigation import (
     recruit_entry_profile,
     vip_entry_profile,
 )
+from top_heroes_auto.automation.phase6_promo_recovery import (
+    GuardedPromoRecovery,
+    ManagerPromoRecoveryPort,
+)
 from top_heroes_auto.automation.phase6_shop_navigation import (
     GuardedShopNavigation,
     ManagerShopNavigationPort,
@@ -141,3 +145,28 @@ def shop_navigation_factory(
         destination_observations=3,
         destination_wait_seconds=0.25,
     ).run(index, name, cancelled)
+
+
+def promo_recovery_factory(
+    manager,
+    snapshot,
+    index,
+    name,
+    folder,
+    cancelled=lambda: False,
+    *,
+    expected_transport=None,
+):
+    """Recover only the known promo popup; no normal recovery fallback here."""
+
+    promo = phase6_asset_root() / "promo"
+    anchor = _anchor(promo, "promo-stranger-title")
+    port = ManagerPromoRecoveryPort(manager, snapshot, index, name, folder)
+    detector = ScreenDetector.from_folder(template_folder())
+    return GuardedPromoRecovery(
+        port,
+        anchor,
+        detector.detect,
+        destination_observations=3,
+        destination_wait_seconds=0.25,
+    ).run(index, name, cancelled, expected_transport=expected_transport)

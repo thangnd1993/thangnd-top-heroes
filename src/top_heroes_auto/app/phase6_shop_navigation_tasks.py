@@ -15,13 +15,14 @@ from pathlib import Path
 from typing import Callable
 
 from top_heroes_auto.app.diagnostic import _instance, _only_target_changed, _state
-from top_heroes_auto.app.phase6_runtime import (
-    shop_navigation_factory,
-    shop_navigation_profile,
-)
+from top_heroes_auto.app.phase6_runtime import shop_navigation_factory, shop_navigation_profile
 from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.phase6_promo_recovery import (
+    PromoRecoveryResult,
+    PromoRecoveryStatus,
+)
 from top_heroes_auto.automation.phase6_shop_navigation import (
     ShopNavigationProfile,
     ShopNavigationResult,
@@ -50,6 +51,7 @@ class ShopNavigationTaskResult:
     cleanup_succeeded: bool = False
     claims: tuple[str, ...] = ()
     journal_rows: int = 0
+    promo_recovery: PromoRecoveryResult | None = None
 
     def as_dict(self) -> dict:
         return {
@@ -61,6 +63,7 @@ class ShopNavigationTaskResult:
             "report": str(self.report_path) if self.report_path else None,
             "started_by_run": self.started_by_run,
             "recovery_report": str(self.recovery_report) if self.recovery_report else None,
+            "promo_recovery": self.promo_recovery.as_dict() if self.promo_recovery else None,
             "navigation": self.navigation.as_dict() if self.navigation else None,
             "error": self.error,
             "cleanup_attempted": self.cleanup_attempted,
@@ -117,6 +120,7 @@ def run_phase6_shop_navigation(
     profile: ShopNavigationProfile | None = None,
     navigation_factory: Callable[..., ShopNavigationResult] | None = None,
     recovery_runner: Callable[..., tuple[RecoveryResult, Path, bool]] = run_home_recovery,
+    promo_recovery_factory: Callable[..., PromoRecoveryResult] | None = None,
     cancelled: Callable[[], bool] = lambda: False,
     cleanup_owned: bool = True,
 ) -> ShopNavigationTaskResult:
@@ -150,6 +154,7 @@ def run_phase6_shop_navigation(
     started_by_run = False
     cleanup_attempted = False
     cleanup_succeeded = False
+    promo_recovery: PromoRecoveryResult | None = None
     navigation: ShopNavigationResult | None = None
     error: str | None = None
     effective_profile: ShopNavigationProfile | None = profile
@@ -167,44 +172,136 @@ def run_phase6_shop_navigation(
                 task_run_id=task_run_id,
             )
         else:
-            try:
-                recovery, recovery_report, started_by_run = recovery_runner(
-                    manager,
-                    data,
-                    index,
-                    name,
-                    cancelled=cancelled,
-                    cleanup_owned=False,
-                )
-            except RecoveryFailure as exc:
-                started_by_run = exc.started_by_run
-                cleanup_attempted = exc.cleanup_attempted
-                cleanup_succeeded = exc.cleanup_succeeded
-                recovery_report = exc.report_path
-                error = f"Home recovery raised: {exc}"
-                result = ShopNavigationTaskResult(
-                    SHOP_NAVIGATION_TASK,
-                    (
-                        "CLEANUP_FAILED"
-                        if started_by_run and cleanup_attempted and not cleanup_succeeded
-                        else "HOME_RECOVERY_FAILED"
-                    ),
-                    task_run_id=task_run_id,
-                    started_by_run=started_by_run,
-                    recovery_report=recovery_report,
-                    error=error,
-                    cleanup_attempted=cleanup_attempted,
-                    cleanup_succeeded=cleanup_succeeded,
-                )
-            except Exception as exc:  # noqa: BLE001 - ownership is unknown; never infer it
-                error = f"Home recovery raised: {exc}; ownership and cleanup outcome are unknown"
-                result = ShopNavigationTaskResult(
-                    SHOP_NAVIGATION_TASK,
-                    "HOME_RECOVERY_FAILED",
-                    task_run_id=task_run_id,
-                    error=error,
-                )
-            else:
+            recovery: RecoveryResult | None = None
+            run_standard_recovery = True
+            if promo_recovery_factory is not None and target.running:
+                try:
+                    promo_recovery = promo_recovery_factory(
+                        manager,
+                        snapshot,
+                        index,
+                        name,
+                        folder,
+                        cancelled,
+                    )
+                except Exception as exc:  # noqa: BLE001 - no safe fallback after unknown hook state
+                    error = f"Known promo recovery raised: {exc}; no fallback recovery is safe"
+                    result = ShopNavigationTaskResult(
+                        SHOP_NAVIGATION_TASK,
+                        "PROMO_RECOVERY_FAILED",
+                        task_run_id=task_run_id,
+                        error=error,
+                    )
+                    run_standard_recovery = False
+                else:
+                    promo_status = _status_value(promo_recovery.status)
+                    if promo_status == PromoRecoveryStatus.SUCCESS.value:
+                        recovery = RecoveryResult(RecoveryStatus.ALREADY_HOME)
+                        run_standard_recovery = False
+                    elif promo_status != PromoRecoveryStatus.NOT_PRESENT.value:
+                        error = f"Known promo recovery failed: {promo_status}: {promo_recovery.error or ''}".strip()
+                        result = ShopNavigationTaskResult(
+                            SHOP_NAVIGATION_TASK,
+                            promo_status,
+                            task_run_id=task_run_id,
+                            promo_recovery=promo_recovery,
+                            error=error,
+                        )
+                        run_standard_recovery = False
+            if run_standard_recovery:
+                try:
+                    recovery, recovery_report, started_by_run = recovery_runner(
+                        manager,
+                        data,
+                        index,
+                        name,
+                        cancelled=cancelled,
+                        cleanup_owned=False,
+                    )
+                except RecoveryFailure as exc:
+                    started_by_run = exc.started_by_run
+                    cleanup_attempted = exc.cleanup_attempted
+                    cleanup_succeeded = exc.cleanup_succeeded
+                    recovery_report = exc.report_path
+                    error = f"Home recovery raised: {exc}"
+                    result = ShopNavigationTaskResult(
+                        SHOP_NAVIGATION_TASK,
+                        (
+                            "CLEANUP_FAILED"
+                            if started_by_run and cleanup_attempted and not cleanup_succeeded
+                            else "HOME_RECOVERY_FAILED"
+                        ),
+                        task_run_id=task_run_id,
+                        started_by_run=started_by_run,
+                        recovery_report=recovery_report,
+                        promo_recovery=promo_recovery,
+                        error=error,
+                        cleanup_attempted=cleanup_attempted,
+                        cleanup_succeeded=cleanup_succeeded,
+                    )
+                except Exception as exc:  # noqa: BLE001 - ownership is unknown; never infer it
+                    error = f"Home recovery raised: {exc}; ownership and cleanup outcome are unknown"
+                    result = ShopNavigationTaskResult(
+                        SHOP_NAVIGATION_TASK,
+                        "HOME_RECOVERY_FAILED",
+                        task_run_id=task_run_id,
+                        promo_recovery=promo_recovery,
+                        error=error,
+                    )
+            # A stopped target may be launched by standard recovery and then
+            # remain on the known promo while loading never reaches a generic
+            # GAME_HOME.  Permit exactly one popup probe only after this
+            # specific, bounded LOADING_TIMEOUT.  The recovery engine's last
+            # verified serial+boot identity is required; all other failures
+            # remain terminal and never fall through to another input path.
+            if (
+                recovery is not None
+                and recovery.status == RecoveryStatus.LOADING_TIMEOUT
+                and promo_recovery_factory is not None
+                and recovery.adb_target
+                and recovery.boot_id
+            ):
+                try:
+                    promo_recovery = promo_recovery_factory(
+                        manager,
+                        snapshot,
+                        index,
+                        name,
+                        folder,
+                        cancelled,
+                        expected_transport=(recovery.adb_target, recovery.boot_id),
+                    )
+                except Exception as exc:  # noqa: BLE001 - no retry after unknown hook state
+                    error = f"Known promo fallback raised: {exc}; no retry is safe"
+                    result = ShopNavigationTaskResult(
+                        SHOP_NAVIGATION_TASK,
+                        "PROMO_RECOVERY_FAILED",
+                        task_run_id=task_run_id,
+                        started_by_run=started_by_run,
+                        recovery_report=recovery_report,
+                        promo_recovery=promo_recovery,
+                        error=error,
+                    )
+                else:
+                    promo_status = _status_value(promo_recovery.status)
+                    if promo_status == PromoRecoveryStatus.SUCCESS.value:
+                        recovery = RecoveryResult(
+                            RecoveryStatus.ALREADY_HOME,
+                            adb_target=recovery.adb_target,
+                            boot_id=recovery.boot_id,
+                        )
+                    elif promo_status != PromoRecoveryStatus.NOT_PRESENT.value:
+                        error = f"Known promo fallback failed: {promo_status}: {promo_recovery.error or ''}".strip()
+                        result = ShopNavigationTaskResult(
+                            SHOP_NAVIGATION_TASK,
+                            promo_status,
+                            task_run_id=task_run_id,
+                            started_by_run=started_by_run,
+                            recovery_report=recovery_report,
+                            promo_recovery=promo_recovery,
+                            error=error,
+                        )
+            if recovery is not None and result.status == "SAFETY_BLOCKED":
                 if recovery.status not in {
                     RecoveryStatus.SUCCESS,
                     RecoveryStatus.ALREADY_HOME,
@@ -216,6 +313,7 @@ def run_phase6_shop_navigation(
                         task_run_id=task_run_id,
                         started_by_run=started_by_run,
                         recovery_report=recovery_report,
+                        promo_recovery=promo_recovery,
                         error=error,
                     )
                 elif cancelled():
@@ -225,6 +323,7 @@ def run_phase6_shop_navigation(
                         task_run_id=task_run_id,
                         started_by_run=started_by_run,
                         recovery_report=recovery_report,
+                        promo_recovery=promo_recovery,
                         error="Shop navigation cancelled after Home recovery.",
                     )
                 else:
@@ -244,6 +343,7 @@ def run_phase6_shop_navigation(
                         task_run_id=task_run_id,
                         started_by_run=started_by_run,
                         recovery_report=recovery_report,
+                        promo_recovery=promo_recovery,
                         navigation=navigation,
                         error=navigation.error,
                     )
@@ -255,6 +355,7 @@ def run_phase6_shop_navigation(
             task_run_id=task_run_id,
             started_by_run=started_by_run,
             recovery_report=recovery_report,
+            promo_recovery=promo_recovery,
             navigation=navigation,
             error=error,
         )
@@ -272,6 +373,7 @@ def run_phase6_shop_navigation(
                     task_run_id=task_run_id,
                     started_by_run=started_by_run,
                     recovery_report=recovery_report,
+                    promo_recovery=promo_recovery,
                     navigation=navigation,
                     error=error,
                 )
@@ -290,6 +392,7 @@ def run_phase6_shop_navigation(
                     task_run_id=task_run_id,
                     started_by_run=started_by_run,
                     recovery_report=recovery_report,
+                    promo_recovery=promo_recovery,
                     navigation=navigation,
                     error=error,
                 )
@@ -307,6 +410,7 @@ def run_phase6_shop_navigation(
             "cleanup_attempted": cleanup_attempted,
             "cleanup_succeeded": cleanup_succeeded,
             "recovery_report": str(recovery_report) if recovery_report else None,
+            "promo_recovery": promo_recovery.as_dict() if promo_recovery else None,
             "before_instances": before,
             "after_instances": after,
             "isolation_changed_indices": isolation,
@@ -359,6 +463,7 @@ def run_phase6_shop_navigation(
                 report_path=report_path,
                 started_by_run=started_by_run,
                 recovery_report=recovery_report,
+                promo_recovery=promo_recovery,
                 navigation=navigation,
                 error=failure_error,
                 cleanup_attempted=cleanup_attempted,
@@ -399,6 +504,7 @@ def run_phase6_shop_navigation(
                 report_path=report_path,
                 started_by_run=started_by_run,
                 recovery_report=recovery_report,
+                promo_recovery=promo_recovery,
                 navigation=navigation,
                 error=error or result.error,
                 cleanup_attempted=cleanup_attempted,

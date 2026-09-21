@@ -91,7 +91,7 @@ class DiagnosticRecoveryPort:
             detection.state.value,
             detection.confidence,
         )
-        return RecoveryObservation(detection, screen.source_image, target.serial)
+        return RecoveryObservation(detection, screen.source_image, target.serial, target.boot_id)
 
     def launch_game(self) -> None:
         log.info("[%s / #%s] Recovery action: launch verified package", self.name, self.index)

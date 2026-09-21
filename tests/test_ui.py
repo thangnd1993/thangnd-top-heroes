@@ -80,6 +80,7 @@ def test_phase6_shop_survey_button_uses_navigation_runner_and_scope(rig, tmp_pat
     assert calls[0] == "phase6"
     assert calls[1][0][0] is manager
     assert calls[1][0][2:] == (2, "5-Emmmmm")
+    assert calls[1][1]["promo_recovery_factory"] is window_module.promo_recovery_factory
     assert SHOP_NAVIGATION_LABEL in window.phase6_status.text()
     assert "navigation=SUCCESS" in window.phase6_status.text()
     window.close()

@@ -29,6 +29,7 @@ class RecoveryObservation:
     detection: ScreenDetection
     screenshot: Path | None
     adb_target: str
+    boot_id: str | None = None
 
 
 class RecoveryPort(Protocol):
@@ -63,6 +64,7 @@ class RecoveryResult:
     adb_target: str | None = None
     duration: float = 0.0
     error: str | None = None
+    boot_id: str | None = None
 
     @property
     def states_seen(self) -> list[str]:
@@ -83,6 +85,7 @@ class RecoveryResult:
             "steps": [step.as_dict() for step in self.steps],
             "duration_seconds": round(self.duration, 3),
             "adb_target": self.adb_target,
+            "boot_id": self.boot_id,
             "error": self.error,
         }
 
@@ -153,6 +156,7 @@ class HomeRecoveryEngine:
                 return finish(RecoveryStatus.ADB_ERROR, str(exc))
             detection = observation.detection
             result.adb_target = observation.adb_target
+            result.boot_id = observation.boot_id
             step = RecoveryStep(
                 number,
                 detection.state,

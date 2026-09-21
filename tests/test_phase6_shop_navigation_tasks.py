@@ -1,9 +1,16 @@
+import pytest
+
 from top_heroes_auto.app.phase6_shop_navigation_tasks import (
     PHASE6_TARGET,
     SHOP_NAVIGATION_TASK,
     run_phase6_shop_navigation,
 )
 from top_heroes_auto.app.recovery_cli import RecoveryFailure
+from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.automation.phase6_promo_recovery import (
+    PromoRecoveryResult,
+    PromoRecoveryStatus,
+)
 from top_heroes_auto.automation.phase6_shop_navigation import (
     ShopNavigationResult,
     ShopNavigationStatus,
@@ -16,6 +23,12 @@ def _target2(manager, process):
     manager.refresh()
     manager.protect(0, True)
     manager.select(2, True)
+
+
+def _target2_running(manager, process):
+    _target2(manager, process)
+    process.listing = "0,Queen,1,2,0,-1,-1\n2,5-Emmmmm,3,4,1,201,202\n"
+    manager.refresh()
 
 
 def _recovery(manager, data, index, name, **kwargs):
@@ -275,3 +288,242 @@ def test_persistence_failure_after_cleanup_failure_is_not_reported_success(rig, 
     assert not result.cleanup_succeeded
     assert "database unavailable" in result.error
     assert "quit dispatch uncertain" in result.error
+
+
+def test_known_promo_success_skips_normal_recovery_and_is_reported(rig, tmp_path):
+    manager, process, store = rig
+    _target2_running(manager, process)
+    promo_calls = []
+
+    def promo(*args):
+        promo_calls.append(args)
+        return PromoRecoveryResult(
+            PromoRecoveryStatus.SUCCESS,
+            attempted=True,
+            actions=["keyevent:4"],
+            captures=["promo-before", "home-after"],
+        )
+
+    def no_recovery(*args, **kwargs):
+        raise AssertionError("normal recovery must not run after verified promo Home")
+
+    result = run_phase6_shop_navigation(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        navigation_factory=_success,
+        recovery_runner=no_recovery,
+        promo_recovery_factory=promo,
+    )
+
+    assert result.status == ShopNavigationStatus.SUCCESS.value
+    assert len(promo_calls) == 1
+    assert result.promo_recovery and result.promo_recovery.attempted
+    report = result.report_path.read_text(encoding="utf-8")
+    assert '"promo_recovery"' in report
+    assert '"keyevent:4"' in report
+
+
+def test_promo_not_present_falls_back_to_normal_recovery(rig, tmp_path):
+    manager, process, store = rig
+    _target2_running(manager, process)
+    recovery_calls = []
+
+    def recovery(*args, **kwargs):
+        recovery_calls.append(args)
+        return _recovery(*args, **kwargs)
+
+    result = run_phase6_shop_navigation(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        navigation_factory=_success,
+        recovery_runner=recovery,
+        promo_recovery_factory=lambda *args: PromoRecoveryResult(PromoRecoveryStatus.NOT_PRESENT),
+    )
+
+    assert result.status == ShopNavigationStatus.SUCCESS.value
+    assert len(recovery_calls) == 1
+    assert result.promo_recovery.status == PromoRecoveryStatus.NOT_PRESENT
+
+
+def test_uncertain_promo_back_is_terminal_and_never_falls_back(rig, tmp_path):
+    manager, process, store = rig
+    _target2_running(manager, process)
+    recovery_calls = []
+
+    def recovery(*args, **kwargs):
+        recovery_calls.append(args)
+        raise AssertionError("uncertain Back must not invoke normal recovery")
+
+    promo = PromoRecoveryResult(
+        PromoRecoveryStatus.ACTION_RESULT_UNCERTAIN,
+        attempted=True,
+        actions=[],
+        error="transport uncertain",
+    )
+    result = run_phase6_shop_navigation(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        navigation_factory=_success,
+        recovery_runner=recovery,
+        promo_recovery_factory=lambda *args: promo,
+    )
+
+    assert result.status == PromoRecoveryStatus.ACTION_RESULT_UNCERTAIN.value
+    assert result.promo_recovery is promo
+    assert recovery_calls == []
+
+
+def test_stopped_target_skips_optional_promo_and_uses_default_recovery(rig, tmp_path):
+    manager, process, store = rig
+    _target2(manager, process)
+    promo_calls = []
+
+    def promo(*args):
+        promo_calls.append(args)
+        return PromoRecoveryResult(PromoRecoveryStatus.SUCCESS, attempted=True)
+
+    result = run_phase6_shop_navigation(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        navigation_factory=_success,
+        recovery_runner=_recovery,
+        promo_recovery_factory=promo,
+    )
+
+    assert result.status == ShopNavigationStatus.SUCCESS.value
+    assert promo_calls == []
+    assert result.promo_recovery is None
+
+
+def test_stopped_timeout_uses_one_identity_bound_promo_fallback(rig, tmp_path):
+    manager, process, store = rig
+    _target2(manager, process)
+    quit_calls = _record_quit(manager, process)
+    fallback_calls = []
+
+    def timed_out_recovery(*args, **kwargs):
+        process.listing = "0,Queen,1,2,0,-1,-1\n2,5-Emmmmm,3,4,1,201,202\n"
+        path = tmp_path / "recovery-timeout.json"
+        path.write_text("{}", encoding="utf-8")
+        return (
+            RecoveryResult(
+                RecoveryStatus.LOADING_TIMEOUT,
+                adb_target="emulator-5558",
+                boot_id="boot-2",
+            ),
+            path,
+            True,
+        )
+
+    def fallback(*args, **kwargs):
+        fallback_calls.append((args, kwargs))
+        assert kwargs["expected_transport"] == ("emulator-5558", "boot-2")
+        return PromoRecoveryResult(
+            PromoRecoveryStatus.SUCCESS,
+            attempted=True,
+            actions=["keyevent:4"],
+        )
+
+    result = run_phase6_shop_navigation(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        navigation_factory=_success,
+        recovery_runner=timed_out_recovery,
+        promo_recovery_factory=fallback,
+    )
+
+    assert result.status == ShopNavigationStatus.SUCCESS.value
+    assert len(fallback_calls) == 1
+    assert result.started_by_run
+    assert result.cleanup_attempted
+    assert quit_calls == [(2, "quit")]
+
+
+def test_timeout_without_verified_boot_never_falls_back(rig, tmp_path):
+    manager, process, store = rig
+    _target2(manager, process)
+    quit_calls = _record_quit(manager, process)
+    fallback_calls = []
+
+    def timed_out_recovery(*args, **kwargs):
+        process.listing = "0,Queen,1,2,0,-1,-1\n2,5-Emmmmm,3,4,1,201,202\n"
+        path = tmp_path / "recovery-timeout.json"
+        path.write_text("{}", encoding="utf-8")
+        return RecoveryResult(RecoveryStatus.LOADING_TIMEOUT, adb_target="emulator-5558"), path, True
+
+    result = run_phase6_shop_navigation(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        navigation_factory=_success,
+        recovery_runner=timed_out_recovery,
+        promo_recovery_factory=lambda *args, **kwargs: fallback_calls.append(args),
+    )
+
+    assert result.status == RecoveryStatus.LOADING_TIMEOUT.value
+    assert fallback_calls == []
+    assert quit_calls == [(2, "quit")]
+
+
+def test_timeout_promo_uncertain_does_not_retry_or_navigate(rig, tmp_path):
+    manager, process, store = rig
+    _target2(manager, process)
+    quit_calls = _record_quit(manager, process)
+
+    def timed_out_recovery(*args, **kwargs):
+        process.listing = "0,Queen,1,2,0,-1,-1\n2,5-Emmmmm,3,4,1,201,202\n"
+        path = tmp_path / "recovery-timeout.json"
+        path.write_text("{}", encoding="utf-8")
+        return (
+            RecoveryResult(
+                RecoveryStatus.LOADING_TIMEOUT,
+                adb_target="emulator-5558",
+                boot_id="boot-2",
+            ),
+            path,
+            True,
+        )
+
+    navigation_calls = []
+    result = run_phase6_shop_navigation(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        navigation_factory=lambda *args: navigation_calls.append(args),
+        recovery_runner=timed_out_recovery,
+        promo_recovery_factory=lambda *args, **kwargs: PromoRecoveryResult(
+            PromoRecoveryStatus.ACTION_RESULT_UNCERTAIN,
+            attempted=True,
+            error="Back uncertain",
+        ),
+    )
+
+    assert result.status == PromoRecoveryStatus.ACTION_RESULT_UNCERTAIN.value
+    assert result.promo_recovery.attempted
+    assert navigation_calls == []
+    assert quit_calls == [(2, "quit")]
+
+
+def test_promo_hook_respects_exact_target_queen_and_selection_guards(rig, tmp_path):
+    manager, process, store = rig
+    _target2(manager, process)
+    promo_calls = []
+
+    def promo(*args, **kwargs):
+        promo_calls.append(args)
+
+    with pytest.raises(SafetyError):
+        run_phase6_shop_navigation(manager, tmp_path, 0, "Queen", promo_recovery_factory=promo)
+    with pytest.raises(SafetyError):
+        run_phase6_shop_navigation(manager, tmp_path, 2, "wrong-clone", promo_recovery_factory=promo)
+
+    manager.select(2, False)
+    with pytest.raises(SafetyError):
+        run_phase6_shop_navigation(manager, tmp_path, *PHASE6_TARGET, promo_recovery_factory=promo)
+
+    assert promo_calls == []

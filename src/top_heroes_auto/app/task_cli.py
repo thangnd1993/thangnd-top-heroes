@@ -15,6 +15,7 @@ from top_heroes_auto.app.free_reward_tasks import (
     run_free_reward_sequence,
     run_free_reward_task,
 )
+from top_heroes_auto.app.phase6_runtime import promo_recovery_factory
 from top_heroes_auto.app.phase6_shop_navigation_tasks import (
     SHOP_NAVIGATION_TASK,
     run_phase6_shop_navigation,
@@ -231,7 +232,13 @@ def main(argv: list[str], data: Path) -> int:
         print(json.dumps(result.as_dict(), ensure_ascii=True, indent=2))
         return 0 if result.status in SUCCESS_STATUSES else 2
     if args.command == SHOP_NAVIGATION_TASK:
-        result = run_phase6_shop_navigation(manager, data, args.index, args.name)
+        result = run_phase6_shop_navigation(
+            manager,
+            data,
+            args.index,
+            args.name,
+            promo_recovery_factory=promo_recovery_factory,
+        )
         print(json.dumps(result.as_dict(), ensure_ascii=True, indent=2))
         return 0 if result.status == "SUCCESS" else 2
     results = run_free_reward_sequence(

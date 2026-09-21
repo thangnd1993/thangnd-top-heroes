@@ -528,6 +528,7 @@ def test_cli_shop_navigation_dispatches_only_navigation_runner(rig, tmp_path, mo
     assert code == 0
     assert calls[0][0][0] is manager
     assert calls[0][0][2:] == (2, "5-Emmmmm")
+    assert calls[0][1]["promo_recovery_factory"] is task_cli_module.promo_recovery_factory
     output = json.loads(capsys.readouterr().out)
     assert output["task"] == SHOP_NAVIGATION_TASK
     assert output["label"] == SHOP_NAVIGATION_LABEL
