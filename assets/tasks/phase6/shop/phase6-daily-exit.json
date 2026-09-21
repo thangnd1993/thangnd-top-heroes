@@ -1,0 +1,20 @@
+{
+  "id": "phase6-daily-exit",
+  "state": "FREE_REWARD_PAGE",
+  "template": "phase6-daily-exit.png",
+  "expected_region": [
+    0.0,
+    0.0,
+    0.2,
+    0.3
+  ],
+  "threshold": 0.97,
+  "required": true,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Index-2 2026-09-22 daily-page left-arrow/back-control evidence; navigation only and requires current-frame target plus fresh Home verification. Not a reward or claim anchor."
+}

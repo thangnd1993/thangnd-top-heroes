@@ -1,0 +1,20 @@
+{
+  "id": "phase6-daily-page",
+  "state": "FREE_REWARD_PAGE",
+  "template": "phase6-daily-page.png",
+  "expected_region": [
+    0.78,
+    0.0,
+    0.96,
+    0.55
+  ],
+  "threshold": 0.97,
+  "required": true,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Index-2 2026-09-22 daily-offer title evidence; readable current-page text matched fresh same-account daily frames, not a cost or claim anchor. Current-frame match and destination verification required."
+}

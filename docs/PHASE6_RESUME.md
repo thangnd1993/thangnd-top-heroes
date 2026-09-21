@@ -48,6 +48,20 @@
   Ruff/diff checks clean. No packaged index-2 shop route/scroll evidence is
   yet sufficient to wire this to CLI/UI or conduct a live shop survey.
   Free Pack remains NOT_IMPLEMENTED and no reward was claimed.
+- Commit `4a08d22` passed Windows CI run `35642294934`: full lint/test,
+  PyInstaller build, executable smoke and fresh artifact upload
+  (`10658713326`). The exact archive was downloaded through the existing
+  authorized GitHub credential, 105,099,995 bytes, SHA-256
+  `7671753165409F3F21993D412C7DC041D867E5EE29BB310DFFABA6761F350DD0`.
+  It has not been used for live reward acceptance.
+- Qualified four same-account navigation-only crops for the daily-offer page,
+  information popup, close X, and back arrow. The first crop revision was
+  rejected by visual review because its supposed exit anchor was an offer
+  item; it was replaced, visually inspected, and retested against neighboring
+  shop tabs/popup plus Home/VIP/promo negatives. The back arrow is generic
+  and must be gated by separate daily-page identity. Astra approved the
+  corrected offline assets; parent reran 32 focused shop tests and Ruff.
+  These assets are not wired to a live task and do not prove a free gift.
 
 ## Reviewed safe checkpoint — 2026-09-22 (Phase 6 still PARTIAL)
 
