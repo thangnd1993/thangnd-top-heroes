@@ -33,6 +33,7 @@ class PromoRecoveryStatus(StrEnum):
     IDENTITY_MISMATCH = "IDENTITY_MISMATCH"
     ACTION_RESULT_UNCERTAIN = "ACTION_RESULT_UNCERTAIN"
     DESTINATION_UNVERIFIED = "DESTINATION_UNVERIFIED"
+    DESTINATION_SUCCESS = "DESTINATION_SUCCESS"
     TIMEOUT = "TIMEOUT"
 
 
@@ -64,6 +65,8 @@ class PromoRecoveryResult:
     before: dict | None = None
     after: dict | None = None
     error: str | None = None
+    trigger: str | None = None
+    expected_page: str | None = None
 
     def as_dict(self) -> dict:
         return {
@@ -74,6 +77,8 @@ class PromoRecoveryResult:
             "before": self.before,
             "after": self.after,
             "error": self.error,
+            "trigger": self.trigger,
+            "expected_page": self.expected_page,
             "claims": [],
             "journal_rows": 0,
         }

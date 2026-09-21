@@ -32,6 +32,10 @@ from top_heroes_auto.automation.free_rewards import (
     Route,
 )
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.phase6_promo_recovery import (
+    PromoRecoveryResult,
+    PromoRecoveryStatus,
+)
 from top_heroes_auto.automation.phase6_visual import Matcher, RewardRule
 from top_heroes_auto.vision.exploration import (
     content_fingerprint,
@@ -172,6 +176,7 @@ class ShopSurveyResult:
     claims: list[str] = field(default_factory=list)
     journal_rows: int = 0
     error: str | None = None
+    promo_recovery: PromoRecoveryResult | None = None
 
     def as_dict(self) -> dict:
         return {
@@ -184,6 +189,7 @@ class ShopSurveyResult:
             "claims": list(self.claims),
             "journal_rows": self.journal_rows,
             "error": self.error,
+            "promo_recovery": self.promo_recovery.as_dict() if self.promo_recovery else None,
         }
 
 
@@ -197,6 +203,12 @@ class ShopSurveyPort(Protocol):
     def scroll(self, observation: ShopFrameObservation, axis: str, point: tuple[int, int]) -> None: ...
 
     def backtrack(self, observation: ShopFrameObservation, route: Route, point: tuple[int, int]) -> None: ...
+
+
+class _SurveyCancelled(SafetyError):
+    """Cancellation reached a port boundary before a pending popup Back."""
+
+    pass
 
 
 @dataclass
@@ -332,6 +344,14 @@ class ShopSurveyEngine:
         return current
 
     @staticmethod
+    def _take_promo_recovery(port: ShopSurveyPort, result: ShopSurveyResult) -> None:
+        take = getattr(port, "take_promo_recovery", None)
+        if callable(take):
+            promo = take()
+            if promo is not None:
+                result.promo_recovery = promo
+
+    @staticmethod
     def _select_route(screen: RewardScreen, context: _SurveyContext) -> Route | None:
         for route in screen.routes:
             if route.kind not in {"tab", "submenu", "parent"}:
@@ -366,7 +386,16 @@ class ShopSurveyEngine:
                     self._reason(result, "time_bound")
                     break
 
-                observation = port.observe()
+                if pending is not None:
+                    arm = getattr(port, "arm_pending_promo", None)
+                    if callable(arm):
+                        arm(pending.expected_page, cancelled)
+                try:
+                    observation = port.observe()
+                except Exception:
+                    self._take_promo_recovery(port, result)
+                    raise
+                self._take_promo_recovery(port, result)
                 identity = self._record_frame(result, observation, expected, identity, seen_captures)
                 screen = observation.screen
                 if screen.detection.state == ScreenState.UNKNOWN or screen.detection.confidence < 0.9:
@@ -576,12 +605,25 @@ class ShopSurveyEngine:
                 result.status = ShopSurveyStatus.PARTIAL
                 self._reason(result, "step_bound")
             return result
+        except _SurveyCancelled as exc:
+            self._take_promo_recovery(port, result)
+            result.status = ShopSurveyStatus.CANCELLED
+            result.error = str(exc)
+            return result
         except _SurveyIdentityMismatch as exc:
+            self._take_promo_recovery(port, result)
             result.status = ShopSurveyStatus.IDENTITY_MISMATCH
             result.error = str(exc)
             return result
         except SafetyError as exc:
-            result.status = ShopSurveyStatus.SAFETY_BLOCKED
+            self._take_promo_recovery(port, result)
+            promo_status = result.promo_recovery.status if result.promo_recovery else None
+            result.status = {
+                PromoRecoveryStatus.CANCELLED: ShopSurveyStatus.CANCELLED,
+                PromoRecoveryStatus.ACTION_RESULT_UNCERTAIN: ShopSurveyStatus.ACTION_RESULT_UNCERTAIN,
+                PromoRecoveryStatus.IDENTITY_MISMATCH: ShopSurveyStatus.IDENTITY_MISMATCH,
+                PromoRecoveryStatus.TIMEOUT: ShopSurveyStatus.TIMEOUT,
+            }.get(promo_status, ShopSurveyStatus.SAFETY_BLOCKED)
             result.error = str(exc)
             return result
         except (OSError, RuntimeError, ValueError) as exc:
@@ -862,6 +904,11 @@ class ManagerShopSurveyPort:
         name: str,
         registry: ShopProfileRegistry,
         folder: Path | None = None,
+        *,
+        pending_promo_anchor: VisualAnchor | None = None,
+        promo_budget_available: bool = False,
+        promo_observations: int = 3,
+        promo_wait_seconds: float = 0.25,
     ):
         self.manager = manager
         self.snapshot = snapshot
@@ -869,23 +916,192 @@ class ManagerShopSurveyPort:
         self.name = name
         self.registry = registry
         self.folder = folder
+        if pending_promo_anchor is not None and pending_promo_anchor.state != ScreenState.POPUP_GENERIC:
+            raise ValueError("Pending promo anchor must be a POPUP_GENERIC anchor.")
+        if not 1 <= promo_observations <= 3:
+            raise ValueError("Pending promo recovery allows one to three observations.")
+        if promo_wait_seconds < 0:
+            raise ValueError("Pending promo wait cannot be negative.")
+        self.pending_promo_anchor = pending_promo_anchor
+        self._promo_budget_available = promo_budget_available
+        self._promo_observations = promo_observations
+        self._promo_wait_seconds = promo_wait_seconds
+        self._pending_expected_page: str | None = None
+        self._pending_cancelled: Callable[[], bool] = lambda: False
+        self._promo_recovery: PromoRecoveryResult | None = None
         self._last: ShopFrameObservation | None = None
         self._target: Target | None = None
+
+    def arm_pending_promo(self, expected_page: str, cancelled: Callable[[], bool]) -> None:
+        """Arm one popup probe for the fresh frame after a survey action."""
+
+        self._pending_expected_page = expected_page
+        self._pending_cancelled = cancelled
+
+    def take_promo_recovery(self) -> PromoRecoveryResult | None:
+        promo = self._promo_recovery
+        self._promo_recovery = None
+        return promo
+
+    @staticmethod
+    def _frame_dict(target: Target, captured: CapturedScreen) -> dict:
+        return {
+            "capture": _capture_id(captured),
+            "instance": {"index": target.index, "name": target.name},
+            "adb_target": target.serial,
+            "boot_id": target.boot_id,
+            "timestamp": captured.timestamp,
+        }
+
+    def _capture(
+        self,
+        tag: str,
+        *,
+        allow_transport_change: bool = False,
+    ) -> tuple[Target, CapturedScreen]:
+        target, payload = self.manager.capture_verified(self.index, self.snapshot)
+        if (target.index, target.name) != (self.index, self.name):
+            raise SafetyError("Shop survey capture identity changed.")
+        if (
+            self._target
+            and not allow_transport_change
+            and (target.serial, target.boot_id) != (self._target.serial, self._target.boot_id)
+        ):
+            raise _SurveyIdentityMismatch("Shop survey transport identity changed.")
+        self._target = target
+        captured = ScreenshotService(
+            lambda serial: payload if serial == target.serial else b""
+        ).take(target, self.folder, tag)
+        return target, captured
+
+    def _pending_promo_destination(self, target: Target, captured: CapturedScreen) -> ShopFrameObservation:
+        expected_page = self._pending_expected_page
+        anchor = self.pending_promo_anchor
+        if expected_page is None or anchor is None or not self._promo_budget_available:
+            raise SafetyError("Current frame has no uniquely verified shop page.")
+        evidence = unique_current_anchor(captured, anchor)
+        if not evidence.matched:
+            self._promo_budget_available = False if evidence.score >= max(0.9, evidence.threshold) else self._promo_budget_available
+            if evidence.score >= max(0.9, evidence.threshold):
+                self._promo_recovery = PromoRecoveryResult(
+                    status=PromoRecoveryStatus.BLOCKED,
+                    trigger="pending_destination",
+                    expected_page=expected_page,
+                    before={**self._frame_dict(target, captured), "anchor": evidence.as_dict()},
+                    error="Known promo title is ambiguous in the pending destination frame.",
+                )
+                self._promo_recovery.captures.append(_capture_id(captured))
+                self._pending_expected_page = None
+                raise SafetyError(self._promo_recovery.error)
+            raise SafetyError("Current frame has no uniquely verified shop page.")
+
+        promo = PromoRecoveryResult(
+            trigger="pending_destination",
+            expected_page=expected_page,
+            before={**self._frame_dict(target, captured), "anchor": evidence.as_dict()},
+        )
+        promo.captures.append(_capture_id(captured))
+        self._promo_recovery = promo
+        # Reserve the shared budget before crossing the input boundary.  Any
+        # uncertain keyevent is terminal and cannot be retried.
+        self._promo_budget_available = False
+        self._pending_expected_page = None
+        if self._pending_cancelled():
+            promo.status = PromoRecoveryStatus.CANCELLED
+            raise _SurveyCancelled("Shop survey cancelled before pending promo Back.")
+        promo.attempted = True
+        try:
+            self.manager.execute(
+                self.index,
+                "keyevent",
+                values=(4,),
+                snapshot=self.snapshot,
+                observed_target=target,
+            )
+        except (OSError, RuntimeError, SafetyError) as exc:
+            promo.status = PromoRecoveryStatus.ACTION_RESULT_UNCERTAIN
+            promo.error = str(exc)
+            raise
+        self._target = None
+        promo.actions.append("keyevent:4")
+
+        last_error: str | None = None
+        for attempt in range(self._promo_observations):
+            if self._pending_cancelled():
+                promo.status = PromoRecoveryStatus.CANCELLED
+                raise _SurveyCancelled("Shop survey cancelled while observing pending destination.")
+            if attempt and self._promo_wait_seconds:
+                time.sleep(self._promo_wait_seconds)
+            try:
+                next_target, next_captured = self._capture(
+                    "phase6-shop-promo-destination",
+                    allow_transport_change=True,
+                )
+            except (OSError, RuntimeError) as exc:
+                promo.status = PromoRecoveryStatus.ACTION_RESULT_UNCERTAIN
+                promo.error = str(exc)
+                raise
+            except SafetyError as exc:
+                promo.status = PromoRecoveryStatus.IDENTITY_MISMATCH
+                promo.error = str(exc)
+                raise _SurveyIdentityMismatch(promo.error) from exc
+            promo.captures.append(_capture_id(next_captured))
+            if (next_target.serial, next_target.boot_id) != (target.serial, target.boot_id):
+                promo.status = PromoRecoveryStatus.IDENTITY_MISMATCH
+                promo.error = "Pending promo destination transport identity changed."
+                promo.after = self._frame_dict(next_target, next_captured)
+                raise _SurveyIdentityMismatch(promo.error)
+            promo.after = self._frame_dict(next_target, next_captured)
+            try:
+                destination = self.registry.observe(next_captured)
+            except SafetyError as exc:
+                last_error = str(exc)
+                continue
+            if destination.screen.page != expected_page:
+                promo.status = PromoRecoveryStatus.DESTINATION_UNVERIFIED
+                promo.error = (
+                    f"Expected pending page {expected_page!r}, observed {destination.screen.page!r}."
+                )
+                raise SafetyError(promo.error)
+            promo.status = PromoRecoveryStatus.DESTINATION_SUCCESS
+            promo.after = {
+                **(promo.after or self._frame_dict(next_target, next_captured)),
+                "page": destination.screen.page,
+            }
+            return destination
+        promo.status = PromoRecoveryStatus.TIMEOUT
+        promo.error = last_error or "Pending promo destination was not observed."
+        raise SafetyError(promo.error)
 
     def observe(self) -> ShopFrameObservation:
         # Any new capture supersedes the previous action authority, including
         # a capture that later fails semantic page resolution.
         self._last = None
-        target, payload = self.manager.capture_verified(self.index, self.snapshot)
-        if (target.index, target.name) != (self.index, self.name):
-            raise SafetyError("Shop survey capture identity changed.")
-        if self._target and (target.serial, target.boot_id) != (self._target.serial, self._target.boot_id):
-            raise SafetyError("Shop survey transport identity changed.")
-        self._target = target
-        captured = ScreenshotService(
-            lambda serial: payload if serial == target.serial else b""
-        ).take(target, self.folder, "phase6-shop-survey")
-        observation = self.registry.observe(captured)
+        target, captured = self._capture("phase6-shop-survey")
+        if self._pending_expected_page is not None and self.pending_promo_anchor is not None:
+            pending_evidence = unique_current_anchor(captured, self.pending_promo_anchor)
+            if pending_evidence.matched or pending_evidence.score >= max(0.9, pending_evidence.threshold):
+                try:
+                    observation = self._pending_promo_destination(target, captured)
+                except SafetyError:
+                    if self._promo_recovery is None:
+                        raise
+                    raise
+                self._pending_expected_page = None
+                self._last = observation
+                return observation
+        try:
+            observation = self.registry.observe(captured)
+        except SafetyError as original:
+            if self._pending_expected_page is None or self.pending_promo_anchor is None:
+                raise
+            try:
+                observation = self._pending_promo_destination(target, captured)
+            except SafetyError:
+                if self._promo_recovery is None:
+                    raise original
+                raise
+        self._pending_expected_page = None
         self._last = observation
         return observation
 

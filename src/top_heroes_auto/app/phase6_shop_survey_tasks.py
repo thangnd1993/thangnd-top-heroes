@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Callable
 
 from top_heroes_auto.app.diagnostic import _instance, _only_target_changed, _state
+from top_heroes_auto.app.phase6_runtime import pending_promo_anchor as load_pending_promo_anchor
 from top_heroes_auto.app.phase6_runtime import shop_survey_factory
 from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
 from top_heroes_auto.app.service import Manager
@@ -308,14 +309,30 @@ def run_phase6_shop_survey(
                 else:
                     if effective_factory is None:
                         effective_factory = shop_survey_factory
-                    survey = effective_factory(
-                        manager,
-                        snapshot,
-                        index,
-                        name,
-                        folder,
-                        cancelled,
-                    )
+                    if effective_factory is shop_survey_factory and promo_recovery_factory is not None:
+                        survey = effective_factory(
+                            manager,
+                            snapshot,
+                            index,
+                            name,
+                            folder,
+                            cancelled,
+                            pending_promo_anchor=load_pending_promo_anchor(),
+                            promo_budget_available=(
+                                promo_recovery is None or not promo_recovery.attempted
+                            ),
+                        )
+                    else:
+                        survey = effective_factory(
+                            manager,
+                            snapshot,
+                            index,
+                            name,
+                            folder,
+                            cancelled,
+                        )
+                    if survey.promo_recovery is not None:
+                        promo_recovery = survey.promo_recovery
                     result = ShopSurveyTaskResult(
                         SHOP_SURVEY_TASK,
                         _status_value(survey.status),

@@ -155,6 +155,12 @@ def shop_navigation_factory(
     ).run(index, name, cancelled)
 
 
+def pending_promo_anchor() -> VisualAnchor:
+    """Return the qualified Stranger Things title for shop-only fallback."""
+
+    return _anchor(phase6_asset_root() / "promo", "promo-stranger-title")
+
+
 def shop_survey_registry() -> ShopProfileRegistry:
     """Load only the independently qualified Home/daily/help surfaces.
 
@@ -220,11 +226,23 @@ def shop_survey_factory(
     name,
     folder,
     cancelled=lambda: False,
+    *,
+    pending_promo_anchor: VisualAnchor | None = None,
+    promo_budget_available: bool = False,
 ):
     """Run the bounded claim-free survey over qualified surfaces only."""
 
     registry = shop_survey_registry()
-    port = ManagerShopSurveyPort(manager, snapshot, index, name, registry, folder)
+    port = ManagerShopSurveyPort(
+        manager,
+        snapshot,
+        index,
+        name,
+        registry,
+        folder,
+        pending_promo_anchor=pending_promo_anchor,
+        promo_budget_available=promo_budget_available,
+    )
     return ShopSurveyEngine(
         ShopSurveyLimits(max_steps=12, max_depth=2, max_scrolls_per_direction=1, max_seconds=30.0)
     ).run(port, index, name, cancelled)
