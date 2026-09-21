@@ -12,6 +12,9 @@ nút riêng/chuỗi và Hủy với guard đúng tài khoản, nhưng không cho
 Chưa có nghiệm thu
 Phase 6 bằng bản portable. Chỉ `2 / 5-Emmmmm` được phép thử thật trong
 Phase 6; `0 / Queen` Protected, `4 / 3-Chíp` đã bị thu hồi quyền thử Phase 6.
+Lệnh/nút `shop-navigation-survey` chỉ khảo sát đường vào Tiệm daily và popup
+thông tin rồi về Home, không nhận quà hoặc dùng tài nguyên; thành công của
+tuyến này không đồng nghĩa Free Pack đã hoàn thành.
 Xem [checkpoint tiếp tục](docs/PHASE6_RESUME.md).
 
 ## Thưởng Treo Máy — Phase 5

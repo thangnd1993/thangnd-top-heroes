@@ -62,6 +62,20 @@
   and must be gated by separate daily-page identity. Astra approved the
   corrected offline assets; parent reran 32 focused shop tests and Ruff.
   These assets are not wired to a live task and do not prove a free gift.
+- Commit `ddbd959` passed Windows CI run `35646815434`: full lint/test,
+  PyInstaller build, executable smoke and artifact `10659844555`. The later
+  navigation runner changes require their own fresh CI and artifact.
+- Added a dedicated `shop-navigation-survey` CLI/UI route for only
+  Home → daily offers → information popup → daily offers → Home, capped at
+  four current-frame guarded taps. It is separate from Free Pack and the
+  reward journal and cannot claim, purchase, use tickets or scroll. The new
+  info-button crop was checked against same-account negatives. Recovery
+  failures now carry explicit ownership/cleanup state; the task never infers
+  ownership from stopped→running or repeats an uncertain quit. Astra's final
+  review approved the lifecycle and CLI/UI integration; parent independently
+  reran 105 related tests, Ruff and diff checks. CI/fresh-artifact navigation
+  acceptance remain open. This route is not full Tiệm traversal or reward
+  acceptance. Phase 6 remains PARTIAL; do not merge main or start Phase 7.
 
 ## Reviewed safe checkpoint — 2026-09-22 (Phase 6 still PARTIAL)
 

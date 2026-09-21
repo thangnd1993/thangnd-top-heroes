@@ -26,6 +26,27 @@ log = logging.getLogger("top_heroes_auto")
 GAME_PACKAGE = "com.greenmushroom.boomblitz.gp.vn"
 
 
+class RecoveryFailure(OSError):
+    """Recovery failure carrying authoritative ownership and cleanup state."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        started_by_run: bool,
+        cleanup_attempted: bool,
+        cleanup_succeeded: bool,
+        report_path: Path | None = None,
+        result: RecoveryResult | None = None,
+    ):
+        super().__init__(message)
+        self.started_by_run = started_by_run
+        self.cleanup_attempted = cleanup_attempted
+        self.cleanup_succeeded = cleanup_succeeded
+        self.report_path = report_path
+        self.result = result
+
+
 class DiagnosticRecoveryPort:
     def __init__(
         self,
@@ -119,12 +140,22 @@ def run_home_recovery(
     except (CommandError, OSError, SafetyError, ValueError) as exc:
         result = RecoveryResult(RecoveryStatus.ADB_ERROR, error=str(exc))
 
+    report_path = folder / "report.json"
     cleanup_performed = False
     if started_by_run and cleanup_owned:
         cleanup_attempted = True
-        manager.execute(index, "quit", snapshot=snapshot)
-        cleanup_performed = True
-    report_path = folder / "report.json"
+        try:
+            manager.execute(index, "quit", snapshot=snapshot)
+            cleanup_performed = True
+        except Exception as exc:  # noqa: BLE001 - callers must not infer ownership
+            raise RecoveryFailure(
+                f"Owned recovery cleanup failed: {exc}",
+                started_by_run=started_by_run,
+                cleanup_attempted=cleanup_attempted,
+                cleanup_succeeded=False,
+                report_path=report_path,
+                result=result,
+            ) from exc
     try:
         report = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -136,14 +167,27 @@ def run_home_recovery(
             **result.as_dict(),
         }
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    except Exception:  # noqa: BLE001 - persistence failure must not leak an owned instance
+    except Exception as exc:  # noqa: BLE001 - persistence failure must not leak an owned instance
+        cleanup_error: str | None = None
         if started_by_run and not cleanup_attempted:
             cleanup_attempted = True
             try:
                 manager.execute(index, "quit", snapshot=snapshot)
-            except Exception:  # noqa: BLE001 - preserve the original persistence failure
+                cleanup_performed = True
+            except Exception as cleanup_exc:  # noqa: BLE001 - preserve the original persistence failure
+                cleanup_error = f"owned cleanup failed: {cleanup_exc}"
                 log.exception("[%s / #%s] Owned recovery cleanup failed after report failure", name, index)
-        raise
+        message = str(exc)
+        if cleanup_error:
+            message = f"{message}; {cleanup_error}"
+        raise RecoveryFailure(
+            message,
+            started_by_run=started_by_run,
+            cleanup_attempted=cleanup_attempted,
+            cleanup_succeeded=cleanup_performed,
+            report_path=report_path,
+            result=result,
+        ) from exc
     return result, report_path, started_by_run
 
 

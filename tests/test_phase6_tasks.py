@@ -1,12 +1,20 @@
 
+import json
+
 import pytest
 
+import top_heroes_auto.app.task_cli as task_cli_module
 from top_heroes_auto.app.free_reward_tasks import (
     PHASE6_TARGET,
     run_free_reward_sequence,
     run_free_reward_task,
 )
 from top_heroes_auto.app.phase6_runtime import _entry_profile
+from top_heroes_auto.app.phase6_shop_navigation_tasks import (
+    SHOP_NAVIGATION_LABEL,
+    SHOP_NAVIGATION_TASK,
+    ShopNavigationTaskResult,
+)
 from top_heroes_auto.app.task_cli import parser as task_parser
 from top_heroes_auto.automation.free_rewards import (
     Cost,
@@ -493,3 +501,34 @@ def test_cli_parser_exposes_phase6_tasks_and_sequence():
     assert args.command == "vip-reward"
     args = task_parser().parse_args(["free-rewards", "--index", "2", "--name", "5-Emmmmm"])
     assert tuple(args.tasks) == ("vip-reward", "free-pack", "free-recruit")
+    args = task_parser().parse_args(
+        [SHOP_NAVIGATION_TASK, "--index", "2", "--name", "5-Emmmmm"]
+    )
+    assert args.command == SHOP_NAVIGATION_TASK
+
+
+def test_cli_shop_navigation_dispatches_only_navigation_runner(rig, tmp_path, monkeypatch, capsys):
+    manager, _, _ = rig
+    calls = []
+
+    def fake_manager(data):
+        return manager
+
+    def fake_survey(*args, **kwargs):
+        calls.append((args, kwargs))
+        return ShopNavigationTaskResult(SHOP_NAVIGATION_TASK, "SUCCESS")
+
+    monkeypatch.setattr(task_cli_module, "_manager", fake_manager)
+    monkeypatch.setattr(task_cli_module, "run_phase6_shop_navigation", fake_survey)
+    code = task_cli_module.main(
+        [SHOP_NAVIGATION_TASK, "--index", "2", "--name", "5-Emmmmm"],
+        tmp_path,
+    )
+
+    assert code == 0
+    assert calls[0][0][0] is manager
+    assert calls[0][0][2:] == (2, "5-Emmmmm")
+    output = json.loads(capsys.readouterr().out)
+    assert output["task"] == SHOP_NAVIGATION_TASK
+    assert output["label"] == SHOP_NAVIGATION_LABEL
+    assert output["scope"].startswith("navigation-only")

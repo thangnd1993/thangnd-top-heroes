@@ -2,6 +2,16 @@
 
 ## Phase 6 — VIP / Free Pack / Free Recruit — PARTIAL
 
+- 2026-09-22: đã thêm tuyến `shop-navigation-survey` tách khỏi Free Pack:
+  chỉ Home → Tiệm daily → popup thông tin → đóng → Home, tối đa bốn tap có
+  bằng chứng ảnh mới; không claim/journal/mua/vé/scroll. UI/CLI và report có
+  guard đúng index 2, ownership cleanup tường minh. 105 test liên quan và
+  Ruff pass; cần CI/artifact mới và nghiệm thu điều hướng thật. Đây không là
+  nghiệm thu Free Pack hay toàn bộ Tiệm; Phase 6 vẫn PARTIAL.
+- Các commit `53c2462`, `6a4f9b8`, `4a08d22`, `ddbd959` đã qua CI Windows
+  đầy đủ; artifact của `4a08d22` đã tải và kiểm SHA-256. Không có claim thật
+  nào được lặp trên index 2; VIP/Recruit vẫn thiếu receipt, gift daily chưa
+  chứng minh zero-cost.
 - Tiếp tục 2026-09-22: UI đã có nút VIP, Free Pack, Recruit, chuỗi Phase 6 và
   Hủy có guard đúng index 2; trạng thái cuối không mất sau refresh.
   Outcome `CLAIMED` mới xác minh journal; cooldown chỉ ghi nhận và giữ

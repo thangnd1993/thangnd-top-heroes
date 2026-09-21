@@ -36,6 +36,11 @@ from top_heroes_auto.app.free_reward_tasks import (
     run_free_reward_sequence,
     run_free_reward_task,
 )
+from top_heroes_auto.app.phase6_shop_navigation_tasks import (
+    SHOP_NAVIGATION_LABEL,
+    SHOP_NAVIGATION_TASK,
+    run_phase6_shop_navigation,
+)
 from top_heroes_auto.app.process import Process
 from top_heroes_auto.app.recovery_cli import run_home_recovery
 from top_heroes_auto.app.run_queue import RunController
@@ -269,6 +274,13 @@ class Window(QMainWindow):
         self.phase6_sequence_button = self.button(tasks, "Phase 6 theo chuỗi", self.run_phase6_sequence)
         self.phase6_buttons.append(self.phase6_sequence_button)
         self.action_buttons.append(self.phase6_sequence_button)
+        self.phase6_shop_survey_button = self.button(
+            tasks,
+            SHOP_NAVIGATION_LABEL,
+            self.run_phase6_shop_navigation,
+        )
+        self.phase6_buttons.append(self.phase6_shop_survey_button)
+        self.action_buttons.append(self.phase6_shop_survey_button)
         self.phase6_cancel_button = self.button(tasks, "Hủy Phase 6", self.cancel_phase6)
         self.phase6_cancel_button.setEnabled(False)
         options = self.group(panels, "Tùy chọn thực thi")
@@ -457,7 +469,15 @@ class Window(QMainWindow):
                 task = getattr(result, "task", "phase6")
                 report = getattr(result, "report_path", None)
                 error = getattr(result, "error", None)
-                detail = f"Phase 6 {task}: {status}"
+                if task == SHOP_NAVIGATION_TASK:
+                    navigation = getattr(result, "navigation", None)
+                    navigation_status = getattr(navigation, "status", None)
+                    navigation_status = getattr(navigation_status, "value", navigation_status)
+                    detail = f"{SHOP_NAVIGATION_LABEL}: {status}"
+                    if navigation_status:
+                        detail += f" · navigation={navigation_status}"
+                else:
+                    detail = f"Phase 6 {task}: {status}"
                 if error:
                     detail += f" · {error}"
                 self.phase6_status.setText(detail)
@@ -760,6 +780,24 @@ class Window(QMainWindow):
         self.run_job(
             "phase6",
             lambda: run_free_reward_sequence(
+                self.manager,
+                self.data_dir,
+                index,
+                name,
+                cancelled=self.phase6_cancelled.is_set,
+            ),
+        )
+
+    def run_phase6_shop_navigation(self):
+        target = self._phase6_target()
+        if target is None or self.worker:
+            return
+        index, name = target
+        self.phase6_cancelled.clear()
+        self.phase6_status.setText(f"{SHOP_NAVIGATION_LABEL}: đang chạy…")
+        self.run_job(
+            "phase6",
+            lambda: run_phase6_shop_navigation(
                 self.manager,
                 self.data_dir,
                 index,

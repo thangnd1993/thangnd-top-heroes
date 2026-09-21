@@ -1,0 +1,20 @@
+{
+  "id": "phase6-daily-info-button",
+  "state": "FREE_REWARD_PAGE",
+  "template": "phase6-daily-info-button.png",
+  "expected_region": [
+    0.7,
+    0.7,
+    1.0,
+    1.0
+  ],
+  "threshold": 0.97,
+  "required": true,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "notes": "Index-2 2026-09-22 daily-offer information-button evidence; opens only the generic help popup and never proves a free gift. Require fresh daily-page identity plus unique current-frame match before observation-only navigation."
+}

@@ -2,6 +2,20 @@
 
 ## Phase 6 — guarded checkpoint, acceptance pending
 
+Tuyến khảo sát mới, **chỉ điều hướng và không nhận quà**, dùng lệnh:
+
+```powershell
+TopHeroesAutoManager.exe task shop-navigation-survey --index 2 --name "5-Emmmmm"
+```
+
+Chỉ chạy bằng artifact CI mới đúng commit, sau khi xác minh `2 / 5-Emmmmm`
+được chọn/không Protected, Queen Protected, ADB/boot tường minh và game đúng.
+Tối đa bốn tap: vào Tiệm daily, mở thông tin, đóng popup, thoát về Home;
+mỗi tap cần ảnh nguồn và ảnh đích mới. Report phải ghi Home cuối, quyền sở
+hữu/cleanup, isolation và `claims=[]`, `journal_rows=0`. Kết quả SUCCESS chỉ
+chứng minh tuyến thông tin này; không chứng minh gift miễn phí hay quét hết
+tab/cuộn Tiệm. Nghiệm thu thật của tuyến mới vẫn chờ CI/artifact của mã mới.
+
 UI Phase 6 and bounded shop-discovery primitives were added after the
 previous passing artifact. The current code has 109 focused local tests
 including offscreen UI and remains fail-closed for missing receipt/zero-cost

@@ -7,7 +7,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from top_heroes_auto.app.recovery_cli import DiagnosticRecoveryPort, run_home_recovery
+from top_heroes_auto.app.recovery_cli import (
+    DiagnosticRecoveryPort,
+    RecoveryFailure,
+    run_home_recovery,
+)
 from top_heroes_auto.automation.actions import SafeInputService
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
 from top_heroes_auto.automation.recovery import (
@@ -284,7 +288,7 @@ def test_recovery_report_failure_cleans_only_instance_started_by_run(rig, tmp_pa
         return original_write_text(path, data, *args, **kwargs)
 
     monkeypatch.setattr(Path, "write_text", fail_report)
-    with pytest.raises(OSError, match="recovery report unavailable"):
+    with pytest.raises(RecoveryFailure, match="recovery report unavailable") as raised:
         run_home_recovery(
             manager,
             tmp_path,
@@ -293,6 +297,9 @@ def test_recovery_report_failure_cleans_only_instance_started_by_run(rig, tmp_pa
             cleanup_owned=False,
             engine=AlreadyHome(),
         )
+    assert raised.value.started_by_run
+    assert raised.value.cleanup_attempted
+    assert raised.value.cleanup_succeeded
     lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
     assert lifecycle == ["launch", "quit"]
 
@@ -314,7 +321,7 @@ def test_recovery_report_failure_does_not_stop_externally_running_instance(rig, 
         return original_write_text(path, data, *args, **kwargs)
 
     monkeypatch.setattr(Path, "write_text", fail_report)
-    with pytest.raises(OSError, match="recovery report unavailable"):
+    with pytest.raises(RecoveryFailure, match="recovery report unavailable") as raised:
         run_home_recovery(
             manager,
             tmp_path,
@@ -323,8 +330,53 @@ def test_recovery_report_failure_does_not_stop_externally_running_instance(rig, 
             cleanup_owned=False,
             engine=AlreadyHome(),
         )
+    assert not raised.value.started_by_run
+    assert not raised.value.cleanup_attempted
+    assert not raised.value.cleanup_succeeded
     lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
     assert lifecycle == []
+
+
+def test_recovery_report_failure_with_uncertain_owned_cleanup_is_not_retryable(
+    rig, tmp_path, monkeypatch
+):
+    manager, process, _ = rig
+    process.listing = "0,Queen,0,0,0,-1,-1\n7,Farm-007,0,0,0,-1,-1\n"
+    manager.refresh()
+
+    class AlreadyHome:
+        def ensure_game_home(self, port, cancelled):
+            return RecoveryResult(RecoveryStatus.ALREADY_HOME, adb_target="emulator-5568")
+
+    original_write_text = Path.write_text
+    original_execute = manager.execute
+
+    def fail_report(path, data, *args, **kwargs):
+        if path.name == "report.json":
+            raise OSError("recovery report unavailable")
+        return original_write_text(path, data, *args, **kwargs)
+
+    def fail_quit(index, action, *args, **kwargs):
+        if action == "quit":
+            raise RuntimeError("quit dispatch uncertain")
+        return original_execute(index, action, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", fail_report)
+    monkeypatch.setattr(manager, "execute", fail_quit)
+    with pytest.raises(RecoveryFailure, match="quit dispatch uncertain") as raised:
+        run_home_recovery(
+            manager,
+            tmp_path,
+            7,
+            "Farm-007",
+            cleanup_owned=False,
+            engine=AlreadyHome(),
+        )
+    assert raised.value.started_by_run
+    assert raised.value.cleanup_attempted
+    assert not raised.value.cleanup_succeeded
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == ["launch"]
 
 
 def test_protected_recovery_is_rejected_before_mutation(rig, tmp_path):

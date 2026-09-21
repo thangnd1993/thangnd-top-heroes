@@ -5,6 +5,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 import top_heroes_auto.ui.window as window_module
+from top_heroes_auto.app.phase6_shop_navigation_tasks import (
+    SHOP_NAVIGATION_LABEL,
+    SHOP_NAVIGATION_TASK,
+    ShopNavigationTaskResult,
+)
+from top_heroes_auto.automation.phase6_shop_navigation import (
+    ShopNavigationResult,
+    ShopNavigationStatus,
+)
 from top_heroes_auto.ui.window import Window, Worker
 
 
@@ -27,6 +36,52 @@ def test_gui_selection_protection_filters_and_close(rig, tmp_path, monkeypatch):
     window.select_visible(False)
     assert window.target.count() == 0
     assert not any(b.isEnabled() for b in window.action_buttons)
+    window.close()
+
+
+def test_phase6_shop_survey_button_uses_navigation_runner_and_scope(rig, tmp_path, monkeypatch):
+    manager, process, store = rig
+    QApplication.instance() or QApplication([])
+    monkeypatch.setattr(Window, "discover_ld", lambda self: None)
+    window = Window(store, tmp_path)
+    window.manager = manager
+    window.instances = manager.refresh()
+
+    process.listing = "0,Queen,0,0,0,-1,-1\n2,5-Emmmmm,0,0,0,-1,-1\n"
+    manager.refresh()
+    manager.protect(0, True)
+    manager.select(2, True)
+    window.instances = manager.list_readonly()
+    window.render()
+
+    assert window.phase6_shop_survey_button.text() == SHOP_NAVIGATION_LABEL
+    assert window.phase6_shop_survey_button.isEnabled()
+    calls = []
+
+    def fake_survey(*args, **kwargs):
+        calls.append((args, kwargs))
+        assert callable(kwargs["cancelled"])
+        assert kwargs["cancelled"]() is False
+        return ShopNavigationTaskResult(
+            SHOP_NAVIGATION_TASK,
+            ShopNavigationStatus.SUCCESS.value,
+            navigation=ShopNavigationResult(ShopNavigationStatus.SUCCESS),
+        )
+
+    def fake_run_job(mode, function):
+        calls.append(mode)
+        window.mode = mode
+        window.job_result(function())
+
+    monkeypatch.setattr(window_module, "run_phase6_shop_navigation", fake_survey)
+    monkeypatch.setattr(window, "run_job", fake_run_job)
+    window.run_phase6_shop_navigation()
+
+    assert calls[0] == "phase6"
+    assert calls[1][0][0] is manager
+    assert calls[1][0][2:] == (2, "5-Emmmmm")
+    assert SHOP_NAVIGATION_LABEL in window.phase6_status.text()
+    assert "navigation=SUCCESS" in window.phase6_status.text()
     window.close()
     assert store.get("window_geometry")
 

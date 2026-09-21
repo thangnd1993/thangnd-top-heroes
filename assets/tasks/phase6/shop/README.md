@@ -1,10 +1,12 @@
 # Daily-offer navigation evidence
 
-These four anchors are a navigation-only profile for the verified index-2
+These five anchors are a navigation-only profile for the verified index-2
 daily-offer viewport. They were cropped from the same-account 2026-09-22
 captures and are intentionally separate from reward/cost evidence:
 
 - `phase6-daily-page` identifies the daily-offer page title.
+- `phase6-daily-info-button` identifies the information button on that page.
+  It is only an entry to the generic help popup; it does not prove a free gift.
 - `phase6-daily-info-popup` identifies the information popup. Its text
   describes purchases and activation tickets; it does not prove a free gift.
 - `phase6-daily-info-close` identifies the popup close control.

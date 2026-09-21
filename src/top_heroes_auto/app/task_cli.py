@@ -15,6 +15,10 @@ from top_heroes_auto.app.free_reward_tasks import (
     run_free_reward_sequence,
     run_free_reward_task,
 )
+from top_heroes_auto.app.phase6_shop_navigation_tasks import (
+    SHOP_NAVIGATION_TASK,
+    run_phase6_shop_navigation,
+)
 from top_heroes_auto.app.recovery_cli import run_home_recovery
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.actions import SafeInputService
@@ -195,6 +199,12 @@ def parser():
     sequence.add_argument("--index", type=int, required=True)
     sequence.add_argument("--name", required=True)
     sequence.add_argument("--tasks", nargs="+", choices=PHASE6_TASKS, default=list(PHASE6_TASKS))
+    survey = commands.add_parser(
+        SHOP_NAVIGATION_TASK,
+        help="khảo sát Tiệm / không nhận quà (navigation-only)",
+    )
+    survey.add_argument("--index", type=int, required=True)
+    survey.add_argument("--name", required=True)
     return root
 
 
@@ -220,6 +230,10 @@ def main(argv: list[str], data: Path) -> int:
         result = run_free_reward_task(manager, data, args.index, args.name, args.command)
         print(json.dumps(result.as_dict(), ensure_ascii=True, indent=2))
         return 0 if result.status in SUCCESS_STATUSES else 2
+    if args.command == SHOP_NAVIGATION_TASK:
+        result = run_phase6_shop_navigation(manager, data, args.index, args.name)
+        print(json.dumps(result.as_dict(), ensure_ascii=True, indent=2))
+        return 0 if result.status == "SUCCESS" else 2
     results = run_free_reward_sequence(
         manager,
         data,

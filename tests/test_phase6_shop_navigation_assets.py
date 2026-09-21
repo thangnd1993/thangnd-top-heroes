@@ -18,6 +18,7 @@ EVIDENCE_ROOT = Path(
 )
 ANCHOR_IDS = {
     "phase6-daily-page",
+    "phase6-daily-info-button",
     "phase6-daily-info-popup",
     "phase6-daily-info-close",
     "phase6-daily-exit",
@@ -34,6 +35,7 @@ def _synthetic(anchor, *, duplicate=False):
     image = np.zeros((720, 1280, 3), dtype=np.uint8)
     locations = {
         "phase6-daily-page": (1120, 0),
+        "phase6-daily-info-button": (1120, 540),
         "phase6-daily-info-popup": (1080, 100),
         "phase6-daily-info-close": (83, 320),
         "phase6-daily-exit": (0, 0),
@@ -44,6 +46,7 @@ def _synthetic(anchor, *, duplicate=False):
     if duplicate:
         duplicate_locations = {
             "phase6-daily-page": (998, 0),
+            "phase6-daily-info-button": (960, 540),
             "phase6-daily-info-popup": (930, 100),
             "phase6-daily-info-close": (240, 320),
             "phase6-daily-exit": (150, 0),
@@ -67,6 +70,7 @@ def test_daily_offer_assets_are_navigation_only():
     anchors = _anchors()
     assert set(anchors) == ANCHOR_IDS
     assert anchors["phase6-daily-page"].state == ScreenState.FREE_REWARD_PAGE
+    assert anchors["phase6-daily-info-button"].state == ScreenState.FREE_REWARD_PAGE
     assert anchors["phase6-daily-info-popup"].state == ScreenState.POPUP_GENERIC
     assert anchors["phase6-daily-info-close"].state == ScreenState.POPUP_GENERIC
     assert anchors["phase6-daily-exit"].state == ScreenState.FREE_REWARD_PAGE
@@ -122,6 +126,13 @@ def _saved_screen(path):
             ),
         ),
         (
+            "phase6-daily-info-button",
+            (
+                "20260921-173846-143161Z-phase6-20260922-daily-info-before",
+                "20260921-173955-365363Z-phase6-20260922-info-close-after",
+            ),
+        ),
+        (
             "phase6-daily-info-popup",
             (
                 "20260921-173850-589371Z-phase6-20260922-daily-info-after",
@@ -168,6 +179,12 @@ def test_saved_index2_frames_match_only_the_qualified_navigation_surface(anchor_
             "20260920-174052-458281Z-phase6-shop-monthly-card-before",
             "20260920-175319-460676Z-phase6-diamond-shop-before",
             "20260921-173850-589371Z-phase6-20260922-daily-info-after",
+        ),
+        "phase6-daily-info-button": (
+            "20260921-173850-589371Z-phase6-20260922-daily-info-after",
+            "20260920-173247-648785Z-phase6-weekly-pack-top-before",
+            "20260920-174052-458281Z-phase6-shop-monthly-card-before",
+            "20260920-175319-460676Z-phase6-diamond-shop-before",
         ),
         "phase6-daily-exit": (
             "20260921-173850-589371Z-phase6-20260922-daily-info-after",

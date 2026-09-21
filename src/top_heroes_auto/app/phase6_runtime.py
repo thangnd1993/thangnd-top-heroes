@@ -20,6 +20,11 @@ from top_heroes_auto.automation.phase6_navigation import (
     recruit_entry_profile,
     vip_entry_profile,
 )
+from top_heroes_auto.automation.phase6_shop_navigation import (
+    GuardedShopNavigation,
+    ManagerShopNavigationPort,
+    ShopNavigationProfile,
+)
 from top_heroes_auto.automation.phase6_visual import ManagerRewardPort, RewardVisualProfile
 from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.models import ScreenState, VisualAnchor
@@ -99,3 +104,40 @@ def reward_port_factory(manager, snapshot, index, name, profile, folder):
         folder,
         home_observer=home_observer,
     )
+
+
+def shop_navigation_profile() -> ShopNavigationProfile:
+    """Load the independently qualified, navigation-only shop profile."""
+
+    shop = phase6_asset_root() / "shop"
+    home = phase6_asset_root() / "home"
+    return ShopNavigationProfile(
+        home_shop_entry=_anchor(home, "home-shop-entry"),
+        daily_page=_anchor(shop, "phase6-daily-page"),
+        info_button=_anchor(shop, "phase6-daily-info-button"),
+        info_popup=_anchor(shop, "phase6-daily-info-popup"),
+        info_close=_anchor(shop, "phase6-daily-info-close"),
+        daily_exit=_anchor(shop, "phase6-daily-exit"),
+    )
+
+
+def shop_navigation_factory(
+    manager,
+    snapshot,
+    index,
+    name,
+    profile: ShopNavigationProfile,
+    folder,
+    cancelled=lambda: False,
+):
+    """Run the bounded daily-offer survey route; no reward adapter is built."""
+
+    port = ManagerShopNavigationPort(manager, snapshot, index, name, folder)
+    detector = ScreenDetector.from_folder(template_folder())
+    return GuardedShopNavigation(
+        port,
+        profile,
+        detector.detect,
+        destination_observations=3,
+        destination_wait_seconds=0.25,
+    ).run(index, name, cancelled)
