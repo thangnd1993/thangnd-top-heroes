@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from top_heroes_auto.automation.free_rewards import (
+    ClaimOutcome,
     ExplorerPort,
     RewardEvidence,
     RewardScreen,
@@ -70,16 +71,31 @@ class JournalledExplorerPort:
         self.port.claim(screen, reward, point)
 
     def verify_claim(self, before, after, reward):
+        return self.classify_claim(before, after, reward) in {
+            ClaimOutcome.CLAIMED,
+        }
+
+    def classify_claim(self, before, after, reward):
         pending = self.pending.get(reward.reward_id)
         if (not pending or pending[1] != before.capture_id
                 or after.capture_id == before.capture_id
                 or (after.index, after.name) != self.identity
                 or (before.adb_target, before.boot_id) != (after.adb_target, after.boot_id)):
-            raise SafetyError("Claim postcondition identity/evidence mismatch.")
-        if not self.port.verify_claim(before, after, reward):
-            return False
+            return ClaimOutcome.IDENTITY_MISMATCH
+        classifier = getattr(self.port, "classify_claim", None)
+        if callable(classifier):
+            outcome = classifier(before, after, reward)
+        else:
+            outcome = ClaimOutcome.CLAIMED if self.port.verify_claim(before, after, reward) else ClaimOutcome.UNKNOWN
+        if not isinstance(outcome, ClaimOutcome):
+            try:
+                outcome = ClaimOutcome(str(outcome))
+            except ValueError:
+                outcome = ClaimOutcome.UNKNOWN
+        if outcome != ClaimOutcome.CLAIMED:
+            return outcome
         self.store.verify_reward_claim(pending[0], self.task_run_id, evidence_json(after))
-        return True
+        return outcome
 
     def navigate(self, screen, route, point):
         return self.port.navigate(screen, route, point)

@@ -28,6 +28,15 @@ class Cost(StrEnum):
     UNKNOWN = "UNKNOWN"
 
 
+class ClaimOutcome(StrEnum):
+    """Independent result of one already-dispatched reward action."""
+
+    CLAIMED = "CLAIMED"
+    COOLDOWN = "COOLDOWN"
+    UNKNOWN = "UNKNOWN"
+    IDENTITY_MISMATCH = "IDENTITY_MISMATCH"
+
+
 @dataclass(frozen=True)
 class RewardEvidence:
     reward_id: str
@@ -137,6 +146,10 @@ class ExplorerPort(Protocol):
 
     def verify_claim(self, before: RewardScreen, after: RewardScreen, reward: RewardEvidence) -> bool: ...
 
+    def classify_claim(
+        self, before: RewardScreen, after: RewardScreen, reward: RewardEvidence
+    ) -> ClaimOutcome: ...
+
     def navigate(self, screen: RewardScreen, route: Route, point: tuple[int, int]) -> None: ...
 
     def scroll(self, screen: RewardScreen, axis: str) -> None: ...
@@ -160,6 +173,8 @@ class ExplorerLimits:
 class ExplorerResult:
     status: str = "UNKNOWN_SCREEN"
     claimed: list[str] = field(default_factory=list)
+    cooldown: list[str] = field(default_factory=list)
+    claim_outcomes: list[dict[str, str]] = field(default_factory=list)
     attempted: list[str] = field(default_factory=list)
     rejected: list[dict[str, str]] = field(default_factory=list)
     visited: list[dict] = field(default_factory=list)
@@ -217,8 +232,35 @@ class FreeRewardExplorer:
                     "screenshot": str(screen.detection.source_image or ""),
                     "red_dot_candidates": list(screen.red_dot_candidates),
                 })
+                claim_outcome = None
+                if pending_reward is not None:
+                    claim_outcome = _classify_claim(port, before_claim, screen, pending_reward)
+                    result.claim_outcomes.append({
+                        "reward_id": pending_reward.reward_id,
+                        "outcome": claim_outcome.value,
+                    })
+                    if claim_outcome == ClaimOutcome.CLAIMED:
+                        result.claimed.append(pending_reward.reward_id)
+                    elif claim_outcome == ClaimOutcome.COOLDOWN:
+                        result.cooldown.append(pending_reward.reward_id)
+                    else:
+                        result.status = "ACTION_RESULT_UNCERTAIN"
+                        break
+                    pending_reward = None
+                    before_claim = None
                 if screen.detection.state == ScreenState.UNKNOWN or screen.detection.confidence < 0.9:
-                    result.status = "UNKNOWN_SCREEN"
+                    # A popup/result frame can be semantically recognized even
+                    # when the normal reward-page detector cannot classify it.
+                    # Preserve that result, but do not navigate or attempt
+                    # cleanup from an unrecognized frame.
+                    if claim_outcome in {ClaimOutcome.CLAIMED, ClaimOutcome.COOLDOWN}:
+                        result.status = "PARTIAL"
+                        result.error = (
+                            "Claim result recognized, but the post-claim frame is "
+                            "not a verified reward page."
+                        )
+                    else:
+                        result.status = "UNKNOWN_SCREEN"
                     break
                 if not screen.page or not screen.fingerprint or not 0 <= screen.depth <= self.limits.max_depth:
                     result.status = "PARTIAL"
@@ -226,12 +268,6 @@ class FreeRewardExplorer:
                 coverage = coverage and screen.coverage_known
                 discovered_edges.update((screen.page, route.id) for route in screen.routes)
                 discovered_axes.update((screen.page, axis) for axis in screen.scroll_axes)
-                if pending_reward is not None:
-                    if not port.verify_claim(before_claim, screen, pending_reward):
-                        result.status = "ACTION_RESULT_UNCERTAIN"
-                        break
-                    result.claimed.append(pending_reward.reward_id)
-                    pending_reward = None
                 if pending_route is not None:
                     if screen.page != pending_route.destination:
                         result.status = "UNKNOWN_SCREEN"
@@ -325,6 +361,9 @@ class FreeRewardExplorer:
             # Never try cleanup against stale evidence or after an uncertain input.
             if (screen is not None and guard.current is screen and pending_reward is None
                     and result.status in {"SUCCESS", "NOT_AVAILABLE", "PARTIAL"} and not cancelled()):
+                if screen.detection.state == ScreenState.UNKNOWN or screen.detection.confidence < 0.9:
+                    result.error = result.error or "Verified Home recovery requires a recognized current frame."
+                    return result
                 result.recovery_succeeded = port.return_home(screen)
                 if not result.recovery_succeeded:
                     result.status = "CLEANUP_FAILED"
@@ -334,3 +373,23 @@ class FreeRewardExplorer:
             result.status = "ACTION_RESULT_UNCERTAIN" if pending_reward is not None else "SAFETY_BLOCKED"
             result.error = str(exc)
             return result
+
+
+def _classify_claim(
+    port: ExplorerPort,
+    before: RewardScreen,
+    after: RewardScreen,
+    reward: RewardEvidence,
+) -> ClaimOutcome:
+    """Use semantic postclaim evidence when available, with a legacy fallback."""
+
+    classifier = getattr(port, "classify_claim", None)
+    if callable(classifier):
+        outcome = classifier(before, after, reward)
+        if isinstance(outcome, ClaimOutcome):
+            return outcome
+        try:
+            return ClaimOutcome(str(outcome))
+        except ValueError:
+            return ClaimOutcome.UNKNOWN
+    return ClaimOutcome.CLAIMED if port.verify_claim(before, after, reward) else ClaimOutcome.UNKNOWN

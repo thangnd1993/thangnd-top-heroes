@@ -1,6 +1,7 @@
 import logging
 import os
 import sqlite3
+import threading
 from pathlib import Path
 
 from PySide6.QtCore import QByteArray, QDateTime, QObject, Qt, QThread, QTimer, Signal, Slot
@@ -30,6 +31,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from top_heroes_auto.app.free_reward_tasks import (
+    PHASE6_TARGET,
+    run_free_reward_sequence,
+    run_free_reward_task,
+)
 from top_heroes_auto.app.process import Process
 from top_heroes_auto.app.recovery_cli import run_home_recovery
 from top_heroes_auto.app.run_queue import RunController
@@ -83,6 +89,7 @@ class Window(QMainWindow):
         self.instances = ()
         self.worker = None
         self.mode = ""
+        self.phase6_cancelled = threading.Event()
         self.run_controller = None
         self.run_states = {}
         self.setWindowTitle("Top Heroes Auto Manager — V0.1.0")
@@ -242,6 +249,28 @@ class Window(QMainWindow):
         tasks.addWidget(self.idle_reward_status)
         self.idle_reward_button = self.button(tasks, "Chạy thử tác vụ", self.run_idle_reward)
         self.action_buttons.append(self.idle_reward_button)
+        self.phase6_eligibility = QLabel(
+            "Phase 6 chỉ cho phép #2 / 5-Emmmmm; Free Pack chưa chứng minh được zero-cost."
+        )
+        self.phase6_eligibility.setWordWrap(True)
+        tasks.addWidget(self.phase6_eligibility)
+        self.phase6_status = QLabel("Kết quả Phase 6 gần nhất: —")
+        self.phase6_status.setWordWrap(True)
+        tasks.addWidget(self.phase6_status)
+        self.phase6_buttons = []
+        for title, task in (
+            ("VIP miễn phí", "vip-reward"),
+            ("Free Pack (an toàn)", "free-pack"),
+            ("Recruit miễn phí", "free-recruit"),
+        ):
+            button = self.button(tasks, title, lambda _, value=task: self.run_phase6_task(value))
+            self.phase6_buttons.append(button)
+            self.action_buttons.append(button)
+        self.phase6_sequence_button = self.button(tasks, "Phase 6 theo chuỗi", self.run_phase6_sequence)
+        self.phase6_buttons.append(self.phase6_sequence_button)
+        self.action_buttons.append(self.phase6_sequence_button)
+        self.phase6_cancel_button = self.button(tasks, "Hủy Phase 6", self.cancel_phase6)
+        self.phase6_cancel_button.setEnabled(False)
         options = self.group(panels, "Tùy chọn thực thi")
         options.addWidget(QLabel("Số giả lập chạy đồng thời"))
         self.concurrency = QSpinBox()
@@ -300,12 +329,15 @@ class Window(QMainWindow):
         if self.worker is not None:
             return
         self.mode = mode
-        if mode != "run":
+        if mode not in {"run", "phase6"}:
             self.content.setEnabled(False)
         else:
             for button in self.action_buttons:
                 button.setEnabled(False)
             self.target.setEnabled(False)
+            if mode == "phase6":
+                self._set_phase6_busy(True)
+                self.phase6_cancel_button.setEnabled(True)
         self.statusBar().showMessage("Đang xử lý…")
         self.worker = Worker(function, self)
         self.worker.result.connect(self.job_result)
@@ -321,17 +353,24 @@ class Window(QMainWindow):
         self.auto_stop.setEnabled(False)
         self.auto_pause.setEnabled(False)
         self.auto_pause.setText("Tạm dừng")
+        if self.mode == "phase6":
+            self._set_phase6_busy(False)
+            self.phase6_cancel_button.setEnabled(False)
+            self.phase6_cancelled.clear()
         if self.mode == "run":
             self.retry_failed.setEnabled(True)
         self.statusBar().showMessage("Sẵn sàng")
-        if self.mode in {"launch", "quit", "reboot", "idle-reward"}:
+        if self.mode in {"launch", "quit", "reboot", "idle-reward", "phase6"}:
             QTimer.singleShot(0, self.refresh)
+        self.target_changed()
 
     @Slot(str)
     def job_error(self, message):
         self.adb_status.setText("Chưa xác minh / thao tác bị chặn")
         if self.mode == "idle-reward":
             self.idle_reward_status.setText("Kết quả gần nhất: Lỗi")
+        if self.mode == "phase6":
+            self.phase6_status.setText(f"Phase 6 lỗi: {message}")
         if self.mode in ("discover", "refresh"):
             self.instances = ()
             self.render()
@@ -408,6 +447,21 @@ class Window(QMainWindow):
             self.logs.appendPlainText(
                 f"Idle Reward {task_result.status.value} · started_by_run={started} · report={report}"
             )
+        elif self.mode == "phase6":
+            if isinstance(result, list):
+                statuses = ", ".join(f"{item.task}: {item.status}" for item in result)
+                self.phase6_status.setText(f"Phase 6 chuỗi: {statuses}")
+                self.logs.appendPlainText(f"Phase 6 chuỗi: {statuses}")
+            else:
+                status = getattr(result, "status", "UNKNOWN")
+                task = getattr(result, "task", "phase6")
+                report = getattr(result, "report_path", None)
+                error = getattr(result, "error", None)
+                detail = f"Phase 6 {task}: {status}"
+                if error:
+                    detail += f" · {error}"
+                self.phase6_status.setText(detail)
+                self.logs.appendPlainText(f"{detail} · report={report}")
         elif self.mode == "packages":
             dialog = QDialog(self)
             dialog.setWindowTitle("Ứng dụng đã cài trên giả lập đã chọn")
@@ -517,7 +571,9 @@ class Window(QMainWindow):
                 )
                 self.table.setCellWidget(row, 8, focus)
         if previous is not None:
-            self.target.setCurrentIndex(self.target.findData(previous))
+            previous_index = self.target.findData(previous)
+            if previous_index >= 0:
+                self.target.setCurrentIndex(previous_index)
         self.target.blockSignals(False)
         self.summary.setText(f"{len(self.instances)} giả lập · {count} được chọn · Giả lập mới luôn bỏ chọn")
         self.auto_start.setText(f"Bắt đầu tự động ({count})")
@@ -547,8 +603,46 @@ class Window(QMainWindow):
         self.idle_reward_button.setEnabled(
             instance is not None
             and self.idle_reward_enabled.isChecked()
-            and not (self.worker is not None and self.mode == "run")
+            and self.worker is None
         )
+        self.update_phase6_controls(instance)
+
+    def update_phase6_controls(self, instance):
+        """Enable Phase 6 controls only for the explicit authorized target."""
+
+        allowed = False
+        reason = "Phase 6 chỉ cho phép #2 / 5-Emmmmm."
+        index = self.target.currentData()
+        if self.manager and instance and (index, instance.name) == PHASE6_TARGET:
+            try:
+                metadata = self.store.metadata(self.manager.namespace, index)
+                queen = self.store.metadata(self.manager.namespace, 0)
+                allowed = bool(metadata.selected and not metadata.protected and queen.protected)
+                if not allowed:
+                    reason = "Phase 6 cần target selected/not Protected và Queen Protected."
+            except (KeyError, ValueError, sqlite3.Error) as exc:
+                reason = f"Phase 6 guard chưa xác minh: {exc}"
+        elif instance is not None:
+            reason = "Phase 6 chỉ cho phép #2 / 5-Emmmmm."
+        if allowed:
+            reason += " Free Pack vẫn sẽ báo NOT_IMPLEMENTED nếu thiếu zero-cost/post evidence."
+        self.phase6_eligibility.setText(reason)
+        enabled = allowed and self.worker is None
+        for button in self.phase6_buttons:
+            button.setEnabled(enabled)
+
+    def _set_phase6_busy(self, busy):
+        """Lock mutable UI state while leaving the cooperative cancel button live."""
+
+        for widget in (
+            self.search,
+            self.filter,
+            self.table,
+            self.idle_reward_enabled,
+            self.concurrency,
+            self.auto_start,
+        ):
+            widget.setEnabled(not busy)
 
     def set_selection(self, index, value):
         try:
@@ -620,6 +714,65 @@ class Window(QMainWindow):
                 instance.name,
             ),
         )
+
+    def _phase6_target(self):
+        index = self.target.currentData()
+        instance = next((item for item in self.instances if item.index == index), None)
+        if not self.manager or instance is None or (index, instance.name) != PHASE6_TARGET:
+            return None
+        self.update_phase6_controls(instance)
+        try:
+            metadata = self.store.metadata(self.manager.namespace, index)
+            queen = self.store.metadata(self.manager.namespace, 0)
+        except (KeyError, ValueError, sqlite3.Error) as exc:
+            self.phase6_eligibility.setText(f"Phase 6 guard chưa xác minh: {exc}")
+            return None
+        if not metadata.selected or metadata.protected or not queen.protected:
+            return None
+        return index, instance.name
+
+    def run_phase6_task(self, task):
+        target = self._phase6_target()
+        if target is None or self.worker:
+            return
+        index, name = target
+        self.phase6_cancelled.clear()
+        self.phase6_status.setText(f"Phase 6 {task}: đang chạy…")
+        self.run_job(
+            "phase6",
+            lambda: run_free_reward_task(
+                self.manager,
+                self.data_dir,
+                index,
+                name,
+                task,
+                cancelled=self.phase6_cancelled.is_set,
+            ),
+        )
+
+    def run_phase6_sequence(self):
+        target = self._phase6_target()
+        if target is None or self.worker:
+            return
+        index, name = target
+        self.phase6_cancelled.clear()
+        self.phase6_status.setText("Phase 6 chuỗi: đang chạy…")
+        self.run_job(
+            "phase6",
+            lambda: run_free_reward_sequence(
+                self.manager,
+                self.data_dir,
+                index,
+                name,
+                cancelled=self.phase6_cancelled.is_set,
+            ),
+        )
+
+    def cancel_phase6(self):
+        if self.worker is not None and self.mode == "phase6":
+            self.phase6_cancelled.set()
+            self.phase6_cancel_button.setEnabled(False)
+            self.phase6_status.setText("Phase 6: đang hủy; chờ tác vụ kết thúc an toàn…")
 
     def _queue_factory(self):
         installation = self.manager.ld.installation

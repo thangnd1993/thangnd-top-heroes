@@ -191,6 +191,40 @@ def test_default_cli_path_reports_not_implemented_without_entry_navigation(rig, 
     assert store.latest_task_run(manager.namespace, "vip-reward", 2)[2] == "NOT_IMPLEMENTED"
 
 
+def test_runner_rechecks_cancellation_after_home_recovery_before_entry(rig, tmp_path):
+    manager, process, store = rig
+    _target2(manager, process)
+    profile = _profile(tmp_path)
+    cancelled = False
+    entry_calls = []
+
+    def recovery_after_home(*args, **kwargs):
+        nonlocal cancelled
+        cancelled = True
+        path = tmp_path / "recovery-cancelled.json"
+        path.write_text("{}", encoding="utf-8")
+        return RecoveryResult(RecoveryStatus.ALREADY_HOME), path, False
+
+    def entry(*args):
+        entry_calls.append(args)
+        return NavigationResult(NavigationStatus.SUCCESS)
+
+    result = run_free_reward_task(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        "vip-reward",
+        profiles={"vip-reward": profile},
+        port_factory=lambda *args: pytest.fail("cancelled task must not build reward port"),
+        entry_navigator=entry,
+        recovery_runner=recovery_after_home,
+        cancelled=lambda: cancelled,
+    )
+    assert result.status == "CANCELLED"
+    assert entry_calls == []
+    assert store.latest_task_run(manager.namespace, "vip-reward", 2)[2] == "CANCELLED"
+
+
 def test_packaged_routes_compose_only_from_independent_current_frame_anchors(tmp_path):
     vip = _profile(tmp_path, task="vip-reward", page="vip")
     recruit = _profile(tmp_path, task="free-recruit", page="recruit")

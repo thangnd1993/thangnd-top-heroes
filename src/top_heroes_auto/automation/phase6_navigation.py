@@ -24,12 +24,17 @@ from top_heroes_auto.vision.screenshot import ScreenshotService
 
 class NavigationStatus(StrEnum):
     SUCCESS = "SUCCESS"
+    CANCELLED = "CANCELLED"
     BLOCKED = "BLOCKED"
     DESTINATION_UNVERIFIED = "DESTINATION_UNVERIFIED"
     ACTION_RESULT_UNCERTAIN = "ACTION_RESULT_UNCERTAIN"
 
 
 class _ActionUncertain(RuntimeError):
+    pass
+
+
+class _Cancelled(RuntimeError):
     pass
 
 
@@ -177,8 +182,11 @@ class GuardedEntryNavigator:
         destination_anchor: VisualAnchor,
         action_name: str,
         destination_name: str,
+        cancelled: Callable[[], bool],
     ) -> EntryFrame:
         evidence = self._match(frame.screen, action_anchor)
+        if cancelled():
+            raise _Cancelled("Entry navigation cancelled before dispatch.")
         try:
             self.port.tap(frame, evidence.device_box.center)
         except SafetyError:
@@ -194,9 +202,11 @@ class GuardedEntryNavigator:
         self._destination(after.screen, destination_anchor)
         return after
 
-    def run(self) -> NavigationResult:
+    def run(self, cancelled: Callable[[], bool] = lambda: False) -> NavigationResult:
         result = NavigationResult(NavigationStatus.BLOCKED)
         try:
+            if cancelled():
+                raise _Cancelled("Entry navigation cancelled before capture.")
             frame = self._home(result, f"{self.profile.task}-home-before")
             frame = self._step(
                 result,
@@ -205,6 +215,7 @@ class GuardedEntryNavigator:
                 self.profile.first_destination,
                 f"tap:{self.profile.first_anchor.id}",
                 f"{self.profile.task}-after-step-1",
+                cancelled,
             )
             if self.profile.second_anchor is not None and self.profile.second_destination is not None:
                 frame = self._step(
@@ -214,8 +225,13 @@ class GuardedEntryNavigator:
                     self.profile.second_destination,
                     f"tap:{self.profile.second_anchor.id}",
                     f"{self.profile.task}-after-step-2",
+                    cancelled,
                 )
             result.status = NavigationStatus.SUCCESS
+            return result
+        except _Cancelled as exc:
+            result.status = NavigationStatus.CANCELLED
+            result.error = str(exc)
             return result
         except _ActionUncertain as exc:
             result.status = NavigationStatus.ACTION_RESULT_UNCERTAIN

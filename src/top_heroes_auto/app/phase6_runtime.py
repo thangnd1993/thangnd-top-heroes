@@ -56,13 +56,13 @@ def _entry_profile(task: str, reward_profile: RewardVisualProfile) -> EntryProfi
     raise SafetyError(f"No independently verified entry route exists for {task!r}.")
 
 
-def entry_navigator_factory(manager, snapshot, index, name, profile, folder):
+def entry_navigator_factory(manager, snapshot, index, name, profile, folder, cancelled=lambda: False):
     """Build and run one guarded Home-to-task route from current-frame anchors."""
 
     route = _entry_profile(profile.task, profile)
     port = ManagerEntryPort(manager, snapshot, index, name, folder)
     detector = ScreenDetector.from_folder(template_folder())
-    return GuardedEntryNavigator(port, route, detector.detect).run()
+    return GuardedEntryNavigator(port, route, detector.detect).run(cancelled)
 
 
 def reward_port_factory(manager, snapshot, index, name, profile, folder):

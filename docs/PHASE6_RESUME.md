@@ -1,5 +1,31 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## 2026-09-22 continued implementation (still not acceptance)
+
+- Authorized index `2 / 5-Emmmmm` was started only through guarded Home
+  recovery. Explicit ADB `emulator-5558` and fresh boot ID
+  `a475da84-8ba9-4e3f-947f-e0282791a39d` were verified. Current daily
+  shop help described purchases and an activation ticket; it did not prove
+  the red-marked gift free. Current VIP again showed explicit free daily
+  wording/green `Nhận`, but no claim was made. Two Tavern image matches failed
+  before dispatch; no Recruit action was sent. Owned index 2 was stopped;
+  Queen and revoked index 4 remained untouched. See `PHASE6_SURVEY.md`.
+- Added current-frame postclaim outcome classification and bounded shop
+  discovery primitives. A cooldown is **not** a verified claim: its durable
+  journal reservation remains and retry stays blocked. Missing declared
+  shop tab/scroll evidence makes coverage partial, never complete. The
+  current Free Pack gift is still cost-ambiguous and cannot be claimed.
+- Added individual/sequence Phase 6 UI controls for exact authorized index
+  2, cooperative cancellation through Home recovery and each entry step,
+  and persistent display of the last result. Packaged VIP/Recruit still
+  lack independent same-account postclaim receipt anchors; Free Pack has
+  no proven zero-cost action. Default task claims remain fail-closed.
+- The Astra safety review approved the targeted journal, coverage,
+  cancellation and UI-result fixes. Parent reran 109 focused tests including
+  offscreen UI, plus changed-module Ruff and diff checks successfully.
+  Full CI/fresh artifact and real production acceptance for this new code
+  remain open at this checkpoint. Do not merge main or start Phase 7.
+
 ## Reviewed safe checkpoint — 2026-09-22 (Phase 6 still PARTIAL)
 
 - The current work adds current-frame VIP/Recruit visual adapters, guarded

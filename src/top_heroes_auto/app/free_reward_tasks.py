@@ -121,7 +121,10 @@ def _load_profile(task: str) -> RewardVisualProfile | None:
             str(item.get("variant", "default")),
         )
         role_name = item["id"].removeprefix(prefix + "-")
-        if role_name in {"page", "claim", "free", "available", "home", "entry", "post"}:
+        if role_name in {
+            "page", "claim", "free", "available", "home", "entry", "post", "cooldown",
+            "receipt", "result",
+        }:
             anchors[role_name] = anchor
     required = {"page", "claim", "free", "available", "home"}
     if not required <= anchors.keys():
@@ -231,8 +234,19 @@ def run_free_reward_task(
                     started_by_run=started_by_run,
                     error=error,
                 )
+            elif cancelled():
+                result = Phase6TaskResult(
+                    task,
+                    "CANCELLED",
+                    task_run_id=task_run_id,
+                    recovery_report=recovery_report,
+                    started_by_run=started_by_run,
+                    error="Phase 6 cancelled after Home recovery.",
+                )
             else:
-                navigation = effective_entry_navigator(manager, snapshot, index, name, profile, folder)
+                navigation = effective_entry_navigator(
+                    manager, snapshot, index, name, profile, folder, cancelled
+                )
                 navigation_status = getattr(navigation, "status", None)
                 navigation_status = getattr(navigation_status, "value", str(navigation_status))
                 if navigation_status != NavigationStatus.SUCCESS.value:
@@ -244,6 +258,15 @@ def run_free_reward_task(
                         recovery_report=recovery_report,
                         started_by_run=started_by_run,
                         error=error,
+                    )
+                elif cancelled():
+                    result = Phase6TaskResult(
+                        task,
+                        "CANCELLED",
+                        task_run_id=task_run_id,
+                        recovery_report=recovery_report,
+                        started_by_run=started_by_run,
+                        error="Phase 6 cancelled before reward observation.",
                     )
                 else:
                     port = effective_port_factory(manager, snapshot, index, name, profile, folder)

@@ -121,6 +121,26 @@ def test_uncertain_claim_never_retried_or_cleaned_up_blindly(failure):
     assert len(p.actions) == 1
 
 
+def test_unknown_popup_is_checked_for_receipt_before_unknown_screen_failure():
+    before = screen(rewards=(reward(),))
+    evidence = (
+        AnchorEvidence(
+            "post", ScreenState.FREE_REWARD_PAGE, 0.99, 0.9, True,
+            None, BoundingBox(40, 40, 10, 10),
+        )
+    )
+    popup = replace(
+        screen("popup", rewards=()),
+        detection=ScreenDetection(ScreenState.UNKNOWN, 0.99, evidence, "popup", None, 1),
+    )
+    p = Port([before, popup])
+    result = FreeRewardExplorer().run(p, 4, "3-Chíp")
+    assert result.claimed == ["gift"]
+    assert result.claim_outcomes == [{"reward_id": "gift", "outcome": "CLAIMED"}]
+    assert result.status == "PARTIAL"
+    assert p.actions == [("claim", "gift", (15, 25))]
+
+
 def test_target_rediscovered_after_capture_and_across_accounts():
     g = FreeRewardGuard(4, "3-Chíp")
     a, b = screen(x=10), screen("2", x=400)

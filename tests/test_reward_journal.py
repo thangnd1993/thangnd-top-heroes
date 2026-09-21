@@ -4,7 +4,7 @@ from dataclasses import replace
 import pytest
 from test_free_rewards import Port, reward, screen
 
-from top_heroes_auto.automation.free_rewards import FreeRewardExplorer
+from top_heroes_auto.automation.free_rewards import ClaimOutcome, FreeRewardExplorer
 from top_heroes_auto.automation.reward_journal import JournalledExplorerPort, RewardCycle
 from top_heroes_auto.storage.store import Store
 
@@ -107,6 +107,41 @@ def test_journal_commits_before_dispatch_and_verifies_before_success(tmp_path):
     port = InspectPort([observation("1", rewards=(reward(),)), observation("2")])
     result = FreeRewardExplorer().run(journal(port, store), 2, "5-Emmmmm")
     assert result.status == "SUCCESS"
+    assert store.reward_claims("installation", 2)[0]["status"] == "VERIFIED"
+
+
+def test_cooldown_result_remains_reserved_across_restart_and_blocks_replay(tmp_path):
+    path = tmp_path / "cooldown.sqlite3"
+    store = Store(path)
+
+    class CooldownPort(Port):
+        def classify_claim(self, before, after, item):
+            return ClaimOutcome.COOLDOWN
+
+    port = CooldownPort([observation("1", rewards=(reward(),)), observation("2")])
+    result = FreeRewardExplorer().run(journal(port, store), 2, "5-Emmmmm")
+    assert result.cooldown == ["gift"]
+    assert result.claimed == []
+    assert result.claim_outcomes == [{"reward_id": "gift", "outcome": "COOLDOWN"}]
+    assert store.reward_claims("installation", 2)[0]["status"] == "RESERVED"
+
+    restarted = Store(path)
+    retry = Port([observation("retry", rewards=(reward(),))])
+    retry_result = FreeRewardExplorer().run(journal(retry, restarted), 2, "5-Emmmmm")
+    assert retry_result.status == "ACTION_RESULT_UNCERTAIN"
+    assert retry.actions == []
+
+
+def test_receipt_result_is_the_only_outcome_that_verifies_journal(tmp_path):
+    store = Store(tmp_path / "receipt.sqlite3")
+
+    class ReceiptPort(Port):
+        def classify_claim(self, before, after, item):
+            return ClaimOutcome.CLAIMED
+
+    port = ReceiptPort([observation("1", rewards=(reward(),)), observation("2")])
+    result = FreeRewardExplorer().run(journal(port, store), 2, "5-Emmmmm")
+    assert result.claimed == ["gift"]
     assert store.reward_claims("installation", 2)[0]["status"] == "VERIFIED"
 
 

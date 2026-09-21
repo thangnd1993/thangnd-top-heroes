@@ -1,5 +1,44 @@
 # Phase 6 real survey — 2 / 5-Emmmmm
 
+## Guarded continuation — 2026-09-22 (no claims)
+
+Before lifecycle mutation, exact `2 / 5-Emmmmm` was stopped, selected, and
+not Protected; Queen was Protected/unselected, index 4 stopped, and index-2
+`basicSettings.adbDebug=1`. Guarded Home recovery started only index 2,
+verified `emulator-5558`, boot ID
+`a475da84-8ba9-4e3f-947f-e0282791a39d`, and the intended game.
+An event promo was recognized from a fresh same-account screenshot and
+dismissed with one observed Back action; fresh detection returned `GAME_HOME`
+(confidence 0.9897).
+
+On the current `Tiệm → Ưu Đãi Mỗi Ngày` page, voucher-cost buttons were
+`22/6`, `22/1`, and `22/2`; the red-marked gift had no explicit zero-cost
+label. The top-right information control was opened as navigation only. Its
+`Chi Tiết Cách Chơi` text describes once-daily purchases and use of a
+`Vé Kích Hoạt Ưu Đãi Mỗi Ngày` to unlock offer packs/additional rewards.
+This does **not** prove the gift is free; the gift and all voucher offers were
+left untouched. The help popup was closed by its visually verified X.
+
+The current VIP page again showed `VIP6 mỗi ngày có thể nhận miễn phí`,
+an available green `Nhận` button, and a separate VND 699000 paid pack.
+No claim was made, preserving the free opportunity for a reviewed production
+artifact. A fresh Home screenshot after VIP was verified visually. Two
+attempts to recognize the animated Tavern building scored 0.9449 and 0.8363
+against a conservative 0.97 survey threshold, so both failed **before
+input**. Recruit was not opened in this continuation; no threshold was
+weakened. The owned index-2 start was stopped exactly; Queen and index 4
+remained stopped and untouched.
+
+Key local evidence tags under index-2 vision diagnostics:
+`phase6-20260922-promo-before/after`,
+`phase6-20260922-shop-entry`,
+`phase6-20260922-daily-info`,
+`phase6-20260922-info-close`,
+`phase6-20260922-vip-current`, and
+`phase6-20260922-tavern-selected[-stable]-before`.
+All positions are current-account survey provenance, not production tap
+coordinates or cross-account authority.
+
 ## Guarded continuation — 2026-09-21
 
 Only index `2 / 5-Emmmmm` was resumed. Manager verified explicit ADB

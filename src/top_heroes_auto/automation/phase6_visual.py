@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.free_rewards import (
+    ClaimOutcome,
     Cost,
     ExplorerPort,
     RewardEvidence,
@@ -66,6 +68,9 @@ class RewardVisualProfile:
         roles = [role for role, _ in self.anchors]
         if len(roles) != len(set(roles)):
             raise ValueError("Anchor roles must be unique within a profile.")
+        anchor_ids = [anchor.id for _, anchor in self.anchors]
+        if len(anchor_ids) != len(set(anchor_ids)):
+            raise ValueError("Anchor IDs must be unique within a profile.")
         if "page" not in roles:
             raise ValueError("A page anchor is required.")
         known = set(roles)
@@ -175,28 +180,64 @@ class FrameRewardAdapter:
             diamond_reward=rule.diamond_reward,
         )
 
-    def verify_claim(self, before: RewardScreen, after: RewardScreen, reward: RewardEvidence) -> bool:
-        """Require same identity, an independent post anchor, and no live free state."""
+    @staticmethod
+    def _strong_match(evidence: dict[str, AnchorEvidence], anchor_id: str) -> bool:
+        item = next((candidate for candidate in evidence.values() if candidate.anchor_id == anchor_id), None)
+        return bool(
+            item
+            and item.matched
+            and item.device_box is not None
+            and math.isfinite(item.score)
+            and math.isfinite(item.threshold)
+            and item.score >= max(0.9, item.threshold)
+        )
+
+    def classify_claim(
+        self, before: RewardScreen, after: RewardScreen, reward: RewardEvidence
+    ) -> ClaimOutcome:
+        """Classify a fresh result frame without requiring normal page detection.
+
+        Result/cooldown anchors are matched in the current frame and must be
+        independent of the live free/action controls. A generic popup or a
+        disappeared button remains UNKNOWN and is never retried.
+        """
+
         if (before.index, before.name, before.adb_target, before.boot_id) != (
             after.index,
             after.name,
             after.adb_target,
             after.boot_id,
         ):
-            return False
-        post = self.profile.anchor_map.get("post")
-        if post is None:
-            return False
-        try:
-            verified_anchor(after.detection, post.id)
-        except SafetyError:
-            return False
+            return ClaimOutcome.IDENTITY_MISMATCH
         evidence = {item.anchor_id: item for item in after.detection.evidence}
-        action = evidence.get(reward.action_anchor)
-        available = evidence.get(reward.available_anchor)
-        if action is not None and action.matched and available is not None and available.matched:
-            return False
-        return True
+        free_state = (
+            self._strong_match(evidence, reward.action_anchor)
+            or self._strong_match(evidence, reward.available_anchor)
+        )
+        if free_state:
+            return ClaimOutcome.UNKNOWN
+        result_roles = ("post", "receipt", "result")
+        result_matches = [
+            role for role in result_roles
+            if role in self.profile.anchor_map
+            and self._strong_match(evidence, self.profile.anchor_map[role].id)
+        ]
+        cooldown = self.profile.anchor_map.get("cooldown")
+        cooldown_match = bool(cooldown and self._strong_match(evidence, cooldown.id))
+        if result_matches and cooldown_match:
+            return ClaimOutcome.UNKNOWN
+        if result_matches:
+            return ClaimOutcome.CLAIMED
+        if cooldown_match:
+            return ClaimOutcome.COOLDOWN
+        return ClaimOutcome.UNKNOWN
+
+    def verify_claim(self, before: RewardScreen, after: RewardScreen, reward: RewardEvidence) -> bool:
+        """Compatibility boolean for ports predating explicit result outcomes."""
+
+        return self.classify_claim(before, after, reward) in {
+            ClaimOutcome.CLAIMED,
+        }
 
 
 class ManagerRewardPort(ExplorerPort):
@@ -258,6 +299,12 @@ class ManagerRewardPort(ExplorerPort):
     def verify_claim(self, before: RewardScreen, after: RewardScreen, reward: RewardEvidence) -> bool:
         self._current(after)
         return self.adapter.verify_claim(before, after, reward)
+
+    def classify_claim(
+        self, before: RewardScreen, after: RewardScreen, reward: RewardEvidence
+    ) -> ClaimOutcome:
+        self._current(after)
+        return self.adapter.classify_claim(before, after, reward)
 
     def navigate(self, screen: RewardScreen, route: Route, point: tuple[int, int]) -> None:
         self._current(screen)

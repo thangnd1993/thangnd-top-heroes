@@ -2,6 +2,16 @@
 
 ## Phase 6 — VIP / Free Pack / Free Recruit — PARTIAL
 
+- Tiếp tục 2026-09-22: UI đã có nút VIP, Free Pack, Recruit, chuỗi Phase 6 và
+  Hủy có guard đúng index 2; trạng thái cuối không mất sau refresh.
+  Outcome `CLAIMED` mới xác minh journal; cooldown chỉ ghi nhận và giữ
+  RESERVED. Bộ duyệt Tiệm mới giới hạn route/scroll và trả PARTIAL khi
+  thiếu bằng chứng tab. Mặc định chưa claim thật khi thiếu receipt/zero-cost.
+- Khảo sát mới trên index 2: VIP có chữ miễn phí rõ, Tiệm daily help nói tới
+  mua gói/vé kích hoạt; quà vẫn mơ hồ. Không claim/recruit/mua; hai nhận diện
+  Tavern không đạt ngưỡng nên không tap. Owned index 2 đã dừng.
+- Parent chạy 109 test tập trung kể cả UI offscreen, Ruff sạch; CI mới và
+  nghiệm thu production của phần code này vẫn chờ. Phase 7 chưa bắt đầu.
 - Resumed branch: `codex/phase6-vip-pack-recruit`, based on accepted `33cb313`.
 - Previous session already observed one free VIP claim, the daily shop gift (20
   diamonds), and one free recruit. Those claims were not repeated on resume.

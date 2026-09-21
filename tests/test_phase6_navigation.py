@@ -117,6 +117,39 @@ def test_recruit_route_requires_selected_tavern_before_second_action(tmp_path):
     assert len(port.taps) == 1
 
 
+def test_cancellation_between_recruit_steps_dispatches_no_second_tap(tmp_path):
+    tavern, tavern_image = _anchor(tmp_path, "home-tavern", ScreenState.GAME_HOME, 31)
+    selected, selected_image = _anchor(tmp_path, "tavern-selected-name", ScreenState.GAME_HOME, 32)
+    entry, entry_image = _anchor(tmp_path, "tavern-recruit-entry", ScreenState.GAME_HOME, 33)
+    page, page_image = _anchor(tmp_path, "recruit-page", ScreenState.FREE_REWARD_PAGE, 34)
+    templates = {
+        "tavern": (tavern, tavern_image),
+        "selected": (selected, selected_image),
+        "entry": (entry, entry_image),
+        "page": (page, page_image),
+    }
+    cancelled = False
+
+    class CancellingPort(Port):
+        def tap(self, frame, point):
+            nonlocal cancelled
+            super().tap(frame, point)
+            cancelled = True
+
+    port = CancellingPort([
+        EntryFrame(IDENTITY, _capture(templates, ("tavern",), stamp="home")),
+        EntryFrame(IDENTITY, _capture(templates, ("selected", "entry"), stamp="selected")),
+    ])
+    result = GuardedEntryNavigator(
+        port,
+        recruit_entry_profile(tavern, selected, entry, page),
+        home_detector,
+    ).run(lambda: cancelled)
+    assert result.status == NavigationStatus.CANCELLED
+    assert result.actions == ["tap:home-tavern"]
+    assert len(port.taps) == 1
+
+
 @pytest.mark.parametrize("present,duplicate", [((), None), (("home",), "home")])
 def test_missing_or_ambiguous_home_entry_dispatches_zero(tmp_path, present, duplicate):
     home, home_image = _anchor(tmp_path, "home-vip-entry", ScreenState.GAME_HOME, 7)

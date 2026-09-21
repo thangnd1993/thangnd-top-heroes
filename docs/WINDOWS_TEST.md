@@ -2,6 +2,12 @@
 
 ## Phase 6 — guarded checkpoint, acceptance pending
 
+UI Phase 6 and bounded shop-discovery primitives were added after the
+previous passing artifact. The current code has 109 focused local tests
+including offscreen UI and remains fail-closed for missing receipt/zero-cost
+evidence. A fresh CI artifact and real task acceptance of this new code
+are still required; the earlier artifact below cannot certify these edits.
+
 The prior session collected real free VIP, daily gift and recruit evidence on
 `4 / 3-Chíp`. These are manual collection results, not acceptance of production
 Phase 6 task commands. The resume preserved them without repeating claims.
