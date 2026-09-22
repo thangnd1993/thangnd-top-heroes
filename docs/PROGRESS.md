@@ -2,6 +2,15 @@
 
 ## Phase 6 — VIP / Free Pack / Free Recruit — PARTIAL
 
+- 2026-09-22: `shop-survey` observation-only task run 13 passed its narrow
+  real route on `2 / 5-Emmmmm` with result `PARTIAL`: one known-promo Back,
+  fresh Home, four guarded taps Home → daily → help → daily → Home. Commit
+  `32142ea` passed full Windows CI run `35671625455`; fresh artifact
+  `10671690862` was used. Explicit ADB/boot stayed fixed, no claim or
+  journal row, owned cleanup and instance isolation passed. Other Tiệm tabs,
+  nested/scroll coverage and VIP/Free Pack/Recruit claims remain unfinished;
+  do not mark Phase 6 complete or start Phase 7.
+
 - 2026-09-22: hạ tầng khảo sát Tiệm một phần `ca14c96` qua CI Windows đầy đủ
   (run `35662061780`, artifact `10666928804`), nhưng nghiệm thu thật task
   run 10 **dừng an toàn**: popup Stranger Things xuất hiện muộn sau đúng một

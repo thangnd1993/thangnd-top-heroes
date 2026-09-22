@@ -2,6 +2,20 @@
 
 ## Phase 6 — shop navigation accepted, reward acceptance pending
 
+The observation-only `shop-survey` task now has a **narrow real PARTIAL
+acceptance** on only `2 / 5-Emmmmm`: task run 13 from commit `32142ea`, full
+CI `35671625455`, fresh artifact `10671690862` (archive SHA-256
+`0E6DD4E2842CD1EDC1B5082367AE5E88D45874E193E400AB4F37FA1EEB5DA5F8`).
+It dismissed one uniquely recognized initial promo with a guarded Back,
+verified same-boot Home, then completed Home → daily offer → information
+popup → daily offer → Home using four current-frame-bound taps. Explicit ADB
+was `emulator-5558`, boot `4eccccff-f330-4a56-9a1b-59247568d004`.
+`claims=[]`, `journal_rows=0`, owned cleanup succeeded and no instance
+changed from its baseline running/stopped state. Report:
+`%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\tasks\shop-survey\5-Emmmmm\20260922-002655-011534Z\report.json`.
+`PARTIAL` is intentional: no neighboring-tab, nested-menu or scroll coverage
+is certified, and VIP/Free Pack/Recruit real task claims remain blocked.
+
 The newer observation-only `shop-survey` task (commit `ca14c96`, CI run
 `35662061780`, artifact `10666928804`, SHA-256
 `633A96C5BDE64DF04D16B420B774200AB356EA8D4AE0E4176E24EEC3D2C697F6`)

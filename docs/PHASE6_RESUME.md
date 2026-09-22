@@ -1,5 +1,27 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## 2026-09-22 bounded partial shop-survey acceptance (real run 13)
+
+- Commit `32142ea` passed full Windows CI run `35671625455`. Fresh artifact
+  `10671690862` archive is 105,306,520 bytes, SHA-256
+  `0E6DD4E2842CD1EDC1B5082367AE5E88D45874E193E400AB4F37FA1EEB5DA5F8`.
+- One real `shop-survey` run on only `2 / 5-Emmmmm` completed its packaged
+  navigation route with result **PARTIAL**, as designed: a single known-promo
+  Back reached fresh Home, then four screenshot-guarded taps traversed
+  Home → daily offer → information popup → daily offer → Home. Explicit ADB
+  `emulator-5558`, boot `4eccccff-f330-4a56-9a1b-59247568d004` stayed
+  constant. Report:
+  `diagnostics/tasks/shop-survey/5-Emmmmm/20260922-002655-011534Z/report.json`
+  in local app data (task run 13). `claims=[]`, `journal_rows=0`, owned
+  cleanup succeeded, `isolation_changed_indices=[]`. Queen and revoked
+  index 4 remained stopped; externally running 1, 6 and 7 were preserved.
+- This accepts only the packaged Home/daily/help observation route. The
+  survey honestly reports `coverage_unknown_or_dynamic`; other shop tabs,
+  nested sections, vertical/horizontal scrolls and all reward claims still
+  need independent evidence and production integration. No final merge or
+  Phase 7. Next: qualify adjacent index-2 tabs offline, then extend bounded
+  production traversal without adding claim authority.
+
 ## 2026-09-22 initial-promo live success, survey time-bound checkpoint (run 12)
 
 - Commit `a688f88` passed full Windows CI run `35670480460`. Fresh artifact

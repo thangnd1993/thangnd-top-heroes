@@ -1,5 +1,18 @@
 # Phase 6 real survey — 2 / 5-Emmmmm
 
+## Packaged partial route accepted — 2026-09-22 (no claims)
+
+Fresh CI artifact `10671690862` from commit `32142ea` produced real task
+run 13 on only index 2. One recognized initial Stranger Things popup was
+dismissed by an observed-target Back; a new same-boot Home capture was
+verified. The production `shop-survey` then visited Home → daily offer →
+information popup → daily offer → Home with four image-bound taps. It
+reported `PARTIAL`, not `COMPLETE`, because neighboring tabs, submenus and
+scroll boundaries are not yet packaged. Explicit ADB was `emulator-5558`,
+boot `4eccccff-f330-4a56-9a1b-59247568d004`; `claims=[]`,
+`journal_rows=0`, owned cleanup and instance isolation passed. See
+`PHASE6_RESUME.md` for the durable report path. No reward action was taken.
+
 ## Fresh artifact navigation acceptance — 2026-09-22 (no claims)
 
 Task run 9 from CI artifact `10665326562` completed the guarded daily-shop
