@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import cv2
 import numpy as np
@@ -68,6 +69,228 @@ def _survey(*args):
         status=ShopSurveyStatus.PARTIAL,
         partial_reasons=["coverage_unknown_or_dynamic", "unsupported_tabs"],
     )
+
+
+def _inventory(*rows):
+    return [
+        SimpleNamespace(index=index, name=name, running=running, android_started=android_started)
+        for index, name, running, android_started in rows
+    ]
+
+
+def _survey_with_six_actions(*args):
+    return ShopSurveyResult(
+        status=ShopSurveyStatus.PARTIAL,
+        visited=[{"page": "game-home"}, {"page": "daily-offer"}, {"page": "daily-pack"}],
+        actions=[
+            "tap:home-shop-entry",
+            "tap:daily-info",
+            "tap:popup-close",
+            "tap:daily-exit",
+            "tap:daily-pack",
+            "tap:pack-return",
+        ],
+        partial_reasons=["unsupported_tabs"],
+        promo_recovery=PromoRecoveryResult(
+            PromoRecoveryStatus.NOT_PRESENT,
+            trigger="initial_home",
+            expected_page="game-home",
+        ),
+    )
+
+
+def _run_with_inventory(manager, data, before, after, monkeypatch, *, survey=_survey):
+    states = iter((before, after))
+    monkeypatch.setattr(manager, "list_readonly", lambda: next(states))
+    return run_phase6_shop_survey(
+        manager,
+        data,
+        *PHASE6_TARGET,
+        recovery_runner=_recovery,
+        survey_factory=survey,
+    )
+
+
+def test_isolation_report_retains_full_after_and_unrelated_indices(rig, tmp_path, monkeypatch):
+    manager, process, store = rig
+    _target2(manager, process)
+    before = _inventory(
+        (0, "Queen", False, False),
+        (2, "5-Emmmmm", False, False),
+        (4, "4-Other", True, True),
+        (9, "9-Other", False, False),
+    )
+    after = _inventory(
+        (0, "Queen", False, False),
+        (2, "5-Emmmmm", False, False),
+        (4, "4-Other", False, False),
+        (9, "9-Other", True, True),
+    )
+
+    result = _run_with_inventory(
+        manager,
+        tmp_path,
+        before,
+        after,
+        monkeypatch,
+        survey=_survey_with_six_actions,
+    )
+
+    assert result.status == "SAFETY_BLOCKED"
+    assert result.survey is not None and len(result.survey.actions) == 6
+    assert result.promo_recovery is not None
+    report = json.loads(result.report_path.read_text(encoding="utf-8"))
+    assert report["inventory_status"] == "available"
+    assert set(report["after_instances"]) == {"0", "2", "4", "9"}
+    assert report["observed_changed_indices"] == [4, 9]
+    assert report["unrelated_changed_indices"] == [4, 9]
+    assert report["isolation_changed_indices"] is None
+    assert len(report["survey"]["actions"]) == 6
+    assert report["promo_recovery"]["trigger"] == "initial_home"
+    assert report["claims"] == []
+    assert report["journal_rows"] == 0
+
+
+def test_final_inventory_read_failure_is_unavailable_not_empty(rig, tmp_path, monkeypatch):
+    manager, process, store = rig
+    _target2(manager, process)
+    before = _inventory((0, "Queen", False, False), (2, "5-Emmmmm", False, False))
+    states = iter((before,))
+
+    def read_inventory():
+        try:
+            return next(states)
+        except StopIteration as exc:
+            raise SafetyError("list2 unavailable") from exc
+
+    monkeypatch.setattr(manager, "list_readonly", read_inventory)
+    result = run_phase6_shop_survey(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        recovery_runner=_recovery,
+        survey_factory=_survey_with_six_actions,
+    )
+
+    assert result.status == "SAFETY_BLOCKED"
+    report = json.loads(result.report_path.read_text(encoding="utf-8"))
+    assert report["after_instances"] is None
+    assert report["inventory_status"] == "unavailable"
+    assert report["observed_changed_indices"] is None
+    assert report["unrelated_changed_indices"] is None
+    assert report["isolation_changed_indices"] is None
+    assert "list2 unavailable" in report["error"]
+
+
+@pytest.mark.parametrize(
+    ("after", "expected"),
+    (
+        (
+            _inventory((0, "Queen", False, False), (2, "5-Emmmmm", False, False)),
+            [],
+        ),
+        (
+            _inventory((0, "Queen", False, False), (2, "5-Emmmmm", True, True)),
+            [2],
+        ),
+    ),
+)
+def test_isolation_report_accepts_unchanged_and_target_only(rig, tmp_path, monkeypatch, after, expected):
+    manager, process, store = rig
+    _target2(manager, process)
+    before = _inventory((0, "Queen", False, False), (2, "5-Emmmmm", False, False))
+    result = _run_with_inventory(manager, tmp_path, before, after, monkeypatch)
+
+    assert result.status == ShopSurveyStatus.PARTIAL.value
+    report = json.loads(result.report_path.read_text(encoding="utf-8"))
+    assert report["inventory_status"] == "available"
+    assert report["observed_changed_indices"] == expected
+    assert report["unrelated_changed_indices"] == []
+    assert report["isolation_changed_indices"] == expected
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    (
+        (
+            _inventory((0, "Queen", False, False), (2, "5-Emmmmm", False, False)),
+            _inventory((0, "Queen", False, False), (2, "5-Emmmmm", False, False), (9, "9-Other", False, False)),
+        ),
+        (
+            _inventory((0, "Queen", False, False), (2, "5-Emmmmm", False, False), (9, "9-Other", False, False)),
+            _inventory((0, "Queen", False, False), (2, "5-Emmmmm", False, False)),
+        ),
+    ),
+)
+def test_isolation_report_lists_added_and_removed_indices(rig, tmp_path, monkeypatch, before, after):
+    manager, process, store = rig
+    _target2(manager, process)
+    result = _run_with_inventory(manager, tmp_path, before, after, monkeypatch)
+
+    assert result.status == "SAFETY_BLOCKED"
+    report = json.loads(result.report_path.read_text(encoding="utf-8"))
+    assert report["observed_changed_indices"] == [9]
+    assert report["unrelated_changed_indices"] == [9]
+    assert report["after_instances"] is not None
+
+
+def test_isolation_and_persistence_failure_keep_evidence_without_cleanup_retry(
+    rig, tmp_path, monkeypatch
+):
+    manager, process, store = rig
+    _target2(manager, process)
+    before = _inventory(
+        (0, "Queen", False, False),
+        (2, "5-Emmmmm", False, False),
+        (4, "4-Other", True, True),
+    )
+    after = _inventory(
+        (0, "Queen", False, False),
+        (2, "5-Emmmmm", False, False),
+        (4, "4-Other", False, False),
+    )
+    states = iter((before, after))
+    monkeypatch.setattr(manager, "list_readonly", lambda: next(states))
+    actions = []
+
+    def failed_cleanup(index, action, **kwargs):
+        actions.append((index, action))
+        raise OSError("quit uncertain")
+
+    manager.execute = failed_cleanup
+    monkeypatch.setattr(
+        store,
+        "finish_task_run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("db down")),
+    )
+
+    def owned_recovery(manager, data, *args, **kwargs):
+        path = data / "recovery-owned-run14.json"
+        path.write_text("{}", encoding="utf-8")
+        return RecoveryResult(RecoveryStatus.ALREADY_HOME), path, True
+
+    result = run_phase6_shop_survey(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        recovery_runner=owned_recovery,
+        survey_factory=_survey_with_six_actions,
+    )
+
+    assert result.status == "CLEANUP_FAILED"
+    assert result.cleanup_attempted is True
+    assert result.cleanup_succeeded is False
+    assert result.survey is not None and len(result.survey.actions) == 6
+    assert result.promo_recovery is not None
+    assert actions == [(2, "quit")]
+    report = json.loads(result.report_path.read_text(encoding="utf-8"))
+    assert report["result"] == "CLEANUP_FAILED"
+    assert report["observed_changed_indices"] == [4]
+    assert report["unrelated_changed_indices"] == [4]
+    assert len(report["survey"]["actions"]) == 6
+    assert report["promo_recovery"]["trigger"] == "initial_home"
+    assert report["claims"] == []
+    assert report["journal_rows"] == 0
 
 
 def test_survey_runner_persists_partial_without_claim_or_journal(rig, tmp_path):

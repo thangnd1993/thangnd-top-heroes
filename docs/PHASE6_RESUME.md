@@ -1,5 +1,31 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## 2026-09-22 daily-pack route observed, isolation blocked (real run 14)
+
+- Commit `ae4cfe4` passed full Windows CI run `35674258122`. Fresh artifact
+  `10671954269` archive is 105,377,935 bytes, SHA-256
+  `2E2B57E3EB585D471E1C682850CBC15F9B210B73BB44C6E9D9A537E403D441C6`.
+- One real `shop-survey` run on only `2 / 5-Emmmmm` internally recorded
+  `PARTIAL` with the full navigation sequence Home → daily offer → help →
+  daily offer → daily pack → daily offer → Home. The known initial promo was
+  dismissed with one guarded Back; no claim, purchase, ticket use, scroll or
+  journal row occurred. Owned index-2 cleanup succeeded. Report:
+  `diagnostics/tasks/shop-survey/5-Emmmmm/20260922-010805-741365Z/report.json`
+  in local app data (task run 14).
+- The **overall result is SAFETY_BLOCKED**, not real acceptance: unrelated
+  instances 4 and 9 changed state between the task's before and after checks.
+  A contemporaneous inventory showed index 4 stop and index 9 start while
+  the task was active; inventory comparison cannot attribute their cause.
+  The task did not target either instance, but isolation was not stable.
+  The current error path also discarded the successfully captured after-state
+  inventory from its report. Do **not** rerun this artifact blindly. Next is
+  a reporting-only repair retaining after/changed-index evidence without
+  weakening the isolation guard, targeted tests, fresh CI artifact, then a
+  single guarded acceptance only if unrelated clone state is stable.
+- This route remains observation-only and coverage is still PARTIAL. VIP,
+  Free Pack and Free Recruit claims, nested tabs/scrolls and final merge are
+  unfinished; do not start Phase 7.
+
 ## 2026-09-22 bounded partial shop-survey acceptance (real run 13)
 
 - Commit `32142ea` passed full Windows CI run `35671625455`. Fresh artifact

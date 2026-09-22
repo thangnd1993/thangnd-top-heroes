@@ -4,8 +4,10 @@ This task is deliberately separate from Free Pack and from the fixed
 daily-offer navigation task.  It builds only ``ManagerShopSurveyPort`` and
 ``ShopSurveyEngine``; it never constructs a reward explorer, claim adapter, or
 journal port.  The packaged profile currently covers Home, the qualified
-daily-offer page, and its independently qualified information popup.  Missing
-tabs and scroll boundaries remain an honest ``PARTIAL`` result.
+daily-offer page, its independently qualified information popup, and the
+qualified daily-pack tab.  Missing tabs and scroll boundaries remain an
+honest ``PARTIAL`` result; this task never claims rewards, purchases offers,
+or scrolls content.
 """
 
 from __future__ import annotations
@@ -31,8 +33,8 @@ PHASE6_TARGET = (2, "5-Emmmmm")
 SHOP_SURVEY_TASK = "shop-survey"
 SHOP_SURVEY_LABEL = "khảo sát Tiệm (phạm vi một phần) / không nhận quà"
 SHOP_SURVEY_SCOPE = (
-    "observation-only; qualified Home/daily/help surfaces; no claims, "
-    "purchases, scrolls, or reward journal"
+    "observation-only; qualified Home/daily/help/daily-pack surfaces; no "
+    "claims, purchases, scrolls, or reward journal"
 )
 SURVEY_SUCCESS_STATUSES = frozenset(
     {ShopSurveyStatus.COMPLETE.value, ShopSurveyStatus.PARTIAL.value}
@@ -420,13 +422,18 @@ def run_phase6_shop_survey(
                     cleanup_succeeded=cleanup_succeeded,
                 )
 
-        try:
-            after = _state(manager.list_readonly())
-            isolation = _only_target_changed(before, after, index)
-        except (OSError, RuntimeError, ValueError, SafetyError) as exc:
-            after = {}
-            isolation = None
-            error = _merge_error(error or result.error, str(exc))
+        after: dict | None = None
+        isolation: list[int] | None = None
+        observed_changed_indices: list[int] | None = None
+        unrelated_changed_indices: list[int] | None = None
+        inventory_status = "unavailable"
+
+        def block_for_isolation(detail: str):
+            nonlocal error, result
+            error = _merge_error(error or result.error, detail)
+            # Do not replace a stronger prior failure (identity, cancellation,
+            # uncertain action, cleanup, and persistence failures) merely
+            # because the final inventory read cannot prove isolation.
             if result.status in SURVEY_SUCCESS_STATUSES:
                 result = ShopSurveyTaskResult(
                     SHOP_SURVEY_TASK,
@@ -434,9 +441,42 @@ def run_phase6_shop_survey(
                     task_run_id=task_run_id,
                     started_by_run=started_by_run,
                     recovery_report=recovery_report,
-                    survey=survey,
+                    survey=result.survey if result.survey is not None else survey,
                     error=error,
+                    cleanup_attempted=cleanup_attempted,
+                    cleanup_succeeded=cleanup_succeeded,
+                    claims=result.claims,
+                    journal_rows=result.journal_rows,
+                    promo_recovery=(
+                        result.promo_recovery
+                        if result.promo_recovery is not None
+                        else promo_recovery
+                    ),
                 )
+
+        try:
+            live_instances = manager.list_readonly()
+            if live_instances is None:
+                block_for_isolation("Instance inventory unavailable; isolation was not verified.")
+            else:
+                # Keep this read separate from validation.  A valid snapshot
+                # remains reportable even when the isolation check rejects an
+                # unrelated account change.
+                after = _state(live_instances)
+                inventory_status = "available"
+                changed = {
+                    changed_index
+                    for changed_index in set(before) | set(after)
+                    if before.get(changed_index) != after.get(changed_index)
+                }
+                observed_changed_indices = sorted(changed)
+                unrelated_changed_indices = sorted(changed - {index})
+                try:
+                    isolation = _only_target_changed(before, after, index)
+                except (OSError, RuntimeError, ValueError, SafetyError) as exc:
+                    block_for_isolation(str(exc))
+        except (OSError, RuntimeError, TypeError, ValueError, SafetyError) as exc:
+            block_for_isolation(f"Instance inventory unavailable; isolation was not verified: {exc}")
 
         report = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -454,6 +494,9 @@ def run_phase6_shop_survey(
             "promo_recovery": promo_recovery.as_dict() if promo_recovery else None,
             "before_instances": before,
             "after_instances": after,
+            "inventory_status": inventory_status,
+            "observed_changed_indices": observed_changed_indices,
+            "unrelated_changed_indices": unrelated_changed_indices,
             "isolation_changed_indices": isolation,
             "survey": survey.as_dict() if survey else None,
             "result": result.status,
