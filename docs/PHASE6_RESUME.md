@@ -1,5 +1,28 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## 2026-09-22 initial-promo live success, survey time-bound checkpoint (run 12)
+
+- Commit `a688f88` passed full Windows CI run `35670480460`. Fresh artifact
+  `10669934367` archive is 105,307,628 bytes, SHA-256
+  `AB73BEE2FC13AC337B582D6A714D0676BFBEF84B3195C8DDD1C2F8609C9C1886`.
+- One real `shop-survey` run on only `2 / 5-Emmmmm` verified explicit ADB
+  `emulator-5558`, boot `fd627bd7-c58f-488d-8376-88f7cd6f5ac3`. The known
+  full-screen Stranger Things promo appeared on the first survey frame after
+  Home recovery. Exactly one observed-target Back closed it; a fresh same-boot
+  frame independently verified unobstructed Home. The survey then used
+  screenshot-guarded Home → daily offer → information popup → daily offer.
+- The result is **TIMEOUT**, not survey acceptance: the 30-second survey bound
+  expired before the final daily-offer → Home step. Report:
+  `diagnostics/tasks/shop-survey/5-Emmmmm/20260922-001328-382093Z/report.json`
+  in local app data. `claims=[]`, `journal_rows=0`; owned index-2 cleanup
+  succeeded. Queen and revoked index 4 remained stopped; externally running
+  indices 1, 6 and 7 were preserved. Do **not** rerun this artifact blindly.
+- Next: review the measured capture/action times, adjust only the bounded
+  observation-only survey limit with regression tests (and qualify any added
+  adjacent tab offline), then fresh CI artifact and one scoped live run.
+  Reward tasks, comprehensive shop traversal, final merge and Phase 7 remain
+  incomplete/out of scope.
+
 ## 2026-09-22 initial-frame promo checkpoint (real run 11 blocked safely)
 
 - Commit `711e708` passed Windows CI run `35667419060` (full lint, tests,

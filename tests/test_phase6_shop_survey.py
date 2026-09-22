@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+import top_heroes_auto.app.phase6_runtime as phase6_runtime
 from top_heroes_auto.app.phase6_runtime import shop_survey_registry
 from top_heroes_auto.automation.free_rewards import Cost, RewardEvidence, RewardScreen, Route
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
@@ -29,6 +30,31 @@ from top_heroes_auto.vision.models import (
 )
 
 IDENTITY = (2, "5-Emmmmm", "emulator-5558", "boot-2")
+
+
+def test_production_shop_survey_factory_uses_60_second_deadline(monkeypatch):
+    seen = {}
+
+    class Engine:
+        def __init__(self, limits):
+            seen["limits"] = limits
+
+        def run(self, *args):
+            return "survey-result"
+
+    monkeypatch.setattr(phase6_runtime, "ShopSurveyEngine", Engine)
+    result = phase6_runtime.shop_survey_factory(
+        object(),
+        None,
+        *IDENTITY[:2],
+        None,
+    )
+
+    assert result == "survey-result"
+    assert seen["limits"].max_seconds == 60.0
+    assert seen["limits"].max_steps == 12
+    assert seen["limits"].max_depth == 2
+    assert seen["limits"].max_scrolls_per_direction == 1
 
 
 def _observation(
@@ -376,6 +402,30 @@ def test_cancellation_after_observation_does_not_dispatch_another_action():
     assert result.claims == []
 
 
+def test_time_boundary_blocks_next_dispatch_and_remains_claim_free():
+    to_a = Route("to-a", "to-a-anchor", "child-a", "tab")
+    to_b = Route("to-b", "to-b-anchor", "child-b", "tab")
+
+    class BoundaryClock:
+        def __init__(self):
+            self.values = iter((0.0, 1.0, 59.0, 60.0))
+
+        def __call__(self):
+            return next(self.values)
+
+    port = SurveyPort(_observation("root", "root", routes=(to_a, to_b)))
+    result = ShopSurveyEngine(
+        ShopSurveyLimits(max_steps=12, max_depth=2, max_seconds=60.0),
+        clock=BoundaryClock(),
+    ).run(port, *IDENTITY[:2])
+
+    assert result.status == ShopSurveyStatus.TIMEOUT
+    assert result.coverage_complete is False
+    assert [action[0:2] for action in port.actions] == [("navigate", "to-a")]
+    assert result.claims == []
+    assert result.journal_rows == 0
+
+
 def test_profile_registry_requires_one_current_page_match():
     page = VisualAnchor(
         "qualified-page",
@@ -538,8 +588,18 @@ def test_packaged_registry_route_is_partial_and_claim_free():
         def scroll(self, observation, direction, point):
             self.actions.append(("scroll", direction, point))
 
+    class Run12Clock:
+        def __init__(self):
+            self.now = 0.0
+
+        def __call__(self):
+            value = self.now
+            self.now += 4.0
+            return value
+
     port = Port()
-    result = ShopSurveyEngine().run(port, *IDENTITY[:2])
+    clock = Run12Clock()
+    result = ShopSurveyEngine(clock=clock).run(port, *IDENTITY[:2])
 
     assert result.status == ShopSurveyStatus.PARTIAL
     assert result.coverage_complete is False
@@ -558,6 +618,7 @@ def test_packaged_registry_route_is_partial_and_claim_free():
     ]
     assert result.claims == []
     assert result.journal_rows == 0
+    assert clock.now < 60.0
 
 
 def test_serial_or_boot_change_fails_closed_before_follow_up_action():

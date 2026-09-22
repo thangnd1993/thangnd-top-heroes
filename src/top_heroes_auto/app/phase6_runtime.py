@@ -248,7 +248,7 @@ def shop_survey_factory(
         promo_budget_available=promo_budget_available,
     )
     return ShopSurveyEngine(
-        ShopSurveyLimits(max_steps=12, max_depth=2, max_scrolls_per_direction=1, max_seconds=30.0)
+        ShopSurveyLimits(max_steps=12, max_depth=2, max_scrolls_per_direction=1, max_seconds=60.0)
     ).run(port, index, name, cancelled)
 
 
