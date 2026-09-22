@@ -18,6 +18,11 @@ from top_heroes_auto.app.phase6_shop_navigation_tasks import (
 from top_heroes_auto.app.phase6_shop_survey_tasks import (
     SHOP_SURVEY_TASK,
 )
+from top_heroes_auto.app.phase6_vip_survey_tasks import (
+    VIP_SURVEY_LABEL,
+    VIP_SURVEY_TASK,
+    VipSurveyTaskResult,
+)
 from top_heroes_auto.app.task_cli import parser as task_parser
 from top_heroes_auto.automation.free_rewards import (
     Cost,
@@ -605,6 +610,8 @@ def test_cli_parser_exposes_phase6_tasks_and_sequence():
         [SHOP_NAVIGATION_TASK, "--index", "2", "--name", "5-Emmmmm"]
     )
     assert args.command == SHOP_NAVIGATION_TASK
+    args = task_parser().parse_args([VIP_SURVEY_TASK, "--index", "2", "--name", "5-Emmmmm"])
+    assert args.command == VIP_SURVEY_TASK
 
 
 def test_cli_shop_navigation_dispatches_only_navigation_runner(rig, tmp_path, monkeypatch, capsys):
@@ -633,3 +640,31 @@ def test_cli_shop_navigation_dispatches_only_navigation_runner(rig, tmp_path, mo
     assert output["task"] == SHOP_NAVIGATION_TASK
     assert output["label"] == SHOP_NAVIGATION_LABEL
     assert output["scope"].startswith("navigation-only")
+
+
+def test_cli_vip_survey_dispatches_observation_runner(rig, tmp_path, monkeypatch, capsys):
+    manager, _, _ = rig
+    calls = []
+
+    def fake_manager(data):
+        return manager
+
+    def fake_survey(*args, **kwargs):
+        calls.append((args, kwargs))
+        return VipSurveyTaskResult(VIP_SURVEY_TASK, "SUCCESS")
+
+    monkeypatch.setattr(task_cli_module, "_manager", fake_manager)
+    monkeypatch.setattr(task_cli_module, "run_phase6_vip_survey", fake_survey)
+    code = task_cli_module.main(
+        [VIP_SURVEY_TASK, "--index", "2", "--name", "5-Emmmmm"],
+        tmp_path,
+    )
+
+    assert code == 0
+    assert calls[0][0][0] is manager
+    assert calls[0][0][2:] == (2, "5-Emmmmm")
+    output = json.loads(capsys.readouterr().out)
+    assert output["task"] == VIP_SURVEY_TASK
+    assert output["label"] == VIP_SURVEY_LABEL
+    assert output["receipt_available"] is False
+    assert output["journal_rows"] == 0

@@ -25,6 +25,11 @@ from top_heroes_auto.app.phase6_shop_survey_tasks import (
     SURVEY_SUCCESS_STATUSES,
     run_phase6_shop_survey,
 )
+from top_heroes_auto.app.phase6_vip_survey_tasks import (
+    VIP_SURVEY_LABEL,
+    VIP_SURVEY_TASK,
+    run_phase6_vip_survey,
+)
 from top_heroes_auto.app.recovery_cli import run_home_recovery
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.actions import SafeInputService
@@ -217,6 +222,12 @@ def parser():
     )
     broad_survey.add_argument("--index", type=int, required=True)
     broad_survey.add_argument("--name", required=True)
+    vip_survey = commands.add_parser(
+        VIP_SURVEY_TASK,
+        help=f"{VIP_SURVEY_LABEL} (observation-only)",
+    )
+    vip_survey.add_argument("--index", type=int, required=True)
+    vip_survey.add_argument("--name", required=True)
     return root
 
 
@@ -263,6 +274,10 @@ def main(argv: list[str], data: Path) -> int:
         )
         print(json.dumps(result.as_dict(), ensure_ascii=True, indent=2))
         return 0 if result.status in SURVEY_SUCCESS_STATUSES else 2
+    if args.command == VIP_SURVEY_TASK:
+        result = run_phase6_vip_survey(manager, data, args.index, args.name)
+        print(json.dumps(result.as_dict(), ensure_ascii=True, indent=2))
+        return 0 if result.status == "SUCCESS" else 2
     results = run_free_reward_sequence(
         manager,
         data,

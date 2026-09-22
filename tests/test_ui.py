@@ -15,6 +15,11 @@ from top_heroes_auto.app.phase6_shop_survey_tasks import (
     SHOP_SURVEY_TASK,
     ShopSurveyTaskResult,
 )
+from top_heroes_auto.app.phase6_vip_survey_tasks import (
+    VIP_SURVEY_LABEL,
+    VIP_SURVEY_TASK,
+    VipSurveyTaskResult,
+)
 from top_heroes_auto.automation.phase6_shop import ShopSurveyResult, ShopSurveyStatus
 from top_heroes_auto.automation.phase6_shop_navigation import (
     ShopNavigationResult,
@@ -193,4 +198,43 @@ def test_partial_shop_survey_button_is_separate_and_reports_coverage(rig, tmp_pa
     assert "survey=PARTIAL" in window.phase6_status.text()
     assert "coverage=partial" in window.phase6_status.text()
     assert "unsupported_tabs" in window.phase6_status.text()
+    window.close()
+
+
+def test_vip_survey_button_is_observation_only_and_cancelable(rig, tmp_path, monkeypatch):
+    manager, process, store = rig
+    QApplication.instance() or QApplication([])
+    monkeypatch.setattr(Window, "discover_ld", lambda self: None)
+    window = Window(store, tmp_path)
+    window.manager = manager
+    window.instances = manager.refresh()
+    process.listing = "0,Queen,0,0,0,-1,-1\n2,5-Emmmmm,0,0,0,-1,-1\n"
+    manager.refresh()
+    manager.protect(0, True)
+    manager.select(2, True)
+    window.instances = manager.list_readonly()
+    window.render()
+
+    assert window.phase6_vip_survey_button.text() == VIP_SURVEY_LABEL
+    assert window.phase6_vip_survey_button.isEnabled()
+    calls = []
+
+    def fake_survey(*args, **kwargs):
+        calls.append((args, kwargs))
+        assert callable(kwargs["cancelled"])
+        assert kwargs["cancelled"]() is False
+        return VipSurveyTaskResult(VIP_SURVEY_TASK, "SUCCESS")
+
+    def fake_run_job(mode, function):
+        window.mode = mode
+        window.job_result(function())
+
+    monkeypatch.setattr(window_module, "run_phase6_vip_survey", fake_survey)
+    monkeypatch.setattr(window, "run_job", fake_run_job)
+    window.run_phase6_vip_survey()
+
+    assert calls[0][0][0] is manager
+    assert calls[0][0][2:] == (2, "5-Emmmmm")
+    assert VIP_SURVEY_LABEL in window.phase6_status.text()
+    assert "SUCCESS" in window.phase6_status.text()
     window.close()
