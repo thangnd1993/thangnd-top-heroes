@@ -1,0 +1,36 @@
+{
+  "id": "phase6-daily-offer-tab",
+  "state": "FREE_REWARD_PAGE",
+  "template": "phase6-daily-offer-tab.png",
+  "expected_region": [
+    0.0,
+    0.1,
+    0.15,
+    0.45
+  ],
+  "threshold": 0.97,
+  "required": true,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "provenance": {
+    "source_image": "vision/5-Emmmmm/20260920-172806-584022Z-phase6-shop-daily-pack-after.png",
+    "source_sidecar": "vision/5-Emmmmm/20260920-172806-584022Z-phase6-shop-daily-pack-after.json",
+    "instance": {
+      "index": 2,
+      "name": "5-Emmmmm"
+    },
+    "adb_target": "emulator-5558",
+    "boot_id": "70b1cc0e-24e0-465f-9e54-4025067f47aa",
+    "crop_rect_pixels": [
+      0,
+      110,
+      70,
+      270
+    ]
+  },
+  "notes": "Index-2 same-account unselected Ưu Đãi Mỗi Ngày return-tab evidence from 2026-09-20 172806 capture; crop excludes the neighboring red dot. Action-only current-frame anchor: require an independently matched phase6-daily-pack-page before dispatch and fresh daily-offer destination verification; no claim or purchase authority."
+}

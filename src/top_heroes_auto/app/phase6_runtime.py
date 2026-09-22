@@ -162,17 +162,20 @@ def pending_promo_anchor() -> VisualAnchor:
 
 
 def shop_survey_registry() -> ShopProfileRegistry:
-    """Load only the independently qualified Home/daily/help surfaces.
+    """Load only the independently qualified Home/daily/help/tab surfaces.
 
-    No neighboring tab or scroll boundary is packaged: the resulting survey
-    therefore reports ``PARTIAL`` even when this small route completes.  The
-    profile is navigation-only and contains no reward or claim rule.
+    Only the same-account daily-offer ↔ daily-pack sibling tab is packaged;
+    other neighboring tabs and all scroll boundaries remain unknown.  The
+    resulting survey therefore reports ``PARTIAL`` even when this small route
+    completes.  The profile is navigation-only and contains no reward or
+    claim rule.
     """
 
     shop = phase6_asset_root() / "shop"
     home = phase6_asset_root() / "home"
     home_page = _anchor(template_folder() / "home", "home-bottom-navigation")
     daily_page = _anchor(shop, "phase6-daily-page")
+    daily_pack_page = _anchor(shop, "phase6-daily-pack-page")
     popup_page = _anchor(shop, "phase6-daily-info-popup")
     return ShopProfileRegistry(
         (
@@ -193,11 +196,26 @@ def shop_survey_registry() -> ShopProfileRegistry:
                 (
                     ("page", daily_page),
                     ("info-entry", _anchor(shop, "phase6-daily-info-button")),
+                    ("pack-entry", _anchor(shop, "phase6-daily-pack-tab")),
                     ("exit", _anchor(shop, "phase6-daily-exit")),
                 ),
                 routes=(
                     ShopRouteRule("daily-info", "info-entry", "daily-info-popup", "submenu"),
+                    ShopRouteRule("daily-pack-tab", "pack-entry", "daily-pack", "tab"),
                     ShopRouteRule("daily-exit", "exit", "game-home", "parent"),
+                ),
+                coverage_known=False,
+                claim_enabled=False,
+            ),
+            ShopVisualProfile(
+                "phase6-shop-survey",
+                "daily-pack",
+                (
+                    ("page", daily_pack_page),
+                    ("daily-entry", _anchor(shop, "phase6-daily-offer-tab")),
+                ),
+                routes=(
+                    ShopRouteRule("daily-pack-return", "daily-entry", "daily-offer", "parent"),
                 ),
                 coverage_known=False,
                 claim_enabled=False,
@@ -248,7 +266,7 @@ def shop_survey_factory(
         promo_budget_available=promo_budget_available,
     )
     return ShopSurveyEngine(
-        ShopSurveyLimits(max_steps=12, max_depth=2, max_scrolls_per_direction=1, max_seconds=60.0)
+        ShopSurveyLimits(max_steps=12, max_depth=2, max_scrolls_per_direction=1, max_seconds=75.0)
     ).run(port, index, name, cancelled)
 
 

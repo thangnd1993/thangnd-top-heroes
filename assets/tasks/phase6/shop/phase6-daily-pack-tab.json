@@ -1,0 +1,36 @@
+{
+  "id": "phase6-daily-pack-tab",
+  "state": "FREE_REWARD_PAGE",
+  "template": "phase6-daily-pack-tab.png",
+  "expected_region": [
+    0.0,
+    0.35,
+    0.16,
+    0.7
+  ],
+  "threshold": 0.97,
+  "required": true,
+  "weight": 1.0,
+  "variant": "default",
+  "reference_resolution": [
+    1280,
+    720
+  ],
+  "provenance": {
+    "source_image": "vision/5-Emmmmm/20260920-172802-484980Z-phase6-shop-daily-pack-before.png",
+    "source_sidecar": "vision/5-Emmmmm/20260920-172802-484980Z-phase6-shop-daily-pack-before.json",
+    "instance": {
+      "index": 2,
+      "name": "5-Emmmmm"
+    },
+    "adb_target": "emulator-5558",
+    "boot_id": "70b1cc0e-24e0-465f-9e54-4025067f47aa",
+    "crop_rect_pixels": [
+      0,
+      285,
+      80,
+      435
+    ]
+  },
+  "notes": "Index-2 same-account unselected Gói Mỗi Ngày tab evidence from 2026-09-20 172802 capture; crop excludes neighboring labels and red dots. Action-only current-frame anchor: require an independently matched phase6-daily-page before dispatch; never use it as a page identity or claim anchor."
+}

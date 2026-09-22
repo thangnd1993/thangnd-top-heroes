@@ -32,7 +32,7 @@ from top_heroes_auto.vision.models import (
 IDENTITY = (2, "5-Emmmmm", "emulator-5558", "boot-2")
 
 
-def test_production_shop_survey_factory_uses_60_second_deadline(monkeypatch):
+def test_production_shop_survey_factory_uses_75_second_deadline(monkeypatch):
     seen = {}
 
     class Engine:
@@ -51,7 +51,7 @@ def test_production_shop_survey_factory_uses_60_second_deadline(monkeypatch):
     )
 
     assert result == "survey-result"
-    assert seen["limits"].max_seconds == 60.0
+    assert seen["limits"].max_seconds == 75.0
     assert seen["limits"].max_steps == 12
     assert seen["limits"].max_depth == 2
     assert seen["limits"].max_scrolls_per_direction == 1
@@ -555,9 +555,26 @@ def test_packaged_registry_route_is_partial_and_claim_free():
     packaged = shop_survey_registry()
     wanted = {
         "home-1": {"home-bottom-navigation", "home-shop-entry"},
-        "daily-1": {"phase6-daily-page", "phase6-daily-info-button", "phase6-daily-exit"},
+        "daily-1": {
+            "phase6-daily-page",
+            "phase6-daily-info-button",
+            "phase6-daily-pack-tab",
+            "phase6-daily-exit",
+        },
         "popup": {"phase6-daily-info-popup", "phase6-daily-info-close"},
-        "daily-2": {"phase6-daily-page", "phase6-daily-exit"},
+        "daily-2": {
+            "phase6-daily-page",
+            "phase6-daily-info-button",
+            "phase6-daily-pack-tab",
+            "phase6-daily-exit",
+        },
+        "pack": {"phase6-daily-pack-page", "phase6-daily-offer-tab"},
+        "daily-3": {
+            "phase6-daily-page",
+            "phase6-daily-info-button",
+            "phase6-daily-pack-tab",
+            "phase6-daily-exit",
+        },
         "home-2": {"home-bottom-navigation"},
     }
 
@@ -572,7 +589,7 @@ def test_packaged_registry_route_is_partial_and_claim_free():
         def __init__(self):
             self.frames = iter(
                 _observation(stamp, "unused").captured
-                for stamp in ("home-1", "daily-1", "popup", "daily-2", "home-2")
+                for stamp in ("home-1", "daily-1", "popup", "daily-2", "pack", "daily-3", "home-2")
             )
             self.actions = []
 
@@ -607,6 +624,8 @@ def test_packaged_registry_route_is_partial_and_claim_free():
         ("navigate", "home-shop-entry"),
         ("navigate", "daily-info"),
         ("backtrack", "daily-info-close"),
+        ("navigate", "daily-pack-tab"),
+        ("backtrack", "daily-pack-return"),
         ("backtrack", "daily-exit"),
     ]
     assert [item["page"] for item in result.visited] == [
@@ -614,11 +633,220 @@ def test_packaged_registry_route_is_partial_and_claim_free():
         "daily-offer",
         "daily-info-popup",
         "daily-offer",
+        "daily-pack",
+        "daily-offer",
         "game-home",
     ]
     assert result.claims == []
     assert result.journal_rows == 0
-    assert clock.now < 60.0
+    assert clock.now < 75.0
+
+
+def _run_packaged_route_case(
+    wanted,
+    stamps,
+    *,
+    fail_route=None,
+    cancel_route=None,
+    identities=None,
+):
+    packaged = shop_survey_registry()
+
+    def matcher(frame, anchor):
+        matched = anchor.id in wanted.get(frame.timestamp, set())
+        box = BoundingBox(20, 20, 16, 16) if matched else None
+        return AnchorEvidence(anchor.id, anchor.state, 0.99 if matched else 0.0, 0.9, matched, box, box)
+
+    registry = ShopProfileRegistry(packaged.profiles, matcher)
+    state = {"cancelled": False}
+
+    class Port:
+        def __init__(self):
+            self.frames = iter(
+                _observation(stamp, "unused", identity=(identities or {}).get(stamp, IDENTITY)).captured
+                for stamp in stamps
+            )
+            self.actions = []
+
+        def observe(self):
+            return registry.observe(next(self.frames))
+
+        def navigate(self, observation, route, point):
+            self.actions.append(("navigate", route.id, point))
+            if route.id == fail_route:
+                raise OSError("uncertain survey dispatch")
+            if route.id == cancel_route:
+                state["cancelled"] = True
+
+        def backtrack(self, observation, route, point):
+            self.actions.append(("backtrack", route.id, point))
+
+        def scroll(self, observation, direction, point):
+            self.actions.append(("scroll", direction, point))
+
+    port = Port()
+    result = ShopSurveyEngine(ShopSurveyLimits(max_steps=12, max_depth=2)).run(
+        port,
+        *IDENTITY[:2],
+        cancelled=lambda: state["cancelled"],
+    )
+    return result, port
+
+
+def _full_packaged_wanted():
+    return {
+        "home-1": {"home-bottom-navigation", "home-shop-entry"},
+        "daily-1": {
+            "phase6-daily-page",
+            "phase6-daily-info-button",
+            "phase6-daily-pack-tab",
+            "phase6-daily-exit",
+        },
+        "popup": {"phase6-daily-info-popup", "phase6-daily-info-close"},
+        "daily-2": {
+            "phase6-daily-page",
+            "phase6-daily-info-button",
+            "phase6-daily-pack-tab",
+            "phase6-daily-exit",
+        },
+        "pack": {"phase6-daily-pack-page", "phase6-daily-offer-tab"},
+        "daily-3": {
+            "phase6-daily-page",
+            "phase6-daily-info-button",
+            "phase6-daily-pack-tab",
+            "phase6-daily-exit",
+        },
+        "home-2": {"home-bottom-navigation"},
+    }
+
+
+def test_packaged_daily_pack_missing_return_is_partial_without_retry():
+    wanted = _full_packaged_wanted()
+    wanted["pack"] = {"phase6-daily-pack-page"}
+    result, port = _run_packaged_route_case(
+        wanted,
+        ("home-1", "daily-1", "popup", "daily-2", "pack"),
+    )
+
+    assert result.status == ShopSurveyStatus.PARTIAL
+    assert "missing_backtrack:daily-pack" in result.partial_reasons
+    assert [action[0:2] for action in port.actions] == [
+        ("navigate", "home-shop-entry"),
+        ("navigate", "daily-info"),
+        ("backtrack", "daily-info-close"),
+        ("navigate", "daily-pack-tab"),
+    ]
+    assert result.claims == []
+    assert result.journal_rows == 0
+
+
+def test_packaged_daily_pack_missing_tab_blocks_before_exit():
+    wanted = _full_packaged_wanted()
+    wanted["daily-2"] = {"phase6-daily-page", "phase6-daily-info-button", "phase6-daily-exit"}
+    result, port = _run_packaged_route_case(
+        wanted,
+        ("home-1", "daily-1", "popup", "daily-2"),
+    )
+
+    assert result.status == ShopSurveyStatus.PARTIAL
+    assert "missing_route_after_backtrack:daily-pack-tab" in result.partial_reasons
+    assert [action[0:2] for action in port.actions] == [
+        ("navigate", "home-shop-entry"),
+        ("navigate", "daily-info"),
+        ("backtrack", "daily-info-close"),
+    ]
+
+
+def test_packaged_daily_pack_wrong_destination_never_retries_tab():
+    wanted = _full_packaged_wanted()
+    wanted["pack"] = wanted["daily-2"]
+    result, port = _run_packaged_route_case(
+        wanted,
+        ("home-1", "daily-1", "popup", "daily-2", "pack"),
+    )
+
+    assert result.status == ShopSurveyStatus.PARTIAL
+    assert "destination_unverified:daily-pack" in result.partial_reasons
+    assert [action[0:2] for action in port.actions] == [
+        ("navigate", "home-shop-entry"),
+        ("navigate", "daily-info"),
+        ("backtrack", "daily-info-close"),
+        ("navigate", "daily-pack-tab"),
+    ]
+    assert result.claims == []
+    assert result.journal_rows == 0
+
+
+def test_packaged_daily_pack_changed_boot_or_selection_stops_before_return():
+    wanted = _full_packaged_wanted()
+    stamps = ("home-1", "daily-1", "popup", "daily-2", "pack")
+    for changed in (
+        (2, "5-Emmmmm", "emulator-5558", "boot-new"),
+        (4, "3-Chíp", "emulator-5562", "boot-2"),
+    ):
+        result, port = _run_packaged_route_case(
+            wanted,
+            stamps,
+            identities={"pack": changed},
+        )
+        assert result.status == ShopSurveyStatus.IDENTITY_MISMATCH
+        assert [action[0:2] for action in port.actions] == [
+            ("navigate", "home-shop-entry"),
+            ("navigate", "daily-info"),
+            ("backtrack", "daily-info-close"),
+            ("navigate", "daily-pack-tab"),
+        ]
+
+
+def test_packaged_daily_pack_duplicate_page_blocks_before_return():
+    wanted = _full_packaged_wanted()
+    wanted["pack"] = {"phase6-daily-page", "phase6-daily-pack-page", "phase6-daily-offer-tab"}
+    result, port = _run_packaged_route_case(
+        wanted,
+        ("home-1", "daily-1", "popup", "daily-2", "pack"),
+    )
+
+    assert result.status == ShopSurveyStatus.SAFETY_BLOCKED
+    assert [action[0:2] for action in port.actions] == [
+        ("navigate", "home-shop-entry"),
+        ("navigate", "daily-info"),
+        ("backtrack", "daily-info-close"),
+        ("navigate", "daily-pack-tab"),
+    ]
+    assert result.claims == []
+    assert result.journal_rows == 0
+
+
+def test_packaged_daily_pack_cancellation_or_uncertain_dispatch_never_retries():
+    wanted = _full_packaged_wanted()
+    stamps = ("home-1", "daily-1", "popup", "daily-2", "pack")
+    cancelled, cancelled_port = _run_packaged_route_case(
+        wanted,
+        stamps,
+        cancel_route="daily-pack-tab",
+    )
+    assert cancelled.status == ShopSurveyStatus.CANCELLED
+    assert [action[0:2] for action in cancelled_port.actions] == [
+        ("navigate", "home-shop-entry"),
+        ("navigate", "daily-info"),
+        ("backtrack", "daily-info-close"),
+        ("navigate", "daily-pack-tab"),
+    ]
+
+    uncertain, uncertain_port = _run_packaged_route_case(
+        wanted,
+        stamps,
+        fail_route="daily-pack-tab",
+    )
+    assert uncertain.status == ShopSurveyStatus.ACTION_RESULT_UNCERTAIN
+    assert [action[0:2] for action in uncertain_port.actions] == [
+        ("navigate", "home-shop-entry"),
+        ("navigate", "daily-info"),
+        ("backtrack", "daily-info-close"),
+        ("navigate", "daily-pack-tab"),
+    ]
+    assert uncertain.claims == []
+    assert uncertain.journal_rows == 0
 
 
 def test_serial_or_boot_change_fails_closed_before_follow_up_action():

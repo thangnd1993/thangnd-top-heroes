@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -18,6 +19,9 @@ EVIDENCE_ROOT = Path(
 )
 ANCHOR_IDS = {
     "phase6-daily-page",
+    "phase6-daily-pack-page",
+    "phase6-daily-pack-tab",
+    "phase6-daily-offer-tab",
     "phase6-daily-info-button",
     "phase6-daily-info-popup",
     "phase6-daily-info-close",
@@ -35,6 +39,9 @@ def _synthetic(anchor, *, duplicate=False):
     image = np.zeros((720, 1280, 3), dtype=np.uint8)
     locations = {
         "phase6-daily-page": (1120, 0),
+        "phase6-daily-pack-page": (1080, 0),
+        "phase6-daily-pack-tab": (0, 285),
+        "phase6-daily-offer-tab": (0, 110),
         "phase6-daily-info-button": (1120, 540),
         "phase6-daily-info-popup": (1080, 100),
         "phase6-daily-info-close": (83, 320),
@@ -46,6 +53,9 @@ def _synthetic(anchor, *, duplicate=False):
     if duplicate:
         duplicate_locations = {
             "phase6-daily-page": (998, 0),
+            "phase6-daily-pack-page": (940, 0),
+            "phase6-daily-pack-tab": (85, 285),
+            "phase6-daily-offer-tab": (70, 110),
             "phase6-daily-info-button": (960, 540),
             "phase6-daily-info-popup": (930, 100),
             "phase6-daily-info-close": (240, 320),
@@ -76,6 +86,23 @@ def test_daily_offer_assets_are_navigation_only():
     assert anchors["phase6-daily-exit"].state == ScreenState.FREE_REWARD_PAGE
     assert all(anchor.threshold == pytest.approx(0.97) for anchor in anchors.values())
     assert all("claim" not in anchor.id and "reward" not in anchor.id for anchor in anchors.values())
+
+
+def test_daily_pack_assets_record_same_account_sidecar_provenance():
+    expected = {
+        "phase6-daily-pack-page": ("20260920-172806-584022Z-phase6-shop-daily-pack-after", [1080, 0, 1200, 320]),
+        "phase6-daily-pack-tab": ("20260920-172802-484980Z-phase6-shop-daily-pack-before", [0, 285, 80, 435]),
+        "phase6-daily-offer-tab": ("20260920-172806-584022Z-phase6-shop-daily-pack-after", [0, 110, 70, 270]),
+    }
+    for anchor_id, (stem, rect) in expected.items():
+        metadata = json.loads((ASSETS / f"{anchor_id}.json").read_text(encoding="utf-8"))
+        provenance = metadata["provenance"]
+        assert provenance["source_image"].endswith(f"{stem}.png")
+        assert provenance["source_sidecar"].endswith(f"{stem}.json")
+        assert provenance["instance"] == {"index": 2, "name": "5-Emmmmm"}
+        assert provenance["adb_target"] == "emulator-5558"
+        assert provenance["boot_id"] == "70b1cc0e-24e0-465f-9e54-4025067f47aa"
+        assert provenance["crop_rect_pixels"] == rect
 
 
 @pytest.mark.parametrize("anchor_id", sorted(ANCHOR_IDS))
@@ -123,6 +150,30 @@ def _saved_screen(path):
                 "20260921-173758-972814Z-phase6-20260922-shop-entry-after",
                 "20260921-173846-143161Z-phase6-20260922-daily-info-before",
                 "20260921-173955-365363Z-phase6-20260922-info-close-after",
+            ),
+        ),
+        (
+            "phase6-daily-pack-page",
+            (
+                "20260920-172806-584022Z-phase6-shop-daily-pack-after",
+                "20260920-172902-512074Z-phase6-daily-pack-scroll1-before",
+                "20260920-173247-648785Z-phase6-weekly-pack-top-before",
+            ),
+        ),
+        (
+            "phase6-daily-pack-tab",
+            (
+                "20260920-172802-484980Z-phase6-shop-daily-pack-before",
+                "20260920-172408-371450Z-phase6-shop-daily-top-before",
+                "20260920-172537-274060Z-phase6-shop-daily-scroll1-before",
+            ),
+        ),
+        (
+            "phase6-daily-offer-tab",
+            (
+                "20260920-172806-584022Z-phase6-shop-daily-pack-after",
+                "20260920-172902-512074Z-phase6-daily-pack-scroll1-before",
+                "20260920-173247-648785Z-phase6-weekly-pack-top-before",
             ),
         ),
         (
@@ -199,6 +250,22 @@ def test_saved_index2_frames_match_only_the_qualified_navigation_surface(anchor_
             "20260921-173846-143161Z-phase6-20260922-daily-info-before",
             "20260921-173955-365363Z-phase6-20260922-info-close-after",
         ),
+        "phase6-daily-pack-page": (
+            "20260920-172802-484980Z-phase6-shop-daily-pack-before",
+            "20260920-173251-829153Z-phase6-weekly-pack-top-after",
+            "20260921-173850-589371Z-phase6-20260922-daily-info-after",
+        ),
+        "phase6-daily-pack-tab": (
+            "20260921-173502-952419Z-phase6-20260922-fresh-home-before",
+            "20260921-173703-800199Z-phase6-20260922-promo-before",
+            "20260921-173850-589371Z-phase6-20260922-daily-info-after",
+        ),
+        "phase6-daily-offer-tab": (
+            "20260920-172802-484980Z-phase6-shop-daily-pack-before",
+            "20260921-173502-952419Z-phase6-20260922-fresh-home-before",
+            "20260921-173703-800199Z-phase6-20260922-promo-before",
+            "20260921-173850-589371Z-phase6-20260922-daily-info-after",
+        ),
     }
     for stem in same_shop_negatives[anchor_id]:
         evidence = unique_current_anchor(_saved_screen(EVIDENCE_ROOT / f"{stem}.png"), anchor)
@@ -216,3 +283,29 @@ def test_daily_exit_is_gated_by_daily_page_identity():
     # treating it as the daily-page exit action.
     assert unique_current_anchor(neighboring_tab, anchors["phase6-daily-exit"]).matched
     assert not unique_current_anchor(neighboring_tab, anchors["phase6-daily-page"]).matched
+
+
+@pytest.mark.skipif(not EVIDENCE_ROOT.exists(), reason="index-2 diagnostic captures are not available")
+def test_daily_pack_tab_actions_are_gated_by_active_page_identity():
+    anchors = _anchors()
+    daily = _saved_screen(
+        EVIDENCE_ROOT / "20260920-172802-484980Z-phase6-shop-daily-pack-before.png"
+    )
+    pack = _saved_screen(
+        EVIDENCE_ROOT / "20260920-172806-584022Z-phase6-shop-daily-pack-after.png"
+    )
+    weekly = _saved_screen(
+        EVIDENCE_ROOT / "20260920-173251-829153Z-phase6-weekly-pack-top-after.png"
+    )
+
+    assert unique_current_anchor(daily, anchors["phase6-daily-page"]).matched
+    assert unique_current_anchor(daily, anchors["phase6-daily-pack-tab"]).matched
+    assert unique_current_anchor(pack, anchors["phase6-daily-pack-page"]).matched
+    assert unique_current_anchor(pack, anchors["phase6-daily-offer-tab"]).matched
+
+    # Sidebar labels recur on neighboring tabs.  A tab crop alone is not a
+    # page identity and must never authorize a dispatch without its page gate.
+    assert unique_current_anchor(weekly, anchors["phase6-daily-pack-tab"]).matched
+    assert unique_current_anchor(weekly, anchors["phase6-daily-offer-tab"]).matched
+    assert not unique_current_anchor(weekly, anchors["phase6-daily-pack-page"]).matched
+    assert not unique_current_anchor(pack, anchors["phase6-daily-page"]).matched
