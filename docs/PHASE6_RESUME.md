@@ -1,5 +1,26 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## 2026-09-22 initial-frame promo checkpoint (real run 11 blocked safely)
+
+- Commit `711e708` passed Windows CI run `35667419060` (full lint, tests,
+  package and executable smoke). Fresh artifact `10670015360` was downloaded;
+  its archive is 105,302,907 bytes, SHA-256
+  `8D87B86D0673FB239DF2D179F5B41E7C7606FA0C6697AEC83B84C87A0DD997F4`.
+- One `shop-survey` run on only `2 / 5-Emmmmm` safely stopped before any
+  survey action. Recovery verified `GAME_HOME` on explicit ADB `emulator-5558`,
+  boot `18939681-40ca-4b0e-9b99-53f939bec0ae`; the first survey capture
+  two seconds later showed the known Stranger Things popup. The post-navigation
+  popup handler was correctly not armed because no navigation had occurred.
+  `actions=[]`, `claims=[]`, `journal_rows=0`; owned cleanup succeeded and all
+  instances returned to their prior stopped state. Report:
+  `diagnostics/tasks/shop-survey/5-Emmmmm/20260921-233200-702519Z/report.json`
+  in local app data. Do **not** rerun this artifact blindly.
+- Next: a separately reviewed, one-time initial-frame promo guard bound to the
+  successful recovery serial/boot, sharing the single-Back budget and requiring
+  a fresh unobstructed Home before any shop tap. Then targeted tests, fresh CI
+  artifact and one bounded real acceptance. Phase 6 remains PARTIAL; no reward
+  acceptance, final merge or Phase 7 is authorized by this checkpoint.
+
 ## 2026-09-22 partial shop-survey checkpoint (real run 10 blocked safely)
 
 - Observation-only partial-survey infrastructure commit `ca14c96` passed

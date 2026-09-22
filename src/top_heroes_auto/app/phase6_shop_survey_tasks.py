@@ -173,7 +173,12 @@ def run_phase6_shop_survey(
                 else:
                     promo_status = _status_value(promo_recovery.status)
                     if promo_status == PromoRecoveryStatus.SUCCESS.value:
-                        recovery = RecoveryResult(RecoveryStatus.ALREADY_HOME)
+                        recovered_frame = promo_recovery.after or promo_recovery.before or {}
+                        recovery = RecoveryResult(
+                            RecoveryStatus.ALREADY_HOME,
+                            adb_target=recovered_frame.get("adb_target"),
+                            boot_id=recovered_frame.get("boot_id"),
+                        )
                         run_standard_recovery = False
                     elif promo_status != PromoRecoveryStatus.NOT_PRESENT.value:
                         error = f"Known promo recovery failed: {promo_status}: {promo_recovery.error or ''}".strip()
@@ -310,18 +315,47 @@ def run_phase6_shop_survey(
                     if effective_factory is None:
                         effective_factory = shop_survey_factory
                     if effective_factory is shop_survey_factory and promo_recovery_factory is not None:
-                        survey = effective_factory(
-                            manager,
-                            snapshot,
-                            index,
-                            name,
-                            folder,
-                            cancelled,
-                            pending_promo_anchor=load_pending_promo_anchor(),
-                            promo_budget_available=(
-                                promo_recovery is None or not promo_recovery.attempted
-                            ),
+                        initial_identity = (
+                            (recovery.adb_target, recovery.boot_id)
+                            if recovery.adb_target and recovery.boot_id
+                            else None
                         )
+                        if initial_identity is None:
+                            error = (
+                                "Initial shop survey frame requires the successful Home recovery "
+                                "serial and boot identity."
+                            )
+                            promo_recovery = PromoRecoveryResult(
+                                status=PromoRecoveryStatus.IDENTITY_MISMATCH,
+                                trigger="initial_home",
+                                expected_page="game-home",
+                                error=error,
+                            )
+                            result = ShopSurveyTaskResult(
+                                SHOP_SURVEY_TASK,
+                                PromoRecoveryStatus.IDENTITY_MISMATCH.value,
+                                task_run_id=task_run_id,
+                                started_by_run=started_by_run,
+                                recovery_report=recovery_report,
+                                error=error,
+                                promo_recovery=promo_recovery,
+                            )
+                        else:
+                            promo_anchor = load_pending_promo_anchor()
+                            survey = effective_factory(
+                                manager,
+                                snapshot,
+                                index,
+                                name,
+                                folder,
+                                cancelled,
+                                pending_promo_anchor=promo_anchor,
+                                initial_promo_anchor=promo_anchor,
+                                initial_promo_identity=initial_identity,
+                                promo_budget_available=(
+                                    promo_recovery is None or not promo_recovery.attempted
+                                ),
+                            )
                     else:
                         survey = effective_factory(
                             manager,
@@ -331,18 +365,28 @@ def run_phase6_shop_survey(
                             folder,
                             cancelled,
                         )
-                    if survey.promo_recovery is not None:
-                        promo_recovery = survey.promo_recovery
-                    result = ShopSurveyTaskResult(
-                        SHOP_SURVEY_TASK,
-                        _status_value(survey.status),
-                        task_run_id=task_run_id,
-                        started_by_run=started_by_run,
-                        recovery_report=recovery_report,
-                        survey=survey,
-                        error=survey.error,
-                        promo_recovery=promo_recovery,
-                    )
+                    if survey is not None and survey.promo_recovery is not None:
+                        # Preserve an already-attempted startup/timeout Back
+                        # when the first survey frame merely proves that no
+                        # second popup is present.  A new blocked/uncertain
+                        # observation still supersedes that prior result.
+                        if (
+                            promo_recovery is None
+                            or not promo_recovery.attempted
+                            or survey.promo_recovery.status != PromoRecoveryStatus.NOT_PRESENT
+                        ):
+                            promo_recovery = survey.promo_recovery
+                    if survey is not None:
+                        result = ShopSurveyTaskResult(
+                            SHOP_SURVEY_TASK,
+                            _status_value(survey.status),
+                            task_run_id=task_run_id,
+                            started_by_run=started_by_run,
+                            recovery_report=recovery_report,
+                            survey=survey,
+                            error=survey.error,
+                            promo_recovery=promo_recovery,
+                        )
     except Exception as exc:  # noqa: BLE001 - always persist a bounded task result
         error = _merge_error(error, str(exc))
         result = ShopSurveyTaskResult(

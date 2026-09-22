@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import pytest
 
+import top_heroes_auto.app.phase6_shop_survey_tasks as survey_tasks
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app.phase6_shop_survey_tasks import (
     PHASE6_TARGET,
@@ -13,7 +14,7 @@ from top_heroes_auto.app.phase6_shop_survey_tasks import (
     run_phase6_shop_survey,
 )
 from top_heroes_auto.automation.free_rewards import RewardScreen
-from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
 from top_heroes_auto.automation.phase6_promo_recovery import PromoRecoveryResult, PromoRecoveryStatus
 from top_heroes_auto.automation.phase6_shop import (
     ManagerShopSurveyPort,
@@ -39,6 +40,12 @@ RUN10_POPUP = Path(
     os.environ.get(
         "THA_PHASE6_RUN10_POPUP",
         r"C:\Users\ADMIN\AppData\Local\TopHeroesAutoManager\diagnostics\tasks\shop-survey\5-Emmmmm\20260921-222627-200207Z\20260921-222737-909688Z-phase6-shop-survey.png",
+    )
+)
+RUN11_POPUP = Path(
+    os.environ.get(
+        "THA_PHASE6_RUN11_POPUP",
+        r"C:\Users\ADMIN\AppData\Local\TopHeroesAutoManager\diagnostics\tasks\shop-survey\5-Emmmmm\20260921-233200-702519Z\20260921-233318-733059Z-phase6-shop-survey.png",
     )
 )
 
@@ -272,6 +279,73 @@ def test_report_persistence_and_owned_cleanup_failure_are_returned(tmp_path, rig
     assert "quit uncertain" in result.error
 
 
+def test_production_survey_factory_receives_successful_recovery_identity(rig, tmp_path, monkeypatch):
+    manager, process, store = rig
+    _target2(manager, process)
+    received = {}
+
+    def factory(manager, snapshot, index, name, folder, cancelled, **kwargs):
+        received.update(kwargs)
+        return _survey()
+
+    def recovered(manager, data, *args, **kwargs):
+        path = data / "recovery-identity.json"
+        path.write_text("{}", encoding="utf-8")
+        return (
+            RecoveryResult(
+                RecoveryStatus.ALREADY_HOME,
+                adb_target="emulator-5558",
+                boot_id="run11-boot",
+            ),
+            path,
+            False,
+        )
+
+    monkeypatch.setattr(survey_tasks, "shop_survey_factory", factory)
+    result = run_phase6_shop_survey(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        recovery_runner=recovered,
+        promo_recovery_factory=lambda *args, **kwargs: PromoRecoveryResult(
+            PromoRecoveryStatus.NOT_PRESENT
+        ),
+    )
+
+    assert result.status == ShopSurveyStatus.PARTIAL.value
+    assert received["initial_promo_identity"] == ("emulator-5558", "run11-boot")
+    assert received["initial_promo_anchor"] is not None
+    assert received["pending_promo_anchor"] is not None
+    assert received["promo_budget_available"] is True
+
+
+def test_production_survey_factory_missing_recovery_identity_fails_closed(rig, tmp_path, monkeypatch):
+    manager, process, store = rig
+    _target2(manager, process)
+    calls = []
+
+    def factory(*args, **kwargs):
+        calls.append(kwargs)
+        return _survey()
+
+    monkeypatch.setattr(survey_tasks, "shop_survey_factory", factory)
+    result = run_phase6_shop_survey(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        recovery_runner=_recovery,
+        promo_recovery_factory=lambda *args, **kwargs: PromoRecoveryResult(
+            PromoRecoveryStatus.NOT_PRESENT
+        ),
+    )
+
+    assert result.status == PromoRecoveryStatus.IDENTITY_MISMATCH.value
+    assert calls == []
+    assert result.promo_recovery is not None
+    assert result.promo_recovery.trigger == "initial_home"
+    assert result.promo_recovery.attempted is False
+
+
 def _run10_survey_factory(
     manager,
     snapshot,
@@ -411,6 +485,314 @@ def _run10_survey_factory(
         cancelled,
     )
     return survey, fake
+
+
+def _run11_initial_case(
+    tmp_path,
+    *,
+    first_popup=True,
+    after_popup=False,
+    after_page="game-home",
+    identity=("emulator-5558", "boot-2"),
+    actual_boot="boot-2",
+    budget=True,
+    duplicate_popup=False,
+    back_error=None,
+    cancelled=lambda: False,
+    wrong_target=False,
+    after_boot_change=False,
+    run_engine=False,
+    route_after_home=False,
+):
+    promo_anchor = load_anchors(Path(__file__).resolve().parents[1] / "assets" / "tasks" / "phase6" / "promo")[0]
+    target = Target(
+        2,
+        "revoked" if wrong_target else "5-Emmmmm",
+        "emulator-5558",
+        actual_boot,
+    )
+    template = cv2.imread(str(promo_anchor.template), cv2.IMREAD_COLOR)
+    assert template is not None
+
+    def image(popup, duplicate=False):
+        frame = np.full((720, 1280, 3), 70, dtype=np.uint8)
+        frame[0:200, 0:200] = 150
+        if popup:
+            height, width = template.shape[:2]
+            frame[350 : 350 + height, 1090 : 1090 + width] = template
+            if duplicate:
+                frame[280 : 280 + height, 960 : 960 + width] = template
+                frame[260 : 260 + height, 1160 : 1160 + width] = template
+        return frame
+
+    frames = [image(first_popup, duplicate_popup), image(after_popup)]
+    if run_engine:
+        frames.append(image(False))
+    encoded = []
+    for frame in frames:
+        ok, payload = cv2.imencode(".png", frame)
+        assert ok
+        encoded.append(payload.tobytes())
+
+    class Registry:
+        def __init__(self):
+            self.calls = 0
+
+        def observe(self, captured):
+            self.calls += 1
+            if first_popup:
+                page = after_page if self.calls == 1 or not run_engine else "daily-offer"
+            else:
+                page = "game-home" if self.calls == 1 else ("daily-offer" if run_engine else "game-home")
+            state = ScreenState.GAME_HOME if page == "game-home" else ScreenState.FREE_REWARD_PAGE
+            evidence = AnchorEvidence(
+                f"{page}-page",
+                state,
+                0.99,
+                0.9,
+                True,
+                BoundingBox(10, 10, 20, 20),
+                BoundingBox(10, 10, 20, 20),
+            )
+            entry = AnchorEvidence(
+                "home-shop-entry",
+                state,
+                0.99,
+                0.9,
+                True,
+                BoundingBox(30, 30, 20, 20),
+                BoundingBox(30, 30, 20, 20),
+            )
+            routes = (
+                (Route("home-shop-entry", "home-shop-entry", "daily-offer", "submenu"),)
+                if route_after_home and page == "game-home"
+                else ()
+            )
+            detection = ScreenDetection(
+                state,
+                0.99,
+                (evidence, entry) if routes else (evidence,),
+                captured.timestamp,
+                captured.source_image,
+                0.0,
+            )
+            screen = RewardScreen(
+                detection=detection,
+                index=captured.index,
+                name=captured.name,
+                adb_target=captured.serial,
+                boot_id=captured.boot_id,
+                capture_id=str(captured.source_image or captured.timestamp),
+                page=page,
+                fingerprint=page,
+                routes=routes,
+                coverage_known=False,
+            )
+            return ShopFrameObservation(
+                captured,
+                screen,
+                {"page": evidence, "home-shop-entry": entry} if routes else {"page": evidence},
+            )
+
+    class FakeManager:
+        def __init__(self):
+            self.frames = iter(encoded)
+            self.actions = []
+            self.capture_count = 0
+
+        def capture_verified(self, _index, _snapshot):
+            self.capture_count += 1
+            current = target
+            if wrong_target:
+                current = Target(2, "revoked", "emulator-5558", actual_boot)
+            elif self.capture_count == 2 and after_boot_change:
+                current = Target(2, "5-Emmmmm", "emulator-5558", "boot-new")
+            return current, next(self.frames)
+
+        def execute(self, index, action, **kwargs):
+            self.actions.append((index, action, kwargs))
+            if back_error is not None and action == "keyevent":
+                raise back_error
+
+    manager = FakeManager()
+    snapshot = RunSnapshot("ns", ((2, "5-Emmmmm"),), True)
+    port = ManagerShopSurveyPort(
+        manager,
+        snapshot,
+        2,
+        "5-Emmmmm",
+        Registry(),
+        tmp_path,
+        pending_promo_anchor=promo_anchor,
+        initial_promo_anchor=promo_anchor,
+        initial_promo_identity=identity,
+        promo_budget_available=budget,
+        promo_observations=1,
+        promo_wait_seconds=0,
+    )
+    port.arm_initial_promo(cancelled)
+    observation = None
+    error = None
+    try:
+        if run_engine:
+            observation = ShopSurveyEngine(
+                ShopSurveyLimits(max_steps=3, max_depth=2, max_seconds=10)
+            ).run(port, 2, "5-Emmmmm", cancelled)
+        else:
+            observation = port.observe()
+    except Exception as exc:  # noqa: BLE001 - assertions inspect the fail-closed result
+        error = exc
+    return observation, port.take_promo_recovery(), manager, error
+
+
+def test_initial_promo_closes_once_and_requires_same_boot_home(tmp_path):
+    observation, promo, manager, error = _run11_initial_case(tmp_path)
+
+    assert error is None
+    assert observation is not None and observation.screen.page == "game-home"
+    assert promo is not None
+    assert promo.status == PromoRecoveryStatus.SUCCESS
+    assert promo.trigger == "initial_home"
+    assert promo.expected_page == "game-home"
+    assert promo.attempted is True
+    assert len([action for _, action, _ in manager.actions if action == "keyevent"]) == 1
+    assert promo.before["boot_id"] == "boot-2"
+    assert promo.after["boot_id"] == "boot-2"
+
+
+def test_initial_engine_normal_home_authorizes_one_shop_tap(tmp_path):
+    survey, promo, manager, error = _run11_initial_case(
+        tmp_path,
+        first_popup=False,
+        run_engine=True,
+        route_after_home=True,
+    )
+
+    assert error is None
+    assert survey.status == ShopSurveyStatus.PARTIAL
+    assert survey.promo_recovery is not None
+    assert survey.promo_recovery.status == PromoRecoveryStatus.NOT_PRESENT
+    assert [action for _, action, _ in manager.actions] == ["tap"]
+
+
+def test_initial_engine_fullscreen_promo_authorizes_one_shop_tap_after_home(tmp_path):
+    survey, promo, manager, error = _run11_initial_case(
+        tmp_path,
+        run_engine=True,
+        route_after_home=True,
+    )
+
+    assert error is None
+    assert survey.status == ShopSurveyStatus.PARTIAL
+    assert survey.promo_recovery is not None
+    assert survey.promo_recovery.status == PromoRecoveryStatus.SUCCESS
+    assert [action for _, action, _ in manager.actions] == ["keyevent", "tap"]
+
+
+def test_initial_engine_failure_or_cancellation_never_taps_shop(tmp_path):
+    def cancelled():
+        return True
+
+    survey, promo, manager, error = _run11_initial_case(
+        tmp_path,
+        run_engine=True,
+        route_after_home=True,
+        cancelled=cancelled,
+    )
+    assert error is None
+    assert survey.status == ShopSurveyStatus.CANCELLED
+    assert survey.promo_recovery is None
+    assert manager.actions == []
+
+    survey, promo, manager, error = _run11_initial_case(
+        tmp_path,
+        run_engine=True,
+        route_after_home=True,
+        back_error=OSError("Back uncertain"),
+    )
+    assert error is None
+    assert survey.status == ShopSurveyStatus.ACTION_RESULT_UNCERTAIN
+    assert survey.promo_recovery is not None
+    assert survey.promo_recovery.status == PromoRecoveryStatus.ACTION_RESULT_UNCERTAIN
+    assert [action for _, action, _ in manager.actions] == ["keyevent"]
+
+
+def test_initial_promo_missing_or_mismatched_recovery_identity_sends_no_back(tmp_path):
+    for identity in (None, ("emulator-5558", "boot-old")):
+        observation, promo, manager, error = _run11_initial_case(tmp_path, identity=identity)
+
+        assert observation is None
+        assert isinstance(error, SafetyError)
+        assert promo is not None
+        assert promo.status == PromoRecoveryStatus.IDENTITY_MISMATCH
+        assert promo.attempted is False
+        assert manager.actions == []
+
+
+def test_initial_promo_budget_duplicate_and_revoked_target_fail_closed(tmp_path):
+    cases = (
+        {"budget": False},
+        {"duplicate_popup": True},
+        {"wrong_target": True},
+    )
+    for options in cases:
+        observation, promo, manager, error = _run11_initial_case(tmp_path, **options)
+
+        assert observation is None
+        assert error is not None
+        assert manager.actions == []
+        if options.get("wrong_target"):
+            assert promo is None
+        else:
+            assert promo is not None
+            assert promo.status == PromoRecoveryStatus.BLOCKED
+
+
+def test_initial_promo_cancellation_uncertain_back_and_boot_change_never_retry(tmp_path):
+    def cancelled():
+        return True
+    _, promo, manager, error = _run11_initial_case(tmp_path, cancelled=cancelled)
+    assert isinstance(error, SafetyError)
+    assert promo.status == PromoRecoveryStatus.CANCELLED
+    assert manager.actions == []
+
+    _, promo, manager, error = _run11_initial_case(tmp_path, back_error=OSError("Back uncertain"))
+    assert isinstance(error, OSError)
+    assert promo.status == PromoRecoveryStatus.ACTION_RESULT_UNCERTAIN
+    assert len(manager.actions) == 1
+    assert manager.actions[0][1] == "keyevent"
+
+    _, promo, manager, error = _run11_initial_case(
+        tmp_path,
+        after_boot_change=True,
+    )
+    assert isinstance(error, SafetyError)
+    assert promo.status == PromoRecoveryStatus.IDENTITY_MISMATCH
+    assert len(manager.actions) == 1
+
+
+def test_initial_promo_rejects_persistent_or_unexpected_destination_without_retry(tmp_path):
+    for options, expected in (
+        ({"after_popup": True}, PromoRecoveryStatus.TIMEOUT),
+        ({"after_page": "daily-offer"}, PromoRecoveryStatus.BLOCKED),
+    ):
+        _, promo, manager, error = _run11_initial_case(tmp_path, **options)
+
+        assert isinstance(error, SafetyError)
+        assert promo.status == expected
+        assert len(manager.actions) == 1
+        assert manager.actions[0][1] == "keyevent"
+        assert promo.after is not None
+        assert len(promo.captures) == 2
+
+
+def test_initial_promo_no_popup_is_consumed_and_not_reactivated(tmp_path):
+    observation, promo, manager, error = _run11_initial_case(tmp_path, first_popup=False)
+
+    assert error is None
+    assert observation is not None and observation.screen.page == "game-home"
+    assert promo is not None and promo.status == PromoRecoveryStatus.NOT_PRESENT
+    assert manager.actions == []
 
 
 def test_task_path_closes_late_promo_once_and_requires_daily_destination(rig, tmp_path):
@@ -671,6 +1053,29 @@ def test_saved_run10_popup_has_unique_known_title_match():
         (1280, 720),
         (1.0, 1.0),
         source_image=RUN10_POPUP,
+    )
+    anchor = load_anchors(Path(__file__).resolve().parents[1] / "assets" / "tasks" / "phase6" / "promo")[0]
+    evidence = unique_current_anchor(captured, anchor)
+    assert evidence.matched
+    assert evidence.score >= 0.99
+
+
+@pytest.mark.skipif(not RUN11_POPUP.is_file(), reason="saved run11 popup is not available")
+def test_saved_run11_popup_has_unique_known_title_match():
+    image = cv2.imread(str(RUN11_POPUP), cv2.IMREAD_COLOR)
+    assert image is not None
+    target = Target(2, "5-Emmmmm", "emulator-5558", "18939681-40ca-4b0e-9b99-53f939bec0ae")
+    captured = CapturedScreen(
+        target.index,
+        target.name,
+        target.serial,
+        target.boot_id,
+        image,
+        image,
+        (1280, 720),
+        (1280, 720),
+        (1.0, 1.0),
+        source_image=RUN11_POPUP,
     )
     anchor = load_anchors(Path(__file__).resolve().parents[1] / "assets" / "tasks" / "phase6" / "promo")[0]
     evidence = unique_current_anchor(captured, anchor)

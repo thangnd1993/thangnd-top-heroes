@@ -228,6 +228,8 @@ def shop_survey_factory(
     cancelled=lambda: False,
     *,
     pending_promo_anchor: VisualAnchor | None = None,
+    initial_promo_anchor: VisualAnchor | None = None,
+    initial_promo_identity: tuple[str, str] | None = None,
     promo_budget_available: bool = False,
 ):
     """Run the bounded claim-free survey over qualified surfaces only."""
@@ -241,6 +243,8 @@ def shop_survey_factory(
         registry,
         folder,
         pending_promo_anchor=pending_promo_anchor,
+        initial_promo_anchor=initial_promo_anchor,
+        initial_promo_identity=initial_promo_identity,
         promo_budget_available=promo_budget_available,
     )
     return ShopSurveyEngine(

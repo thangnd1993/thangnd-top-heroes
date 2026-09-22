@@ -376,6 +376,10 @@ class ShopSurveyEngine:
         started = self.clock()
         coverage = True
 
+        initial_arm = getattr(port, "arm_initial_promo", None)
+        if callable(initial_arm):
+            initial_arm(cancelled)
+
         try:
             for _ in range(self.limits.max_steps):
                 if cancelled():
@@ -627,10 +631,17 @@ class ShopSurveyEngine:
             result.error = str(exc)
             return result
         except (OSError, RuntimeError, ValueError) as exc:
-            result.status = (
+            promo_status = result.promo_recovery.status if result.promo_recovery else None
+            result.status = {
+                PromoRecoveryStatus.CANCELLED: ShopSurveyStatus.CANCELLED,
+                PromoRecoveryStatus.ACTION_RESULT_UNCERTAIN: ShopSurveyStatus.ACTION_RESULT_UNCERTAIN,
+                PromoRecoveryStatus.IDENTITY_MISMATCH: ShopSurveyStatus.IDENTITY_MISMATCH,
+                PromoRecoveryStatus.TIMEOUT: ShopSurveyStatus.TIMEOUT,
+            }.get(
+                promo_status,
                 ShopSurveyStatus.ACTION_RESULT_UNCERTAIN
                 if result.actions
-                else ShopSurveyStatus.SAFETY_BLOCKED
+                else ShopSurveyStatus.SAFETY_BLOCKED,
             )
             result.error = str(exc)
             return result
@@ -906,6 +917,8 @@ class ManagerShopSurveyPort:
         folder: Path | None = None,
         *,
         pending_promo_anchor: VisualAnchor | None = None,
+        initial_promo_anchor: VisualAnchor | None = None,
+        initial_promo_identity: tuple[str, str] | None = None,
         promo_budget_available: bool = False,
         promo_observations: int = 3,
         promo_wait_seconds: float = 0.25,
@@ -918,16 +931,26 @@ class ManagerShopSurveyPort:
         self.folder = folder
         if pending_promo_anchor is not None and pending_promo_anchor.state != ScreenState.POPUP_GENERIC:
             raise ValueError("Pending promo anchor must be a POPUP_GENERIC anchor.")
+        if initial_promo_anchor is not None and initial_promo_anchor.state != ScreenState.POPUP_GENERIC:
+            raise ValueError("Initial promo anchor must be a POPUP_GENERIC anchor.")
+        if initial_promo_identity is not None and (
+            len(initial_promo_identity) != 2 or not all(initial_promo_identity)
+        ):
+            raise ValueError("Initial promo recovery requires serial and boot identity.")
         if not 1 <= promo_observations <= 3:
             raise ValueError("Pending promo recovery allows one to three observations.")
         if promo_wait_seconds < 0:
             raise ValueError("Pending promo wait cannot be negative.")
         self.pending_promo_anchor = pending_promo_anchor
+        self.initial_promo_anchor = initial_promo_anchor
+        self._initial_promo_identity = initial_promo_identity
+        self._initial_promo_pending = initial_promo_anchor is not None
         self._promo_budget_available = promo_budget_available
         self._promo_observations = promo_observations
         self._promo_wait_seconds = promo_wait_seconds
         self._pending_expected_page: str | None = None
         self._pending_cancelled: Callable[[], bool] = lambda: False
+        self._initial_cancelled: Callable[[], bool] = lambda: False
         self._promo_recovery: PromoRecoveryResult | None = None
         self._last: ShopFrameObservation | None = None
         self._target: Target | None = None
@@ -937,6 +960,11 @@ class ManagerShopSurveyPort:
 
         self._pending_expected_page = expected_page
         self._pending_cancelled = cancelled
+
+    def arm_initial_promo(self, cancelled: Callable[[], bool]) -> None:
+        """Provide cancellation for the one-shot frame after Home recovery."""
+
+        self._initial_cancelled = cancelled
 
     def take_promo_recovery(self) -> PromoRecoveryResult | None:
         promo = self._promo_recovery
@@ -952,6 +980,150 @@ class ManagerShopSurveyPort:
             "boot_id": target.boot_id,
             "timestamp": captured.timestamp,
         }
+
+    def _initial_promo_observation(
+        self,
+        target: Target,
+        captured: CapturedScreen,
+    ) -> ShopFrameObservation:
+        """Handle the one frame immediately following verified Home recovery.
+
+        This probe is separate from the post-action hook and is consumed before
+        any semantic page is returned.  A failed first observation therefore
+        cannot reactivate the hook or reuse an old Home/transport authority.
+        """
+
+        anchor = self.initial_promo_anchor
+        if anchor is None:
+            return self.registry.observe(captured)
+
+        evidence = unique_current_anchor(captured, anchor)
+        before = {**self._frame_dict(target, captured), "anchor": evidence.as_dict()}
+        self._promo_recovery = PromoRecoveryResult(
+            trigger="initial_home",
+            expected_page="game-home",
+            before=before,
+        )
+        self._promo_recovery.captures.append(_capture_id(captured))
+
+        expected_identity = self._initial_promo_identity
+        if expected_identity is None:
+            self._promo_recovery.status = PromoRecoveryStatus.IDENTITY_MISMATCH
+            self._promo_recovery.error = (
+                "Initial promo recovery requires the successful Home recovery serial and boot identity."
+            )
+            raise _SurveyIdentityMismatch(self._promo_recovery.error)
+        if (target.serial, target.boot_id) != expected_identity:
+            self._promo_recovery.status = PromoRecoveryStatus.IDENTITY_MISMATCH
+            self._promo_recovery.error = "Initial promo frame transport differs from Home recovery."
+            raise _SurveyIdentityMismatch(self._promo_recovery.error)
+
+        def verified_home(frame: CapturedScreen) -> ShopFrameObservation:
+            try:
+                observation = self.registry.observe(frame)
+            except SafetyError as exc:
+                self._promo_recovery.status = PromoRecoveryStatus.BLOCKED
+                self._promo_recovery.error = str(exc)
+                raise
+            if observation.screen.page != "game-home":
+                self._promo_recovery.status = PromoRecoveryStatus.BLOCKED
+                self._promo_recovery.error = (
+                    "Initial promo recovery requires a verified game-home frame; "
+                    f"observed {observation.screen.page!r}."
+                )
+                raise SafetyError(self._promo_recovery.error)
+            return observation
+
+        if not evidence.matched:
+            if evidence.score >= max(0.9, evidence.threshold):
+                self._promo_recovery.status = PromoRecoveryStatus.BLOCKED
+                self._promo_recovery.error = "Known promo title is ambiguous in the initial Home frame."
+                raise SafetyError(self._promo_recovery.error)
+            self._promo_recovery.status = PromoRecoveryStatus.NOT_PRESENT
+            observation = verified_home(captured)
+            self._promo_recovery.before["page"] = observation.screen.page
+            return observation
+
+        # The verified recovery frame is the Home proof for this full-screen
+        # popup.  Its current page anchor is intentionally not required: the
+        # run11 popup can cover the entire Home UI.
+        self._promo_recovery.before["page_proof"] = "home_recovery"
+        if not self._promo_budget_available:
+            self._promo_recovery.status = PromoRecoveryStatus.BLOCKED
+            self._promo_recovery.error = "The single known-promo Back budget is already consumed."
+            raise SafetyError(self._promo_recovery.error)
+        self._promo_budget_available = False
+        if self._initial_cancelled():
+            self._promo_recovery.status = PromoRecoveryStatus.CANCELLED
+            self._promo_recovery.error = "Shop survey cancelled before initial promo Back."
+            raise _SurveyCancelled(self._promo_recovery.error)
+        self._promo_recovery.attempted = True
+        try:
+            self.manager.execute(
+                self.index,
+                "keyevent",
+                values=(4,),
+                snapshot=self.snapshot,
+                observed_target=target,
+            )
+        except (OSError, RuntimeError, SafetyError) as exc:
+            self._promo_recovery.status = PromoRecoveryStatus.ACTION_RESULT_UNCERTAIN
+            self._promo_recovery.error = str(exc)
+            raise
+        self._promo_recovery.actions.append("keyevent:4")
+        self._target = None
+
+        last_error: str | None = None
+        for attempt in range(self._promo_observations):
+            if self._initial_cancelled():
+                self._promo_recovery.status = PromoRecoveryStatus.CANCELLED
+                self._promo_recovery.error = "Shop survey cancelled while observing Home after initial promo Back."
+                raise _SurveyCancelled(self._promo_recovery.error)
+            if attempt and self._promo_wait_seconds:
+                time.sleep(self._promo_wait_seconds)
+            try:
+                after_target, after_captured = self._capture(
+                    "phase6-shop-initial-promo-after",
+                    allow_transport_change=True,
+                )
+            except (OSError, RuntimeError) as exc:
+                self._promo_recovery.status = PromoRecoveryStatus.ACTION_RESULT_UNCERTAIN
+                self._promo_recovery.error = str(exc)
+                raise
+            except SafetyError as exc:
+                self._promo_recovery.status = PromoRecoveryStatus.IDENTITY_MISMATCH
+                self._promo_recovery.error = str(exc)
+                raise _SurveyIdentityMismatch(self._promo_recovery.error) from exc
+
+            self._promo_recovery.captures.append(_capture_id(after_captured))
+            self._promo_recovery.after = self._frame_dict(after_target, after_captured)
+            if (after_target.serial, after_target.boot_id) != expected_identity:
+                self._promo_recovery.status = PromoRecoveryStatus.IDENTITY_MISMATCH
+                self._promo_recovery.error = "Initial promo Home transport changed after Back."
+                raise _SurveyIdentityMismatch(self._promo_recovery.error)
+            after_evidence = unique_current_anchor(after_captured, anchor)
+            self._promo_recovery.after["anchor"] = after_evidence.as_dict()
+            if after_evidence.matched or after_evidence.score >= max(0.9, after_evidence.threshold):
+                last_error = "Known promo remained visible or ambiguous after Back."
+                continue
+            try:
+                observation = self.registry.observe(after_captured)
+            except SafetyError as exc:
+                last_error = str(exc)
+                continue
+            if observation.screen.page != "game-home":
+                self._promo_recovery.status = PromoRecoveryStatus.BLOCKED
+                self._promo_recovery.error = (
+                    "Initial promo recovery requires a verified game-home frame; "
+                    f"observed {observation.screen.page!r}."
+                )
+                raise SafetyError(self._promo_recovery.error)
+            self._promo_recovery.status = PromoRecoveryStatus.SUCCESS
+            self._promo_recovery.after["page"] = observation.screen.page
+            return observation
+        self._promo_recovery.status = PromoRecoveryStatus.TIMEOUT
+        self._promo_recovery.error = last_error or "Unobstructed game-home was not observed after initial promo Back."
+        raise SafetyError(self._promo_recovery.error)
 
     def _capture(
         self,
@@ -1077,7 +1249,18 @@ class ManagerShopSurveyPort:
         # Any new capture supersedes the previous action authority, including
         # a capture that later fails semantic page resolution.
         self._last = None
+        initial_probe = self._initial_promo_pending
+        # Consume eligibility before crossing the capture boundary.  Even a
+        # failed first capture must not make this hook reusable by a caller.
+        self._initial_promo_pending = False
         target, captured = self._capture("phase6-shop-survey")
+        if initial_probe:
+            observation = self._initial_promo_observation(target, captured)
+            # Initial recovery may dispatch Back and capture a fresh Home
+            # frame.  Only that successful final observation can authorize
+            # the first survey navigation; failures leave _last unset.
+            self._last = observation
+            return observation
         if self._pending_expected_page is not None and self.pending_promo_anchor is not None:
             pending_evidence = unique_current_anchor(captured, self.pending_promo_anchor)
             if pending_evidence.matched or pending_evidence.score >= max(0.9, pending_evidence.threshold):
