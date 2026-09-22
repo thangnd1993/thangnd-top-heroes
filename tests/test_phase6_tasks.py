@@ -192,7 +192,7 @@ def test_missing_postcondition_blocks_before_recovery_or_port(rig, tmp_path):
     assert result.report_path and result.report_path.is_file()
 
 
-@pytest.mark.parametrize("task", ("vip-reward", "free-recruit"))
+@pytest.mark.parametrize("task", ("vip-reward", "free-recruit", "ranking-chest"))
 def test_packaged_missing_postcondition_finishes_not_implemented_before_dispatch(
     rig, tmp_path, task
 ):
@@ -605,7 +605,7 @@ def test_cli_parser_exposes_phase6_tasks_and_sequence():
     args = task_parser().parse_args(["vip-reward", "--index", "2", "--name", "5-Emmmmm"])
     assert args.command == "vip-reward"
     args = task_parser().parse_args(["free-rewards", "--index", "2", "--name", "5-Emmmmm"])
-    assert tuple(args.tasks) == ("vip-reward", "free-pack", "free-recruit")
+    assert tuple(args.tasks) == ("vip-reward", "free-pack", "free-recruit", "ranking-chest")
     args = task_parser().parse_args(
         [SHOP_NAVIGATION_TASK, "--index", "2", "--name", "5-Emmmmm"]
     )

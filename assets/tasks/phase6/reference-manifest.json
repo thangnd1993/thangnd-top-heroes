@@ -1,0 +1,18 @@
+{
+  "version": "phase6-annotated-references-v1",
+  "runtime_input": false,
+  "annotation_legend": {
+    "blue": "allowed or intended target",
+    "red": "forbidden or paid; wins on overlap",
+    "yellow": "navigation or scan-direction hint"
+  },
+  "references": [
+    {"file": "HOME-VIP-BXH-AVATAR.png", "sha256": "637C4824701ED137F8EB4D8D0FABB81CEB010DD067274FC498A90E5FA3923A2C", "flow": ["vip-daily", "shop-daily-gift", "ranking-daily-chest"], "meaning": "Home entries only"},
+    {"file": "VIP.png", "sha256": "86D2662A21844832BBB62DA7763C03FBE0FD7178DF3585694A15E7F9631CDAB7", "flow": ["vip-daily"], "meaning": "Free claim and paid exclusion"},
+    {"file": "028f6fc4-17e7-4927-929f-e05f81896ee0.png", "sha256": "74698EEE3D412059E078576C9654A8E3922E1378A71B3E43FFC832845AC990FD", "flow": ["shop-daily-gift"], "meaning": "Daily gift candidate, paid content exclusion, allowed tab"},
+    {"file": "TIỆM1.png", "sha256": "485BAA3A49DA48FDFDFD4D875E9CD7A2EAF8D450AD02A1D3A8AD0CACDF4F6223", "flow": ["shop-daily-gift"], "meaning": "Allowed shop tab and gift candidate"},
+    {"file": "TIỆM2.png", "sha256": "AE9215C25E46586EA8576DC96A3DD98F89B7E125E6F35A665AF5351ADA5CD58E", "flow": ["shop-daily-gift"], "meaning": "Forbidden paid tabs and allowed card tabs"},
+    {"file": "AVATAR.png", "sha256": "0C0DF90C092A196931DEDC24E51FADA11E32A0DB6D9C6294B088F8470DE4037F", "flow": ["ranking-daily-chest"], "meaning": "Profile ranking entry"},
+    {"file": "BXH.png", "sha256": "F24AAA8D48603B4561D8AC76E25EE6E36CDFD00D62BE448B70F0E57BDFB51C94", "flow": ["ranking-daily-chest"], "meaning": "Ranking chest target"}
+  ]
+}

@@ -266,7 +266,8 @@ class Window(QMainWindow):
         self.idle_reward_button = self.button(tasks, "Chạy thử tác vụ", self.run_idle_reward)
         self.action_buttons.append(self.idle_reward_button)
         self.phase6_eligibility = QLabel(
-            "Phase 6 chỉ cho phép #2 / 5-Emmmmm; Free Pack chưa chứng minh được zero-cost."
+            "Phase 6 chỉ cho phép #2 / 5-Emmmmm; các claim thiếu zero-cost/post-condition "
+            "sẽ dừng NOT_IMPLEMENTED."
         )
         self.phase6_eligibility.setWordWrap(True)
         tasks.addWidget(self.phase6_eligibility)
@@ -278,6 +279,7 @@ class Window(QMainWindow):
             ("VIP miễn phí", "vip-reward"),
             ("Free Pack (an toàn)", "free-pack"),
             ("Recruit miễn phí", "free-recruit"),
+            ("Rương BXH (an toàn)", "ranking-chest"),
         ):
             button = self.button(tasks, title, lambda _, value=task: self.run_phase6_task(value))
             self.phase6_buttons.append(button)

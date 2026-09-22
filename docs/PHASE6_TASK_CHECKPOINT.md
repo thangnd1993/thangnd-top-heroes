@@ -1,5 +1,35 @@
 # Phase 6 task ledger — audited 2026-09-22
 
+## Fixed-flow injectable runtime — pending final review/CI
+
+The seven annotated reference files are now present and normalized by filename,
+SHA-256, flow and annotation meaning in
+`assets/tasks/phase6/reference-manifest.json`. The manifest explicitly sets
+`runtime_input=false`; annotated pixels are never templates or cost proof.
+
+A bounded injectable runtime now models the complete VIP, Tiệm and
+Avatar→BXH→chest sequences. Every action uses a unique target from a fresh
+frame, verifies the next semantic destination, maintains exact account and
+ADB/boot continuity, and requires a fresh final postcondition. A concrete
+SQLite adapter uses the existing `RESERVED`/`VERIFIED` ledger with
+account/reward/proven-cycle scope: reservation commits immediately before the
+claim input, while uncertain input/capture/receipt leaves it permanently
+non-retryable. Forbidden
+evidence blocks only when it intersects the proposed target, so a paid offer
+elsewhere on a valid page does not hide a separately proven free control.
+Attention-only, missing evidence and stale frames remain `UNKNOWN`; only a
+positive unavailable anchor returns `NOT_AVAILABLE`. Action results that throw
+are uncertain and never retried. Bounds and persisted attempts stop before
+observation/input.
+
+`ranking-chest` is exposed through the Phase 6 task/CLI registry, but all three
+packaged fixed flows remain qualification-gated. In particular, Avatar/BXH has
+no clean index-2 runtime anchors, and none of the flows has complete independent
+zero-cost/availability/postcondition evidence. Packaged execution therefore
+returns `NOT_IMPLEMENTED` before recovery or gameplay dispatch. Local focused
+gate at this checkpoint: **187 passed, 6 skipped**, changed-file Ruff passed.
+No real device action accompanied this offline milestone.
+
 ## Fixed-flow safety correction CI — 2026-09-23
 
 Commit `92d451c` adds the versioned semantic manifest for VIP, Tiệm and
@@ -43,15 +73,15 @@ forbidden paid/other regions (red wins on overlap), and yellow marks navigation
 direction. These drawings are product references, **not runtime templates or
 proof of zero cost**. Runtime must match clean current-account frames and
 verify a fresh postcondition. A red attention marker nominates an inspection
-candidate only. The screenshots are visible in the conversation but the
-mentioned Desktop paths were not present in the workspace at this checkpoint;
-do not invent file hashes or pretend annotated crops are clean assets.
+candidate only. The mentioned Desktop files are now present and their hashes
+are recorded in the reference manifest. Do not copy/crop their annotated
+pixels into clean runtime assets or treat them as claim evidence.
 
 | Corrected flow | Annotated reference | Detector/template | Runtime integration | Targeted tests | Real claim acceptance |
 | --- | --- | --- | --- | --- | --- |
-| VIP daily free | `CAPTURED` | `IMPLEMENTED` for existing index-2 entry/page/free button crops; semantic fixed-flow manifest added | Observation-only command `CI_PASS`; corrected flow is explicitly gated and the free claim stays `NOT_IMPLEMENTED` without independent receipt | 145 focused Phase 6 safety/visual/task/shop regressions passed locally; 6 obsolete historical daily-pack cases skipped | `PENDING`; no index-2 production claim |
-| Tiệm daily free | `CAPTURED` | `PARTIAL`: semantic route/forbidden manifest implemented; clean daily navigation assets exist, but no proven zero-cost gift control | Historical bounded route accepted, but its daily-pack tab is **red-forbidden in the new manifest** and removed from production dispatch; corrected claim remains fail-closed | Included in the 145 focused regressions; a production-registry test proves the forbidden tab/route/page are absent | `PENDING`; no index-2 gift claim |
-| Avatar → BXH → chest | `CAPTURED` as annotated product intent | Semantic route/forbidden manifest `IMPLEMENTED`; clean runtime page/target anchors `NOT_STARTED` | `NOT_IMPLEMENTED` and not exposed as a claim task | Manifest safety tests pass; runtime detector tests pending qualified clean evidence | `PENDING` |
+| VIP daily free | `CAPTURED_HASHED` | `IMPLEMENTED` for existing index-2 entry/page/free button crops; semantic fixed-flow program added | Injectable sequence `TARGETED_TEST_PASS`; packaged claim stays `NOT_IMPLEMENTED` without independent receipt | Included in 164 focused passes; shifted/scaled, paid overlap, fresh destination/postcondition covered | `PENDING`; no index-2 production claim |
+| Tiệm daily free | `CAPTURED_HASHED` | `PARTIAL`: semantic program implemented; clean daily navigation exists, but no proven zero-cost gift control | Injectable sequence `TARGETED_TEST_PASS`; forbidden daily-pack route remains removed; packaged claim fail-closed | Included in 164 focused passes; attention-only, paid-away/overlap and unavailable/unknown covered | `PENDING`; no index-2 gift claim |
+| Avatar → BXH → chest | `CAPTURED_HASHED` product intent | Semantic program `IMPLEMENTED`; clean runtime page/target anchors `NOT_STARTED` | Injectable sequence and `ranking-chest` registry `TARGETED_TEST_PASS`; packaged execution `NOT_IMPLEMENTED` before device calls | Route/destination/identity/postcondition/bounds/no-repeat tests pass | `PENDING` |
 
 Do not repeat completed VIP UI discovery or the historical shop run merely
 because the product route changed. The new red exclusion restricts **future**

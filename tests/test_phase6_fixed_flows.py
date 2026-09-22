@@ -73,7 +73,7 @@ def test_only_existing_reward_tasks_map_to_packaged_fixed_flows():
     assert fixed_flow_for_task("vip-reward") is VIP_DAILY
     assert fixed_flow_for_task("free-pack") is SHOP_DAILY
     assert fixed_flow_for_task("free-recruit") is None
-    assert RANKING_CHEST.task is None
+    assert fixed_flow_for_task("ranking-chest") is RANKING_CHEST
 
 
 def test_required_and_forbidden_roles_cannot_overlap():

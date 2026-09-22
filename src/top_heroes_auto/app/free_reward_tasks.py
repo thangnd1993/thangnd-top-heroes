@@ -40,7 +40,7 @@ from top_heroes_auto.automation.recovery import RecoveryResult, RecoveryStatus
 from top_heroes_auto.automation.reward_journal import JournalledExplorerPort, RewardCycle
 from top_heroes_auto.vision.models import NormalizedRect, ScreenState, VisualAnchor
 
-PHASE6_TASKS = ("vip-reward", "free-pack", "free-recruit")
+PHASE6_TASKS = ("vip-reward", "free-pack", "free-recruit", "ranking-chest")
 PHASE6_TARGET = (2, "5-Emmmmm")
 SUCCESS_STATUSES = frozenset({"SUCCESS", "NOT_AVAILABLE"})
 

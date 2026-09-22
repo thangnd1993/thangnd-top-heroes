@@ -20,6 +20,27 @@ class CandidateDecision(StrEnum):
     FORBIDDEN = "FORBIDDEN"
 
 
+class FixedStepKind(StrEnum):
+    NAVIGATE = "NAVIGATE"
+    CLAIM = "CLAIM"
+
+
+@dataclass(frozen=True)
+class FixedFlowStep:
+    id: str
+    kind: FixedStepKind
+    target_role: str
+    required_roles: frozenset[str]
+    destination_role: str
+    unavailable_role: str | None = None
+
+    def __post_init__(self):
+        if not self.id or not self.target_role or not self.destination_role:
+            raise ValueError("A fixed-flow step requires semantic roles.")
+        if self.target_role not in self.required_roles:
+            raise ValueError("The target role must be independently required.")
+
+
 @dataclass(frozen=True)
 class FlowQualification:
     clean_current_account_anchors: bool = False
@@ -52,6 +73,7 @@ class FixedFlowSpec:
     forbidden_roles: frozenset[str]
     discovery_roles: frozenset[str]
     qualification: FlowQualification = FlowQualification()
+    steps: tuple[FixedFlowStep, ...] = ()
 
     def __post_init__(self):
         required = {
@@ -65,6 +87,8 @@ class FixedFlowSpec:
             raise ValueError("A fixed flow requires non-empty semantic roles.")
         if required & self.forbidden_roles:
             raise ValueError("A required role cannot also be forbidden.")
+        if any(step.target_role in self.forbidden_roles for step in self.steps):
+            raise ValueError("A fixed-flow step cannot target a forbidden role.")
 
     @property
     def claim_roles(self) -> frozenset[str]:
@@ -97,6 +121,25 @@ VIP_DAILY = FixedFlowSpec(
     forbidden_roles=frozenset(("vip-paid-upgrade", "vip-attention-gift-unqualified")),
     discovery_roles=frozenset(("home-vip-attention", "vip-attention-dot")),
     qualification=FlowQualification(clean_current_account_anchors=True),
+    steps=(
+        FixedFlowStep(
+            "open-vip",
+            FixedStepKind.NAVIGATE,
+            "home-vip-entry",
+            frozenset(("home-vip-entry",)),
+            "vip-page",
+        ),
+        FixedFlowStep(
+            "claim-vip-daily",
+            FixedStepKind.CLAIM,
+            "vip-daily-claim",
+            frozenset(
+                ("vip-page", "vip-daily-claim", "vip-daily-free-label", "vip-daily-available")
+            ),
+            "vip-daily-postcondition",
+            "vip-daily-unavailable",
+        ),
+    ),
 )
 
 
@@ -126,12 +169,36 @@ SHOP_DAILY = FixedFlowSpec(
             "shop-persistent-card-tab",
         )
     ),
+    steps=(
+        FixedFlowStep(
+            "open-shop",
+            FixedStepKind.NAVIGATE,
+            "home-shop-entry",
+            frozenset(("home-shop-entry",)),
+            "shop-daily-offer-page",
+        ),
+        FixedFlowStep(
+            "claim-shop-daily-gift",
+            FixedStepKind.CLAIM,
+            "shop-daily-gift",
+            frozenset(
+                (
+                    "shop-daily-offer-page",
+                    "shop-daily-gift",
+                    "shop-daily-gift-free-label",
+                    "shop-daily-gift-available",
+                )
+            ),
+            "shop-daily-gift-postcondition",
+            "shop-daily-gift-unavailable",
+        ),
+    ),
 )
 
 
 RANKING_CHEST = FixedFlowSpec(
     id="ranking-daily-chest",
-    task=None,
+    task="ranking-chest",
     route_roles=("home-avatar-entry", "profile-ranking-tab", "ranking-page"),
     page_role="ranking-page",
     action_role="ranking-top-left-chest",
@@ -140,6 +207,37 @@ RANKING_CHEST = FixedFlowSpec(
     post_role="ranking-chest-postcondition",
     forbidden_roles=frozenset(("ranking-row", "profile-badge", "profile-settings")),
     discovery_roles=frozenset(("home-avatar-attention", "ranking-chest-attention")),
+    steps=(
+        FixedFlowStep(
+            "open-profile",
+            FixedStepKind.NAVIGATE,
+            "home-avatar-entry",
+            frozenset(("home-avatar-entry",)),
+            "profile-page",
+        ),
+        FixedFlowStep(
+            "open-ranking",
+            FixedStepKind.NAVIGATE,
+            "profile-ranking-tab",
+            frozenset(("profile-page", "profile-ranking-tab")),
+            "ranking-page",
+        ),
+        FixedFlowStep(
+            "claim-ranking-chest",
+            FixedStepKind.CLAIM,
+            "ranking-top-left-chest",
+            frozenset(
+                (
+                    "ranking-page",
+                    "ranking-top-left-chest",
+                    "ranking-chest-free-proof",
+                    "ranking-chest-available",
+                )
+            ),
+            "ranking-chest-postcondition",
+            "ranking-chest-unavailable",
+        ),
+    ),
 )
 
 
@@ -148,4 +246,3 @@ FIXED_FLOWS = (VIP_DAILY, SHOP_DAILY, RANKING_CHEST)
 
 def fixed_flow_for_task(task: str) -> FixedFlowSpec | None:
     return next((flow for flow in FIXED_FLOWS if flow.task == task), None)
-

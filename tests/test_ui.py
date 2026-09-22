@@ -119,6 +119,7 @@ def test_phase6_controls_require_exact_target_and_use_worker_cancellation(rig, t
     window.render()
     assert window.target.currentData() == 2
     assert all(button.isEnabled() for button in window.phase6_buttons)
+    assert any(button.text() == "Rương BXH (an toàn)" for button in window.phase6_buttons)
 
     calls = []
 
@@ -137,6 +138,9 @@ def test_phase6_controls_require_exact_target_and_use_worker_cancellation(rig, t
     window.run_phase6_task("free-pack")
     assert calls[0] == "phase6"
     assert calls[1][0][4] == "free-pack"
+    window.run_phase6_task("ranking-chest")
+    assert calls[2] == "phase6"
+    assert calls[3][0][4] == "ranking-chest"
 
     window.worker = object()
     window.mode = "phase6"

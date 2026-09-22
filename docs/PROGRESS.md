@@ -2,14 +2,24 @@
 
 ## Phase 6 — VIP / Free Pack / Free Recruit — PARTIAL
 
+- 2026-09-23 correction: run-16's `LDPlayer-2` identity mismatch is historical.
+  Index 2 again resolves exactly as `5-Emmmmm`, but its explicit indexed ADB
+  transport `emulator-5558` was unavailable at the latest check. Real gameplay
+  remains frozen; do not substitute another transport or mutate persistent
+  name/config. The three annotated fixed flows now have a versioned reference
+  manifest, bounded injectable runtime and SQLite RESERVED/VERIFIED adapter;
+  packaged claims remain
+  `NOT_IMPLEMENTED` pending clean anchors and independent free/postcondition
+  proof. See the task ledger for per-flow state. No Phase 7.
+
 - 2026-09-22 audit: [PHASE6_TASK_CHECKPOINT.md](PHASE6_TASK_CHECKPOINT.md)
   records VIP, Free Pack, Free Recruit, Free Reward Explorer and Shop Traversal
   independently. Existing index-2 VIP screenshots make another discovery
   survey unnecessary; `41b747d` survey code passed CI `35678890820` but its
   first live launch (task run 16) stopped on index-2 name mismatch before any
-  screenshot/game action. Index 2 remained running as `LDPlayer-2` with an
-  incomplete config. Real Phase 6 work is frozen pending exact identity and
-  repair authority. Do not repeat accepted shop navigation, historical claims,
+  screenshot/game action. At that historical checkpoint index 2 appeared as
+  `LDPlayer-2` with an incomplete config; the current blocker is unavailable
+  explicit index-2 ADB, not the restored name. Do not repeat accepted shop navigation, historical claims,
   or start Phase 7.
 - 2026-09-22: offline run-16 lifecycle/reporting fix `1c20bdf` records
   uncertain indexed launch separately from confirmed ownership and prevents
