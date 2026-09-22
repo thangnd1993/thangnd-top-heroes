@@ -6,6 +6,11 @@ ADB target `emulator-5558` was not available, so no gameplay input or claim was
 sent and no persistent LDPlayer configuration was edited. See the task ledger
 for the exact isolation caveat and remaining block.
 
+**Latest offline checkpoint:** fixed-flow safety correction `92d451c` passed
+review and full Windows Validation run `35764816940`. The fresh executable
+hash and exact gated scope are recorded in the task ledger. This does not mark
+Avatar/BXH runtime integration, any real claim, or Phase 6 complete.
+
 **Audited per-task resume ledger:** [PHASE6_TASK_CHECKPOINT.md](PHASE6_TASK_CHECKPOINT.md).
 Its new product-correction section supersedes older broad-exploration
 priorities: fixed annotated VIP, Tiệm and Avatar/BXH flows come first, with

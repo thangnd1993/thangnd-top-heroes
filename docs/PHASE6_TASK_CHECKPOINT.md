@@ -1,5 +1,21 @@
 # Phase 6 task ledger — audited 2026-09-22
 
+## Fixed-flow safety correction CI — 2026-09-23
+
+Commit `92d451c` adds the versioned semantic manifest for VIP, Tiệm and
+Avatar/BXH; packaged reward activation remains fail-closed without qualified
+zero-cost, availability and postcondition evidence. The corrected product
+rule removes the now-forbidden daily-pack tab/page/route from the production
+shop-survey registry. Reviewer final result: **APPROVED** for this gated
+offline correction, not for real claim acceptance or Phase 6 completion.
+
+Local focused gate: **145 passed, 6 skipped** (the skipped cases exercise the
+superseded historical daily-pack production route); changed-file Ruff passed.
+Windows Validation run `35764816940` passed full lint, tests, PyInstaller
+build, executable smoke and artifact upload. Fresh executable from that run:
+`artifacts/phase6-92d451c-run35764816940/TopHeroesAutoManager-Windows-x64/TopHeroesAutoManager.exe`,
+SHA-256 `A080A53D3033B47EBB7EC3A61170D455B1B1CC2E94A6C5854D6A3FC7F86A517F`.
+
 ## 2026-09-23 exact index-2 launch — ADB blocked, no gameplay input
 
 After the user explicitly required index 2 to be opened, a fresh elevated
