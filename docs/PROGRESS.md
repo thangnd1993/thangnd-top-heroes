@@ -2,6 +2,16 @@
 
 ## Phase 6 — VIP / Free Pack / Free Recruit — PARTIAL
 
+- 2026-09-22 audit: [PHASE6_TASK_CHECKPOINT.md](PHASE6_TASK_CHECKPOINT.md)
+  records VIP, Free Pack, Free Recruit, Free Reward Explorer and Shop Traversal
+  independently. Existing index-2 VIP screenshots make another discovery
+  survey unnecessary; `41b747d` survey code passed CI `35678890820` but its
+  first live launch (task run 16) stopped on index-2 name mismatch before any
+  screenshot/game action. Index 2 remained running as `LDPlayer-2` with an
+  incomplete config. Real Phase 6 work is frozen pending exact identity and
+  repair authority. Do not repeat accepted shop navigation, historical claims,
+  or start Phase 7.
+
 - 2026-09-22: task run 15 on `2 / 5-Emmmmm` narrowly accepted the packaged
   daily-pack observation route: Home → daily → help → daily → daily-pack →
   daily → Home. Fresh artifact `10673317114` from green Windows CI

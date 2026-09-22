@@ -1,5 +1,11 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+**Audited per-task resume ledger:** [PHASE6_TASK_CHECKPOINT.md](PHASE6_TASK_CHECKPOINT.md).
+It supersedes older chronological "next" suggestions when they would repeat
+completed VIP discovery or the accepted bounded shop route. Real Phase 6 work
+is paused after run 16's index-2 identity/config incident; do not launch again
+until exact identity and repair authority are resolved.
+
 ## 2026-09-22 daily-pack route narrowly accepted (real run 15)
 
 - Commit `108ea2b` passed full Windows CI run `35676774563`; fresh artifact
@@ -19,8 +25,10 @@
   are present and identical (`inventory_status=available`,
   `observed_changed_indices=[]`, `unrelated_changed_indices=[]`); Queen and
   revoked index 4 remained stopped, unrelated running 9/10/11 preserved.
-- The next unfinished work is the separately reviewed VIP observation-only
-  production survey, then further safe shop/recruit discovery. VIP, Free Pack,
+- The separately reviewed VIP observation-only command later passed CI, but
+  existing index-2 screenshots already establish its free-offer UI; run 16
+  failed before a VIP survey because index-2 identity changed. Do not repeat
+  discovery merely to capture the same UI. VIP, Free Pack,
   Free Recruit claims, exhaustive submenu/scroll coverage, final merge and
   Phase 7 are **not** accepted by this run. Never reuse these coordinates as
   authority for another account or repeat a claim from this evidence.
