@@ -2,6 +2,14 @@
 
 ## Phase 6 — VIP / Free Pack / Free Recruit — PARTIAL
 
+- 2026-09-22: task run 15 on `2 / 5-Emmmmm` narrowly accepted the packaged
+  daily-pack observation route: Home → daily → help → daily → daily-pack →
+  daily → Home. Fresh artifact `10673317114` from green Windows CI
+  `35676774563` was used. Report result remains `PARTIAL` because dynamic
+  Tiệm coverage is unknown; zero claim/journal, owned cleanup and unchanged
+  before/after LDPlayer inventory passed. VIP/Free Pack/Recruit production
+  acceptance and full submenu/scroll traversal remain unfinished.
+
 - 2026-09-22: `shop-survey` observation-only task run 13 passed its narrow
   real route on `2 / 5-Emmmmm` with result `PARTIAL`: one known-promo Back,
   fresh Home, four guarded taps Home → daily → help → daily → Home. Commit

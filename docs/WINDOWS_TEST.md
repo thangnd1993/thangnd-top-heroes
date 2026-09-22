@@ -2,6 +2,15 @@
 
 ## Phase 6 — shop navigation accepted, reward acceptance pending
 
+Task run 15 on only `2 / 5-Emmmmm` narrowly accepted the additional
+daily-pack tab route from fresh artifact `10673317114` (commit `108ea2b`,
+full Windows CI `35676774563`). Its six screenshot-bound navigation actions
+returned to Home; the initial recognized promo received one guarded Back.
+The report retained identical before/after inventories, no unrelated changes,
+successful owned index-2 cleanup, `claims=[]`, and `journal_rows=0`. Overall
+result is `PARTIAL` because broader Tiệm tabs, scrolling, and reward claims
+remain unverified. See `PHASE6_RESUME.md` for the durable report path.
+
 The observation-only `shop-survey` task now has a **narrow real PARTIAL
 acceptance** on only `2 / 5-Emmmmm`: task run 13 from commit `32142ea`, full
 CI `35671625455`, fresh artifact `10671690862` (archive SHA-256

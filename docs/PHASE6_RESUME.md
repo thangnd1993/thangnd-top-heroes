@@ -1,5 +1,30 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## 2026-09-22 daily-pack route narrowly accepted (real run 15)
+
+- Commit `108ea2b` passed full Windows CI run `35676774563`; fresh artifact
+  `10673317114` (ZIP SHA-256
+  `CB62DD35EED5D44B28C8594E92B2D17060E049934B8729BD743F14D1EE752F4D`)
+  contains the retained isolation-inventory report fix from `c222a6b`.
+- One real observation-only `shop-survey` run on **only** `2 / 5-Emmmmm`
+  completed the six-action route Home → daily offer → help → daily offer →
+  daily pack → daily offer → Home. The known initial promo received exactly
+  one evidence-guarded Back. Explicit ADB `emulator-5558` and boot
+  `c1ec4d98-697f-47b0-8bdf-a9c1f64aeb89` stayed fixed. The report is
+  `%LOCALAPPDATA%\TopHeroesAutoManager\diagnostics\tasks\shop-survey\5-Emmmmm\20260922-014852-111006Z\report.json`
+  (task run 15).
+- Overall result **PARTIAL** is the intended narrow acceptance, not complete
+  Tiệm coverage. `claims=[]`, `journal_rows=0`; no purchase, ticket, scroll or
+  reward action. Owned index-2 cleanup succeeded. Before/after inventories
+  are present and identical (`inventory_status=available`,
+  `observed_changed_indices=[]`, `unrelated_changed_indices=[]`); Queen and
+  revoked index 4 remained stopped, unrelated running 9/10/11 preserved.
+- The next unfinished work is the separately reviewed VIP observation-only
+  production survey, then further safe shop/recruit discovery. VIP, Free Pack,
+  Free Recruit claims, exhaustive submenu/scroll coverage, final merge and
+  Phase 7 are **not** accepted by this run. Never reuse these coordinates as
+  authority for another account or repeat a claim from this evidence.
+
 ## 2026-09-22 daily-pack route observed, isolation blocked (real run 14)
 
 - Commit `ae4cfe4` passed full Windows CI run `35674258122`. Fresh artifact

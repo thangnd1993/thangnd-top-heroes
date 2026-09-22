@@ -1,5 +1,17 @@
 # Phase 6 real survey — 2 / 5-Emmmmm
 
+## Daily-pack tab route accepted narrowly — 2026-09-22 (no claims)
+
+Fresh CI artifact `10673317114` from commit `108ea2b` produced task run 15.
+The six screenshot-guarded navigation actions reached daily offer, help,
+daily pack and back to Home after one guarded initial-promo Back. Explicit
+ADB `emulator-5558` and one boot ID remained fixed; `claims=[]`,
+`journal_rows=0`, owned cleanup passed, and before/after instance inventories
+were identical. The report path and exact result are in `PHASE6_RESUME.md`.
+The result is intentionally `PARTIAL`: no claim or exhaustive shop/scroll
+coverage is established. These account-specific frames are not reusable tap
+coordinates for other accounts.
+
 ## Packaged partial route accepted — 2026-09-22 (no claims)
 
 Fresh CI artifact `10671690862` from commit `32142ea` produced real task
