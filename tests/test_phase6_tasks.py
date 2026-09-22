@@ -180,10 +180,100 @@ def test_missing_postcondition_blocks_before_recovery_or_port(rig, tmp_path):
         entry_navigator=lambda *args: NavigationResult(NavigationStatus.SUCCESS),
         recovery_runner=fail_recovery,
     )
-    assert result.status == "SAFETY_BLOCKED"
+    assert result.status == "NOT_IMPLEMENTED"
+    assert "post-claim anchor" in result.error
     assert not calls
-    assert store.latest_task_run(manager.namespace, "vip-reward", 2)[2] == "SAFETY_BLOCKED"
+    assert store.latest_task_run(manager.namespace, "vip-reward", 2)[2] == "NOT_IMPLEMENTED"
     assert result.report_path and result.report_path.is_file()
+
+
+@pytest.mark.parametrize("task", ("vip-reward", "free-recruit"))
+def test_packaged_missing_postcondition_finishes_not_implemented_before_dispatch(
+    rig, tmp_path, task
+):
+    manager, process, store = rig
+    _target2(manager, process)
+    calls = []
+
+    def fail_recovery(*args, **kwargs):
+        calls.append("recovery")
+        raise AssertionError("packaged missing postcondition must stop before recovery")
+
+    result = run_free_reward_task(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        task,
+        port_factory=lambda *args: calls.append("port"),
+        entry_navigator=lambda *args: calls.append("entry"),
+        recovery_runner=fail_recovery,
+    )
+
+    assert result.status == "NOT_IMPLEMENTED"
+    assert result.task_run_id is not None
+    assert "postcondition anchor" in result.error
+    assert calls == []
+    assert store.latest_task_run(manager.namespace, task, 2)[2] == "NOT_IMPLEMENTED"
+    report = json.loads(result.report_path.read_text(encoding="utf-8"))
+    assert report["task_run_id"] == result.task_run_id
+    assert report["profile_available"] is False
+    assert report["postcondition_available"] is False
+    assert report["result"] == "NOT_IMPLEMENTED"
+    assert "postcondition anchor" in report["error"]
+
+
+def test_sequence_packaged_missing_postcondition_stops_before_recovery_or_dispatch(rig, tmp_path):
+    manager, process, store = rig
+    _target2(manager, process)
+    calls = []
+
+    def fail_recovery(*args, **kwargs):
+        calls.append("recovery")
+        raise AssertionError("sequence must stop before recovery")
+
+    results = run_free_reward_sequence(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        ("vip-reward", "free-recruit"),
+        recovery_runner=fail_recovery,
+        port_factory=lambda *args: calls.append("port"),
+        entry_navigator=lambda *args: calls.append("entry"),
+    )
+
+    assert len(results) == 1
+    assert results[0].status == "NOT_IMPLEMENTED"
+    assert results[0].task_run_id is not None
+    assert calls == []
+    assert store.latest_task_run(manager.namespace, "vip-reward", 2)[2] == "NOT_IMPLEMENTED"
+    report = json.loads(results[0].report_path.read_text(encoding="utf-8"))
+    assert report["profile_available"] is False
+    assert report["postcondition_available"] is False
+    assert report["result"] == "NOT_IMPLEMENTED"
+
+
+def test_free_pack_default_path_remains_blocked_before_recovery(rig, tmp_path):
+    manager, process, store = rig
+    _target2(manager, process)
+    calls = []
+
+    result = run_free_reward_task(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        "free-pack",
+        recovery_runner=lambda *args, **kwargs: calls.append("recovery"),
+        port_factory=lambda *args: calls.append("port"),
+        entry_navigator=lambda *args: calls.append("entry"),
+    )
+
+    assert result.status == "NOT_IMPLEMENTED"
+    assert calls == []
+    assert store.latest_task_run(manager.namespace, "free-pack", 2)[2] == "NOT_IMPLEMENTED"
+    report = json.loads(result.report_path.read_text(encoding="utf-8"))
+    assert report["profile_available"] is False
+    assert report["postcondition_available"] is False
+    assert report["result"] == "NOT_IMPLEMENTED"
 
 
 def test_default_cli_path_reports_not_implemented_without_entry_navigation(rig, tmp_path):

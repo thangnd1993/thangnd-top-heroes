@@ -97,14 +97,21 @@ def phase6_profile_folder(task: str) -> Path:
     return root / "assets" / "tasks" / "phase6" / subfolder
 
 
-def _load_profile(task: str) -> RewardVisualProfile | None:
-    """Load only the surveyed VIP/Recruit precondition profiles."""
+def _load_profile_details(task: str) -> tuple[RewardVisualProfile | None, str | None]:
+    """Load a packaged profile without constructing an incomplete claim profile.
+
+    The packaged VIP/Recruit assets intentionally contain only precondition
+    evidence today.  Check for the independent postcondition before calling
+    the strict profile factories, so the task can persist a clear
+    ``NOT_IMPLEMENTED`` result instead of turning an expected gap into an
+    exception-driven safety failure.
+    """
 
     if task not in {"vip-reward", "free-recruit"}:
-        return None
+        return None, None
     folder = phase6_profile_folder(task)
     if not folder.is_dir():
-        return None
+        return None, None
     anchors: dict[str, VisualAnchor] = {}
     prefix = "vip" if task == "vip-reward" else "recruit"
     for metadata_path in sorted(folder.glob("*.json")):
@@ -128,10 +135,22 @@ def _load_profile(task: str) -> RewardVisualProfile | None:
             anchors[role_name] = anchor
     required = {"page", "claim", "free", "available", "home"}
     if not required <= anchors.keys():
-        return None
+        return None, None
+    if "post" not in anchors:
+        return (
+            None,
+            f"Packaged {task} profile has no independently verified postcondition anchor; "
+            "task remains NOT_IMPLEMENTED.",
+        )
     if task == "vip-reward":
-        return vip_reward_profile(anchors)
-    return free_recruit_profile(anchors)
+        return vip_reward_profile(anchors), None
+    return free_recruit_profile(anchors), None
+
+
+def _load_profile(task: str) -> RewardVisualProfile | None:
+    """Load only the surveyed VIP/Recruit profiles with complete claim evidence."""
+
+    return _load_profile_details(task)[0]
 
 
 def _cycle(task: str, screen, reward: RewardEvidence) -> RewardCycle:
@@ -189,14 +208,18 @@ def run_free_reward_task(
     explorer_result: ExplorerResult | None = None
     effective_port_factory = port_factory
     effective_entry_navigator = entry_navigator
+    profile_error: str | None = None
     if profiles is None:
         effective_port_factory = effective_port_factory or reward_port_factory
         effective_entry_navigator = effective_entry_navigator or entry_navigator_factory
 
     try:
-        profile = (profiles or {}).get(task) if profiles is not None else _load_profile(task)
+        if profiles is not None:
+            profile = (profiles or {}).get(task)
+        else:
+            profile, profile_error = _load_profile_details(task)
         if profile is None:
-            error = "No independently verified Phase 6 visual profile is available."
+            error = profile_error or "No independently verified Phase 6 visual profile is available."
             result = Phase6TaskResult(
                 task,
                 "NOT_IMPLEMENTED",
@@ -213,6 +236,12 @@ def run_free_reward_task(
             )
         elif profile.anchor_map.get("post") is None:
             error = "No independently verified post-claim anchor is available; claim blocked."
+            result = Phase6TaskResult(
+                task,
+                "NOT_IMPLEMENTED",
+                task_run_id=task_run_id,
+                error=error,
+            )
         elif cancelled():
             result = Phase6TaskResult(task, "CANCELLED", task_run_id=task_run_id)
         else:
