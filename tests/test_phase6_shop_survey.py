@@ -558,21 +558,12 @@ def test_packaged_registry_route_is_partial_and_claim_free():
         "daily-1": {
             "phase6-daily-page",
             "phase6-daily-info-button",
-            "phase6-daily-pack-tab",
             "phase6-daily-exit",
         },
         "popup": {"phase6-daily-info-popup", "phase6-daily-info-close"},
         "daily-2": {
             "phase6-daily-page",
             "phase6-daily-info-button",
-            "phase6-daily-pack-tab",
-            "phase6-daily-exit",
-        },
-        "pack": {"phase6-daily-pack-page", "phase6-daily-offer-tab"},
-        "daily-3": {
-            "phase6-daily-page",
-            "phase6-daily-info-button",
-            "phase6-daily-pack-tab",
             "phase6-daily-exit",
         },
         "home-2": {"home-bottom-navigation"},
@@ -589,7 +580,7 @@ def test_packaged_registry_route_is_partial_and_claim_free():
         def __init__(self):
             self.frames = iter(
                 _observation(stamp, "unused").captured
-                for stamp in ("home-1", "daily-1", "popup", "daily-2", "pack", "daily-3", "home-2")
+                for stamp in ("home-1", "daily-1", "popup", "daily-2", "home-2")
             )
             self.actions = []
 
@@ -624,8 +615,6 @@ def test_packaged_registry_route_is_partial_and_claim_free():
         ("navigate", "home-shop-entry"),
         ("navigate", "daily-info"),
         ("backtrack", "daily-info-close"),
-        ("navigate", "daily-pack-tab"),
-        ("backtrack", "daily-pack-return"),
         ("backtrack", "daily-exit"),
     ]
     assert [item["page"] for item in result.visited] == [
@@ -633,13 +622,28 @@ def test_packaged_registry_route_is_partial_and_claim_free():
         "daily-offer",
         "daily-info-popup",
         "daily-offer",
-        "daily-pack",
-        "daily-offer",
         "game-home",
     ]
     assert result.claims == []
     assert result.journal_rows == 0
     assert clock.now < 75.0
+
+
+def test_packaged_registry_cannot_dispatch_corrected_forbidden_shop_tabs():
+    packaged = shop_survey_registry()
+    anchor_ids = {
+        anchor.id
+        for profile in packaged.profiles
+        for _, anchor in profile.anchors
+    }
+    route_ids = {
+        route.id
+        for profile in packaged.profiles
+        for route in profile.routes
+    }
+    assert "phase6-daily-pack-tab" not in anchor_ids
+    assert "daily-pack-tab" not in route_ids
+    assert "daily-pack" not in {profile.page for profile in packaged.profiles}
 
 
 def _run_packaged_route_case(
@@ -720,6 +724,7 @@ def _full_packaged_wanted():
     }
 
 
+@pytest.mark.skip(reason="Historical daily-pack route is now product-forbidden and not packaged.")
 def test_packaged_daily_pack_missing_return_is_partial_without_retry():
     wanted = _full_packaged_wanted()
     wanted["pack"] = {"phase6-daily-pack-page"}
@@ -740,6 +745,7 @@ def test_packaged_daily_pack_missing_return_is_partial_without_retry():
     assert result.journal_rows == 0
 
 
+@pytest.mark.skip(reason="Historical daily-pack route is now product-forbidden and not packaged.")
 def test_packaged_daily_pack_missing_tab_blocks_before_exit():
     wanted = _full_packaged_wanted()
     wanted["daily-2"] = {"phase6-daily-page", "phase6-daily-info-button", "phase6-daily-exit"}
@@ -757,6 +763,7 @@ def test_packaged_daily_pack_missing_tab_blocks_before_exit():
     ]
 
 
+@pytest.mark.skip(reason="Historical daily-pack route is now product-forbidden and not packaged.")
 def test_packaged_daily_pack_wrong_destination_never_retries_tab():
     wanted = _full_packaged_wanted()
     wanted["pack"] = wanted["daily-2"]
@@ -777,6 +784,7 @@ def test_packaged_daily_pack_wrong_destination_never_retries_tab():
     assert result.journal_rows == 0
 
 
+@pytest.mark.skip(reason="Historical daily-pack route is now product-forbidden and not packaged.")
 def test_packaged_daily_pack_changed_boot_or_selection_stops_before_return():
     wanted = _full_packaged_wanted()
     stamps = ("home-1", "daily-1", "popup", "daily-2", "pack")
@@ -798,6 +806,7 @@ def test_packaged_daily_pack_changed_boot_or_selection_stops_before_return():
         ]
 
 
+@pytest.mark.skip(reason="Historical daily-pack route is now product-forbidden and not packaged.")
 def test_packaged_daily_pack_duplicate_page_blocks_before_return():
     wanted = _full_packaged_wanted()
     wanted["pack"] = {"phase6-daily-page", "phase6-daily-pack-page", "phase6-daily-offer-tab"}
@@ -817,6 +826,7 @@ def test_packaged_daily_pack_duplicate_page_blocks_before_return():
     assert result.journal_rows == 0
 
 
+@pytest.mark.skip(reason="Historical daily-pack route is now product-forbidden and not packaged.")
 def test_packaged_daily_pack_cancellation_or_uncertain_dispatch_never_retries():
     wanted = _full_packaged_wanted()
     stamps = ("home-1", "daily-1", "popup", "daily-2", "pack")

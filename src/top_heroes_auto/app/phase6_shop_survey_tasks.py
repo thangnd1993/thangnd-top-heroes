@@ -4,8 +4,8 @@ This task is deliberately separate from Free Pack and from the fixed
 daily-offer navigation task.  It builds only ``ManagerShopSurveyPort`` and
 ``ShopSurveyEngine``; it never constructs a reward explorer, claim adapter, or
 journal port.  The packaged profile currently covers Home, the qualified
-daily-offer page, its independently qualified information popup, and the
-qualified daily-pack tab.  Missing tabs and scroll boundaries remain an
+daily-offer page, and its independently qualified information popup.  Paid or
+otherwise forbidden tabs are not dispatchable.  Missing safe tabs and scroll boundaries remain an
 honest ``PARTIAL`` result; this task never claims rewards, purchases offers,
 or scrolls content.
 """
@@ -33,7 +33,7 @@ PHASE6_TARGET = (2, "5-Emmmmm")
 SHOP_SURVEY_TASK = "shop-survey"
 SHOP_SURVEY_LABEL = "khảo sát Tiệm (phạm vi một phần) / không nhận quà"
 SHOP_SURVEY_SCOPE = (
-    "observation-only; qualified Home/daily/help/daily-pack surfaces; no "
+    "observation-only; qualified Home/daily/help surfaces; forbidden paid tabs excluded; no "
     "claims, purchases, scrolls, or reward journal"
 )
 SURVEY_SUCCESS_STATUSES = frozenset(

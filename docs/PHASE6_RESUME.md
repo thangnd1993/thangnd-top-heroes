@@ -1,10 +1,21 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+**Latest live checkpoint (2026-09-23):** index 2 again identifies exactly as
+`5-Emmmmm` and was opened once at the user's explicit direction. Its indexed
+ADB target `emulator-5558` was not available, so no gameplay input or claim was
+sent and no persistent LDPlayer configuration was edited. See the task ledger
+for the exact isolation caveat and remaining block.
+
 **Audited per-task resume ledger:** [PHASE6_TASK_CHECKPOINT.md](PHASE6_TASK_CHECKPOINT.md).
+Its new product-correction section supersedes older broad-exploration
+priorities: fixed annotated VIP, Tiệm and Avatar/BXH flows come first, with
+red-forbidden regions excluded from future dispatch.
 It supersedes older chronological "next" suggestions when they would repeat
-completed VIP discovery or the accepted bounded shop route. Real Phase 6 work
-is paused after run 16's index-2 identity/config incident; do not launch again
-until exact identity and repair authority are resolved.
+completed VIP discovery or the accepted bounded shop route. Run 16's identity
+mismatch is historical: identity now resolves as exact `2 / 5-Emmmmm`, but
+live gameplay remains paused because its explicit indexed ADB transport is
+unavailable. Do not substitute another transport or edit persistent LDPlayer
+configuration.
 The subsequent offline lifecycle-reporting fix `1c20bdf` passed 199 focused
 tests, safety re-review and full Windows CI `35706476751`; it did not run on
 LDPlayer. Its details are in the per-task ledger.

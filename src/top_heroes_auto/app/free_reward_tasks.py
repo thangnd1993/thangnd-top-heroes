@@ -29,6 +29,7 @@ from top_heroes_auto.automation.free_rewards import (
     RewardEvidence,
 )
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.phase6_fixed_flows import fixed_flow_for_task
 from top_heroes_auto.automation.phase6_navigation import NavigationStatus
 from top_heroes_auto.automation.phase6_visual import (
     RewardVisualProfile,
@@ -108,6 +109,13 @@ def _load_profile_details(task: str) -> tuple[RewardVisualProfile | None, str | 
     """
 
     if task not in {"vip-reward", "free-recruit"}:
+        fixed_flow = fixed_flow_for_task(task)
+        if fixed_flow is not None and not fixed_flow.qualification.activation_ready:
+            return (
+                None,
+                f"Fixed flow {fixed_flow.id} lacks independently qualified zero-cost, "
+                "availability, and postcondition anchor evidence; task remains NOT_IMPLEMENTED.",
+            )
         return None, None
     folder = phase6_profile_folder(task)
     if not folder.is_dir():
@@ -136,6 +144,13 @@ def _load_profile_details(task: str) -> tuple[RewardVisualProfile | None, str | 
     required = {"page", "claim", "free", "available", "home"}
     if not required <= anchors.keys():
         return None, None
+    fixed_flow = fixed_flow_for_task(task)
+    if fixed_flow is not None and not fixed_flow.qualification.activation_ready:
+        return (
+            None,
+            f"Fixed flow {fixed_flow.id} lacks independently qualified zero-cost, "
+            "availability, and postcondition anchor evidence; task remains NOT_IMPLEMENTED.",
+        )
     if "post" not in anchors:
         return (
             None,
