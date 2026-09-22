@@ -48,6 +48,8 @@ class VipSurveyTaskResult:
     task_run_id: int | None = None
     report_path: Path | None = None
     started_by_run: bool = False
+    launch_attempt: dict | None = None
+    ownership_uncertain: bool = False
     recovery_report: Path | None = None
     survey: VipSurveyResult | None = None
     error: str | None = None
@@ -67,6 +69,8 @@ class VipSurveyTaskResult:
             "task_run_id": self.task_run_id,
             "report": str(self.report_path) if self.report_path else None,
             "started_by_run": self.started_by_run,
+            "launch_attempt": self.launch_attempt,
+            "ownership_uncertain": self.ownership_uncertain,
             "recovery_report": str(self.recovery_report) if self.recovery_report else None,
             "survey": self.survey.as_dict() if self.survey else None,
             "error": self.error,
@@ -182,11 +186,14 @@ def run_phase6_vip_survey(
     result = VipSurveyTaskResult(VIP_SURVEY_TASK, "SAFETY_BLOCKED", task_run_id=task_run_id)
     recovery_report: Path | None = None
     started_by_run = False
+    launch_attempt: dict | None = None
+    ownership_uncertain = False
     cleanup_attempted = False
     cleanup_succeeded = False
     survey: VipSurveyResult | None = None
     error: str | None = None
     effective_factory = survey_factory or vip_survey_factory
+    prior_lifecycle_attempt = manager.last_lifecycle_attempt
 
     try:
         if cancelled():
@@ -203,6 +210,8 @@ def run_phase6_vip_survey(
                 )
             except RecoveryFailure as exc:
                 started_by_run = exc.started_by_run
+                launch_attempt = exc.launch_attempt
+                ownership_uncertain = exc.ownership_uncertain
                 cleanup_attempted = exc.cleanup_attempted
                 cleanup_succeeded = exc.cleanup_succeeded
                 recovery_report = exc.report_path
@@ -212,6 +221,8 @@ def run_phase6_vip_survey(
                     "CLEANUP_FAILED" if started_by_run and cleanup_attempted and not cleanup_succeeded else "HOME_RECOVERY_FAILED",
                     task_run_id=task_run_id,
                     started_by_run=started_by_run,
+                    launch_attempt=launch_attempt,
+                    ownership_uncertain=ownership_uncertain,
                     recovery_report=recovery_report,
                     error=error,
                     cleanup_attempted=cleanup_attempted,
@@ -219,16 +230,35 @@ def run_phase6_vip_survey(
                 )
                 recovery = None
             except Exception as exc:  # noqa: BLE001 - ownership is unknown; do not infer cleanup
+                attempt = manager.last_lifecycle_attempt
+                # A custom recovery boundary may fail without dispatching a
+                # lifecycle action. Do not attribute an older Manager attempt
+                # to this task's failure or infer ownership from stale state.
+                current_attempt = (
+                    attempt
+                    if attempt is not None
+                    and attempt is not prior_lifecycle_attempt
+                    and attempt.action == "launch"
+                    else None
+                )
+                launch_attempt = current_attempt.as_dict() if current_attempt is not None else None
+                ownership_uncertain = bool(current_attempt is not None and current_attempt.ownership_uncertain)
+                started_by_run = bool(current_attempt is not None and current_attempt.ownership == "OWNED")
                 error = f"Home recovery raised: {exc}; ownership and cleanup outcome are unknown"
                 result = VipSurveyTaskResult(
                     VIP_SURVEY_TASK,
                     "HOME_RECOVERY_FAILED",
                     task_run_id=task_run_id,
+                    started_by_run=started_by_run,
+                    launch_attempt=launch_attempt,
+                    ownership_uncertain=ownership_uncertain,
                     error=error,
                 )
                 recovery = None
 
             if recovery is not None and result.status == "SAFETY_BLOCKED":
+                launch_attempt = recovery.launch_attempt
+                ownership_uncertain = recovery.ownership_uncertain
                 if recovery.status not in {RecoveryStatus.SUCCESS, RecoveryStatus.ALREADY_HOME}:
                     error = f"GAME_HOME precondition failed: {recovery.status.value}"
                     result = VipSurveyTaskResult(
@@ -236,6 +266,8 @@ def run_phase6_vip_survey(
                         VipSurveyStatus.CANCELLED.value if recovery.status == RecoveryStatus.CANCELLED else recovery.status.value,
                         task_run_id=task_run_id,
                         started_by_run=started_by_run,
+                        launch_attempt=launch_attempt,
+                        ownership_uncertain=ownership_uncertain,
                         recovery_report=recovery_report,
                         error=error,
                     )
@@ -246,6 +278,8 @@ def run_phase6_vip_survey(
                         VipSurveyStatus.IDENTITY_MISMATCH.value,
                         task_run_id=task_run_id,
                         started_by_run=started_by_run,
+                        launch_attempt=launch_attempt,
+                        ownership_uncertain=ownership_uncertain,
                         recovery_report=recovery_report,
                         error=error,
                     )
@@ -255,6 +289,8 @@ def run_phase6_vip_survey(
                         VipSurveyStatus.CANCELLED.value,
                         task_run_id=task_run_id,
                         started_by_run=started_by_run,
+                        launch_attempt=launch_attempt,
+                        ownership_uncertain=ownership_uncertain,
                         recovery_report=recovery_report,
                         error="VIP survey cancelled after Home recovery.",
                     )
@@ -273,6 +309,8 @@ def run_phase6_vip_survey(
                         survey.status.value,
                         task_run_id=task_run_id,
                         started_by_run=started_by_run,
+                        launch_attempt=launch_attempt,
+                        ownership_uncertain=ownership_uncertain,
                         recovery_report=recovery_report,
                         survey=survey,
                         error=survey.error,
@@ -284,6 +322,8 @@ def run_phase6_vip_survey(
             "SAFETY_BLOCKED",
             task_run_id=task_run_id,
             started_by_run=started_by_run,
+            launch_attempt=launch_attempt,
+            ownership_uncertain=ownership_uncertain,
             recovery_report=recovery_report,
             survey=survey,
             error=error,
@@ -303,6 +343,8 @@ def run_phase6_vip_survey(
                     "CLEANUP_FAILED",
                     task_run_id=task_run_id,
                     started_by_run=started_by_run,
+                    launch_attempt=launch_attempt,
+                    ownership_uncertain=ownership_uncertain,
                     recovery_report=recovery_report,
                     survey=survey,
                     error=error,
@@ -337,6 +379,8 @@ def run_phase6_vip_survey(
                         VipSurveyStatus.BLOCKED.value,
                         task_run_id=task_run_id,
                         started_by_run=started_by_run,
+                        launch_attempt=launch_attempt,
+                        ownership_uncertain=ownership_uncertain,
                         recovery_report=recovery_report,
                         survey=survey,
                         error=error,
@@ -351,6 +395,8 @@ def run_phase6_vip_survey(
                     VipSurveyStatus.BLOCKED.value,
                     task_run_id=task_run_id,
                     started_by_run=started_by_run,
+                    launch_attempt=launch_attempt,
+                    ownership_uncertain=ownership_uncertain,
                     recovery_report=recovery_report,
                     survey=survey,
                     error=error,
@@ -367,6 +413,8 @@ def run_phase6_vip_survey(
             "instance": {"index": index, "name": name},
             "authorized_target": {"index": PHASE6_TARGET[0], "name": PHASE6_TARGET[1]},
             "started_by_run": started_by_run,
+            "launch_attempt": launch_attempt,
+            "ownership_uncertain": ownership_uncertain,
             "cleanup_requested": cleanup_owned,
             "cleanup_attempted": cleanup_attempted,
             "cleanup_succeeded": cleanup_succeeded,
@@ -414,6 +462,8 @@ def run_phase6_vip_survey(
                 task_run_id=task_run_id,
                 report_path=report_path,
                 started_by_run=started_by_run,
+                launch_attempt=launch_attempt,
+                ownership_uncertain=ownership_uncertain,
                 recovery_report=recovery_report,
                 survey=survey,
                 error=failure_error,
@@ -450,6 +500,8 @@ def run_phase6_vip_survey(
                 task_run_id=task_run_id,
                 report_path=report_path,
                 started_by_run=started_by_run,
+                launch_attempt=launch_attempt,
+                ownership_uncertain=ownership_uncertain,
                 recovery_report=recovery_report,
                 survey=survey,
                 error=error or result.error,

@@ -8,6 +8,8 @@ from top_heroes_auto.app.phase6_vip_survey_tasks import (
     VIP_SURVEY_TASK,
     run_phase6_vip_survey,
 )
+from top_heroes_auto.app.recovery_cli import RecoveryFailure
+from top_heroes_auto.app.service import LifecycleAttempt
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.phase6_vip_survey import VipSurveyResult, VipSurveyStatus
 from top_heroes_auto.automation.recovery import RecoveryResult, RecoveryStatus
@@ -116,6 +118,92 @@ def test_vip_task_requires_recovery_identity_before_building_survey(rig, tmp_pat
 
     assert result.status == VipSurveyStatus.IDENTITY_MISMATCH.value
     assert calls == []
+
+
+def test_vip_task_persists_uncertain_launch_without_cleanup_or_survey(rig, tmp_path):
+    manager, process, store = rig
+    _target2(manager, process)
+    attempt = {
+        "index": 2,
+        "action": "launch",
+        "target_name": "5-Emmmmm",
+        "pre_running": False,
+        "ownership": "UNKNOWN",
+        "ownership_uncertain": True,
+        "dispatch_attempted": True,
+        "dispatches": [
+            {
+                "action": "launch",
+                "attempted": True,
+                "completed": True,
+                "outcome": "DISPATCHED",
+                "error": "indexed target changed identity",
+            }
+        ],
+        "failure_stage": "post_dispatch_wait",
+        "error": "indexed target changed identity",
+    }
+
+    def uncertain_recovery(*args, **kwargs):
+        raise RecoveryFailure(
+            "indexed launch ownership is uncertain",
+            started_by_run=False,
+            cleanup_attempted=False,
+            cleanup_succeeded=False,
+            launch_attempt=attempt,
+            ownership_uncertain=True,
+        )
+
+    result = run_phase6_vip_survey(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        recovery_runner=uncertain_recovery,
+    )
+
+    assert result.status == "HOME_RECOVERY_FAILED"
+    assert result.started_by_run is False
+    assert result.ownership_uncertain is True
+    assert result.launch_attempt == attempt
+    assert result.survey is None
+    assert result.claims == ()
+    assert result.journal_rows == 0
+    report = json.loads(result.report_path.read_text(encoding="utf-8"))
+    assert report["launch_attempt"]["ownership"] == "UNKNOWN"
+    assert report["ownership_uncertain"] is True
+    assert report["cleanup_attempted"] is False
+    assert report["journal_rows"] == 0
+    assert store.latest_task_run(manager.namespace, VIP_SURVEY_TASK, 2)[2] == "HOME_RECOVERY_FAILED"
+    assert not any(call[1] in {"launch", "quit", "-s"} for call in process.calls if len(call) > 1)
+
+
+def test_vip_task_does_not_reuse_stale_launch_attempt_after_recovery_error(rig, tmp_path):
+    manager, process, _ = rig
+    _target2(manager, process)
+    manager._last_lifecycle_attempt = LifecycleAttempt(
+        index=2,
+        action="launch",
+        target_name="5-Emmmmm",
+        pre_running=False,
+        ownership="OWNED",
+    )
+
+    def failed_recovery(*args, **kwargs):
+        raise RuntimeError("recovery boundary failed before dispatch")
+
+    result = run_phase6_vip_survey(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        recovery_runner=failed_recovery,
+    )
+
+    assert result.status == "HOME_RECOVERY_FAILED"
+    assert result.started_by_run is False
+    assert result.launch_attempt is None
+    assert result.ownership_uncertain is False
+    assert result.cleanup_attempted is False
+    assert not any(call[1] in {"launch", "quit", "-s"} for call in process.calls if len(call) > 1)
 
 
 def test_vip_task_persistence_failure_cleans_owned_instance_once(rig, tmp_path, monkeypatch):

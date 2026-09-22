@@ -10,7 +10,13 @@ from pathlib import Path
 
 from top_heroes_auto.app.diagnostic import _instance, _manager
 from top_heroes_auto.app.process import CommandError
-from top_heroes_auto.app.service import Manager
+from top_heroes_auto.app.service import (
+    LIFECYCLE_EXTERNAL,
+    LIFECYCLE_OWNED,
+    LIFECYCLE_UNKNOWN,
+    LifecycleAttempt,
+    Manager,
+)
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
 from top_heroes_auto.automation.recovery import (
     HomeRecoveryEngine,
@@ -38,6 +44,8 @@ class RecoveryFailure(OSError):
         cleanup_succeeded: bool,
         report_path: Path | None = None,
         result: RecoveryResult | None = None,
+        launch_attempt: dict | None = None,
+        ownership_uncertain: bool = False,
     ):
         super().__init__(message)
         self.started_by_run = started_by_run
@@ -45,6 +53,8 @@ class RecoveryFailure(OSError):
         self.cleanup_succeeded = cleanup_succeeded
         self.report_path = report_path
         self.result = result
+        self.launch_attempt = launch_attempt
+        self.ownership_uncertain = ownership_uncertain
 
 
 class DiagnosticRecoveryPort:
@@ -127,18 +137,52 @@ def run_home_recovery(
     folder = data / "diagnostics" / "recovery" / name / stamp
     folder.mkdir(parents=True, exist_ok=False)
     result: RecoveryResult | None = None
+    launch_attempt: dict | None = None
+    ownership_uncertain = False
     try:
         if not target.running:
             if cancelled():
+                launch_attempt = LifecycleAttempt(
+                    index=index,
+                    action="launch",
+                    target_name=name,
+                    pre_running=False,
+                    failure_stage="cancelled",
+                ).as_dict()
                 result = RecoveryResult(status=RecoveryStatus.CANCELLED)
             else:
-                manager.execute(index, "launch", snapshot=snapshot)
-                started_by_run = True
+                try:
+                    manager.execute(index, "launch", snapshot=snapshot)
+                finally:
+                    attempt = manager.last_lifecycle_attempt
+                    launch_attempt = attempt.as_dict() if attempt is not None else None
+                    if attempt is not None:
+                        started_by_run = attempt.ownership == LIFECYCLE_OWNED
+                        ownership_uncertain = attempt.ownership == LIFECYCLE_UNKNOWN
+                if launch_attempt is None:
+                    raise SafetyError("Indexed launch outcome was unavailable; recovery is blocked.")
+                if ownership_uncertain:
+                    log.warning("[%s / #%s] Indexed launch ownership is uncertain; cleanup is blocked", name, index)
+                if not started_by_run and not ownership_uncertain:
+                    raise SafetyError("Indexed launch did not confirm ownership; recovery is blocked.")
+        else:
+            launch_attempt = LifecycleAttempt(
+                index=index,
+                action="launch",
+                target_name=name,
+                pre_running=True,
+                ownership=LIFECYCLE_EXTERNAL,
+            ).as_dict()
         if result is None:
             port = DiagnosticRecoveryPort(manager, snapshot, index, name, folder)
             result = (engine or HomeRecoveryEngine()).ensure_game_home(port, cancelled)
     except (CommandError, OSError, SafetyError, ValueError) as exc:
         result = RecoveryResult(RecoveryStatus.ADB_ERROR, error=str(exc))
+
+    if result is None:
+        result = RecoveryResult(RecoveryStatus.ADB_ERROR, error="Recovery did not produce a result.")
+    result.launch_attempt = launch_attempt
+    result.ownership_uncertain = ownership_uncertain
 
     report_path = folder / "report.json"
     cleanup_performed = False
@@ -155,6 +199,8 @@ def run_home_recovery(
                 cleanup_succeeded=False,
                 report_path=report_path,
                 result=result,
+                launch_attempt=launch_attempt,
+                ownership_uncertain=ownership_uncertain,
             ) from exc
     try:
         report = {
@@ -164,6 +210,8 @@ def run_home_recovery(
             "started_by_run": started_by_run,
             "cleanup_requested": cleanup_owned,
             "cleanup_performed": cleanup_performed,
+            "launch_attempt": launch_attempt,
+            "ownership_uncertain": ownership_uncertain,
             **result.as_dict(),
         }
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -187,6 +235,8 @@ def run_home_recovery(
             cleanup_succeeded=cleanup_performed,
             report_path=report_path,
             result=result,
+            launch_attempt=launch_attempt,
+            ownership_uncertain=ownership_uncertain,
         ) from exc
     return result, report_path, started_by_run
 

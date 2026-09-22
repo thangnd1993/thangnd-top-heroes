@@ -2,6 +2,13 @@
 
 import pytest
 
+from top_heroes_auto.app.process import CommandError
+from top_heroes_auto.app.service import (
+    LIFECYCLE_EXTERNAL,
+    LIFECYCLE_NOT_ATTEMPTED,
+    LIFECYCLE_UNKNOWN,
+    TransportResolutionError,
+)
 from top_heroes_auto.automation.guard import SafetyError
 
 STOPPED = "0,Main-Thang,1,2,1,101,102\n7,Farm-007,0,0,0,-1,-1\n"
@@ -157,6 +164,30 @@ def test_launch_recovers_once_when_first_boot_has_no_adb_listener(rig):
     assert launches == 2
     assert sum(call[1] == "quit" for call in process.calls) == 1
     assert_only_target_seven(process.calls)
+
+
+def test_second_resolution_identity_failure_does_not_issue_index_only_quit(rig, monkeypatch):
+    manager, process, _ = rig
+    process.listing = STOPPED
+    resolutions = 0
+
+    def resolve(index):
+        nonlocal resolutions
+        resolutions += 1
+        if resolutions == 1:
+            raise TransportResolutionError("ADB transport unavailable")
+        raise SafetyError("ADB target boot ID mismatch after retry")
+
+    monkeypatch.setattr(manager, "_resolve", resolve)
+    with pytest.raises(SafetyError, match="boot ID mismatch"):
+        manager.execute(7, "launch")
+
+    assert resolutions == 2
+    assert manager.last_lifecycle_attempt.ownership == LIFECYCLE_UNKNOWN
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    # One bounded transport retry is allowed; the second identity failure
+    # must not trigger another index-only cleanup dispatch.
+    assert lifecycle == ["launch", "quit", "launch"]
 
 
 def test_resolver_never_falls_back_to_first_or_multiple_adb_devices(rig):
@@ -339,3 +370,137 @@ def test_adb_operations_on_stopped_instance_never_autolaunch(rig, action):
     with pytest.raises(SafetyError, match="Android"):
         manager.execute(7, action, "com.example.game")
     assert all(call[1] == "list2" for call in process.calls)
+
+
+def test_launch_pre_dispatch_failure_records_not_attempted_without_cleanup(rig, monkeypatch):
+    manager, process, _ = rig
+    process.listing = STOPPED
+    manager.refresh()
+
+    def fail_server():
+        raise CommandError("ADB daemon unavailable")
+
+    monkeypatch.setattr(manager.adb, "start_server", fail_server)
+    with pytest.raises(CommandError):
+        manager.execute(7, "launch")
+
+    attempt = manager.last_lifecycle_attempt
+    assert attempt is not None
+    assert attempt.ownership == LIFECYCLE_NOT_ATTEMPTED
+    assert not attempt.dispatch_attempted
+    assert all(call[1] not in {"launch", "quit"} for call in process.calls if len(call) > 1)
+
+
+def test_launch_command_uncertainty_is_not_cleaned_or_retried(rig):
+    manager, process, _ = rig
+    process.listing = STOPPED
+    process.auto_lifecycle = False
+
+    def uncertain_launch(args):
+        if args[1] == "launch":
+            process.listing = RUNNING.replace("Farm-007", "Replacement")
+            raise CommandError("indexed launch response lost")
+
+    process.hook = uncertain_launch
+    with pytest.raises(CommandError):
+        manager.execute(7, "launch")
+
+    attempt = manager.last_lifecycle_attempt
+    assert attempt is not None
+    assert attempt.ownership == LIFECYCLE_UNKNOWN
+    assert attempt.dispatch_attempted
+    assert attempt.dispatches[0].completed is False
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == ["launch"]
+
+
+def test_post_dispatch_rename_is_unknown_without_follow_up_adb_or_quit(rig):
+    manager, process, _ = rig
+    process.listing = STOPPED
+    process.auto_lifecycle = False
+
+    def renamed_launch(args):
+        if args[1] == "launch":
+            process.listing = RUNNING.replace("Farm-007", "LDPlayer-2")
+
+    process.hook = renamed_launch
+    with pytest.raises(SafetyError, match="đổi tên"):
+        manager.execute(7, "launch")
+
+    attempt = manager.last_lifecycle_attempt
+    assert attempt is not None
+    assert attempt.ownership == LIFECYCLE_UNKNOWN
+    assert attempt.dispatch_attempted
+    assert attempt.dispatches[0].completed is True
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == ["launch"]
+    assert not any(call[1] in {"-s", "adb"} for call in process.calls if len(call) > 1)
+
+
+def test_selection_revocation_after_indexed_launch_is_not_retried(rig):
+    manager, process, store = rig
+    process.listing = STOPPED
+    process.auto_lifecycle = False
+
+    def revoked_launch(args):
+        if args[1] == "launch":
+            store.select(manager.namespace, 7, False)
+            process.listing = RUNNING
+
+    process.hook = revoked_launch
+    with pytest.raises(SafetyError, match="chọn"):
+        manager.execute(7, "launch")
+
+    assert manager.last_lifecycle_attempt.ownership == LIFECYCLE_UNKNOWN
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == ["launch"]
+
+
+def test_external_running_launch_transport_failure_never_relaunches(rig, monkeypatch):
+    manager, process, _ = rig
+    process.listing = RUNNING
+    manager.refresh()
+    manager.ADB_RESOLVE_TIMEOUT = 0
+    process.devices_output = "List of devices attached\n"
+
+    with pytest.raises(SafetyError, match="ADB"):
+        manager.execute(7, "launch")
+
+    attempt = manager.last_lifecycle_attempt
+    assert attempt is not None
+    assert attempt.ownership == LIFECYCLE_EXTERNAL
+    assert not attempt.dispatch_attempted
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == []
+
+
+def test_post_launch_identity_failure_does_not_use_transport_retry(rig, monkeypatch):
+    manager, process, _ = rig
+    process.listing = STOPPED
+
+    def identity_failure(index):
+        raise SafetyError("ADB target boot ID mismatch")
+
+    monkeypatch.setattr(manager, "_resolve", identity_failure)
+    with pytest.raises(SafetyError, match="boot ID"):
+        manager.execute(7, "launch")
+
+    assert manager.last_lifecycle_attempt.ownership == LIFECYCLE_UNKNOWN
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == ["launch"]
+
+
+def test_post_launch_boot_read_failure_is_uncertain_without_retry(rig, monkeypatch):
+    manager, process, _ = rig
+    process.listing = STOPPED
+
+    def boot_read_failure(serial):
+        raise SafetyError("ADB boot identity read failed after launch")
+
+    monkeypatch.setattr(manager.adb, "boot_id", boot_read_failure)
+    with pytest.raises(SafetyError, match="boot identity"):
+        manager.execute(7, "launch")
+
+    assert manager.last_lifecycle_attempt.ownership == LIFECYCLE_UNKNOWN
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == ["launch"]

@@ -5,6 +5,8 @@ It supersedes older chronological "next" suggestions when they would repeat
 completed VIP discovery or the accepted bounded shop route. Real Phase 6 work
 is paused after run 16's index-2 identity/config incident; do not launch again
 until exact identity and repair authority are resolved.
+The subsequent offline lifecycle-reporting fix passed 199 focused tests and
+safety re-review; its commit/full CI are tracked in the per-task ledger.
 
 ## 2026-09-22 daily-pack route narrowly accepted (real run 15)
 

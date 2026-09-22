@@ -4,6 +4,7 @@ import logging
 import re
 import threading
 import time
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,6 +21,68 @@ from top_heroes_auto.ldplayer.client import Instance, LDPlayer
 from top_heroes_auto.storage.store import Store
 
 log = logging.getLogger("top_heroes_auto")
+
+
+LIFECYCLE_NOT_ATTEMPTED = "NOT_ATTEMPTED"
+LIFECYCLE_EXTERNAL = "EXTERNAL"
+LIFECYCLE_OWNED = "OWNED"
+LIFECYCLE_UNKNOWN = "UNKNOWN"
+
+
+class TransportResolutionError(SafetyError):
+    """ADB transport availability failed without an account identity failure."""
+
+
+@dataclass
+class LifecycleDispatch:
+    action: str
+    attempted: bool = False
+    completed: bool = False
+    outcome: str = LIFECYCLE_NOT_ATTEMPTED
+    error: str | None = None
+
+    def as_dict(self) -> dict:
+        return {
+            "action": self.action,
+            "attempted": self.attempted,
+            "completed": self.completed,
+            "outcome": self.outcome,
+            "error": self.error,
+        }
+
+
+@dataclass
+class LifecycleAttempt:
+    index: int
+    action: str
+    target_name: str | None = None
+    pre_running: bool | None = None
+    ownership: str = LIFECYCLE_NOT_ATTEMPTED
+    failure_stage: str | None = None
+    error: str | None = None
+    dispatches: list[LifecycleDispatch] = field(default_factory=list)
+
+    @property
+    def dispatch_attempted(self) -> bool:
+        return any(item.attempted for item in self.dispatches)
+
+    @property
+    def ownership_uncertain(self) -> bool:
+        return self.ownership == LIFECYCLE_UNKNOWN
+
+    def as_dict(self) -> dict:
+        return {
+            "index": self.index,
+            "action": self.action,
+            "target_name": self.target_name,
+            "pre_running": self.pre_running,
+            "ownership": self.ownership,
+            "ownership_uncertain": self.ownership_uncertain,
+            "dispatch_attempted": self.dispatch_attempted,
+            "dispatches": [item.as_dict() for item in self.dispatches],
+            "failure_stage": self.failure_stage,
+            "error": self.error,
+        }
 
 
 class Manager:
@@ -47,6 +110,19 @@ class Manager:
         self.namespace = ld.installation.namespace
         self._lock = threading.RLock()
         self._active: RunSnapshot | None = None
+        self._last_lifecycle_attempt: LifecycleAttempt | None = None
+
+    @property
+    def last_lifecycle_attempt(self) -> LifecycleAttempt | None:
+        """Return the latest indexed launch/reboot attempt for reporting.
+
+        The object is updated only while the Manager lock is held. Callers use
+        its serialized snapshot immediately after an exception or successful
+        lifecycle operation; non-lifecycle actions intentionally do not erase
+        it so recovery can persist the launch outcome before cleanup.
+        """
+
+        return self._last_lifecycle_attempt
 
     def refresh(self):
         with self._lock:
@@ -100,15 +176,52 @@ class Manager:
 
     def _start(self, index: int):
         instance = self._check(index)
+        attempt = self._last_lifecycle_attempt
+        if attempt is not None:
+            if attempt.target_name is None:
+                attempt.target_name = instance.name
+            if attempt.pre_running is None:
+                attempt.pre_running = instance.running
         if not instance.running:
             # Start the bundled daemon before Android boots so LDPlayer can
             # register its indexed emulator transport. This is idempotent and
             # never kills/restarts a shared ADB server.
-            self.adb.start_server()
-            log.info("[%s / #%s] Khởi động đúng instance bằng index (chưa cần ADB)", instance.name, index)
-            self.ld._indexed("launch", index)
+            dispatch = LifecycleDispatch("launch")
+            if attempt is not None:
+                attempt.dispatches.append(dispatch)
+                attempt.failure_stage = "pre_dispatch"
+            try:
+                self.adb.start_server()
+                log.info("[%s / #%s] Khởi động đúng instance bằng index (chưa cần ADB)", instance.name, index)
+                # Mark immediately before the indexed command. If the process
+                # raises after writing to LDPlayer, ownership is UNKNOWN and
+                # callers must never infer a safe quit from the state delta.
+                dispatch.attempted = True
+                dispatch.outcome = LIFECYCLE_UNKNOWN
+                if attempt is not None:
+                    attempt.ownership = LIFECYCLE_UNKNOWN
+                    attempt.failure_stage = "indexed_dispatch"
+                self.ld._indexed("launch", index)
+            except Exception as exc:
+                dispatch.error = str(exc)
+                if attempt is not None:
+                    attempt.error = str(exc)
+                raise
+            dispatch.completed = True
+            dispatch.outcome = "DISPATCHED"
+            if attempt is not None:
+                attempt.failure_stage = "post_dispatch_wait"
         log.info("[%s / #%s] Chờ Android sẵn sàng", instance.name, index)
-        self._wait_state(index, started=True)
+        try:
+            started = self._wait_state(index, started=True)
+        except Exception as exc:
+            if attempt is not None:
+                attempt.error = str(exc)
+                if attempt.dispatch_attempted:
+                    attempt.ownership = LIFECYCLE_UNKNOWN
+                    attempt.failure_stage = "post_dispatch_wait"
+            raise
+        return started
 
     def _check(self, index: int):
         if self._active is None or self._active.namespace != self.namespace:
@@ -190,7 +303,7 @@ class Manager:
                     self.adb.restart_server()
                     deadline = time.monotonic() + self.ADB_RESOLVE_TIMEOUT
                     continue
-                raise SafetyError(
+                raise TransportResolutionError(
                     f"LDPlayer xác định ADB {serial} cho #{index}, nhưng target không sẵn sàng; "
                     "kiểm tra ADB debugging của đúng instance."
                 )
@@ -251,6 +364,8 @@ class Manager:
         if observed_target is not None and action not in {"tap", "swipe", "keyevent"}:
             raise SafetyError("Screenshot-bound identity is only valid for evidence-guarded input.")
         with self._lock:
+            if action in {"launch", "reboot"}:
+                self._last_lifecycle_attempt = LifecycleAttempt(index=index, action=action)
             current = self.refresh()
             immutable_snapshot = snapshot is not None
             snapshot = snapshot or create_snapshot(self.store, self.namespace, current)
@@ -262,6 +377,16 @@ class Manager:
             )
             try:
                 instance = self._check(index)
+                attempt = self._last_lifecycle_attempt
+                if attempt is not None and attempt.action == action:
+                    attempt.target_name = instance.name
+                    attempt.pre_running = instance.running
+                    if action == "launch" and instance.running:
+                        # A running target existed before this invocation. A
+                        # later transport/identity failure must not turn it
+                        # into an owned launch or authorize cleanup.
+                        attempt.ownership = LIFECYCLE_EXTERNAL
+                        attempt.failure_stage = None
                 # Lifecycle dispatch targets the verified LDPlayer index. A stopped
                 # Android cannot supply ADB identity, so never resolve before launch.
                 if action == "quit":
@@ -275,8 +400,13 @@ class Manager:
                     self._start(index)
                 try:
                     target = self._resolve(index)
-                except SafetyError:
+                except TransportResolutionError:
                     if action not in {"launch", "reboot"}:
+                        raise
+                    # A manual launch on an already-running external instance
+                    # must not stop/relaunch it merely because ADB is late.
+                    attempt = self._last_lifecycle_attempt
+                    if action == "launch" and attempt is not None and attempt.pre_running:
                         raise
                     # LDPlayer occasionally reaches Android-ready without
                     # creating its per-instance NAT/ADB listener. Retry one
@@ -286,8 +416,26 @@ class Manager:
                     self._start(index)
                     try:
                         target = self._resolve(index)
-                    except Exception:
+                    except TransportResolutionError:
+                        attempt = self._last_lifecycle_attempt
+                        if attempt is not None and attempt.dispatch_attempted:
+                            attempt.ownership = LIFECYCLE_UNKNOWN
+                            attempt.failure_stage = "resolve_transport_retry"
+                            attempt.error = "ADB transport remained unavailable after scoped retry"
+                        # Preserve the existing bounded transport cleanup, but
+                        # do not treat identity/selection failures as transport
+                        # failures below.
                         self._stop(index)
+                        raise
+                    except Exception as exc:
+                        attempt = self._last_lifecycle_attempt
+                        if attempt is not None and attempt.dispatch_attempted:
+                            attempt.ownership = LIFECYCLE_UNKNOWN
+                            attempt.failure_stage = "resolve_retry"
+                            attempt.error = str(exc)
+                        # The indexed launch may have reached an unknown
+                        # identity. Never issue an index-only quit after a
+                        # boot/name/selection or other non-transport failure.
                         raise
                 self._check(index)
                 # Revalidate explicit transport immediately before sending the action.
@@ -300,6 +448,16 @@ class Manager:
                     # Visual actions must respect a live selection revocation,
                     # even when a queue snapshot captured earlier membership.
                     require_selected(self.store, self._active, self.ld.list_instances(), index)
+                if action in {"launch", "reboot"}:
+                    attempt = self._last_lifecycle_attempt
+                    if attempt is not None and attempt.dispatch_attempted:
+                        # Ownership is confirmed only after the indexed start,
+                        # current selection, and explicit ADB boot identity all
+                        # pass. A later identity failure must remain UNKNOWN so
+                        # recovery cannot issue an index-only quit.
+                        attempt.ownership = LIFECYCLE_OWNED
+                        attempt.failure_stage = None
+                        attempt.error = None
                 log.info("[%s / #%s] Thao tác: %s", instance.name, index, action)
                 if action == "verify":
                     return f"Đã xác minh ADB: {target.serial}"

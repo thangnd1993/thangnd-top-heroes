@@ -65,6 +65,8 @@ class RecoveryResult:
     duration: float = 0.0
     error: str | None = None
     boot_id: str | None = None
+    launch_attempt: dict | None = None
+    ownership_uncertain: bool = False
 
     @property
     def states_seen(self) -> list[str]:
@@ -86,6 +88,8 @@ class RecoveryResult:
             "duration_seconds": round(self.duration, 3),
             "adb_target": self.adb_target,
             "boot_id": self.boot_id,
+            "launch_attempt": self.launch_attempt,
+            "ownership_uncertain": self.ownership_uncertain,
             "error": self.error,
         }
 

@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from top_heroes_auto.app.process import CommandError
 from top_heroes_auto.app.recovery_cli import (
     DiagnosticRecoveryPort,
     RecoveryFailure,
@@ -300,6 +301,8 @@ def test_recovery_report_failure_cleans_only_instance_started_by_run(rig, tmp_pa
     assert raised.value.started_by_run
     assert raised.value.cleanup_attempted
     assert raised.value.cleanup_succeeded
+    assert raised.value.launch_attempt["ownership"] == "OWNED"
+    assert raised.value.ownership_uncertain is False
     lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
     assert lifecycle == ["launch", "quit"]
 
@@ -375,6 +378,102 @@ def test_recovery_report_failure_with_uncertain_owned_cleanup_is_not_retryable(
     assert raised.value.started_by_run
     assert raised.value.cleanup_attempted
     assert not raised.value.cleanup_succeeded
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == ["launch"]
+
+
+def test_pre_dispatch_launch_failure_report_is_not_owned(rig, tmp_path, monkeypatch):
+    manager, process, _ = rig
+    process.listing = "0,Queen,1,2,1,101,102\n7,Farm-007,0,0,0,-1,-1\n"
+    manager.refresh()
+
+    def fail_server():
+        raise CommandError("ADB daemon unavailable")
+
+    monkeypatch.setattr(manager.adb, "start_server", fail_server)
+    result, report, started = run_home_recovery(manager, tmp_path, 7, "Farm-007")
+
+    assert result.status == RecoveryStatus.ADB_ERROR
+    assert not started
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    assert payload["launch_attempt"]["ownership"] == "NOT_ATTEMPTED"
+    assert payload["launch_attempt"]["dispatch_attempted"] is False
+    assert payload["ownership_uncertain"] is False
+    assert payload["cleanup_performed"] is False
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == []
+
+
+def test_post_dispatch_rename_report_is_uncertain_without_cleanup(rig, tmp_path):
+    manager, process, _ = rig
+    process.listing = "0,Queen,1,2,1,101,102\n7,Farm-007,0,0,0,-1,-1\n"
+    process.auto_lifecycle = False
+    manager.refresh()
+
+    def renamed_launch(args):
+        if args[1] == "launch":
+            process.listing = "0,Main-Thang,1,2,1,101,102\n7,LDPlayer-2,3,4,1,201,202\n"
+
+    process.hook = renamed_launch
+    result, report, started = run_home_recovery(manager, tmp_path, 7, "Farm-007")
+
+    assert result.status == RecoveryStatus.ADB_ERROR
+    assert not started
+    assert result.ownership_uncertain is True
+    assert result.launch_attempt["ownership"] == "UNKNOWN"
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    assert payload["ownership_uncertain"] is True
+    assert payload["launch_attempt"]["target_name"] == "Farm-007"
+    assert payload["cleanup_performed"] is False
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == ["launch"]
+
+
+def test_external_running_recovery_reports_external_without_cleanup(rig, tmp_path):
+    manager, process, _ = rig
+    process.listing = "0,Queen,1,2,1,101,102\n7,Farm-007,3,4,1,201,202\n"
+    manager.refresh()
+
+    class AlreadyHome:
+        def ensure_game_home(self, port, cancelled):
+            return RecoveryResult(RecoveryStatus.ALREADY_HOME, adb_target="emulator-5568")
+
+    result, report, started = run_home_recovery(
+        manager,
+        tmp_path,
+        7,
+        "Farm-007",
+        engine=AlreadyHome(),
+    )
+
+    assert result.status == RecoveryStatus.ALREADY_HOME
+    assert not started
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    assert payload["launch_attempt"]["ownership"] == "EXTERNAL"
+    assert payload["cleanup_performed"] is False
+    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
+    assert lifecycle == []
+
+
+def test_post_launch_identity_failure_does_not_cleanup_uncertain_start(rig, tmp_path, monkeypatch):
+    manager, process, _ = rig
+    process.listing = "0,Queen,1,2,1,101,102\n7,Farm-007,0,0,0,-1,-1\n"
+    manager.refresh()
+
+    def identity_failure(index):
+        raise SafetyError("ADB target boot ID mismatch")
+
+    monkeypatch.setattr(manager, "_resolve", identity_failure)
+    result, report, started = run_home_recovery(manager, tmp_path, 7, "Farm-007")
+
+    assert result.status == RecoveryStatus.ADB_ERROR
+    assert not started
+    assert result.ownership_uncertain is True
+    assert result.launch_attempt["ownership"] == "UNKNOWN"
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    assert payload["started_by_run"] is False
+    assert payload["ownership_uncertain"] is True
+    assert payload["cleanup_performed"] is False
     lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
     assert lifecycle == ["launch"]
 
