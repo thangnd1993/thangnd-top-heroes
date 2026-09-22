@@ -11,6 +11,13 @@ review and full Windows Validation run `35764816940`. The fresh executable
 hash and exact gated scope are recorded in the task ledger. This does not mark
 Avatar/BXH runtime integration, any real claim, or Phase 6 complete.
 
+The subsequent gated runtime commit `fe9753a` adds the three bounded injectable
+flows, hashed annotated-reference manifest, `ranking-chest` task/UI entry and
+SQLite reserve-before-input journal. Reviewer approved it and Windows
+Validation `35771172726` passed. Packaged claims remain `NOT_IMPLEMENTED`
+without qualified clean anchors and independent free/postcondition evidence;
+there was no new real device action.
+
 **Audited per-task resume ledger:** [PHASE6_TASK_CHECKPOINT.md](PHASE6_TASK_CHECKPOINT.md).
 Its new product-correction section supersedes older broad-exploration
 priorities: fixed annotated VIP, Tiệm and Avatar/BXH flows come first, with

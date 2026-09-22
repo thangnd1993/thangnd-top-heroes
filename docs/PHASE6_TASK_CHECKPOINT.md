@@ -1,6 +1,6 @@
 # Phase 6 task ledger — audited 2026-09-22
 
-## Fixed-flow injectable runtime — pending final review/CI
+## Fixed-flow injectable runtime — review and CI passed
 
 The seven annotated reference files are now present and normalized by filename,
 SHA-256, flow and annotation meaning in
@@ -28,7 +28,12 @@ no clean index-2 runtime anchors, and none of the flows has complete independent
 zero-cost/availability/postcondition evidence. Packaged execution therefore
 returns `NOT_IMPLEMENTED` before recovery or gameplay dispatch. Local focused
 gate at this checkpoint: **187 passed, 6 skipped**, changed-file Ruff passed.
-No real device action accompanied this offline milestone.
+No real device action accompanied this offline milestone. Reviewer final result:
+**APPROVED**. Commit `fe9753a` passed Windows Validation run `35771172726`
+(full Ruff, tests, PyInstaller build, executable smoke and artifact upload).
+Fresh executable:
+`artifacts/phase6-fe9753a-run35771172726/TopHeroesAutoManager-Windows-x64/TopHeroesAutoManager.exe`,
+SHA-256 `34F4937F79669407CED87BACD88B42A29945BE254D3B405D95ABD7884712ED21`.
 
 ## Fixed-flow safety correction CI — 2026-09-23
 
