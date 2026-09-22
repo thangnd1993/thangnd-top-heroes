@@ -55,16 +55,17 @@ Phase 6 mutation, index-only cleanup, automatic rename, config restoration,
 ADB enabling or live acceptance is permitted until exact identity and repair
 authority are resolved. Queen and index 4 received no task mutation.
 
-Offline follow-up after this audit: the run-16 launch-reporting gap was fixed
-without device access. The Manager now records indexed launch dispatch and
-UNKNOWN ownership separately from confirmed ownership; recovery and VIP task
+Offline follow-up after this audit: commit `1c20bdf` fixed the run-16
+launch-reporting gap without device access. The Manager now records indexed
+launch dispatch and UNKNOWN ownership separately from confirmed ownership;
+recovery and VIP task
 reports retain that evidence. Account/name/selection/boot mismatches cannot
 use the transport retry or an index-only cleanup. A reviewer found and the
 developer fixed a P1 on the second transport attempt: after a later boot
 mismatch, there is no additional quit/relaunch. The reviewer approved the
 corrected diff. Parent ran 199 focused cross-boundary tests and Ruff; all
-passed. **Full CI and a commit for this fix are still pending at this line's
-checkpoint; no live acceptance follows from the mock tests.**
+passed. Full Windows CI run `35706476751` passed lint, tests, build, smoke
+and artifact upload. **No live acceptance follows from these checks.**
 
 ## No-repeat rule and next checkpoint
 
@@ -76,9 +77,9 @@ different Phase 6 item is never a repeat reason. Never repeat an uncertain or
 completed real claim to manufacture fixtures. Every account rediscovers a
 target from its own current screenshot; no index-4 coordinate authority.
 
-Next exact action under the present pause: keep real device work frozen,
-commit the reviewed offline launch-ownership/reporting correction and require
-full CI. Do not restart VIP survey or the accepted shop route. After any
+Next exact action under the present pause: keep real device work frozen and
+preserve run-16 evidence. Do not restart VIP survey or the accepted shop
+route. After any
 separate repair authorization, verify the original index-2 identity,
 selection/protection, ADB debug, explicit ADB/boot mapping and stable unrelated
 inventory before considering only a genuinely unfinished real acceptance.

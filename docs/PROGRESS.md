@@ -11,6 +11,12 @@
   incomplete config. Real Phase 6 work is frozen pending exact identity and
   repair authority. Do not repeat accepted shop navigation, historical claims,
   or start Phase 7.
+- 2026-09-22: offline run-16 lifecycle/reporting fix `1c20bdf` records
+  uncertain indexed launch separately from confirmed ownership and prevents
+  identity errors from triggering index-only cleanup. 199 focused tests,
+  independent safety review and full Windows CI `35706476751` passed. No
+  device test or claim was performed; index-2 identity/config remains a
+  separate blocker for real acceptance.
 
 - 2026-09-22: task run 15 on `2 / 5-Emmmmm` narrowly accepted the packaged
   daily-pack observation route: Home → daily → help → daily → daily-pack →
