@@ -1,5 +1,14 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+### Third portable acceptance (f2de982; CI 35905808457 passed)
+
+A known promo arrived after the VIP navigation tap. The guard stopped before
+any reward input, journal NONE, cleanup SUCCESS and selection restored. Saved
+run: `vip-popup-acceptance/20260923-190303-315299Z`. The shared bounded handler now
+also covers navigation destinations. Only if dismissal exposes a freshly verified
+Home may VIP navigation retry once; no reward action can retry. Unknown destinations
+stop. Await fresh CI before the authorized index-2 continuation.
+
 ### Second portable acceptance (d046f90; CI 35904005462 passed)
 
 Index 2's promo was positively recognized and dismissed once at device (58,1203).

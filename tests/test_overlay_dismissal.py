@@ -243,7 +243,7 @@ def test_late_promo_at_vip_entry_boundary_dismisses_then_reverifies_home():
             taps.append(point)
     def detect(frame):
         return replace(known,state=ScreenState.GAME_HOME if frame.timestamp=='2' else ScreenState.EVENT_PROMO)
-    navigator=GuardedEntryNavigator(Port(),None,detect,sleep=lambda _:None)
+    navigator=GuardedEntryNavigator(Port(),type("Profile", (), {"task": "vip-reward"})(),detect,sleep=lambda _:None)
     result=NavigationResult(NavigationStatus.BLOCKED)
     home=navigator._home(result,'late-promo')
     assert home.screen.timestamp=='2' and taps==[(58,1203)]
@@ -263,3 +263,35 @@ def test_upper_gift_pulsing_background_does_not_weaken_confidence_threshold():
     assert gift_state(observed.screen)=='FREE_CLAIMABLE'
     assert all(e.score>=.96 for key,e in observed.evidence.items() if key in {'claim','free','available'})
     assert adapter.profile.anchor_map['free'].threshold==.96
+
+
+@pytest.mark.parametrize('home_after', [True,False])
+def test_promo_after_entry_tap_only_retries_navigation_on_fresh_home(home_after):
+    from top_heroes_auto.app.phase6_runtime import _entry_profile
+    from top_heroes_auto.automation.phase6_navigation import (
+        EntryFrame,
+        GuardedEntryNavigator,
+        NavigationStatus,
+    )
+    profile,_=_load_profile_details('vip-reward')
+    route=_entry_profile('vip-reward',profile)
+    popup,known=receipt()
+    home=screen('index2-home.png')
+    vip=screen('index2-vip-claimable.png')
+    images=[home,popup,popup,home if home_after else popup,vip]
+    frames=iter(EntryFrame(TARGET,replace(image,timestamp=str(i))) for i,image in enumerate(images))
+    taps=[]
+    class Port:
+        def observe(self,tag): return next(frames)
+        def tap(self,frame,point): taps.append(point)
+    def detect(frame):
+        state={0:ScreenState.GAME_HOME,1:ScreenState.EVENT_PROMO,2:ScreenState.EVENT_PROMO,
+               3:ScreenState.GAME_HOME if home_after else ScreenState.UNKNOWN,4:ScreenState.FREE_REWARD_PAGE}[int(frame.timestamp)]
+        return replace(known,state=state)
+    result=GuardedEntryNavigator(Port(),route,detect,sleep=lambda _:None).run()
+    if home_after:
+        assert result.status==NavigationStatus.SUCCESS
+        assert taps==[(67,183),(58,1203),(67,183)]
+    else:
+        assert result.status!=NavigationStatus.SUCCESS
+        assert taps==[(67,183),(58,1203)]

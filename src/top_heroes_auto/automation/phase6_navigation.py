@@ -47,6 +47,12 @@ class _Cancelled(RuntimeError):
     pass
 
 
+class _HomeAfterOverlay(SafetyError):
+    def __init__(self, frame):
+        super().__init__("Known overlay intercepted navigation; fresh Home verified.")
+        self.frame = frame
+
+
 @dataclass(frozen=True)
 class EntryFrame:
     target: Target
@@ -184,6 +190,7 @@ class GuardedEntryNavigator:
         self.destination_wait_seconds = destination_wait_seconds
         self.sleep = sleep
         self._identity: tuple[int, str, str, str] | None = None
+        self._overlay_budget = OverlayBudget()
 
     @staticmethod
     def _match(screen: CapturedScreen, anchor: VisualAnchor):
@@ -203,44 +210,51 @@ class GuardedEntryNavigator:
             raise SafetyError("Destination anchor has no known state.")
         return evidence
 
-    def _home(self, result: NavigationResult, tag: str, cancelled=lambda: False) -> EntryFrame:
-        budget = OverlayBudget()
+    def _record_frame(self, result, frame):
+        identity = (frame.target.index, frame.target.name, frame.target.serial, frame.target.boot_id)
+        if self._identity is None:
+            self._identity = identity
+        elif identity != self._identity:
+            raise SafetyError("Entry frame target identity changed.")
+        if frame.capture_id in result.captures:
+            raise SafetyError("Entry overlay requires a fresh capture.")
+        result.captures.append(frame.capture_id)
+
+    def _clear_overlays(self, result, frame, cancelled):
         stable = None
         for attempt in range(10):
-            if cancelled():
-                raise _Cancelled("Cancelled before entry overlay observation.")
-            frame = self.port.observe(f"{tag}-{attempt}")
-            identity = (frame.target.index, frame.target.name, frame.target.serial, frame.target.boot_id)
-            if self._identity is None:
-                self._identity = identity
-            elif identity != self._identity:
-                raise SafetyError("Entry frame target identity changed.")
-            if frame.capture_id in result.captures:
-                raise SafetyError("Entry overlay requires a fresh capture.")
-            result.captures.append(frame.capture_id)
             detection = self.home_detector(frame.screen)
-            if detection.state == ScreenState.GAME_HOME and detection.confidence >= .9:
-                return frame
             if detection.state not in DISMISSIBLE:
-                raise SafetyError("Current frame is not a verified GAME_HOME screen.")
-            signature = overlay_signature(detection)
-            if stable != signature:
-                stable = signature
-                self.sleep(.5)
-                continue
-            point = dismiss_overlay_bottom_left(frame.screen, detection)
-            budget.reserve(detection)
+                return frame
             if cancelled():
                 raise _Cancelled("Cancelled before entry overlay input.")
-            try:
-                self.port.tap(frame, point)
-            except SafetyError:
-                raise
-            except (OSError, RuntimeError) as exc:
-                raise _ActionUncertain(str(exc)) from exc
-            result.actions.append(f"dismiss_overlay_bottom_left:{point[0]},{point[1]}")
+            signature = overlay_signature(detection)
+            if stable == signature:
+                point = dismiss_overlay_bottom_left(frame.screen, detection)
+                self._overlay_budget.reserve(detection)
+                try:
+                    self.port.tap(frame, point)
+                except SafetyError:
+                    raise
+                except (OSError, RuntimeError) as exc:
+                    raise _ActionUncertain(str(exc)) from exc
+                result.actions.append(f"dismiss_overlay_bottom_left:{point[0]},{point[1]}")
+            stable = signature
             self.sleep(.5)
+            if cancelled():
+                raise _Cancelled("Cancelled after overlay wait.")
+            frame = self.port.observe(f"{self.profile.task}-overlay-after-{attempt}")
+            self._record_frame(result, frame)
         raise SafetyError("Entry overlay observation bound reached.")
+
+    def _home(self, result: NavigationResult, tag: str, cancelled=lambda: False) -> EntryFrame:
+        frame = self.port.observe(tag)
+        self._record_frame(result, frame)
+        frame = self._clear_overlays(result, frame, cancelled)
+        detection = self.home_detector(frame.screen)
+        if detection.state != ScreenState.GAME_HOME or detection.confidence < .9:
+            raise SafetyError("Current frame is not a verified GAME_HOME screen.")
+        return frame
 
     def _step(
         self,
@@ -301,10 +315,16 @@ class GuardedEntryNavigator:
                 after = self.port.observe(destination_name)
             except StopIteration:
                 break
-            identity = (after.target.index, after.target.name, after.target.serial, after.target.boot_id)
-            if identity != self._identity:
-                raise SafetyError("Entry destination target identity changed.")
-            result.captures.append(after.capture_id)
+            self._record_frame(result, after)
+            if self.home_detector(after.screen).state in DISMISSIBLE:
+                after = self._clear_overlays(result, after, cancelled)
+                detected = self.home_detector(after.screen)
+                if detected.state == ScreenState.GAME_HOME and detected.confidence >= .9:
+                    raise _HomeAfterOverlay(after)
+                # A destination page can have its own qualified page anchor even
+                # when the recovery-only classifier has no rule for that page.
+                self._destination(after.screen, destination_anchor)
+                return after
             try:
                 self._destination(after.screen, destination_anchor)
             except SafetyError as exc:
@@ -323,15 +343,22 @@ class GuardedEntryNavigator:
             if cancelled():
                 raise _Cancelled("Entry navigation cancelled before capture.")
             frame = self._home(result, f"{self.profile.task}-home-before", cancelled)
-            frame = self._step(
-                result,
-                frame,
-                self.profile.first_anchor,
-                self.profile.first_destination,
-                f"tap:{self.profile.first_anchor.id}",
-                f"{self.profile.task}-after-step-1",
-                cancelled,
-            )
+            for navigation_attempt in range(2):
+                try:
+                    frame = self._step(
+                        result,
+                        frame,
+                        self.profile.first_anchor,
+                        self.profile.first_destination,
+                        f"tap:{self.profile.first_anchor.id}",
+                        f"{self.profile.task}-after-step-1",
+                        cancelled,
+                    )
+                    break
+                except _HomeAfterOverlay as exc:
+                    if self.profile.task != "vip-reward" or navigation_attempt:
+                        raise
+                    frame = exc.frame  # Fresh Home, navigation only; never a reward retry.
             if self.profile.second_anchor is not None and self.profile.second_destination is not None:
                 frame = self._step(
                     result,

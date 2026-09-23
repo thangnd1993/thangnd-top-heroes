@@ -333,7 +333,7 @@ def run_free_reward_task(
                     set_entry_geometry = getattr(port, "set_entry_geometry", None)
                     target_evidence = getattr(navigation, "target_evidence", ())
                     if callable(set_entry_geometry):
-                        set_entry_geometry(target_evidence[0] if target_evidence else None)
+                        set_entry_geometry(target_evidence[-1] if target_evidence else None)
                     journal = JournalledExplorerPort(
                         port,
                         manager.store,

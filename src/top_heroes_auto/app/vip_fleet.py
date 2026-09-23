@@ -83,7 +83,7 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
             row["final_result"] = navigation.status.value
             row["error"] = navigation.error
             return row
-        entry = navigation.target_evidence[0] if navigation.target_evidence else None
+        entry = navigation.target_evidence[-1] if navigation.target_evidence else None
         row["vip_entry"] = entry
         if include_upper_gift:
             from top_heroes_auto.app.vip_gift import run_upper_gift
