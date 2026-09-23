@@ -42,7 +42,8 @@ def test_one_shot_journal_and_selection_restore_for_non_index2(rig, tmp_path, mo
 
     port = SimpleNamespace(set_entry_geometry=lambda _: None, observe=lambda: next(captures),
                            validate_claim=lambda *a: None, geometry_report={"safe": True}, claim=claim,
-                           classify_claim=lambda *a: outcome, return_home=lambda *a: True)
+                           classify_claim=lambda *a: outcome, return_home=lambda *a: True,
+                           dismiss_receipts=lambda screen: screen, overlay_events=[])
     monkeypatch.setattr(vip_fleet, "_load_profile_details", lambda _: (object(), None))
     monkeypatch.setattr(vip_fleet, "run_home_recovery", lambda *a, **k:
                         (RecoveryResult(RecoveryStatus.ALREADY_HOME), tmp_path / "recovery.json", False))

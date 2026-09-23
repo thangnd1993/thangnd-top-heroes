@@ -9,6 +9,7 @@ from typing import Protocol
 
 from top_heroes_auto.app.process import CommandError
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.automation.overlays import DISMISSIBLE, OverlayBudget, overlay_signature
 from top_heroes_auto.vision.image_normalizer import ScreenshotInvalid
 from top_heroes_auto.vision.models import ScreenDetection, ScreenState
 
@@ -38,6 +39,8 @@ class RecoveryPort(Protocol):
     def observe(self, step: int) -> RecoveryObservation: ...
 
     def launch_game(self) -> None: ...
+
+    def dismiss_overlay(self, observation: RecoveryObservation) -> tuple[int, int]: ...
 
 
 @dataclass(frozen=True)
@@ -133,6 +136,8 @@ class HomeRecoveryEngine:
         initial_blank_count = 0
         unknown_count = 0
         launched = False
+        overlays = OverlayBudget()
+        stable_overlay = None
 
         def finish(status: RecoveryStatus, error: str | None = None):
             result.status = status
@@ -193,6 +198,31 @@ class HomeRecoveryEngine:
             result.steps.append(step)
             if detection.state == ScreenState.GAME_HOME:
                 return finish(RecoveryStatus.SUCCESS if result.actions else RecoveryStatus.ALREADY_HOME)
+            if detection.state in DISMISSIBLE:
+                signature = overlay_signature(detection)
+                # Wait for a second current classified frame before any overlay input.
+                if stable_overlay != signature:
+                    stable_overlay = signature
+                    result.actions.append("wait_overlay_stable")
+                    self.sleep(self.action_settle)
+                    continue
+                if cancelled():
+                    return finish(RecoveryStatus.CANCELLED)
+                try:
+                    overlays.reserve(detection)
+                    point = port.dismiss_overlay(observation)
+                except (CommandError, OSError, SafetyError, ValueError) as exc:
+                    return finish(RecoveryStatus.PROMO_BLOCKING, str(exc))
+                action = f"dismiss_overlay_bottom_left:{point[0]},{point[1]}"
+                result.actions.append(action)
+                result.steps[-1] = RecoveryStep(number, detection.state, detection.confidence,
+                                               observation.screenshot, action)
+                loading_started = None
+                self.sleep(self.action_settle)
+                continue  # Next iteration always captures and classifies a fresh frame.
+            stable_overlay = None
+            if overlays.total and detection.state == ScreenState.UNKNOWN:
+                return finish(RecoveryStatus.UNKNOWN_SCREEN, "Unknown destination after overlay dismissal; no further input.")
             if detection.state == ScreenState.PROMO_BLOCKING:
                 if loading_started is None:
                     loading_started = self.clock()

@@ -238,6 +238,12 @@ class FreeRewardExplorer:
                 })
                 claim_outcome = None
                 if pending_reward is not None:
+                    dismiss = getattr(port, "dismiss_receipts", None)
+                    if callable(dismiss):
+                        fresh = dismiss(screen)
+                        if fresh is not screen:
+                            guard.observe(fresh)
+                            screen = fresh
                     claim_outcome = _classify_claim(port, before_claim, screen, pending_reward)
                     result.claim_outcomes.append({
                         "reward_id": pending_reward.reward_id,

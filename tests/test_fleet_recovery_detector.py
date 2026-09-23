@@ -160,7 +160,7 @@ def test_promo_card_requires_both_unique_title_and_cta_and_idle_stays_unknown():
     result = RecoveryScreenDetector().detect(screen)
     idle = IdleRewardDetector().detect(screen)
 
-    assert result.state == ScreenState.PROMO_BLOCKING
+    assert result.state == ScreenState.EVENT_PROMO
     assert result.confidence >= 0.96
     assert {item.anchor_id for item in result.evidence} == {
         "promo-stranger-title",
@@ -179,7 +179,7 @@ def test_promo_card_requires_both_unique_title_and_cta_and_idle_stays_unknown():
     shifted_screen = replace(screen, original=shifted, normalized=shifted)
     moved = RecoveryScreenDetector().detect(shifted_screen)
 
-    assert moved.state == ScreenState.PROMO_BLOCKING
+    assert moved.state == ScreenState.EVENT_PROMO
     moved_boxes = {item.anchor_id: item.normalized_box for item in moved.evidence}
     assert (moved_boxes["promo-stranger-title"].x, moved_boxes["promo-stranger-title"].y) == (935, 65)
     assert (moved_boxes["promo-stranger-cta"].x, moved_boxes["promo-stranger-cta"].y) == (145, 410)
@@ -196,7 +196,7 @@ def test_side_panel_like_cta_without_promo_title_is_not_a_known_promo():
     )
     result = RecoveryScreenDetector().detect(screen_with(cta, (110, 430)))
 
-    assert result.state != ScreenState.PROMO_BLOCKING
+    assert result.state != ScreenState.EVENT_PROMO
     assert result.state != ScreenState.PROMO_LOADING
 
 
@@ -223,7 +223,7 @@ def test_duplicate_promo_cta_fails_closed_as_ambiguous():
         device_size=(1280, 720),
     )
 
-    assert RecoveryScreenDetector().detect(screen).state != ScreenState.PROMO_BLOCKING
+    assert RecoveryScreenDetector().detect(screen).state != ScreenState.EVENT_PROMO
 
 
 def test_conflicting_screen_evidence_prevents_promo_classification():

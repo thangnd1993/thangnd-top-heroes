@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
+import time
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable, Iterable
@@ -22,6 +24,7 @@ from top_heroes_auto.automation.free_rewards import (
     verified_anchor,
 )
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.overlays import OverlayBudget, dismiss_overlay_bottom_left
 from top_heroes_auto.automation.vip_geometry import (
     validate_vip_claim_geometry,
     write_vip_geometry_overlay,
@@ -312,6 +315,9 @@ class ManagerRewardPort(ExplorerPort):
         self.geometry_overlay_path: Path | None = None
         self.geometry_report: dict | None = None
         self._prepared_claim: tuple[str, str, tuple[int, int]] | None = None
+        self.overlay_events: list[dict] = []
+        self._overlay_budget = OverlayBudget(max_total=4, max_same=2)
+        self._dismissed_captures: set[str] = set()
 
     def set_entry_geometry(self, geometry: dict | None) -> None:
         self.entry_geometry = geometry
@@ -346,6 +352,51 @@ class ManagerRewardPort(ExplorerPort):
         if self._last is None or self._last.screen is not screen:
             raise SafetyError("Action evidence is stale; capture a fresh frame.")
         return self._last
+
+    def dismiss_receipts(self, screen: RewardScreen, *, sleep=time.sleep) -> RewardScreen:
+        """Only receipt overlays after a claim; never infer success from a popup."""
+        from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
+
+        detector = RecoveryScreenDetector()
+        for attempt in range(5):
+            current = self._current(screen)
+            detection = detector.detect(current.captured)
+            if detection.state == ScreenState.REWARD_RECEIPT:
+                point = dismiss_overlay_bottom_left(current.captured, detection)
+                if screen.capture_id in self._dismissed_captures:
+                    raise SafetyError("Cannot reuse a dismissed overlay frame.")
+                self._overlay_budget.reserve(detection)
+                self._dismissed_captures.add(screen.capture_id)
+                event = dict(before=screen.capture_id, detection=detection.as_dict(),
+                             tap_point_adb=list(point), dispatched="POSSIBLE")
+                self.overlay_events.append(event)
+                self._save_overlay_events()
+                self._dispatch("tap", point)
+                event["dispatched"] = True
+                sleep(.5)
+                screen = self.observe()
+                event["after"] = screen.capture_id
+                following = detector.detect(self._current(screen).captured)
+                event["after_detection"] = following.as_dict()
+                event["underlying_page_verified"] = screen.detection.state == ScreenState.FREE_REWARD_PAGE
+                event["same_receipt_detected"] = following.state == ScreenState.REWARD_RECEIPT
+                self._save_overlay_events()
+                continue
+            if screen.detection.state == ScreenState.FREE_REWARD_PAGE:
+                return screen
+            if attempt < 2 and not self.overlay_events:
+                # An immediate reward animation may not yet show the continue text.
+                # Observation only; no generic UNKNOWN dismiss.
+                sleep(.5)
+                screen = self.observe()
+                continue
+            return screen
+        return screen
+
+    def _save_overlay_events(self):
+        if self.folder is not None:
+            (Path(self.folder) / "overlay-dismissals.json").write_text(
+                json.dumps(self.overlay_events, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def validate_claim(self, screen: RewardScreen, reward: RewardEvidence, point: tuple[int, int]) -> None:
         current = self._current(screen)

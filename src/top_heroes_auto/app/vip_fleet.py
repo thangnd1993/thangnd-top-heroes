@@ -31,7 +31,7 @@ def _protected(manager):
             raise SafetyError(f"Protected account #{index} must remain Protected and unselected.")
 
 
-def run_vip_account(manager, data, index, name, folder):
+def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=False):
     """Use production guards and visual ports; one claim call, no explorer routes."""
     row = dict(index=index, name=name, adb_target=None, recovery_result="NOT_STARTED",
                game_home_confidence=None, vip_entry=None, vip_screen_verified=False,
@@ -55,7 +55,7 @@ def run_vip_account(manager, data, index, name, folder):
             return row
         prior = [r for r in manager.store.reward_claims(manager.namespace, index)
                  if r["reward_id"] == "vip-daily" and r["status"] in {"RESERVED", "VERIFIED"}]
-        if prior:
+        if prior and not include_upper_gift:
             row["journal_state"] = prior[-1]["status"]
             row["final_result"] = "ALREADY_VERIFIED" if prior[-1]["status"] == "VERIFIED" else "ALREADY_ATTEMPTED"
             row["free_reward_state"] = "JOURNAL_LOCKED"
@@ -85,6 +85,16 @@ def run_vip_account(manager, data, index, name, folder):
             return row
         entry = navigation.target_evidence[0] if navigation.target_evidence else None
         row["vip_entry"] = entry
+        if include_upper_gift:
+            from top_heroes_auto.app.vip_gift import run_upper_gift
+
+            gift_folder = folder / "upper-gift"
+            gift_folder.mkdir(exist_ok=True)
+            row["upper_gift"] = {}
+            run_upper_gift(manager, snapshot, index, name, profile, gift_folder, entry, task_id, row["upper_gift"])
+            if row["upper_gift"]["result"] not in {"SUCCESS", "NOT_AVAILABLE", "ALREADY_VERIFIED"}:
+                row["final_result"] = row["upper_gift"]["result"]
+                return row
         port = reward_port_factory(manager, snapshot, index, name, profile, folder)
         port.set_entry_geometry(entry)
         before = port.observe()
@@ -94,6 +104,11 @@ def run_vip_account(manager, data, index, name, folder):
         row["vip_screen_verified"] = before.detection.state.value == "FREE_REWARD_PAGE" and before.detection.confidence >= .9
         if not row["vip_screen_verified"]:
             raise SafetyError("Current VIP screen is not qualified.")
+        if prior:
+            row.update(journal_state=prior[-1]["status"], free_reward_state="JOURNAL_LOCKED",
+                       final_result="ALREADY_VERIFIED" if prior[-1]["status"] == "VERIFIED" else "ALREADY_ATTEMPTED")
+            row["return_home"] = "SUCCESS" if port.return_home(before) else "FAILED"
+            return row
         if not before.rewards:
             # The VIP adapter emits no candidate only for a positive claimed-state anchor.
             row.update(free_reward_state="UNAVAILABLE", final_result="NOT_AVAILABLE")
@@ -120,6 +135,11 @@ def run_vip_account(manager, data, index, name, folder):
         row["claim_dispatched"] = True
         after = port.observe()
         guard.observe(after)
+        row["immediate_after_evidence"] = json.loads(evidence_json(after))
+        after = port.dismiss_receipts(after)
+        if after.capture_id != row["immediate_after_evidence"]["capture_id"]:
+            guard.observe(after)
+        row["overlay_events"] = port.overlay_events
         row["after_evidence"] = json.loads(evidence_json(after))
         outcome = port.classify_claim(before, after, reward)
         row["post_condition"] = outcome.value
@@ -140,7 +160,8 @@ def run_vip_account(manager, data, index, name, folder):
         row["error"] = f"{type(exc).__name__}: {exc}"
         row["final_result"] = (
             "SUCCESS_WITH_RECOVERY_WARNING" if row["journal_state"] == "VERIFIED" else
-            "ACTION_DISPATCHED_UNVERIFIED" if row["claim_dispatched"] else "SAFETY_BLOCKED"
+            "ACTION_DISPATCHED_UNVERIFIED" if row["claim_dispatched"] or
+            row.get("upper_gift", {}).get("claim_dispatched") else "SAFETY_BLOCKED"
         )
         return row
     finally:

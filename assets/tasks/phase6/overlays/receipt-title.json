@@ -1,0 +1,14 @@
+{
+  "id": "receipt-title",
+  "state": "REWARD_RECEIPT",
+  "template": "receipt-title.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.96,
+  "required": true,
+  "notes": "Clean user-provided receipt text; paired title + continue required, never proof of consumption."
+}

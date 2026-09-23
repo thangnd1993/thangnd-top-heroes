@@ -1,5 +1,33 @@
 # Tiến độ
 
+## 2026-09-24 VIP popup correction — current authorization
+
+Only `2 / 5-Emmmmm` is authorized for this real acceptance, after passing CI.
+Do not rerun fleet or mutate Protected 0/1/6/7. Restore index-2 selection and
+perform only owned cleanup. Tiệm, BXH, Idle, other claims and Phase 7 are excluded.
+
+The user qualified bottom-left dismissal for positively identified promo/event
+and reward receipt overlays. Use current screenshot device dimensions (8% width,
+94% height), paired strict visual anchors and fresh capture after each input.
+Loading waits; UNKNOWN, ordinary pages and unqualified/paid/confirmation dialogs
+receive no generic dismissal. Four dismissals total, maximum two for a matching
+overlay signature in recovery; no uncertain transport retry. Current promo
+classification is EVENT_PROMO; historical PROMO_BLOCKING reports remain historical.
+
+VIP receipt title + continue text is only permission to dismiss. Verification
+still requires an unobscured page and independently changed reward availability.
+Upper gift uses its own `vip-upper-gift` journal, qualified gift cores + adjacent
+badge and paid exclusion; receipt plus absent badge on the visible gift verifies it.
+The user's blue annotation authorizes this exact gift as free; the red VND region
+is forbidden. Daily uses its existing `vip-daily` journal and disabled-button proof.
+No popup alone can produce VERIFIED. No period reset is guessed.
+
+Previous VIP fleet: 2/3/8 had no claims (promo blocked); 4/5/9/10/11 each dispatched
+one daily claim and remain RESERVED/POSSIBLE, never retry. Existing Idle claims
+remain untouched. This implementation's real acceptance is pending; no success
+is asserted before fresh evidence.
+
+
 ## 2026-09-23 Queen con promotional recovery (offline; no claim)
 
 The saved Queen con 14% and 65% Stranger Things startup frames now classify as

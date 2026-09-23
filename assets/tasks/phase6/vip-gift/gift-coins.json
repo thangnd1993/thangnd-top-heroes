@@ -1,0 +1,14 @@
+{
+  "id": "gift-coins",
+  "state": "FREE_REWARD_PAGE",
+  "template": "gift-coins.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.96,
+  "required": true,
+  "notes": "Clean current VIP gift core; user annotated this exact upper gift as free/allowed. Require VIP page, paired icon cores and adjacent availability badge."
+}

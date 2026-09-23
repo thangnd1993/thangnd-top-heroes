@@ -17,15 +17,16 @@ class RecoveryScreenDetector:
         templates = template_folder()
         self.anchors = load_anchors(templates)
         self.detector = ScreenDetector(self.anchors)
+        self.receipt_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "overlays")
         promo_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "promo")
         promo_cta_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "promo-recovery")
         self.promo_title = self._full_frame_anchor(
             next(anchor for anchor in promo_anchors if anchor.id == "promo-stranger-title"),
-            ScreenState.PROMO_BLOCKING,
+            ScreenState.EVENT_PROMO,
         )
         self.promo_cta = self._full_frame_anchor(
             next(anchor for anchor in promo_cta_anchors if anchor.id == "promo-stranger-cta"),
-            ScreenState.PROMO_BLOCKING,
+            ScreenState.EVENT_PROMO,
         )
         loading_title = next(
             anchor for anchor in self.anchors if anchor.id == "stranger-loading-splash-title"
@@ -47,6 +48,15 @@ class RecoveryScreenDetector:
 
     def detect(self, screen):
         detected = self.detector.detect(screen)
+        promo_title = unique_current_anchor(screen, self.promo_title)
+        promo_cta = unique_current_anchor(screen, self.promo_cta)
+        receipt = tuple(unique_current_anchor(screen, a) for a in self.receipt_anchors)
+        if len(receipt) == 2 and all(e.matched for e in receipt):
+            if detected.state != ScreenState.UNKNOWN or detected.evidence or (promo_title.matched and promo_cta.matched):
+                return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
+                               evidence=(*detected.evidence, *receipt))
+            return replace(detected, state=ScreenState.REWARD_RECEIPT,
+                           confidence=min(e.score for e in receipt), evidence=receipt)
         if detected.state in {ScreenState.GAME_LOADING, ScreenState.POPUP_GENERIC} and any(
             item.anchor_id.startswith(self._unique_anchor_prefixes)
             for item in detected.evidence
@@ -70,8 +80,6 @@ class RecoveryScreenDetector:
                     evidence=evidence,
                 )
 
-        promo_title = unique_current_anchor(screen, self.promo_title)
-        promo_cta = unique_current_anchor(screen, self.promo_cta)
         if promo_title.matched and promo_cta.matched:
             evidence = (promo_title, promo_cta)
             if detected.state not in {ScreenState.UNKNOWN, ScreenState.POPUP_GENERIC, ScreenState.GAME_LOADING} or (
@@ -84,7 +92,7 @@ class RecoveryScreenDetector:
                     evidence=(*detected.evidence, *evidence),
                 )
             return ScreenDetection(
-                ScreenState.PROMO_BLOCKING,
+                ScreenState.EVENT_PROMO,
                 min(item.score for item in evidence),
                 evidence,
                 detected.timestamp,

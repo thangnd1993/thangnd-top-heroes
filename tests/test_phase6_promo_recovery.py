@@ -106,7 +106,7 @@ def test_known_promo_dispatches_one_back_and_requires_fresh_home(tmp_path):
 
     assert result.status == PromoRecoveryStatus.SUCCESS
     assert result.attempted
-    assert result.actions == ["keyevent:4"]
+    assert result.actions == ["dismiss_overlay_bottom_left"]
     assert len(port.back_calls) == 1
     assert result.before["anchor"]["anchor"] == "promo-stranger-title"
     assert result.after["detection"]["state"] == ScreenState.GAME_HOME.value

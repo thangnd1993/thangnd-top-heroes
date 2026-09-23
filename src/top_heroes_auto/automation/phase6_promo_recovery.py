@@ -1,9 +1,8 @@
-"""Bounded, navigation-only recovery for the known Stranger Things popup.
+"""Legacy navigation adapter; real dismissal uses the shared qualified overlay rule.
 
-The popup is a Phase 6 shop-survey concern only.  This module deliberately
-does not belong to the normal Home recovery engine: it can send at most one
-observed-target Back keyevent, never retries an uncertain dispatch, and never
-claims, purchases, scrolls, or writes a reward journal row.
+The compatibility ``back`` method no longer sends Android Back. It requires
+paired current overlay evidence and calculates the user-authorized bottom-left
+point. No claims, purchases, scrolls or journal writes occur here.
 """
 
 from __future__ import annotations
@@ -18,6 +17,7 @@ from typing import Callable, Protocol
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.overlays import dismiss_overlay_bottom_left
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.models import CapturedScreen, ScreenDetection, ScreenState, VisualAnchor
 from top_heroes_auto.vision.screenshot import ScreenshotService
@@ -197,7 +197,7 @@ class GuardedPromoRecovery:
             raise
         except (OSError, RuntimeError) as exc:
             raise _ActionUncertain(str(exc)) from exc
-        result.actions.append("keyevent:4")
+        result.actions.append("dismiss_overlay_bottom_left")
 
     def _home_after_back(
         self,
@@ -294,7 +294,7 @@ class GuardedPromoRecovery:
 
 
 class ManagerPromoRecoveryPort(PromoRecoveryPort):
-    """Manager bridge for the one evidence-bound Back keyevent."""
+    """Compatibility bridge to the shared overlay action, never an Android Back."""
 
     def __init__(
         self,
@@ -327,12 +327,17 @@ class ManagerPromoRecoveryPort(PromoRecoveryPort):
         return PromoRecoveryFrame(target, captured)
 
     def back(self, frame: PromoRecoveryFrame) -> None:
+        from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
+
         if self._target != frame.target:
             raise SafetyError("Promo recovery action target is stale or changed.")
+        detection = RecoveryScreenDetector().detect(frame.screen)
+        point = dismiss_overlay_bottom_left(frame.screen, detection)
+        self._target = None
         self.manager.execute(
             self.index,
-            "keyevent",
-            values=(GuardedPromoRecovery.BACK_KEYCODE,),
+            "tap",
+            values=point,
             snapshot=self.snapshot,
             observed_target=frame.target,
         )

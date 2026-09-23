@@ -58,6 +58,10 @@ class JournalledExplorerPort:
     def observe(self):
         return self.port.observe()
 
+    def dismiss_receipts(self, screen):
+        dismiss = getattr(self.port, "dismiss_receipts", None)
+        return dismiss(screen) if callable(dismiss) else screen
+
     def validate_claim(self, screen, reward, point):
         validate = getattr(self.port, "validate_claim", None)
         if callable(validate):
