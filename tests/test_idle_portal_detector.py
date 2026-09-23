@@ -46,6 +46,22 @@ def test_portal_pixels_without_independent_home_are_blocked():
     assert detector.detect(frame((170, 20))).state == ScreenState.UNKNOWN
 
 
+def test_home_unknown_preserves_unmatched_current_frame_portal_diagnostics():
+    detector = IdleRewardDetector()
+    detector.detector = SimpleNamespace(detect=lambda s: detection(ScreenState.UNKNOWN))
+    detector.home_detector = SimpleNamespace(detect=lambda s: detection(ScreenState.GAME_HOME))
+    screen = frame()
+
+    result = detector.detect(screen)
+
+    portal = next(e for e in result.evidence if e.anchor_id == 'idle-adventure-portal')
+    assert result.state == ScreenState.UNKNOWN
+    assert not portal.matched
+    assert portal.score < portal.threshold
+    assert portal.normalized_box is not None
+    assert portal.device_box == screen.to_device_box(portal.normalized_box)
+
+
 def test_new_frame_does_not_reuse_previous_portal():
     detector = IdleRewardDetector()
     detector.home_detector = SimpleNamespace(detect=lambda s: detection(ScreenState.GAME_HOME))

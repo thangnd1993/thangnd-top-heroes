@@ -8,6 +8,7 @@ from dataclasses import replace
 
 from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.exploration import unique_current_anchor
+from top_heroes_auto.vision.matcher import match_anchor
 from top_heroes_auto.vision.models import NormalizedRect, ScreenState
 from top_heroes_auto.vision.resources import idle_reward_template_folder, template_folder
 
@@ -42,6 +43,19 @@ class IdleRewardDetector:
     def detect(self, screen):
         detected = self.detector.detect(screen)
         if detected.state != ScreenState.GAME_HOME:
+            # Preserve current-frame portal diagnostics when the independent
+            # screen classifier is UNKNOWN but the generic Home detector can
+            # still verify Home. This is evidence only: never promote UNKNOWN
+            # to an actionable state through this path.
+            if detected.state == ScreenState.UNKNOWN:
+                home = self.home_detector.detect(screen)
+                if home.state == ScreenState.GAME_HOME:
+                    anchor = next(a for a in self.anchors if a.id == 'idle-adventure-portal')
+                    portal = unique_current_anchor(screen, anchor)
+                    if not portal.matched:
+                        candidate = replace(match_anchor(screen, anchor), matched=False)
+                        portal = candidate
+                    return replace(detected, evidence=(portal, *home.evidence))
             if detected.state in {
                 ScreenState.IDLE_ENTRY_AVAILABLE,
                 ScreenState.IDLE_ENTRY_NOT_AVAILABLE,

@@ -96,6 +96,32 @@ def test_preclaim_task_exit_releases(rig, tmp_path, monkeypatch, reason):
         assert db.execute('SELECT COUNT(*) FROM reward_release_audit').fetchone()[0] == 1
 
 
+def test_successful_home_recovery_survives_later_idle_unknown(rig, tmp_path, monkeypatch):
+    manager, process, _ = rig
+    process.listing = process.listing.replace('Main-Thang', 'Queen')
+    manager.refresh()
+    monkeypatch.setattr(
+        task_cli,
+        'run_home_recovery',
+        lambda *a, **k: (RecoveryResult(RecoveryStatus.SUCCESS), None, False),
+    )
+
+    class UnknownIdle:
+        def run(self, port, cancelled):
+            return IdleRewardResult(IdleRewardStatus.UNKNOWN_SCREEN, error='portal not uniquely detected')
+
+    result, report_path, _, _ = task_cli.run_idle_reward_diagnostic(
+        manager, tmp_path, 7, 'Farm-007', task=UnknownIdle()
+    )
+    report = json.loads(report_path.read_text(encoding='utf-8'))
+    assert result.status == IdleRewardStatus.UNKNOWN_SCREEN
+    assert result.recovery_result == 'SUCCESS'
+    assert report['recovery_result'] == 'SUCCESS'
+    assert report['initial_home_recovery_result'] == 'SUCCESS'
+    assert result.claim_dispatched is False
+    assert result.journal_result == 'RELEASED'
+
+
 def test_manager_journal_hook_after_guards_before_input(rig):
     manager, process, _ = rig
     target, _ = manager.capture_verified(7)

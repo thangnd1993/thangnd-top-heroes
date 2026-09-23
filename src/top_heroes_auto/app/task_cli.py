@@ -181,6 +181,7 @@ def run_idle_reward_diagnostic(
         error="Precondition did not run.",
         recovery_result="PENDING",
     )
+    initial_recovery_result = "NOT_STARTED"
     recovery_report: Path | None = None
     cleanup_error = ""
     claim_id = None
@@ -199,6 +200,11 @@ def run_idle_reward_diagnostic(
             name,
             cancelled=cancelled,
             cleanup_owned=False,
+        )
+        initial_recovery_result = (
+            "SUCCESS"
+            if recovery.status in {RecoveryStatus.SUCCESS, RecoveryStatus.ALREADY_HOME}
+            else recovery.status.value
         )
         if recovery.status not in {
             RecoveryStatus.SUCCESS,
@@ -227,7 +233,14 @@ def run_idle_reward_diagnostic(
             if recovery.adb_target and recovery.boot_id:
                 port.verified_identity = (recovery.adb_target, recovery.boot_id)
             result = (task or IdleRewardTask()).run(port, cancelled)
+            # Keep the initial Home-recovery outcome even if the later task
+            # exits before it records a recovery field (for example, when the
+            # portal detector safely returns UNKNOWN_SCREEN). A later recovery
+            # result written by the task remains authoritative.
+            if result.recovery_result in {"NOT_STARTED", "PENDING"}:
+                result.recovery_result = initial_recovery_result
     except RecoveryFailure as exc:
+        initial_recovery_result = "FAILED"
         started_by_run = exc.started_by_run and not exc.cleanup_attempted
         recovery_report = exc.report_path
         result = IdleRewardResult(
@@ -319,6 +332,7 @@ def run_idle_reward_diagnostic(
         "lifecycle_cleanup_error": cleanup_error or None,
         "inventory_error": inventory_error,
         "recovery_report": str(recovery_report) if recovery_report else None,
+        "initial_home_recovery_result": initial_recovery_result,
         "claim_journal_id": claim_id,
         "known_promo_recovery": port.promo_result.as_dict() if port and port.promo_result else None,
         "isolation_changed_indices": isolation_changes,
