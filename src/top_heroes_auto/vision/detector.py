@@ -65,13 +65,13 @@ class ScreenDetector:
         state, confidence, evidence = ScreenState.UNKNOWN, 0.0, ()
         if candidates:
             confidence, state, evidence = candidates[0]
+            competing = next((item for item in candidates[1:] if item[1] != state), None)
             if (
-                len(candidates) > 1
-                and candidates[1][1] != state
-                and candidates[1][0] >= confidence - self.conflict_margin
+                competing is not None
+                and competing[0] >= confidence - self.conflict_margin
             ):
                 state = ScreenState.UNKNOWN
-                evidence = candidates[0][2] + candidates[1][2]
+                evidence = candidates[0][2] + competing[2]
         duration = (time.perf_counter() - started) * 1000
         return ScreenDetection(
             state,

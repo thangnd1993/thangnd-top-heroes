@@ -12,12 +12,32 @@ from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.vision.debug import write_overlay
 from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.image_normalizer import ImageNormalizer, ScreenshotInvalid
-from top_heroes_auto.vision.models import BoundingBox, NormalizedRect, ScreenState, VisualAnchor
+from top_heroes_auto.vision.models import (
+    AnchorEvidence,
+    BoundingBox,
+    NormalizedRect,
+    ScreenState,
+    VisualAnchor,
+)
 from top_heroes_auto.vision.resources import idle_reward_template_folder
 from top_heroes_auto.vision.screenshot import ScreenshotService
 from top_heroes_auto.vision.stability import screen_stability
 
 BOOT_ID = "ce068632-fc3e-4090-a8d7-ae8d9fe353f5"
+
+
+def test_same_state_variants_cannot_hide_a_conflicting_state(tmp_path, monkeypatch):
+    anchors = tuple(VisualAnchor(name, state, tmp_path / "unused.png", NormalizedRect(0, 0, 1, 1),
+                                .9, variant=name)
+                    for name, state in (("loading-a", ScreenState.GAME_LOADING),
+                                        ("loading-b", ScreenState.GAME_LOADING),
+                                        ("popup", ScreenState.POPUP_GENERIC)))
+    scores = {"loading-a": .999, "loading-b": .998, "popup": .997}
+    monkeypatch.setattr("top_heroes_auto.vision.detector.match_anchor", lambda screen, anchor:
+                        AnchorEvidence(anchor.id, anchor.state, scores[anchor.id], .9, True))
+    result = ScreenDetector(anchors).detect(screen())
+    assert result.state == ScreenState.UNKNOWN
+    assert {e.anchor_id for e in result.evidence} == {"loading-a", "popup"}
 
 
 def patterned(width=320, height=180, seed=7):
