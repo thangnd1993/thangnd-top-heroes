@@ -51,14 +51,14 @@ def test_saved_fleet_unknown_frames_detect_unique_idle_chest_at_current_location
     assert (anchor.normalized_box.x, anchor.normalized_box.y) == (position[0] + 103, position[1] + 15)
 
 
-def test_saved_pooh_auto_mode_overlay_blocks_idle_entry_classification():
+def test_saved_pooh_side_panel_does_not_hide_idle_entry():
     entry = read_image(FIXTURES / "unknown-entry-9.png")
-    overlay = read_image(FIXTURES / "pooh-auto-mode-overlay.png")
-    result = IdleRewardDetector().detect(screen_with([(entry, (700, 300)), (overlay, (20, 20))]))
+    panel = read_image(FIXTURES / "pooh-auto-mode-overlay.png")
+    result = IdleRewardDetector().detect(screen_with([(entry, (100, 0)), (panel, (900, 80))]))
 
-    assert result.state == ScreenState.POPUP_GENERIC
-    assert result.confidence >= 0.97
-    assert [item.anchor_id for item in result.evidence] == ["idle-adventure-auto-overlay"]
+    assert result.state == ScreenState.IDLE_ENTRY_AVAILABLE
+    assert result.confidence >= 0.95
+    assert any(item.anchor_id == "idle-entry-available" and item.matched for item in result.evidence)
 
 
 def test_duplicate_chests_fail_closed_instead_of_choosing_one():

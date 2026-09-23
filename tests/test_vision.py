@@ -217,19 +217,19 @@ def test_repository_templates_fail_closed_on_unrelated_image():
             ScreenState.IDLE_ENTRY_AVAILABLE,
             [("idle-entry-available", 230, 10)],
             "idle-entry-available",
-            (87, 957),
+            (72, 930),
         ),
         (
             ScreenState.IDLE_ENTRY_AVAILABLE,
             [("idle-entry-available-open", 230, 10)],
             "idle-entry-available-open",
-            (87, 957),
+            (72, 930),
         ),
         (
             ScreenState.IDLE_ENTRY_NOT_AVAILABLE,
             [("idle-entry-not-available", 230, 10)],
             "idle-entry-not-available",
-            (87, 957),
+            (72, 930),
         ),
         (
             ScreenState.IDLE_REWARD_CLAIMABLE,
@@ -296,13 +296,13 @@ def test_idle_reward_templates_have_no_stamina_action_anchor():
             "phase5-adventure-portal-result.png",
             ScreenState.IDLE_ENTRY_AVAILABLE,
             "idle-entry-available",
-            (87, 957),
+            (72, 930),
         ),
         (
             "phase5-adventure-second-run.png",
             ScreenState.IDLE_ENTRY_NOT_AVAILABLE,
             "idle-entry-not-available",
-            (87, 957),
+            (72, 930),
         ),
         (
             "phase5-idle-reward-screen.png",

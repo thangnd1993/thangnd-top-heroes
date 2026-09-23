@@ -36,32 +36,10 @@ class IdleRewardDetector:
             if anchor.id == 'idle-adventure-portal' else anchor
             for anchor in load_anchors(folder)
         )
-        self.overlay_anchor = next(
-            anchor for anchor in self.anchors if anchor.id == 'idle-adventure-auto-overlay'
-        )
-        self.detector = ScreenDetector(
-            tuple(anchor for anchor in self.anchors if anchor.id != self.overlay_anchor.id)
-        )
+        self.detector = ScreenDetector(self.anchors)
         self.home_detector = ScreenDetector.from_folder(template_folder())
 
     def detect(self, screen):
-        overlay = unique_current_anchor(screen, self.overlay_anchor)
-        if overlay.score >= self.overlay_anchor.threshold - self.detector.conflict_margin:
-            if not overlay.matched:
-                detected = self.detector.detect(screen)
-                return replace(
-                    detected,
-                    state=ScreenState.UNKNOWN,
-                    confidence=0,
-                    evidence=(*detected.evidence, overlay),
-                )
-            detected = self.detector.detect(screen)
-            return replace(
-                detected,
-                state=ScreenState.POPUP_GENERIC,
-                confidence=overlay.score,
-                evidence=(overlay,),
-            )
         detected = self.detector.detect(screen)
         if detected.state != ScreenState.GAME_HOME:
             if detected.state in {

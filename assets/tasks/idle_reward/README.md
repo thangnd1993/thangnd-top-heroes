@@ -23,7 +23,8 @@ crops and a unique current-frame search over the full viewport. The crop exclude
 larger template scored 0.871–0.888. The strict 0.95 threshold remains above the observed fleet range's
 lower bound and below every saved positive frame. Duplicate, weak, or conflicting matches fail closed.
 
-The saved Pooh5 Adventure frame also contains an auto-mode overlay. The detector recognizes it as a
-generic popup before considering the chest. No automatic overlay dismissal is registered.
+The saved Pooh5 Adventure frame also contains a side panel outside the chest's live bounding box. It is
+not treated as a blocking popup: the chest must still be uniquely detected in the current frame before
+it can be tapped.
 
 The Adventure portal action anchor uses only its stable blue core and excludes the animated flame.
