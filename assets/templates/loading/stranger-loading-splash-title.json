@@ -1,0 +1,12 @@
+{
+  "id": "stranger-loading-splash-title",
+  "state": "GAME_LOADING",
+  "template": "stranger-loading-title.png",
+  "expected_region": [0.0, 0.0, 1.0, 1.0],
+  "threshold": 0.96,
+  "required": true,
+  "weight": 1.0,
+  "variant": "stranger-loading-splash",
+  "reference_resolution": [1280, 720],
+  "notes": "Unique branded title anchor qualified on the saved Queen con 14% startup splash. This splash variant has a changing loading hint, so the older paired caption is not required; the full-frame title match remains at the existing 0.96 threshold and must be unique in the current screenshot."
+}

@@ -1,5 +1,17 @@
 # Tiến độ
 
+## 2026-09-23 recovery loading recognition (offline; no gameplay)
+
+The saved `3 / Queen con` startup frame at 14% is now recognized as
+`GAME_LOADING` by a unique live-frame Stranger Things title anchor at the
+existing 0.96 threshold. It no longer depends on the changing loading caption
+or percentage. The Google Play service notice remains non-actionable; recovery
+waits without tapping. The later Stranger Things event frame remains UNKNOWN,
+and weak/conflicting evidence stays fail-closed. Focused recovery tests and
+Ruff pass. No LDPlayer was launched and the Idle detector was not changed.
+After CI, only the already authorized screenshot/recovery acceptance on
+`3 / Queen con` may be performed; no claim or fleet run is authorized.
+
 ## 2026-09-23 Idle result-semantics repair (offline; no claim replay)
 
 The accepted Idle claim on `2 / 5-Emmmmm` remains verified and is never to be

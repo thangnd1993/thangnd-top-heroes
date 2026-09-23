@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -5,6 +6,7 @@ import cv2
 import numpy as np
 import pytest
 
+from top_heroes_auto.adb.client import Target
 from top_heroes_auto.automation.recovery import (
     HomeRecoveryEngine,
     RecoveryObservation,
@@ -12,8 +14,10 @@ from top_heroes_auto.automation.recovery import (
 )
 from top_heroes_auto.vision.models import CapturedScreen, ScreenDetection, ScreenState
 from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
+from top_heroes_auto.vision.screenshot import ScreenshotService
 
 FIXTURES = Path(__file__).parent / "fixtures" / "recovery_fleet"
+QUEEN_LOADING = FIXTURES / "queen-con-loading-14-google-play.png"
 
 
 def read_image(path: Path):
@@ -40,6 +44,12 @@ def screen_with(patch, position=(0, 0)):
     )
 
 
+def saved_queen_loading_screen():
+    payload = QUEEN_LOADING.read_bytes()
+    target = Target(3, "fixture", "emulator-fixture", "fixture-boot")
+    return ScreenshotService(lambda serial: payload).take(target)
+
+
 @pytest.mark.parametrize(
     ("fixture", "state", "positions"),
     [
@@ -62,6 +72,77 @@ def test_stranger_things_promo_title_without_loading_caption_stays_unknown():
         Path(__file__).parents[1] / "assets" / "tasks" / "phase6" / "promo" / "promo-stranger-title.png"
     )
     result = RecoveryScreenDetector().detect(screen_with(promo_title, (400, 180)))
+
+    assert result.state == ScreenState.UNKNOWN
+
+
+def test_queen_saved_14_percent_splash_is_loading_from_unique_current_title():
+    result = RecoveryScreenDetector().detect(saved_queen_loading_screen())
+
+    assert result.state == ScreenState.GAME_LOADING
+    assert result.confidence == pytest.approx(0.962074, abs=0.002)
+    assert len(result.evidence) == 1
+    evidence = result.evidence[0]
+    assert evidence.anchor_id == "stranger-loading-splash-title"
+    assert evidence.matched
+    assert evidence.normalized_box is not None
+    assert evidence.device_box is not None
+
+
+def test_queen_loading_title_does_not_depend_on_progress_percentage():
+    screen = saved_queen_loading_screen()
+    changed = screen.normalized.copy()
+    # Replace the live-frame percentage area while leaving the loading artwork intact.
+    changed[320:390, 130:185] = np.median(changed[310:318, 130:185], axis=0).astype(np.uint8)
+    assert not np.array_equal(changed, screen.normalized)
+
+    result = RecoveryScreenDetector().detect(replace(screen, normalized=changed))
+
+    assert result.state == ScreenState.GAME_LOADING
+    assert result.evidence[0].matched
+
+
+def test_queen_loading_title_bbox_is_found_at_its_current_frame_position():
+    screen = saved_queen_loading_screen()
+    initial = RecoveryScreenDetector().detect(screen)
+    shifted = screen.normalized.copy()
+    transform = np.float32([[1, 0, 40], [0, 1, -20]])
+    shifted = cv2.warpAffine(shifted, transform, (shifted.shape[1], shifted.shape[0]))
+
+    result = RecoveryScreenDetector().detect(replace(screen, normalized=shifted))
+
+    assert result.state == ScreenState.GAME_LOADING
+    assert result.evidence[0].normalized_box.x == initial.evidence[0].normalized_box.x + 40
+    assert result.evidence[0].normalized_box.y == initial.evidence[0].normalized_box.y - 20
+
+
+def test_google_play_notice_during_loading_only_waits_and_never_dispatches_ui_input():
+    detector = RecoveryScreenDetector()
+    loading = detector.detect(saved_queen_loading_screen())
+    assert loading.state == ScreenState.GAME_LOADING
+
+    port = SequencePort(
+        [detected(ScreenState.ANDROID_HOME), loading, detected(ScreenState.GAME_HOME)]
+    )
+    clock = Clock()
+    result = HomeRecoveryEngine(
+        loading_timeout=90,
+        loading_interval=5,
+        action_settle=0,
+        clock=clock,
+        sleep=clock.sleep,
+    ).ensure_game_home(port)
+
+    assert result.status == RecoveryStatus.SUCCESS
+    assert result.actions == ["launch_game", "wait"]
+    assert port.launches == 1
+
+
+def test_blurred_queen_loading_frame_below_anchor_confidence_stays_unknown():
+    screen = saved_queen_loading_screen()
+    blurred = cv2.GaussianBlur(screen.normalized, (0, 0), sigmaX=5)
+
+    result = RecoveryScreenDetector().detect(replace(screen, normalized=blurred))
 
     assert result.state == ScreenState.UNKNOWN
 
