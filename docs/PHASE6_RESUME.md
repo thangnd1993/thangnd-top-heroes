@@ -1,5 +1,16 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+### Second portable acceptance (d046f90; CI 35904005462 passed)
+
+Index 2's promo was positively recognized and dismissed once at device (58,1203).
+Fresh Home confidence 0.989839, VIP entry 1.0, VIP page verified. The upper gift
+coin anchor included pulsing background and scored 0.936397, below 0.96. No reward
+was dispatched, journal NONE. Owned cleanup and selection restore succeeded.
+Saved run: `vip-popup-acceptance/20260923-184853-097449Z` in AppData diagnostics.
+Refined only the inner coin crop, retaining 0.96, paired icon/badge and page/paid
+checks. Qualification may observe up to three fresh VIP frames without input.
+The next scoped acceptance remains gated by fresh CI; no fleet is authorized.
+
 ### First portable acceptance (8aa50db; CI 35902547647 passed)
 
 Index 2 reached Home at 0.978557, but a late Stranger Things event overlay

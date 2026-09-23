@@ -10,5 +10,5 @@
   ],
   "threshold": 0.96,
   "required": true,
-  "notes": "Clean current VIP gift core; user annotated this exact upper gift as free/allowed. Require VIP page, paired icon cores and adjacent availability badge."
+  "notes": "Inner coin core excludes pulsing rays/background; unchanged 0.96 threshold, paired gift-core + adjacent badge + current VIP page required."
 }

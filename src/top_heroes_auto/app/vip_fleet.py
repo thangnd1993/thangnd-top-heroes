@@ -92,6 +92,7 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
             gift_folder.mkdir(exist_ok=True)
             row["upper_gift"] = {}
             run_upper_gift(manager, snapshot, index, name, profile, gift_folder, entry, task_id, row["upper_gift"])
+            row["vip_screen_verified"] = row["upper_gift"].get("before", {}).get("detection", {}).get("state") == "FREE_REWARD_PAGE"
             if row["upper_gift"]["result"] not in {"SUCCESS", "NOT_AVAILABLE", "ALREADY_VERIFIED"}:
                 row["final_result"] = row["upper_gift"]["result"]
                 return row

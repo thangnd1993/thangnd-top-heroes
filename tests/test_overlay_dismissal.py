@@ -248,3 +248,18 @@ def test_late_promo_at_vip_entry_boundary_dismisses_then_reverifies_home():
     home=navigator._home(result,'late-promo')
     assert home.screen.timestamp=='2' and taps==[(58,1203)]
     assert len(set(result.captures))==3
+
+
+def test_upper_gift_pulsing_background_does_not_weaken_confidence_threshold():
+    import cv2
+    profile,_=_load_profile_details('vip-reward')
+    adapter=FrameRewardAdapter(gift_profile(profile))
+    current=screen('index2-vip-claimable.png')
+    portrait=cv2.rotate(current.normalized,cv2.ROTATE_90_COUNTERCLOCKWISE)
+    pulse=cv2.imread(str(FIXTURES/'gift-pulse.png'))
+    portrait[155:250,600:705]=pulse
+    fresh=replace(current,normalized=cv2.rotate(portrait,cv2.ROTATE_90_CLOCKWISE))
+    observed=adapter.observe(fresh)
+    assert gift_state(observed.screen)=='FREE_CLAIMABLE'
+    assert all(e.score>=.96 for key,e in observed.evidence.items() if key in {'claim','free','available'})
+    assert adapter.profile.anchor_map['free'].threshold==.96

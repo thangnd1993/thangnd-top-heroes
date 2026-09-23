@@ -1,6 +1,7 @@
 """The separately journalled upper gift explicitly authorized by the VIP reference."""
 
 import json
+import time
 from dataclasses import replace
 
 from top_heroes_auto.app.phase6_runtime import phase6_asset_root, reward_port_factory
@@ -55,6 +56,15 @@ def run_upper_gift(manager, snapshot, index, name, profile, folder, entry, task_
     before = port.observe()
     guard = FreeRewardGuard(index, name)
     guard.observe(before)
+    row["qualification_captures"] = [before.capture_id]
+    for _ in range(2):
+        if gift_state(before) != "UNKNOWN" or before.detection.state != ScreenState.FREE_REWARD_PAGE:
+            break
+        # The gift pulses. Observe only; never tap an unqualified phase of the icon.
+        time.sleep(.5)
+        before = port.observe()
+        guard.observe(before)
+        row["qualification_captures"].append(before.capture_id)
     row.update(before=json.loads(evidence_json(before)), availability=gift_state(before))
     if row["availability"] != "FREE_CLAIMABLE":
         row["result"] = row["availability"]
