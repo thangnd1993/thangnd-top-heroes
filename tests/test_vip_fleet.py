@@ -29,7 +29,8 @@ def frame(capture, name="Pooh5"):
 
 
 @pytest.mark.parametrize("outcome", [ClaimOutcome.CLAIMED, ClaimOutcome.UNKNOWN])
-def test_one_shot_journal_and_selection_restore_for_non_index2(rig, tmp_path, monkeypatch, outcome):
+@pytest.mark.parametrize("locked_upper", [False, True])
+def test_one_shot_journal_and_selection_restore_for_non_index2(rig, tmp_path, monkeypatch, outcome, locked_upper):
     manager, store = prepare(rig)
     captures = iter((frame("before"), frame("after")))
     calls = []
@@ -50,11 +51,19 @@ def test_one_shot_journal_and_selection_restore_for_non_index2(rig, tmp_path, mo
     monkeypatch.setattr(vip_fleet, "entry_navigator_factory", lambda *a:
                         NavigationResult(NavigationStatus.SUCCESS))
     monkeypatch.setattr(vip_fleet, "reward_port_factory", lambda *a: port)
-    row = vip_fleet.run_vip_account(manager, tmp_path, 9, "Pooh5", tmp_path)
+    if locked_upper:
+        from top_heroes_auto.app import vip_gift
+
+        monkeypatch.setattr(vip_gift, "run_upper_gift", lambda *a: a[-1].update(
+            result="ALREADY_ATTEMPTED", claim_dispatched=False, journal_state="RESERVED"))
+    row = vip_fleet.run_vip_account(manager, tmp_path, 9, "Pooh5", tmp_path, include_upper_gift=locked_upper)
     assert calls == ["claim"]
     assert row["selection_restored"] and not store.metadata(manager.namespace, 9).selected
     assert row["journal_state"] == ("VERIFIED" if outcome == ClaimOutcome.CLAIMED else "RESERVED")
-    assert row["final_result"] == ("SUCCESS" if outcome == ClaimOutcome.CLAIMED else "ACTION_DISPATCHED_UNVERIFIED")
+    expected = "SUCCESS" if outcome == ClaimOutcome.CLAIMED else "ACTION_DISPATCHED_UNVERIFIED"
+    assert row["final_result"] == ("PARTIAL_UPPER_GIFT_UNVERIFIED" if locked_upper else expected)
+    if locked_upper:
+        assert row["daily_result"] == expected
     retry = vip_fleet.run_vip_account(manager, tmp_path, 9, "Pooh5", tmp_path)
     assert retry["final_result"] in {"ALREADY_VERIFIED", "ALREADY_ATTEMPTED"}
     assert calls == ["claim"]

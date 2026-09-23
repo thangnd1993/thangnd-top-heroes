@@ -93,7 +93,7 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
             row["upper_gift"] = {}
             run_upper_gift(manager, snapshot, index, name, profile, gift_folder, entry, task_id, row["upper_gift"])
             row["vip_screen_verified"] = row["upper_gift"].get("before", {}).get("detection", {}).get("state") == "FREE_REWARD_PAGE"
-            if row["upper_gift"]["result"] not in {"SUCCESS", "NOT_AVAILABLE", "ALREADY_VERIFIED"}:
+            if row["upper_gift"]["result"] not in {"SUCCESS", "NOT_AVAILABLE", "ALREADY_VERIFIED", "ALREADY_ATTEMPTED"}:
                 row["final_result"] = row["upper_gift"]["result"]
                 return row
         port = reward_port_factory(manager, snapshot, index, name, profile, folder)
@@ -187,6 +187,9 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
             receipt = next(r for r in manager.store.reward_claims(manager.namespace, index) if r["id"] == claim_id)
             row["journal_state"] = receipt["status"]
             row["dispatch_state"] = receipt["dispatch_state"]
+        if row.get("upper_gift", {}).get("result") == "ALREADY_ATTEMPTED":
+            row["daily_result"] = row["final_result"]
+            row["final_result"] = "PARTIAL_UPPER_GIFT_UNVERIFIED"
         _write(folder / "account-report.json", row)
         if task_id is not None:
             manager.store.finish_task_run(task_id, row["final_result"], error=row["error"] or "",

@@ -321,3 +321,16 @@ def test_gift_pose_match_rejects_normal_home_and_receipt():
     adapter=FrameRewardAdapter(gift_profile(profile))
     for name in ('index2-home.png','receipt-reference.png'):
         assert gift_state(adapter.observe(screen(name)).screen)=='UNKNOWN'
+
+
+def test_already_received_vip_points_notice_is_dismissible_but_not_claim_proof():
+    captured=screen('vip-points-notice.png')
+    detection=RecoveryScreenDetector().detect(captured)
+    assert detection.state==ScreenState.REWARD_RECEIPT and detection.confidence>=.96
+    assert {e.anchor_id for e in detection.evidence}=={'vip-points-received-title','vip-points-today-received'}
+    assert dismiss_overlay_bottom_left(captured,detection)==(58,1203)
+    profile,_=_load_profile_details('vip-reward')
+    adapter=FrameRewardAdapter(profile)
+    before=adapter.observe(screen('index2-vip-claimable.png'))
+    from top_heroes_auto.automation.free_rewards import ClaimOutcome
+    assert adapter.classify_claim(before.screen,adapter.observe(captured).screen,before.screen.rewards[0])==ClaimOutcome.UNKNOWN

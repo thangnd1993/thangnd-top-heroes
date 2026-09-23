@@ -1,5 +1,22 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+### Fifth portable acceptance (f012b1c; CI 35910107501 passed)
+
+Index 2's upper VIP gift qualified at 0.994918; one tap at (648,215), bbox
+(631,201,34,28), paid region excluded. It opened a different notice stating
+"Bạn đã nhận được" and "Hôm nay đã nhận: 10 Điểm VIP". This alone does not prove
+this action changed claimability. Upper claim ID 27 remains RESERVED/POSSIBLE:
+NEVER redispatch. Daily VIP was not attempted. Cleanup SUCCESS, selection restored,
+and all unrelated instances unchanged. Saved run:
+`vip-popup-acceptance/20260923-194200-294872Z`.
+
+The notice is now recognized by paired stable text anchors (excluding numbers),
+with the same generic bottom-left dismiss, and is never itself claim proof.
+On the next authorized index-2 continuation, skip the journal-locked upper gift
+without tapping it, freshly verify VIP and process only the unattempted daily
+reward. Report the upper uncertainty separately; do not label overall full success.
+Wait for fresh CI. No fleet, Tiệm, BXH, Idle or Phase 7.
+
 ### Fourth portable acceptance (fe4e5e2; CI 35907498412 passed)
 
 Late promo dismissal and navigation-only VIP re-entry succeeded. The gift icon

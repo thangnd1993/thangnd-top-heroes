@@ -50,8 +50,16 @@ class RecoveryScreenDetector:
         detected = self.detector.detect(screen)
         promo_title = unique_current_anchor(screen, self.promo_title)
         promo_cta = unique_current_anchor(screen, self.promo_cta)
-        receipt = tuple(unique_current_anchor(screen, a) for a in self.receipt_anchors)
-        if len(receipt) == 2 and all(e.matched for e in receipt):
+        groups = {}
+        for anchor in self.receipt_anchors:
+            groups.setdefault(anchor.variant, []).append(unique_current_anchor(screen, anchor))
+        qualified_receipts = [tuple(items) for items in groups.values()
+                              if len(items) >= 2 and all(e.matched for e in items)]
+        if len(qualified_receipts) > 1:
+            return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
+                           evidence=tuple(e for items in qualified_receipts for e in items))
+        if qualified_receipts:
+            receipt = qualified_receipts[0]
             if detected.state != ScreenState.UNKNOWN or detected.evidence or (promo_title.matched and promo_cta.matched):
                 return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
                                evidence=(*detected.evidence, *receipt))

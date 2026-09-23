@@ -49,7 +49,8 @@ def run_upper_gift(manager, snapshot, index, name, profile, folder, entry, task_
              if r["reward_id"] == "vip-upper-gift" and r["status"] in {"RESERVED", "VERIFIED"}]
     if prior:
         row.update(result="ALREADY_VERIFIED" if prior[-1]["status"] == "VERIFIED" else "ALREADY_ATTEMPTED",
-                   journal_state=prior[-1]["status"])
+                   journal_state=prior[-1]["status"], previous_claim_id=prior[-1]["id"],
+                   dispatch_state=prior[-1]["dispatch_state"])
         return
     port = reward_port_factory(manager, snapshot, index, name, gift_profile(profile), folder)
     port.set_entry_geometry(entry)

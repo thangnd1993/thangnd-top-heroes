@@ -1,0 +1,15 @@
+{
+  "id": "vip-points-today-received",
+  "state": "REWARD_RECEIPT",
+  "template": "vip-points-today-received.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.96,
+  "required": true,
+  "variant": "vip-points-notice",
+  "notes": "Paired already-received VIP points notice; excludes points/streak numbers. Dismiss permission only, never claim proof."
+}
