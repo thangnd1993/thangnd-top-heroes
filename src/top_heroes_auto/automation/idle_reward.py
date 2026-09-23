@@ -19,6 +19,7 @@ IDLE_ENTRY_ACTION_ANCHORS = frozenset(
 
 class IdleRewardStatus(StrEnum):
     SUCCESS = "SUCCESS"
+    SUCCESS_WITH_RECOVERY_WARNING = "SUCCESS_WITH_RECOVERY_WARNING"
     NOT_AVAILABLE = "NOT_AVAILABLE"
     UNKNOWN_SCREEN = "UNKNOWN_SCREEN"
     ACTION_FAILED = "ACTION_FAILED"
@@ -69,6 +70,11 @@ class IdleRewardResult:
     adb_target: str | None = None
     claim_dispatched: bool = False
     cleanup_succeeded: bool = False
+    claim_result: str = "NOT_ATTEMPTED"
+    postcondition_result: str = "NOT_CHECKED"
+    recovery_result: str = "NOT_STARTED"
+    journal_result: str = "UNKNOWN"
+    cleanup_result: str = "NOT_REQUIRED"
     duration: float = 0.0
     error: str | None = None
 
@@ -79,6 +85,11 @@ class IdleRewardResult:
             "final_state": self.steps[-1].state.value if self.steps else None,
             "claim_dispatched": self.claim_dispatched,
             "cleanup_succeeded": self.cleanup_succeeded,
+            "claim_result": self.claim_result,
+            "postcondition_result": self.postcondition_result,
+            "recovery_result": self.recovery_result,
+            "journal_result": self.journal_result,
+            "cleanup_result": self.cleanup_result,
             "actions": list(self.actions),
             "screenshots": [str(step.screenshot) for step in self.steps if step.screenshot],
             "steps": [step.as_dict() for step in self.steps],
@@ -116,6 +127,10 @@ class IdleRewardTask:
         counter = 0
 
         def finish(status: IdleRewardStatus, error: str | None = None):
+            # A verified receipt is final. Later navigation/recovery trouble
+            # cannot turn the dispatched action back into an uncertain claim.
+            if result.postcondition_result == "VERIFIED" and status == IdleRewardStatus.ACTION_RESULT_UNCERTAIN:
+                status = IdleRewardStatus.SUCCESS_WITH_RECOVERY_WARNING
             result.status = status
             result.error = error
             result.duration = self.clock() - started
@@ -176,10 +191,18 @@ class IdleRewardTask:
             check_cancelled()
             self.sleep(self.settle_seconds)
 
+        def mark_claim_dispatched():
+            result.claim_dispatched = True
+            result.claim_result = "DISPATCHED"
+            result.postcondition_result = "PENDING"
+
         def return_from_adventure(observation: IdleRewardObservation) -> bool:
+            result.recovery_result = "PENDING"
             action("back_to_game_home", lambda: port.back(observation.detection))
             home = observe_until("return-home", {ScreenState.GAME_HOME})
-            return bool(home and home.detection.state == ScreenState.GAME_HOME)
+            verified = bool(home and home.detection.state == ScreenState.GAME_HOME)
+            result.recovery_result = "VERIFIED" if verified else "FAILED"
+            return verified
 
         def recover_task_context(observation: IdleRewardObservation) -> IdleRewardObservation | None:
             state = observation.detection.state
@@ -222,6 +245,7 @@ class IdleRewardTask:
                 )
             if home.detection.state != ScreenState.GAME_HOME:
                 return finish(IdleRewardStatus.UNKNOWN_SCREEN, "GAME_HOME portal anchor was not verified.")
+            result.recovery_result = "VERIFIED"
             action(
                 "open_adventure",
                 lambda: port.tap(home.detection, "idle-adventure-portal"),
@@ -283,14 +307,19 @@ class IdleRewardTask:
             action(
                 "claim_once",
                 lambda: port.tap(reward.detection, "idle-claim-button"),
-                lambda: setattr(result, "claim_dispatched", True),
+                mark_claim_dispatched,
             )
             claimed = observe_until("post-claim", {ScreenState.IDLE_REWARD_CLAIMED})
             if claimed is None or claimed.detection.state != ScreenState.IDLE_REWARD_CLAIMED:
+                result.claim_result = "UNCERTAIN"
+                result.postcondition_result = "FAILED"
                 return finish(
                     IdleRewardStatus.ACTION_RESULT_UNCERTAIN,
                     "Claim was dispatched once but its result could not be verified; no retry sent.",
                 )
+            result.claim_result = "SUCCESS"
+            result.postcondition_result = "VERIFIED"
+            result.recovery_result = "PENDING"
             action(
                 "dismiss_verified_reward",
                 lambda: port.tap(claimed.detection, "idle-claimed-continue"),
@@ -309,29 +338,61 @@ class IdleRewardTask:
                     {ScreenState.IDLE_ENTRY_AVAILABLE, ScreenState.IDLE_ENTRY_NOT_AVAILABLE},
                 )
                 if entry is None or not return_from_adventure(entry):
+                    result.recovery_result = "FAILED"
                     return finish(
-                        IdleRewardStatus.CLEANUP_FAILED,
-                        "Claim succeeded but the post-claim panel did not return Home.",
+                        IdleRewardStatus.SUCCESS_WITH_RECOVERY_WARNING,
+                        "Claim verified; post-claim recovery did not verify Home.",
                     )
             elif final is None or final.detection.state != ScreenState.GAME_HOME:
-                return finish(IdleRewardStatus.CLEANUP_FAILED, "Claim succeeded but GAME_HOME was not restored.")
-            result.cleanup_succeeded = True
+                result.recovery_result = "FAILED"
+                return finish(
+                    IdleRewardStatus.SUCCESS_WITH_RECOVERY_WARNING,
+                    "Claim verified; GAME_HOME recovery did not verify.",
+                )
+            else:
+                result.recovery_result = "VERIFIED"
+            result.cleanup_result = "NOT_REQUIRED"
             return finish(IdleRewardStatus.SUCCESS)
         except _Cancelled:
+            if result.postcondition_result == "VERIFIED":
+                result.recovery_result = "FAILED"
+                return finish(
+                    IdleRewardStatus.SUCCESS_WITH_RECOVERY_WARNING,
+                    "Claim verified; recovery cancelled afterward.",
+                )
             if result.claim_dispatched:
+                result.claim_result = "UNCERTAIN"
+                result.postcondition_result = "FAILED"
                 return finish(
                     IdleRewardStatus.ACTION_RESULT_UNCERTAIN,
                     "Cancelled after the single claim dispatch; no retry sent.",
                 )
             return finish(IdleRewardStatus.CANCELLED)
         except _TimedOut:
+            if result.postcondition_result == "VERIFIED":
+                result.recovery_result = "FAILED"
+                return finish(
+                    IdleRewardStatus.SUCCESS_WITH_RECOVERY_WARNING,
+                    "Claim verified; recovery timed out afterward.",
+                )
             if result.claim_dispatched:
+                result.claim_result = "UNCERTAIN"
+                result.postcondition_result = "FAILED"
                 return finish(
                     IdleRewardStatus.ACTION_RESULT_UNCERTAIN,
                     "Timed out after the single claim dispatch; no retry sent.",
                 )
             return finish(IdleRewardStatus.TIMEOUT)
         except (CommandError, OSError, ScreenshotInvalid, SafetyError, ValueError) as exc:
+            if result.postcondition_result == "VERIFIED":
+                result.recovery_result = "FAILED"
+                return finish(
+                    IdleRewardStatus.SUCCESS_WITH_RECOVERY_WARNING,
+                    f"Claim verified; recovery failed: {exc}",
+                )
+            if result.claim_dispatched:
+                result.claim_result = "UNCERTAIN"
+                result.postcondition_result = "FAILED"
             return finish(
                 IdleRewardStatus.ACTION_RESULT_UNCERTAIN if result.claim_dispatched else IdleRewardStatus.ACTION_FAILED,
                 str(exc),

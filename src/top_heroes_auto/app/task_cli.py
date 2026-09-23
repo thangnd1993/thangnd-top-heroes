@@ -176,7 +176,11 @@ def run_idle_reward_diagnostic(
     folder.mkdir(parents=True, exist_ok=False)
     task_run_id = manager.store.create_task_run(manager.namespace, TASK_NAME, index, name)
     started_by_run = False
-    result = IdleRewardResult(IdleRewardStatus.ACTION_FAILED, error="Precondition did not run.")
+    result = IdleRewardResult(
+        IdleRewardStatus.ACTION_FAILED,
+        error="Precondition did not run.",
+        recovery_result="PENDING",
+    )
     recovery_report: Path | None = None
     cleanup_error = ""
     claim_id = None
@@ -211,6 +215,7 @@ def run_idle_reward_diagnostic(
                 status,
                 adb_target=recovery.adb_target,
                 error=f"GAME_HOME precondition failed: {recovery.status.value}: {recovery.error or ''}".strip(),
+                recovery_result="FAILED",
             )
         else:
             port = DiagnosticIdleRewardPort(
@@ -225,9 +230,28 @@ def run_idle_reward_diagnostic(
     except RecoveryFailure as exc:
         started_by_run = exc.started_by_run and not exc.cleanup_attempted
         recovery_report = exc.report_path
-        result = IdleRewardResult(IdleRewardStatus.ACTION_FAILED, error=str(exc))
+        result = IdleRewardResult(
+            IdleRewardStatus.ACTION_FAILED,
+            error=str(exc),
+            recovery_result="FAILED",
+        )
     except (OSError, RuntimeError, ValueError) as exc:
-        result = IdleRewardResult(IdleRewardStatus.ACTION_FAILED, error=str(exc))
+        if result.postcondition_result == "VERIFIED":
+            result.status = IdleRewardStatus.SUCCESS_WITH_RECOVERY_WARNING
+            result.recovery_result = "FAILED"
+            result.error = f"Claim verified; post-claim recovery failed: {exc}"
+        elif result.claim_dispatched:
+            result.status = IdleRewardStatus.ACTION_RESULT_UNCERTAIN
+            result.claim_result = "UNCERTAIN"
+            result.postcondition_result = "FAILED"
+            result.recovery_result = "UNKNOWN"
+            result.error = str(exc)
+        else:
+            result = IdleRewardResult(
+                IdleRewardStatus.ACTION_FAILED,
+                error=str(exc),
+                recovery_result="FAILED",
+            )
     finally:
         try:
             if claim_id is not None:
@@ -239,23 +263,50 @@ def run_idle_reward_diagnostic(
                         claim_id, task_run_id,
                         json.dumps({'reason': 'claim transport not entered', 'result': result.as_dict()}),
                     )
+                    result.journal_result = 'RELEASED'
                 elif result.claim_dispatched:
                     claimed = [s for s in result.steps if s.state == ScreenState.IDLE_REWARD_CLAIMED]
                     dispatch = [s.number for s in result.steps if s.action == 'claim_once']
                     if len(dispatch) == 1 and any(s.number > dispatch[0] for s in claimed):
                         manager.store.verify_reward_claim(claim_id, task_run_id, json.dumps(result.as_dict()))
+                        result.journal_result = 'VERIFIED'
+                    else:
+                        result.journal_result = row['status']
+                else:
+                    result.journal_result = row['status']
         except Exception as exc:  # noqa: BLE001 - journal failure must not bypass owned cleanup
-            result.status = IdleRewardStatus.ACTION_FAILED
+            if result.postcondition_result != 'VERIFIED':
+                result.status = IdleRewardStatus.ACTION_FAILED
             result.error = f'Journal finalization failed; reservation retained: {exc}'
+            result.journal_result = 'FAILED'
         if started_by_run:
             try:
                 manager.execute(index, "quit", snapshot=snapshot)
-            except RuntimeError as exc:
+                result.cleanup_result = 'SUCCESS'
+                result.cleanup_succeeded = True
+            except (OSError, RuntimeError, ValueError) as exc:
                 cleanup_error = str(exc)
+                result.cleanup_result = 'FAILED'
+                result.cleanup_succeeded = False
+        else:
+            result.cleanup_result = 'NOT_REQUIRED'
 
-    after = _state(manager.list_readonly())
-    isolation_changes = _only_target_changed(before, after, index)
-    if cleanup_error and result.status in {IdleRewardStatus.SUCCESS, IdleRewardStatus.NOT_AVAILABLE}:
+    inventory_error = None
+    try:
+        after = _state(manager.list_readonly())
+        isolation_changes = _only_target_changed(before, after, index)
+    except (OSError, RuntimeError, ValueError) as exc:
+        after = None
+        isolation_changes = None
+        inventory_error = str(exc)
+        if result.postcondition_result == "VERIFIED":
+            result.status = IdleRewardStatus.SUCCESS_WITH_RECOVERY_WARNING
+            result.recovery_result = "FAILED"
+            result.error = f"Claim verified; post-claim inventory could not be restored: {exc}"
+    if cleanup_error and result.postcondition_result == 'VERIFIED':
+        result.status = IdleRewardStatus.SUCCESS_WITH_RECOVERY_WARNING
+        result.error = f'Claim verified; owned lifecycle cleanup failed: {cleanup_error}'
+    elif cleanup_error and result.status in {IdleRewardStatus.SUCCESS, IdleRewardStatus.NOT_AVAILABLE}:
         result.status = IdleRewardStatus.CLEANUP_FAILED
         result.error = cleanup_error
         result.cleanup_succeeded = False
@@ -266,6 +317,7 @@ def run_idle_reward_diagnostic(
         "instance": {"index": index, "name": name},
         "started_by_run": started_by_run,
         "lifecycle_cleanup_error": cleanup_error or None,
+        "inventory_error": inventory_error,
         "recovery_report": str(recovery_report) if recovery_report else None,
         "claim_journal_id": claim_id,
         "known_promo_recovery": port.promo_result.as_dict() if port and port.promo_result else None,
@@ -338,7 +390,11 @@ def main(argv: list[str], data: Path) -> int:
             "report": str(report),
         }
         print(json.dumps(output, ensure_ascii=True, indent=2))
-        return 0 if result.status in {IdleRewardStatus.SUCCESS, IdleRewardStatus.NOT_AVAILABLE} else 2
+        return 0 if result.status in {
+            IdleRewardStatus.SUCCESS,
+            IdleRewardStatus.SUCCESS_WITH_RECOVERY_WARNING,
+            IdleRewardStatus.NOT_AVAILABLE,
+        } else 2
     if args.command in PHASE6_TASKS:
         result = run_free_reward_task(manager, data, args.index, args.name, args.command)
         print(json.dumps(result.as_dict(), ensure_ascii=True, indent=2))

@@ -1,5 +1,22 @@
 # Tiến độ
 
+## 2026-09-23 Idle result-semantics repair (offline; no claim replay)
+
+The accepted Idle claim on `2 / 5-Emmmmm` remains verified and is never to be
+repeated. Existing evidence records one dispatch, fresh
+`IDLE_REWARD_CLAIMED` at confidence `0.994715`, and a `VERIFIED` journal. The
+offline runner now reports claim, postcondition, journal, navigation recovery,
+and owned-instance cleanup independently. A verified receipt remains success
+if later Home recovery or inventory reporting fails. Recovery is navigation
+only and cannot redispatch the claim. Empty inventory discovery is bounded to
+three reads; persistent emptiness and ambiguous exact-target identity fail
+closed. No LDPlayer or real gameplay action was run for this repair.
+
+The project workflow now uses one Codex agent with targeted tests, diff
+self-review, authorized commit/push, GitHub Actions validation, and real
+Windows acceptance only when explicitly authorized. Custom Developer/Reviewer
+agent definitions and routing were removed. Phase 7 was not started.
+
 ## 2026-09-23 post-fleet repair (not another fleet run)
 
 See [repair checkpoint](FLEET_REPAIR_20260923.md): three proven undispatched

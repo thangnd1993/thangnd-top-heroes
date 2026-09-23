@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -179,16 +180,23 @@ def discover(saved: str = "") -> Installation | None:
 
 
 class LDPlayer:
+    EMPTY_INVENTORY_ATTEMPTS = 3
+    EMPTY_INVENTORY_DELAY = 0.2
+
     def __init__(self, installation: Installation, process: Process):
         self.installation, self.process = installation, process
 
     def list_instances(self) -> tuple[Instance, ...]:
-        instances = parse_list2(decode(self.process.run([str(self.installation.console), "list2"])))
-        # LDPlayer can transiently return success with empty stdout. Never let
-        # that erase persisted presence/selection or authorize a device action.
-        if not instances:
-            raise ValueError("LDPlayer returned an empty inventory; no instance state was accepted.")
-        return instances
+        # A successful but transiently empty list2 response is retried briefly.
+        # Persistent emptiness remains an error and never merges stale/default
+        # identities into device actions.
+        for attempt in range(self.EMPTY_INVENTORY_ATTEMPTS):
+            instances = parse_list2(decode(self.process.run([str(self.installation.console), "list2"])))
+            if instances:
+                return instances
+            if attempt + 1 < self.EMPTY_INVENTORY_ATTEMPTS:
+                time.sleep(self.EMPTY_INVENTORY_DELAY)
+        raise ValueError("LDPlayer returned an empty inventory after bounded rediscovery; no state was accepted.")
 
     def _indexed(self, command: str, index: int, *args: str) -> bytes:
         if type(index) is not int or index < 0:
