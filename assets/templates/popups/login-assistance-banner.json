@@ -1,0 +1,12 @@
+{
+  "id": "login-assistance-banner",
+  "state": "POPUP_GENERIC",
+  "template": "login-assistance-banner.png",
+  "expected_region": [0.0, 0.0, 1.0, 1.0],
+  "threshold": 0.96,
+  "required": true,
+  "weight": 1.0,
+  "variant": "login-assistance",
+  "reference_resolution": [1280, 720],
+  "notes": "Second independent banner anchor for the same login-assistance modal. Recognition fails closed and does not dismiss the modal."
+}

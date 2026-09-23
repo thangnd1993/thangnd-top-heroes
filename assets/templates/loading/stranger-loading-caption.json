@@ -1,0 +1,12 @@
+{
+  "id": "stranger-loading-caption",
+  "state": "GAME_LOADING",
+  "template": "stranger-loading-caption.png",
+  "expected_region": [0.0, 0.0, 1.0, 1.0],
+  "threshold": 0.96,
+  "required": true,
+  "weight": 1.0,
+  "variant": "stranger-loading",
+  "reference_resolution": [1280, 720],
+  "notes": "Loading progress caption from the same saved frame; required alongside the branded title to distinguish startup art from the standalone Stranger Things promo."
+}

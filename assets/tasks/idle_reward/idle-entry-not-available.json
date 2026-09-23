@@ -1,10 +1,10 @@
 {
   "id": "idle-entry-not-available",
   "state": "IDLE_ENTRY_NOT_AVAILABLE",
-  "template": "idle-entry-not-available.png",
-  "expected_region": [0.15, 0.0, 0.4, 0.28],
-  "threshold": 0.9,
+  "template": "idle-entry-not-available-core.png",
+  "expected_region": [0.0, 0.0, 1.0, 1.0],
+  "threshold": 0.95,
   "required": true,
   "reference_resolution": [1280, 720],
-  "notes": "Same real Adventure chest immediately after claim, without glow or red dot."
+  "notes": "Current-frame unique search for the post-claim chest, without the availability glow or red dot; excludes account-specific level text and map background."
 }

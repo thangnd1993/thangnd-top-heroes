@@ -1,10 +1,10 @@
 {
   "id": "idle-entry-available",
   "state": "IDLE_ENTRY_AVAILABLE",
-  "template": "idle-entry-available.png",
-  "expected_region": [0.15, 0.0, 0.4, 0.28],
-  "threshold": 0.9,
+  "template": "idle-entry-available-core.png",
+  "expected_region": [0.0, 0.0, 1.0, 1.0],
+  "threshold": 0.95,
   "required": true,
   "reference_resolution": [1280, 720],
-  "notes": "Real Adventure chest with green glow and red availability dot."
+  "notes": "Current-frame search for the green-glow chest and red availability dot. Core crop excludes account-specific level text and map background; unique match required."
 }

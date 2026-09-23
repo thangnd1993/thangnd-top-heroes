@@ -48,6 +48,36 @@ def test_verified_claim_requires_own_receipt_and_retains_evidence(tmp_path):
     assert len(receipts) == 2
 
 
+def test_verified_index5_idle_claim_cannot_be_reserved_again(tmp_path):
+    store = Store(tmp_path / "claims.sqlite3")
+    first = store.create_task_run("installation", "idle-reward", 5, "4-Em Pé")
+    claim = store.reserve_reward_claim(
+        first,
+        "idle-reward",
+        "idle-conservative-opportunity",
+        "claimable-frame.png",
+        expected_instance=(5, "4-Em Pé"),
+        not_dispatched=True,
+    )
+    store.mark_reward_dispatch(claim, first)
+    store.verify_reward_claim(claim, first, "claimed-frame.png")
+
+    retry = store.create_task_run("installation", "idle-reward", 5, "4-Em Pé")
+    with pytest.raises(ValueError, match="retry forbidden"):
+        store.reserve_reward_claim(
+            retry,
+            "idle-reward",
+            "idle-conservative-opportunity",
+            "later-frame.png",
+            expected_instance=(5, "4-Em Pé"),
+        )
+
+    rows = store.reward_claims("installation", 5)
+    assert len(rows) == 1
+    assert rows[0]["status"] == "VERIFIED"
+    assert rows[0]["after_evidence"] == "claimed-frame.png"
+
+
 def test_concurrent_reservations_commit_only_one_intent(tmp_path):
     store = Store(tmp_path / "claims.sqlite3")
     runs = [run(store), run(store)]

@@ -1,0 +1,12 @@
+{
+  "id": "login-assistance-title",
+  "state": "POPUP_GENERIC",
+  "template": "login-assistance-title.png",
+  "expected_region": [0.0, 0.0, 1.0, 1.0],
+  "threshold": 0.96,
+  "required": true,
+  "weight": 1.0,
+  "variant": "login-assistance",
+  "reference_resolution": [1280, 720],
+  "notes": "Title evidence for the login-assistance modal in index 11's final recovery frame. Recognition only; no input handler is registered."
+}

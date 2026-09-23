@@ -1,0 +1,12 @@
+{
+  "id": "stranger-loading-title",
+  "state": "GAME_LOADING",
+  "template": "stranger-loading-title.png",
+  "expected_region": [0.0, 0.0, 1.0, 1.0],
+  "threshold": 0.96,
+  "required": true,
+  "weight": 1.0,
+  "variant": "stranger-loading",
+  "reference_resolution": [1280, 720],
+  "notes": "Stranger Things branded game-loading title from index 11's saved 65% loading frame; paired with the loading-only caption so a promo popup alone does not classify as loading."
+}

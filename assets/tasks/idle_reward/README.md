@@ -17,7 +17,13 @@ The immediate post-claim variant instead matches the gray *start* of the accumul
 tightly bounded region. This is mutually exclusive with the green minimum-fill anchor and cannot
 slide down to the gray remainder of a partially filled bar.
 
-The claimable chest has separate closed and open/glowing animation anchors. Both keep the strict
-`0.9` threshold so animation coverage does not weaken the not-available guard.
+The claimable chest has separate closed and open/glowing animation anchors. They use compact chest-core
+crops and a unique current-frame search over the full viewport. The crop excludes the account-dependent
+`Cấp` level label and map background. Fleet evidence scored 0.972–0.981 on those cores while the former
+larger template scored 0.871–0.888. The strict 0.95 threshold remains above the observed fleet range's
+lower bound and below every saved positive frame. Duplicate, weak, or conflicting matches fail closed.
+
+The saved Pooh5 Adventure frame also contains an auto-mode overlay. The detector recognizes it as a
+generic popup before considering the chest. No automatic overlay dismissal is registered.
 
 The Adventure portal action anchor uses only its stable blue core and excludes the animated flame.

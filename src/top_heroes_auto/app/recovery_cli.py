@@ -25,10 +25,9 @@ from top_heroes_auto.automation.recovery import (
     RecoveryResult,
     RecoveryStatus,
 )
-from top_heroes_auto.vision.detector import ScreenDetector
 from top_heroes_auto.vision.image_normalizer import ScreenshotInvalid
 from top_heroes_auto.vision.matcher import match_anchor
-from top_heroes_auto.vision.resources import template_folder
+from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
 from top_heroes_auto.vision.screenshot import ScreenshotService
 
 log = logging.getLogger("top_heroes_auto")
@@ -77,7 +76,7 @@ class DiagnosticRecoveryPort:
         self.name = name
         self.folder = folder
         self.package = package
-        self.detector = ScreenDetector.from_folder(template_folder())
+        self.detector = RecoveryScreenDetector()
         self.verified_identity: tuple[str, str] | None = None
         self.clock = clock
         self.started = clock()
