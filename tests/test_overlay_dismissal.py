@@ -295,3 +295,29 @@ def test_promo_after_entry_tap_only_retries_navigation_on_fresh_home(home_after)
     else:
         assert result.status!=NavigationStatus.SUCCESS
         assert taps==[(67,183),(58,1203)]
+
+
+@pytest.mark.parametrize('variant',['gift-pulse.png','gift-rocking.png'])
+def test_qualified_gift_pose_variants_and_duplicate_rejection(variant):
+    import cv2
+    profile,_=_load_profile_details('vip-reward')
+    adapter=FrameRewardAdapter(gift_profile(profile))
+    current=screen('index2-vip-claimable.png')
+    portrait=cv2.rotate(current.normalized,cv2.ROTATE_90_COUNTERCLOCKWISE)
+    patch=cv2.imread(str(FIXTURES/variant))
+    portrait[155:250,600:705]=patch
+    fresh=replace(current,normalized=cv2.rotate(portrait,cv2.ROTATE_90_CLOCKWISE))
+    observed=adapter.observe(fresh)
+    assert gift_state(observed.screen)=='FREE_CLAIMABLE'
+    assert min(observed.evidence[key].score for key in ('claim','free','available'))>=.96
+    # A second identical available gift must never select one arbitrarily.
+    portrait[355:450,400:505]=patch
+    duplicated=replace(current,normalized=cv2.rotate(portrait,cv2.ROTATE_90_CLOCKWISE))
+    assert gift_state(adapter.observe(duplicated).screen)=='UNKNOWN'
+
+
+def test_gift_pose_match_rejects_normal_home_and_receipt():
+    profile,_=_load_profile_details('vip-reward')
+    adapter=FrameRewardAdapter(gift_profile(profile))
+    for name in ('index2-home.png','receipt-reference.png'):
+        assert gift_state(adapter.observe(screen(name)).screen)=='UNKNOWN'

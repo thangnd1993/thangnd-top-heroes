@@ -137,6 +137,10 @@ class FrameRewardAdapter:
 
     def __init__(self, profile: RewardVisualProfile, matcher: Matcher = unique_current_anchor):
         self.profile = profile
+        if profile.task == "vip-upper-gift" and matcher is unique_current_anchor:
+            from top_heroes_auto.vision.gift_detector import gift_anchor_match
+
+            matcher = gift_anchor_match
         self.matcher = matcher
 
     def observe(self, captured: CapturedScreen) -> FrameRewardObservation:

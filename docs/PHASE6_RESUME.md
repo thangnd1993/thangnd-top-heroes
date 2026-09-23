@@ -1,5 +1,19 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+### Fourth portable acceptance (fe4e5e2; CI 35907498412 passed)
+
+Late promo dismissal and navigation-only VIP re-entry succeeded. The gift icon
+rocked by about 18 degrees while its availability badge stayed fixed; translation-only
+cores correctly failed closed. Three fresh qualification frames, no reward dispatch,
+journal NONE, owned cleanup SUCCESS and selection restored. Saved run:
+`vip-popup-acceptance/20260923-192014-536185Z`.
+
+Gift matching now uses bounded +/-20-degree, +/-5-percent poses at unchanged
+0.96 confidence. Current badge or bounded current-frame coarse proposals only
+limit search cost; they do not authorize taps. Independent gift cores, adjacent
+badge, current VIP page, unique pose result and paid exclusion remain required.
+The next index-2-only acceptance waits for fresh CI. No fleet or other tasks.
+
 ### Third portable acceptance (f2de982; CI 35905808457 passed)
 
 A known promo arrived after the VIP navigation tap. The guard stopped before

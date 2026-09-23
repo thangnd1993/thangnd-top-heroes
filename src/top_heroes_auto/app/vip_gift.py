@@ -37,7 +37,7 @@ def gift_state(screen):
         # A duplicate high-score badge is ambiguity, never proof of absence.
         return "UNKNOWN" if badge.score >= badge.threshold else "NOT_AVAILABLE"
     c = badge.device_box
-    if c is None or abs(a.center[0] - c.center[0]) > a.width or abs(a.center[1] - c.center[1]) > a.height:
+    if c is None or max(abs(a.center[0] - c.center[0]), abs(a.center[1] - c.center[1])) > 2*max(a.width, a.height):
         return "UNKNOWN"
     return "FREE_CLAIMABLE"
 
