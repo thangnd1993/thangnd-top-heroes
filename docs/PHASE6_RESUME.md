@@ -1,5 +1,18 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+**Latest live checkpoint (2026-09-23, ADB restored and clean evidence
+captured):** the explicitly authorized one-key index-2 ADB change succeeded.
+`2 / 5-Emmmmm` was verified on the unique explicit target `emulator-5558`;
+indexed/direct boot identity matched, and index 2 was stopped again after clean
+evidence collection. Clean unannotated Home, VIP, Tiệm, Profile and BXH frames
+are under `diagnostics/phase6-clean-20260923/`; see the task ledger for exact
+filenames and actions. No reward, chest, gift, ticket or paid control was
+tapped. VIP still lacks independent post-claim evidence and production claim
+wiring/acceptance; Tiệm current surfaces are paid/ticket-only; BXH is
+attention-only. All claim profiles remain fail-closed.
+Do not repeat the clean navigation collection merely because a new session
+starts.
+
 **Latest live checkpoint (2026-09-23):** index 2 again identifies exactly as
 `5-Emmmmm` and was opened once at the user's explicit direction. Its indexed
 ADB target `emulator-5558` was not available, so no gameplay input or claim was

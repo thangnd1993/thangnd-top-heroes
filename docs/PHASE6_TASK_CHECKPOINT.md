@@ -1,5 +1,50 @@
 # Phase 6 task ledger — audited 2026-09-22
 
+## 2026-09-23 authorized index-2 ADB restoration and clean runtime evidence
+
+The user explicitly authorized one persistent change for the stopped
+`2 / 5-Emmmmm` instance. The current `leidian2.config` was backed up to
+`leidian2.config.phase6-adb-authorized-20260923-075602.bak`, then only
+`"basicSettings.adbDebug": 1` was added. Before launch, byte/delta and parsed
+JSON checks confirmed that the name
+remained `5-Emmmmm` and no other field had changed.
+Index 2 was launched once. Indexed and explicit ADB both resolved uniquely to
+`emulator-5558` with boot ID
+`f4e20fed-1dee-44b9-945f-61569bb1c8d9`; Queen and revoked index 4 remained
+stopped. No fallback device or configuration change was used. After evidence
+collection, only index 2 was stopped again; index 1 remained running and ADB
+inventory returned empty. A later read showed LDPlayer had rewritten six window
+geometry fields (`realWidth`, `realHeigh`, `left`, `top`, `width`, `height`) to
+zero after launch/quit. Their precise runtime rewrite point is unproven; they
+were not restored or otherwise edited.
+
+Clean, unannotated index-2 evidence is saved under
+`diagnostics/phase6-clean-20260923/`. The known Stranger Things promo received
+one evidence-guarded Back, then the following unfinished routes were inspected
+without any reward/purchase input:
+
+- Home and VIP: `02-home.png`, `03-vip-entry-before.png`, `04-vip-page.png`,
+  `05-home-after-vip.png`. Existing current-frame anchors matched uniquely.
+  The VIP frame independently shows the free label, availability, green claim
+  control and a spatially separate VND 699000 paid offer. It still has no
+  independently qualified post-claim anchor, so no claim was dispatched.
+- Tiệm: `06-shop-entry.png`, `08-shop-weekly.png`, and the bounded tab-strip
+  scroll pair `09-shop-tabs-before-scroll.png` / `10-shop-tabs-after-scroll.png`.
+  Visible offers require tickets or VND; red dots remain discovery signals.
+  No gift, ticket, offer or paid control was tapped.
+- Profile/BXH: `11-avatar-home-before.png`, `12-profile.png`,
+  `13-bxh-before.png`, `14-bxh.png`. The Profile and BXH navigation controls
+  were used once to collect clean evidence. The top-left chest has only a red
+  attention dot; no independent free-cost, availability or postcondition proof
+  exists, so the chest was not tapped.
+
+The fixed-flow runtime and its RESERVED/VERIFIED journal remain unchanged and
+fail closed. Qualification status is now: VIP preconditions clean and strong,
+but postcondition missing; Tiệm paid-only/unknown for a free reward; BXH
+attention-only/unknown. Production claim activation and real claim acceptance
+therefore remain unfinished. Do not repeat these navigation/evidence actions
+unless relevant code or evidence is invalidated.
+
 ## Fixed-flow injectable runtime — review and CI passed
 
 The seven annotated reference files are now present and normalized by filename,
