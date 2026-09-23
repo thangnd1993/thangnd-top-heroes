@@ -40,6 +40,7 @@ from top_heroes_auto.automation.phase6_shop_navigation import (
 from top_heroes_auto.automation.phase6_visual import ManagerRewardPort, RewardVisualProfile
 from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.models import ScreenState, VisualAnchor
+from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
 from top_heroes_auto.vision.resources import template_folder
 from top_heroes_auto.vision.screenshot import ScreenshotService
 
@@ -78,7 +79,7 @@ def entry_navigator_factory(manager, snapshot, index, name, profile, folder, can
 
     route = _entry_profile(profile.task, profile)
     port = ManagerEntryPort(manager, snapshot, index, name, folder)
-    detector = ScreenDetector.from_folder(template_folder())
+    detector = RecoveryScreenDetector()
     return GuardedEntryNavigator(
         port,
         route,

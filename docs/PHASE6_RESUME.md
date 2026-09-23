@@ -1,5 +1,15 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+### First portable acceptance (8aa50db; CI 35902547647 passed)
+
+Index 2 reached Home at 0.978557, but a late Stranger Things event overlay
+appeared in the fresh VIP-entry frame. No VIP tap/claim occurred; journal NONE,
+owned cleanup SUCCESS, selection restored, all unrelated instances unchanged.
+Saved run: `vip-popup-acceptance/20260923-183451-957556Z` in AppData diagnostics.
+The late frame independently matches EVENT_PROMO at 0.998771. The entry boundary
+now shares qualified bounded overlay dismissal, with fresh Home verification
+before the first VIP navigation tap. Await fresh CI before continued acceptance.
+
 ## 2026-09-24 VIP popup correction — current authorization
 
 Only `2 / 5-Emmmmm` is authorized for this real acceptance, after passing CI.

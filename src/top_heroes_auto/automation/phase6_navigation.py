@@ -20,6 +20,12 @@ import cv2
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.overlays import (
+    DISMISSIBLE,
+    OverlayBudget,
+    dismiss_overlay_bottom_left,
+    overlay_signature,
+)
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.models import CapturedScreen, ScreenDetection, ScreenState, VisualAnchor
 from top_heroes_auto.vision.screenshot import ScreenshotService
@@ -197,18 +203,44 @@ class GuardedEntryNavigator:
             raise SafetyError("Destination anchor has no known state.")
         return evidence
 
-    def _home(self, result: NavigationResult, tag: str) -> EntryFrame:
-        frame = self.port.observe(tag)
-        identity = (frame.target.index, frame.target.name, frame.target.serial, frame.target.boot_id)
-        if self._identity is None:
-            self._identity = identity
-        elif identity != self._identity:
-            raise SafetyError("Entry frame target identity changed.")
-        result.captures.append(frame.capture_id)
-        detection = self.home_detector(frame.screen)
-        if detection.state != ScreenState.GAME_HOME or detection.confidence < 0.9:
-            raise SafetyError("Current frame is not a verified GAME_HOME screen.")
-        return frame
+    def _home(self, result: NavigationResult, tag: str, cancelled=lambda: False) -> EntryFrame:
+        budget = OverlayBudget()
+        stable = None
+        for attempt in range(10):
+            if cancelled():
+                raise _Cancelled("Cancelled before entry overlay observation.")
+            frame = self.port.observe(f"{tag}-{attempt}")
+            identity = (frame.target.index, frame.target.name, frame.target.serial, frame.target.boot_id)
+            if self._identity is None:
+                self._identity = identity
+            elif identity != self._identity:
+                raise SafetyError("Entry frame target identity changed.")
+            if frame.capture_id in result.captures:
+                raise SafetyError("Entry overlay requires a fresh capture.")
+            result.captures.append(frame.capture_id)
+            detection = self.home_detector(frame.screen)
+            if detection.state == ScreenState.GAME_HOME and detection.confidence >= .9:
+                return frame
+            if detection.state not in DISMISSIBLE:
+                raise SafetyError("Current frame is not a verified GAME_HOME screen.")
+            signature = overlay_signature(detection)
+            if stable != signature:
+                stable = signature
+                self.sleep(.5)
+                continue
+            point = dismiss_overlay_bottom_left(frame.screen, detection)
+            budget.reserve(detection)
+            if cancelled():
+                raise _Cancelled("Cancelled before entry overlay input.")
+            try:
+                self.port.tap(frame, point)
+            except SafetyError:
+                raise
+            except (OSError, RuntimeError) as exc:
+                raise _ActionUncertain(str(exc)) from exc
+            result.actions.append(f"dismiss_overlay_bottom_left:{point[0]},{point[1]}")
+            self.sleep(.5)
+        raise SafetyError("Entry overlay observation bound reached.")
 
     def _step(
         self,
@@ -290,7 +322,7 @@ class GuardedEntryNavigator:
         try:
             if cancelled():
                 raise _Cancelled("Entry navigation cancelled before capture.")
-            frame = self._home(result, f"{self.profile.task}-home-before")
+            frame = self._home(result, f"{self.profile.task}-home-before", cancelled)
             frame = self._step(
                 result,
                 frame,

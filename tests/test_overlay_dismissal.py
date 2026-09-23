@@ -224,3 +224,27 @@ def test_upper_gift_journal_is_one_shot_and_independent_of_daily(rig,tmp_path,mo
     vip_gift.run_upper_gift(manager,snap,2,TARGET.name,profile,tmp_path,None,task,retry)
     assert retry['result']=='ALREADY_VERIFIED' and calls==['claim']
     assert [r['reward_id'] for r in store.reward_claims(manager.namespace,2)]==['vip-upper-gift']
+
+
+def test_late_promo_at_vip_entry_boundary_dismisses_then_reverifies_home():
+    from top_heroes_auto.automation.phase6_navigation import (
+        EntryFrame,
+        GuardedEntryNavigator,
+        NavigationResult,
+        NavigationStatus,
+    )
+    captured, known = receipt()
+    frames = iter(EntryFrame(TARGET, replace(captured, timestamp=str(n))) for n in range(3))
+    taps=[]
+    class Port:
+        def observe(self,tag):
+            return next(frames)
+        def tap(self,frame,point):
+            taps.append(point)
+    def detect(frame):
+        return replace(known,state=ScreenState.GAME_HOME if frame.timestamp=='2' else ScreenState.EVENT_PROMO)
+    navigator=GuardedEntryNavigator(Port(),None,detect,sleep=lambda _:None)
+    result=NavigationResult(NavigationStatus.BLOCKED)
+    home=navigator._home(result,'late-promo')
+    assert home.screen.timestamp=='2' and taps==[(58,1203)]
+    assert len(set(result.captures))==3
