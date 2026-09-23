@@ -58,6 +58,11 @@ class JournalledExplorerPort:
     def observe(self):
         return self.port.observe()
 
+    def validate_claim(self, screen, reward, point):
+        validate = getattr(self.port, "validate_claim", None)
+        if callable(validate):
+            validate(screen, reward, point)
+
     def claim(self, screen, reward, point):
         if (screen.index, screen.name) != self.identity or reward.reward_id in self.pending:
             raise SafetyError("Claim journal identity changed or reward already attempted.")

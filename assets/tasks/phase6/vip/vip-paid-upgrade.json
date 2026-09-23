@@ -1,0 +1,12 @@
+{
+  "id": "vip-paid",
+  "state": "FREE_REWARD_PAGE",
+  "template": "vip-paid-upgrade.png",
+  "expected_region": [0.0, 0.0, 1.0, 1.0],
+  "threshold": 0.96,
+  "required": false,
+  "weight": 1.0,
+  "variant": "vnd-price-tile",
+  "reference_resolution": [1280, 720],
+  "notes": "Paid VND price tile from the clean index-2 VIP frame; matched uniquely on the current full frame and used only as a forbidden-region bound."
+}

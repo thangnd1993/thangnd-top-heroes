@@ -15,6 +15,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Callable, Protocol
 
+import cv2
+
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
@@ -76,6 +78,7 @@ class NavigationResult:
     status: NavigationStatus
     actions: list[str] = field(default_factory=list)
     captures: list[str] = field(default_factory=list)
+    target_evidence: list[dict] = field(default_factory=list)
     error: str | None = None
 
     def as_dict(self) -> dict:
@@ -83,6 +86,7 @@ class NavigationResult:
             "result": self.status.value,
             "actions": list(self.actions),
             "captures": list(self.captures),
+            "target_evidence": list(self.target_evidence),
             "error": self.error,
         }
 
@@ -104,6 +108,26 @@ class ManagerEntryPort(EntryPort):
         self.name = name
         self.folder = folder
         self._target: Target | None = None
+
+    def record_target(self, frame: EntryFrame, anchor: VisualAnchor, evidence) -> dict | None:
+        if anchor.id != "home-vip-entry" or self.folder is None:
+            return None
+        if evidence.normalized_box is None or evidence.device_box is None:
+            raise SafetyError("VIP entry geometry is incomplete.")
+        image_path = self.folder / "vip-entry-normalized.png"
+        image_path.parent.mkdir(parents=True, exist_ok=True)
+        encoded, payload = cv2.imencode(".png", frame.screen.normalized)
+        if not encoded:
+            raise OSError(f"Cannot persist VIP entry geometry image: {image_path}")
+        image_path.write_bytes(payload.tobytes())
+        return {
+            "anchor": anchor.id,
+            "confidence": round(evidence.score, 6),
+            "normalized_bbox": vars(evidence.normalized_box),
+            "device_bbox": vars(evidence.device_box),
+            "tap_point_adb": list(evidence.device_box.center),
+            "normalized_image": str(image_path),
+        }
 
     def observe(self, tag: str) -> EntryFrame:
         target, payload = self.manager.capture_verified(self.index, self.snapshot)
@@ -197,6 +221,11 @@ class GuardedEntryNavigator:
         cancelled: Callable[[], bool],
     ) -> EntryFrame:
         evidence = self._match(frame.screen, action_anchor)
+        record_target = getattr(self.port, "record_target", None)
+        if callable(record_target):
+            target_geometry = record_target(frame, action_anchor, evidence)
+            if target_geometry is not None:
+                result.target_evidence.append(target_geometry)
         if cancelled():
             raise _Cancelled("Entry navigation cancelled before dispatch.")
         try:

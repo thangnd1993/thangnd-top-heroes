@@ -314,6 +314,11 @@ class FreeRewardExplorer:
                                and not r.ambiguous and r.reward_id not in guard.claim_attempts), None)
                 if reward is not None:
                     point = guard.claim(screen, reward)
+                    validate = getattr(port, "validate_claim", None)
+                    if callable(validate):
+                        # Geometry and paid-region checks must finish before
+                        # the durable reservation and before any input call.
+                        validate(screen, reward, point)
                     result.attempted.append(reward.reward_id)
                     # Mark pending before dispatch: exceptions/timeouts are uncertain.
                     pending_reward, before_claim = reward, screen

@@ -104,7 +104,7 @@ def _vip_frames(*, shift=0, scale=1, paid_box=None):
     )
     if paid_box is not None:
         page = replace(page, evidence=page.evidence + (FixedRoleEvidence("vip-paid-upgrade", paid_box),))
-    post = _frame("post", "vip-daily-postcondition", shift=shift, scale=scale)
+    post = _frame("post", "vip-page", "vip-daily-postcondition", shift=shift, scale=scale)
     return home, page, post
 
 
@@ -247,7 +247,7 @@ def test_bounds_and_persisted_attempt_block_before_observation():
     assert result.status == FixedFlowStatus.ALREADY_ATTEMPTED
 
 
-@pytest.mark.parametrize("spec", (VIP_DAILY, SHOP_DAILY, RANKING_CHEST))
+@pytest.mark.parametrize("spec", (SHOP_DAILY, RANKING_CHEST))
 def test_packaged_unqualified_flows_stop_before_device_observation(spec):
     result = _runner().run(Port(), spec, 2, "5-Emmmmm")
     assert result.status == FixedFlowStatus.NOT_IMPLEMENTED
@@ -333,7 +333,7 @@ def test_missing_postcondition_keeps_reservation_and_blocks_restart():
     first = _runner(journal=journal).run(
         Port(home, page, missing), _qualified(VIP_DAILY), 2, "5-Emmmmm"
     )
-    assert first.status == FixedFlowStatus.UNKNOWN
+    assert first.status == FixedFlowStatus.ACTION_RESULT_UNCERTAIN
     second = _runner(journal=journal).run(Port(), _qualified(VIP_DAILY), 2, "5-Emmmmm")
     assert second.status == FixedFlowStatus.ALREADY_ATTEMPTED
 

@@ -13,18 +13,31 @@ ASSETS = Path(__file__).resolve().parents[1] / "assets" / "tasks" / "phase6"
 
 
 @pytest.mark.parametrize("name", ["vip", "recruit"])
-def test_survey_anchors_are_valid_but_cannot_authorize_a_claim(name):
+def test_fixed_reward_anchors_have_only_the_expected_qualification(name):
     anchors = load_anchors(ASSETS / name)
     roles = {anchor.id.removeprefix(f"{name}-"): anchor for anchor in anchors}
-    assert set(roles) == {"page", "free", "available", "claim", "home"}
+    expected = {"page", "free", "available", "claim", "home"}
+    if name == "vip":
+        expected |= {"post", "paid"}
+    assert set(roles) == expected
     assert all(anchor.state == ScreenState.FREE_REWARD_PAGE for anchor in anchors)
     for anchor in anchors:
         image = cv2.imread(str(anchor.template))
         assert image is not None and min(image.shape[:2]) >= 10
         assert image.std() >= 1
     factory = vip_reward_profile if name == "vip" else free_recruit_profile
-    with pytest.raises(ValueError, match="post"):
-        factory(roles)
+    if name == "vip":
+        profile = factory({
+            "page": roles["page"], "free": roles["free"], "available": roles["available"],
+            "claim": roles["claim"], "home": roles["home"], "post": roles["post"],
+            "paid": roles["paid"],
+        })
+        assert profile.geometry_required
+        assert profile.forbidden_roles == ("paid",)
+        assert profile.coverage_known
+    else:
+        with pytest.raises(ValueError, match="post"):
+            factory(roles)
 
 
 def test_home_route_assets_are_navigation_evidence_only():

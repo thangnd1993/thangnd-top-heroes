@@ -166,6 +166,43 @@ def test_runner_journals_before_dispatch_and_reports_verified_claim(rig, tmp_pat
     assert store.latest_task_run(manager.namespace, "vip-reward", 2)[2] == "SUCCESS"
 
 
+def test_vip_popup_only_result_stays_reserved_and_blocks_retry(rig, tmp_path):
+    manager, process, store = rig
+    _target2(manager, process)
+    profile = _profile(tmp_path)
+    port = Port(_screen("before"), _screen("after", reward=False))
+    port.verify_claim = lambda *_args: False
+
+    first = run_free_reward_task(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        "vip-reward",
+        profiles={"vip-reward": profile},
+        port_factory=lambda *args: port,
+        entry_navigator=lambda *args: NavigationResult(NavigationStatus.SUCCESS),
+        recovery_runner=recovery,
+    )
+
+    assert first.status == "ACTION_DISPATCHED_UNVERIFIED"
+    assert port.actions == [("claim", "vip-daily", (15, 15))]
+    receipts = store.reward_claims(manager.namespace, 2)
+    assert len(receipts) == 1 and receipts[0]["status"] == "RESERVED"
+
+    retry = run_free_reward_task(
+        manager,
+        tmp_path,
+        *PHASE6_TARGET,
+        "vip-reward",
+        profiles={"vip-reward": profile},
+        port_factory=lambda *args: pytest.fail("reserved VIP claim must not rebuild the port"),
+        entry_navigator=lambda *args: pytest.fail("reserved VIP claim must not navigate"),
+        recovery_runner=lambda *args, **kwargs: pytest.fail("reserved VIP claim must not recover"),
+    )
+    assert retry.status == "ALREADY_ATTEMPTED"
+    assert len(port.actions) == 1
+
+
 def test_missing_postcondition_blocks_before_recovery_or_port(rig, tmp_path):
     manager, process, store = rig
     _target2(manager, process)
@@ -192,7 +229,7 @@ def test_missing_postcondition_blocks_before_recovery_or_port(rig, tmp_path):
     assert result.report_path and result.report_path.is_file()
 
 
-@pytest.mark.parametrize("task", ("vip-reward", "free-recruit", "ranking-chest"))
+@pytest.mark.parametrize("task", ("free-recruit", "ranking-chest"))
 def test_packaged_missing_postcondition_finishes_not_implemented_before_dispatch(
     rig, tmp_path, task
 ):
@@ -240,7 +277,7 @@ def test_sequence_packaged_missing_postcondition_stops_before_recovery_or_dispat
         manager,
         tmp_path,
         *PHASE6_TARGET,
-        ("vip-reward", "free-recruit"),
+        ("free-recruit", "ranking-chest"),
         recovery_runner=fail_recovery,
         port_factory=lambda *args: calls.append("port"),
         entry_navigator=lambda *args: calls.append("entry"),
@@ -250,7 +287,7 @@ def test_sequence_packaged_missing_postcondition_stops_before_recovery_or_dispat
     assert results[0].status == "NOT_IMPLEMENTED"
     assert results[0].task_run_id is not None
     assert calls == []
-    assert store.latest_task_run(manager.namespace, "vip-reward", 2)[2] == "NOT_IMPLEMENTED"
+    assert store.latest_task_run(manager.namespace, "free-recruit", 2)[2] == "NOT_IMPLEMENTED"
     report = json.loads(results[0].report_path.read_text(encoding="utf-8"))
     assert report["profile_available"] is False
     assert report["postcondition_available"] is False

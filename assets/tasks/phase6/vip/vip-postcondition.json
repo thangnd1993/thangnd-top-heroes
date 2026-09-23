@@ -1,0 +1,12 @@
+{
+  "id": "vip-post",
+  "state": "FREE_REWARD_PAGE",
+  "template": "vip-postcondition.png",
+  "expected_region": [0.0, 0.0, 1.0, 1.0],
+  "threshold": 0.96,
+  "required": false,
+  "weight": 1.0,
+  "variant": "claimed-disabled-button",
+  "reference_resolution": [1280, 720],
+  "notes": "Small clean disabled daily-claim button core; searched uniquely over the current full frame and gated by the current VIP page plus absent action/availability anchors."
+}

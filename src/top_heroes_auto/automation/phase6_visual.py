@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Callable, Iterable
+
+import cv2
 
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app.service import Manager
@@ -19,9 +22,14 @@ from top_heroes_auto.automation.free_rewards import (
     verified_anchor,
 )
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.vip_geometry import (
+    validate_vip_claim_geometry,
+    write_vip_geometry_overlay,
+)
 from top_heroes_auto.vision.exploration import content_fingerprint, red_dot_candidates, unique_current_anchor
 from top_heroes_auto.vision.models import (
     AnchorEvidence,
+    BoundingBox,
     CapturedScreen,
     NormalizedRect,
     ScreenDetection,
@@ -61,6 +69,9 @@ class RewardVisualProfile:
     anchors: tuple[tuple[str, VisualAnchor], ...]
     rewards: tuple[RewardRule, ...]
     page_state: ScreenState = ScreenState.FREE_REWARD_PAGE
+    forbidden_roles: tuple[str, ...] = ()
+    geometry_required: bool = False
+    coverage_known: bool = False
 
     def __post_init__(self):
         if not self.task.strip() or not self.page.strip():
@@ -74,6 +85,8 @@ class RewardVisualProfile:
         if "page" not in roles:
             raise ValueError("A page anchor is required.")
         known = set(roles)
+        if not set(self.forbidden_roles) <= known:
+            raise ValueError("Forbidden roles must have current-frame visual anchors.")
         for rule in self.rewards:
             for role in (rule.action_role, rule.free_role, rule.available_role, rule.paid_role):
                 if role is not None and role not in known:
@@ -140,6 +153,7 @@ class FrameRewardAdapter:
             captured.source_image,
             0.0,
         )
+        vip_claimed = self._vip_claimed(evidence)
         screen = RewardScreen(
             detection=detection,
             index=captured.index,
@@ -149,14 +163,31 @@ class FrameRewardAdapter:
             capture_id=_capture_id(captured),
             page=self.profile.page,
             fingerprint=content_fingerprint(captured, (NormalizedRect(0, 0, 1, 1),)),
-            rewards=tuple(self._reward(rule, evidence) for rule in self.profile.rewards),
+            rewards=() if vip_claimed else tuple(self._reward(rule, evidence) for rule in self.profile.rewards),
             routes=(),
             red_dot_candidates=tuple(
                 f"red-dot:{box.x},{box.y},{box.width},{box.height}"
                 for box in red_dot_candidates(captured, NormalizedRect(0, 0, 1, 1))
             ),
+            coverage_known=self.profile.coverage_known,
         )
         return FrameRewardObservation(captured, screen, evidence)
+
+    def _vip_claimed(self, evidence: dict[str, AnchorEvidence]) -> bool:
+        if self.profile.task != "vip-reward":
+            return False
+        anchors = self.profile.anchor_map
+        page = anchors.get("page")
+        post = anchors.get("post")
+        if page is None or post is None:
+            return False
+        if not self._strong_match(evidence, page.id) or not self._strong_match(evidence, post.id):
+            return False
+        return not any(
+            self._strong_match(evidence, anchors[role].id)
+            for role in ("claim", "available")
+            if role in anchors
+        )
 
     @staticmethod
     def _reward(rule: RewardRule, evidence: dict[str, AnchorEvidence]) -> RewardEvidence:
@@ -210,11 +241,26 @@ class FrameRewardAdapter:
         ):
             return ClaimOutcome.IDENTITY_MISMATCH
         evidence = {item.anchor_id: item for item in after.detection.evidence}
-        free_state = (
-            self._strong_match(evidence, reward.action_anchor)
-            or self._strong_match(evidence, reward.available_anchor)
-        )
+        claimable_anchors = (reward.action_anchor, reward.available_anchor)
+        if self.profile.task != "vip-reward":
+            claimable_anchors += (reward.free_anchor,)
+        free_state = any(self._strong_match(evidence, anchor_id) for anchor_id in claimable_anchors)
         if free_state:
+            return ClaimOutcome.UNKNOWN
+        if self.profile.task == "vip-reward":
+            anchors = self.profile.anchor_map
+            page = anchors.get("page")
+            post = anchors.get("post")
+            if (
+                page is not None
+                and post is not None
+                and after.detection.state == ScreenState.FREE_REWARD_PAGE
+                and self._strong_match(evidence, page.id)
+                and self._strong_match(evidence, post.id)
+            ):
+                return ClaimOutcome.CLAIMED
+            # A result/receipt popup by itself is not proof that the daily
+            # button changed state; retain RESERVED and never retry.
             return ClaimOutcome.UNKNOWN
         result_roles = ("post", "receipt", "result")
         result_matches = [
@@ -262,6 +308,13 @@ class ManagerRewardPort(ExplorerPort):
         self.home_observer = home_observer
         self._last: FrameRewardObservation | None = None
         self._target: Target | None = None
+        self.entry_geometry: dict | None = None
+        self.geometry_overlay_path: Path | None = None
+        self.geometry_report: dict | None = None
+        self._prepared_claim: tuple[str, str, tuple[int, int]] | None = None
+
+    def set_entry_geometry(self, geometry: dict | None) -> None:
+        self.entry_geometry = geometry
 
     def _dispatch(self, action: str, values: tuple[int, ...]):
         if self._target is None:
@@ -292,8 +345,71 @@ class ManagerRewardPort(ExplorerPort):
             raise SafetyError("Action evidence is stale; capture a fresh frame.")
         return self._last
 
+    def validate_claim(self, screen: RewardScreen, reward: RewardEvidence, point: tuple[int, int]) -> None:
+        current = self._current(screen)
+        if not self.adapter.profile.geometry_required:
+            self._prepared_claim = (screen.capture_id, reward.reward_id, point)
+            return
+        profile = self.adapter.profile
+        if not self.entry_geometry or not self.entry_geometry.get("normalized_image"):
+            raise SafetyError("VIP entry geometry is unavailable; claim is blocked.")
+        target_matches = [item for item in current.evidence.values()
+                          if item.anchor_id == reward.action_anchor and item.matched]
+        if len(target_matches) != 1 or target_matches[0].device_box is None:
+            raise SafetyError("VIP free claim bbox is missing or ambiguous.")
+        target = target_matches[0]
+        if point != target.device_box.center:
+            raise SafetyError("VIP ADB tap point differs from the current claim bbox center.")
+        forbidden = []
+        for role in profile.forbidden_roles:
+            matches = [current.evidence[role]] if current.evidence.get(role) and current.evidence[role].matched else []
+            if len(matches) != 1 or matches[0].device_box is None:
+                raise SafetyError(f"VIP forbidden-region evidence {role!r} is missing or ambiguous.")
+            forbidden.append(matches[0])
+        geometry = validate_vip_claim_geometry(
+            target.device_box,
+            point,
+            tuple(item.device_box for item in forbidden if item.device_box is not None),
+        )
+        entry_path = Path(self.entry_geometry["normalized_image"])
+        home_image = cv2.imread(str(entry_path))
+        if home_image is None or target.normalized_box is None:
+            raise SafetyError("VIP geometry screenshots could not be decoded.")
+        normalized_tap = target.normalized_box.center
+        self.geometry_overlay_path = write_vip_geometry_overlay(
+            home_image,
+            current.captured.normalized,
+            BoundingBox(**self.entry_geometry["normalized_bbox"]),
+            target.normalized_box,
+            normalized_tap,
+            geometry.tap_point,
+            tuple(item.normalized_box for item in forbidden if item.normalized_box is not None),
+            Path(self.folder) / "vip-geometry-overlay.png",
+        )
+        self.geometry_report = {
+            "entry_bbox": self.entry_geometry["normalized_bbox"],
+            "entry_bbox_device": self.entry_geometry["device_bbox"],
+            "entry_confidence": self.entry_geometry["confidence"],
+            "claim_bbox": vars(target.device_box),
+            "claim_confidence": round(target.score, 6),
+            "tap_point_adb": list(geometry.tap_point),
+            "tap_point_inside_allowed_bbox": True,
+            "paid_region_bboxes": [vars(item.device_box) for item in forbidden],
+            "tap_point_outside_paid_region": True,
+            "claim_bbox_disjoint_from_paid_region": True,
+            "overlay": str(self.geometry_overlay_path),
+        }
+        self._prepared_claim = (screen.capture_id, reward.reward_id, point)
+
     def claim(self, screen: RewardScreen, reward: RewardEvidence, point: tuple[int, int]) -> None:
         self._current(screen)
+        if self.adapter.profile.geometry_required and self._prepared_claim != (
+            screen.capture_id,
+            reward.reward_id,
+            point,
+        ):
+            raise SafetyError("VIP claim geometry was not validated from this fresh frame.")
+        self._prepared_claim = None
         self._dispatch("tap", point)
 
     def verify_claim(self, before: RewardScreen, after: RewardScreen, reward: RewardEvidence) -> bool:
@@ -366,7 +482,13 @@ def vip_reward_profile(anchors: dict[str, VisualAnchor]) -> RewardVisualProfile:
     # The survey proves a free VIP opportunity, not the contents of its
     # eventual reward. Do not prioritize it as a diamond reward without a
     # separate verified reward-content anchor.
-    return _named_profile("vip-reward", "vip", anchors, "vip-daily", diamond_reward=False)
+    profile = _named_profile("vip-reward", "vip", anchors, "vip-daily", diamond_reward=False)
+    return replace(
+        profile,
+        forbidden_roles=("paid",),
+        geometry_required=True,
+        coverage_known=True,
+    )
 
 
 def free_recruit_profile(anchors: dict[str, VisualAnchor]) -> RewardVisualProfile:

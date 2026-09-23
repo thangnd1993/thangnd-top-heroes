@@ -33,6 +33,10 @@ def test_manifest_contains_semantic_roles_not_coordinates_or_annotated_assets():
 
 @pytest.mark.parametrize("flow", FIXED_FLOWS)
 def test_unqualified_fixed_flows_fail_closed_even_if_all_claim_roles_match(flow):
+    if flow is VIP_DAILY:
+        assert flow.qualification.activation_ready
+        assert flow.decide(set(flow.claim_roles)) == CandidateDecision.READY
+        return
     assert not flow.qualification.activation_ready
     assert flow.decide(set(flow.claim_roles)) == CandidateDecision.UNKNOWN
 
@@ -56,7 +60,7 @@ def test_forbidden_evidence_wins_over_a_fully_qualified_free_candidate():
 
 
 def test_red_dot_is_discovery_only_and_never_makes_a_candidate_ready():
-    matched = set(VIP_DAILY.claim_roles) | VIP_DAILY.discovery_roles
+    matched = set(VIP_DAILY.discovery_roles)
     assert VIP_DAILY.decide(matched) == CandidateDecision.UNKNOWN
 
 

@@ -1,0 +1,10 @@
+{
+  "purpose": "Targeted regression fixtures for the account-2 VIP daily free flow only.",
+  "source": "Clean unannotated real screenshots captured on 2026-09-23 from 2 / 5-Emmmmm.",
+  "runtime_input": false,
+  "files": {
+    "index2-home.png": "Home frame used to validate current-frame VIP entry matching.",
+    "index2-vip-claimable.png": "VIP frame used to validate current-frame claim, free, availability and paid-region geometry."
+  },
+  "account_credentials": false
+}

@@ -17,7 +17,7 @@ from top_heroes_auto.vision.models import CapturedScreen, NormalizedRect, Screen
 
 def _templates(tmp_path):
     paths = {}
-    for number, role in enumerate(("page", "claim", "free", "available", "post", "cooldown", "paid"), 1):
+    for number, role in enumerate(("page", "claim", "free", "available", "post", "cooldown", "paid", "receipt"), 1):
         image = np.random.default_rng(number).integers(1, 255, (14, 16, 3), dtype=np.uint8)
         path = tmp_path / f"{role}.png"
         assert cv2.imwrite(str(path), image)
@@ -27,7 +27,7 @@ def _templates(tmp_path):
 
 def _profile(tmp_path, *, task="vip-reward", paid=False, cooldown=False):
     templates = _templates(tmp_path)
-    roles = ("page", "claim", "free", "available", "post")
+    roles = ("page", "claim", "free", "available", "post", "receipt")
     roles += (("cooldown",) if cooldown else ())
     roles += (("paid",) if paid else ())
     anchors = tuple(
@@ -62,6 +62,7 @@ def _capture(templates, present, *, shift=0, index=2, name="5-Emmmmm", stamp="fr
         "post": (224 + shift, 88),
         "cooldown": (24 + shift, 124),
         "paid": (72 + shift, 132),
+        "receipt": (264 + shift, 140),
     }
     for role in present:
         template = templates[role][0]
@@ -142,20 +143,19 @@ def test_postcondition_rejects_wrong_account_or_transport(tmp_path):
     assert not adapter.verify_claim(before.screen, replace(after.screen, boot_id="other"), reward)
 
 
-def test_receipt_anchor_is_classified_before_normal_page_detection(tmp_path):
+def test_popup_receipt_alone_is_not_a_vip_postcondition(tmp_path):
     profile, templates = _profile(tmp_path)
     adapter = FrameRewardAdapter(profile)
     before = adapter.observe(
         _capture(templates, ("page", "claim", "free", "available"), stamp="before")
     )
-    result = adapter.observe(_capture(templates, ("post",), stamp="receipt-popup"))
-    assert result.screen.detection.state == ScreenState.UNKNOWN
-    assert adapter.classify_claim(before.screen, result.screen, before.screen.rewards[0]).value == "CLAIMED"
-    assert adapter.verify_claim(before.screen, result.screen, before.screen.rewards[0])
+    result = adapter.observe(_capture(templates, ("page", "receipt"), stamp="receipt-popup"))
+    assert adapter.classify_claim(before.screen, result.screen, before.screen.rewards[0]).value == "UNKNOWN"
+    assert not adapter.verify_claim(before.screen, result.screen, before.screen.rewards[0])
 
 
 def test_explicit_cooldown_is_distinct_from_receipt_and_requires_identity(tmp_path):
-    profile, templates = _profile(tmp_path, cooldown=True)
+    profile, templates = _profile(tmp_path, task="free-recruit", cooldown=True)
     adapter = FrameRewardAdapter(profile)
     before = adapter.observe(
         _capture(templates, ("page", "claim", "free", "available"), stamp="before")
@@ -167,7 +167,7 @@ def test_explicit_cooldown_is_distinct_from_receipt_and_requires_identity(tmp_pa
 
 
 def test_receipt_and_cooldown_ambiguity_fails_closed(tmp_path):
-    profile, templates = _profile(tmp_path, cooldown=True)
+    profile, templates = _profile(tmp_path, task="free-recruit", cooldown=True)
     adapter = FrameRewardAdapter(profile)
     before = adapter.observe(
         _capture(templates, ("page", "claim", "free", "available"), stamp="before")

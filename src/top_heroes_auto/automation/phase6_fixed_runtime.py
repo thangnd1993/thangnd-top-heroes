@@ -321,8 +321,20 @@ class FixedFlowRunner:
             result.status = identity_error
             return result
         if expected_destination is None or len(after.matches(expected_destination)) != 1:
+            result.status = (
+                FixedFlowStatus.ACTION_RESULT_UNCERTAIN if claim_reserved else FixedFlowStatus.UNKNOWN
+            )
             result.error = "Fresh postcondition was not uniquely verified."
             return result
+        if spec.task == "vip-reward":
+            if len(after.matches(spec.page_role)) != 1:
+                result.status = FixedFlowStatus.ACTION_RESULT_UNCERTAIN
+                result.error = "VIP claim postcondition lacks the independent VIP page anchor."
+                return result
+            if after.matches(spec.action_role) or after.matches(spec.available_role):
+                result.status = FixedFlowStatus.ACTION_RESULT_UNCERTAIN
+                result.error = "VIP claimable action remains after dispatch; success is unverified."
+                return result
         try:
             if self.journal is not None and attempt_key:
                 self.journal.verify(attempt_key, after.capture_id)

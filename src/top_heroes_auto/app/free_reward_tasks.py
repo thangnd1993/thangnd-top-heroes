@@ -138,10 +138,12 @@ def _load_profile_details(task: str) -> tuple[RewardVisualProfile | None, str | 
         role_name = item["id"].removeprefix(prefix + "-")
         if role_name in {
             "page", "claim", "free", "available", "home", "entry", "post", "cooldown",
-            "receipt", "result",
+            "receipt", "result", "paid",
         }:
             anchors[role_name] = anchor
     required = {"page", "claim", "free", "available", "home"}
+    if task == "vip-reward":
+        required |= {"paid", "post"}
     if not required <= anchors.keys():
         return None, None
     fixed_flow = fixed_flow_for_task(task)
@@ -221,6 +223,8 @@ def run_free_reward_task(
     cleanup_succeeded = False
     error: str | None = None
     explorer_result: ExplorerResult | None = None
+    navigation_result = None
+    reward_port = None
     effective_port_factory = port_factory
     effective_entry_navigator = entry_navigator
     profile_error: str | None = None
@@ -257,6 +261,16 @@ def run_free_reward_task(
                 task_run_id=task_run_id,
                 error=error,
             )
+        elif task == "vip-reward" and any(
+            row["reward_id"] == "vip-daily" and row["status"] in {"RESERVED", "VERIFIED"}
+            for row in manager.store.reward_claims(manager.namespace, index)
+        ):
+            result = Phase6TaskResult(
+                task,
+                "ALREADY_ATTEMPTED",
+                task_run_id=task_run_id,
+                error="A prior VIP daily reservation or verified claim permanently blocks redispatch.",
+            )
         elif cancelled():
             result = Phase6TaskResult(task, "CANCELLED", task_run_id=task_run_id)
         else:
@@ -291,6 +305,7 @@ def run_free_reward_task(
                 navigation = effective_entry_navigator(
                     manager, snapshot, index, name, profile, folder, cancelled
                 )
+                navigation_result = navigation
                 navigation_status = getattr(navigation, "status", None)
                 navigation_status = getattr(navigation_status, "value", str(navigation_status))
                 if navigation_status != NavigationStatus.SUCCESS.value:
@@ -314,6 +329,11 @@ def run_free_reward_task(
                     )
                 else:
                     port = effective_port_factory(manager, snapshot, index, name, profile, folder)
+                    reward_port = port
+                    set_entry_geometry = getattr(port, "set_entry_geometry", None)
+                    target_evidence = getattr(navigation, "target_evidence", ())
+                    if callable(set_entry_geometry):
+                        set_entry_geometry(target_evidence[0] if target_evidence else None)
                     journal = JournalledExplorerPort(
                         port,
                         manager.store,
@@ -323,6 +343,12 @@ def run_free_reward_task(
                         lambda screen, reward: _cycle(task, screen, reward),
                     )
                     explorer_result = FreeRewardExplorer(limits).run(journal, index, name, cancelled)
+                    if (
+                        task == "vip-reward"
+                        and explorer_result.status == "ACTION_RESULT_UNCERTAIN"
+                        and "vip-daily" in explorer_result.attempted
+                    ):
+                        explorer_result.status = "ACTION_DISPATCHED_UNVERIFIED"
                     result = Phase6TaskResult(
                         task,
                         explorer_result.status,
@@ -399,6 +425,13 @@ def run_free_reward_task(
             "result": result.status,
             "error": error or result.error,
             "explorer": asdict(explorer_result) if explorer_result else None,
+            "navigation": navigation_result.as_dict()
+            if navigation_result is not None and callable(getattr(navigation_result, "as_dict", None))
+            else None,
+            "vip_geometry": getattr(reward_port, "geometry_report", None),
+            "vip_geometry_overlay": str(reward_port.geometry_overlay_path)
+            if getattr(reward_port, "geometry_overlay_path", None)
+            else None,
             "claim_verified": bool(explorer_result and explorer_result.claimed),
         }
         report_path = folder / "report.json"

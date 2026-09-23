@@ -120,7 +120,12 @@ VIP_DAILY = FixedFlowSpec(
     post_role="vip-daily-postcondition",
     forbidden_roles=frozenset(("vip-paid-upgrade", "vip-attention-gift-unqualified")),
     discovery_roles=frozenset(("home-vip-attention", "vip-attention-dot")),
-    qualification=FlowQualification(clean_current_account_anchors=True),
+    qualification=FlowQualification(
+        clean_current_account_anchors=True,
+        zero_cost_proof=True,
+        availability_proof=True,
+        postcondition_proof=True,
+    ),
     steps=(
         FixedFlowStep(
             "open-vip",
