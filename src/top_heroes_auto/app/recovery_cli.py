@@ -19,7 +19,7 @@ from top_heroes_auto.app.service import (
     Manager,
 )
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
-from top_heroes_auto.automation.overlays import dismiss_overlay_bottom_left
+from top_heroes_auto.automation.overlays import DISMISSIBLE, dismiss_overlay_bottom_left
 from top_heroes_auto.automation.recovery import (
     HomeRecoveryEngine,
     RecoveryObservation,
@@ -85,6 +85,8 @@ class DiagnosticRecoveryPort:
         self.diagnostic_samples = []
         self.final_sample = False
         self._overlay_frame = None
+        self._after_overlay = False
+        self._overlay_samples = 0
 
     def observe(self, step: int) -> RecoveryObservation:
         target, payload = self.manager.capture_verified(self.index, self.snapshot)
@@ -100,7 +102,8 @@ class DiagnosticRecoveryPort:
 
         elapsed = self.clock() - self.started
         due = [value for value in self.sample_thresholds if elapsed >= value]
-        persist = True  # Every potential dismiss and its fresh result retain evidence.
+        persist = bool(due) or self.final_sample or self._after_overlay
+        self._after_overlay = False
         self.sample_thresholds = [value for value in self.sample_thresholds if value not in due]
         label = 'final' if self.final_sample else f'sample-{max(due)}s' if due else f'observation-{step:03d}'
         # Keep the raw final frame even when decoding rejects a blank transition.
@@ -141,6 +144,19 @@ class DiagnosticRecoveryPort:
                     break
             raise
         detection = self.detector.detect(screen)
+        if not persist and detection.state in DISMISSIBLE:
+            if self._overlay_samples >= 12:
+                raise SafetyError("Overlay evidence capture bound reached.")
+            self._overlay_samples += 1
+            persist = True
+            raw = self.folder / f"overlay-{step:03d}-raw.png"
+            raw.write_bytes(payload)
+            self.diagnostic_samples.append({
+                'label': f'overlay-{step:03d}', 'elapsed_seconds': elapsed,
+                'screenshot': str(raw), 'index': target.index, 'name': target.name,
+                'adb_target': target.serial, 'boot_id': target.boot_id,
+                'capture_error': 'Detection pending.',
+            })
         self._overlay_frame = (target, screen, detection)
         if persist:
             self.diagnostic_samples[-1].pop('capture_error')
@@ -163,6 +179,7 @@ class DiagnosticRecoveryPort:
         target, screen, detection = self._overlay_frame
         point = dismiss_overlay_bottom_left(screen, detection)
         self._overlay_frame = None  # No uncertain input retry using this frame.
+        self._after_overlay = True
         self.manager.execute(self.index, "tap", values=point, snapshot=self.snapshot,
                              observed_target=target)
         log.info("[%s / #%s] Qualified overlay bottom-left tap %s", self.name, self.index, point)

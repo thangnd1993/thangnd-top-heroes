@@ -18,6 +18,21 @@ FIXTURES = Path(__file__).parent / 'fixtures/phase6_vip'
 TARGET = Target(2, '5-Emmmmm', 'emulator-5558', 'fixture-boot')
 
 
+def test_packaged_acceptance_requires_exact_explicit_index2_command(monkeypatch):
+    from top_heroes_auto.app import diagnostic, main, vip_acceptance
+
+    calls = []
+    monkeypatch.setattr(diagnostic, '_manager', lambda _: 'mock-manager')
+    monkeypatch.setattr(vip_acceptance, 'run', lambda manager, data: calls.append(manager))
+    with pytest.raises(ValueError):
+        main.main(['vip-acceptance'])
+    with pytest.raises(ValueError):
+        main.main(['vip-acceptance', '--confirm-index2', '--index', '0'])
+    assert calls == []
+    assert main.main(['vip-acceptance', '--confirm-index2']) == 0
+    assert calls == ['mock-manager']
+
+
 def screen(name='receipt-reference.png'):
     return ScreenshotService(lambda _: (FIXTURES / name).read_bytes()).take(TARGET)
 

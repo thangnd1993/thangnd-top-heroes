@@ -14,6 +14,15 @@ def data_directory() -> Path:
 
 def main(argv: list[str] | None = None):
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == "vip-acceptance":
+        if argv != ["vip-acceptance", "--confirm-index2"]:
+            raise ValueError("VIP acceptance requires explicit --confirm-index2; no other target is supported.")
+        from top_heroes_auto.app.diagnostic import _manager
+        from top_heroes_auto.app.vip_acceptance import run
+
+        data = data_directory()
+        run(_manager(data), data)
+        return 0
     if argv and argv[0] == "diagnostic":
         from top_heroes_auto.app.diagnostic import main as diagnostic_main
 
