@@ -1,5 +1,15 @@
 # Tiến độ
 
+## 2026-09-23 post-fleet repair (not another fleet run)
+
+See [repair checkpoint](FLEET_REPAIR_20260923.md): three proven undispatched
+outer trial locks released with backup/audit; durable pre-input uncertainty;
+qualified one-time promo recovery; stable unique portal core at unchanged 0.9;
+bounded recovery diagnostics. Index-2-only observation, zero claims, owned
+cleanup and unchanged unrelated inventory. Guild-fire popup on historical 4/5
+remains unsupported. Await explicit authorization before another fleet trial.
+Phase 6 stays PARTIAL; no Phase 7.
+
 ## Phase 6 — VIP / Free Pack / Free Recruit — PARTIAL
 
 - 2026-09-23 correction: run-16's `LDPlayer-2` identity mismatch is historical.

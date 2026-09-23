@@ -335,7 +335,7 @@ class Manager:
 
     def execute(
         self, index: int, action: str, package: str = "", values: tuple = (), snapshot: RunSnapshot | None = None,
-        *, observed_target: Target | None = None,
+        *, observed_target: Target | None = None, before_input=None,
     ):
         """One explicit manual action = one short-lived immutable queue.
 
@@ -363,6 +363,8 @@ class Manager:
             raise SafetyError("Thao tác không được hỗ trợ.")
         if observed_target is not None and action not in {"tap", "swipe", "keyevent"}:
             raise SafetyError("Screenshot-bound identity is only valid for evidence-guarded input.")
+        if before_input is not None and (action != 'tap' or observed_target is None):
+            raise SafetyError('Dispatch journal hook requires a screenshot-bound tap.')
         with self._lock:
             if action in {"launch", "reboot"}:
                 self._last_lifecycle_attempt = LifecycleAttempt(index=index, action=action)
@@ -530,6 +532,8 @@ class Manager:
                     count = {"tap": 2, "swipe": 5, "keyevent": 1}[action]
                     if len(values) != count or any(type(v) is not int or v < 0 for v in values):
                         raise SafetyError("Tham số input không hợp lệ.")
+                    if before_input is not None:
+                        before_input()
                     return self.adb._shell(target.serial, "input", action, *(str(v) for v in values))
             except Exception:
                 log.exception("[#%s] Hủy thao tác %s", index, action)

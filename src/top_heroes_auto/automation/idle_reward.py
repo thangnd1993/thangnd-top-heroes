@@ -162,8 +162,8 @@ class IdleRewardTask:
             after_dispatch: Callable[[], None] = lambda: None,
         ):
             check_cancelled()
-            callback()
             after_dispatch()
+            callback()
             result.actions.append(name)
             previous = result.steps[-1]
             result.steps[-1] = IdleRewardStep(
@@ -332,7 +332,10 @@ class IdleRewardTask:
                 )
             return finish(IdleRewardStatus.TIMEOUT)
         except (CommandError, OSError, ScreenshotInvalid, SafetyError, ValueError) as exc:
-            return finish(IdleRewardStatus.ACTION_FAILED, str(exc))
+            return finish(
+                IdleRewardStatus.ACTION_RESULT_UNCERTAIN if result.claim_dispatched else IdleRewardStatus.ACTION_FAILED,
+                str(exc),
+            )
 
 
 class _Cancelled(Exception):

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -25,6 +26,7 @@ from top_heroes_auto.automation.recovery import (
     RecoveryStatus,
 )
 from top_heroes_auto.vision.detector import ScreenDetector
+from top_heroes_auto.vision.matcher import match_anchor
 from top_heroes_auto.vision.resources import template_folder
 from top_heroes_auto.vision.screenshot import ScreenshotService
 
@@ -66,6 +68,7 @@ class DiagnosticRecoveryPort:
         name: str,
         folder: Path,
         package: str = GAME_PACKAGE,
+        clock=time.monotonic,
     ):
         self.manager = manager
         self.snapshot = snapshot
@@ -75,6 +78,11 @@ class DiagnosticRecoveryPort:
         self.package = package
         self.detector = ScreenDetector.from_folder(template_folder())
         self.verified_identity: tuple[str, str] | None = None
+        self.clock = clock
+        self.started = clock()
+        self.sample_thresholds = [0, 10, 20, 40]
+        self.diagnostic_samples = []
+        self.final_sample = False
 
     def observe(self, step: int) -> RecoveryObservation:
         target, payload = self.manager.capture_verified(self.index, self.snapshot)
@@ -88,12 +96,35 @@ class DiagnosticRecoveryPort:
                 raise SafetyError("Recovery capture target changed unexpectedly.")
             return payload
 
+        elapsed = self.clock() - self.started
+        due = [value for value in self.sample_thresholds if elapsed >= value]
+        persist = bool(due) or self.final_sample
+        self.sample_thresholds = [value for value in self.sample_thresholds if value not in due]
+        label = 'final' if self.final_sample else f'sample-{max(due)}s' if due else 'observation'
+        # Keep the raw final frame even when decoding rejects a blank transition.
+        raw = None
+        if persist:
+            self.folder.mkdir(parents=True, exist_ok=True)
+            raw = self.folder / f'{label}-raw.png'
+            raw.write_bytes(payload)
+            self.diagnostic_samples.append({
+                'label': label, 'elapsed_seconds': elapsed, 'screenshot': str(raw),
+                'index': target.index, 'name': target.name,
+                'adb_target': target.serial, 'boot_id': target.boot_id,
+                'capture_error': 'Frame captured; decoding/detection not completed.',
+            })
         screen = ScreenshotService(exact_capture).take(
             target,
-            self.folder,
+            None,
             f"{step:03d}-recovery",
         )
         detection = self.detector.detect(screen)
+        if persist:
+            self.diagnostic_samples[-1].pop('capture_error')
+            self.diagnostic_samples[-1].update({
+                'detection': detection.as_dict(),
+                'anchors': [match_anchor(screen, anchor).as_dict() for anchor in self.detector.anchors],
+            })
         log.info(
             "[%s / #%s] Recovery state: %s confidence=%.3f",
             self.name,
@@ -101,7 +132,24 @@ class DiagnosticRecoveryPort:
             detection.state.value,
             detection.confidence,
         )
-        return RecoveryObservation(detection, screen.source_image, target.serial, target.boot_id)
+        return RecoveryObservation(detection, raw, target.serial, target.boot_id)
+
+    def persist_final(self):
+        self.final_sample = True
+        try:
+            self.observe(0)
+        except (OSError, RuntimeError, ValueError) as exc:
+            error = {
+                'label': 'final', 'capture_error': str(exc),
+                'screenshot': str(self.folder / 'final-raw.png')
+                if (self.folder / 'final-raw.png').exists() else None,
+            }
+            if self.diagnostic_samples and self.diagnostic_samples[-1]['label'] == 'final':
+                self.diagnostic_samples[-1].update(error)
+            else:
+                self.diagnostic_samples.append(error)
+        finally:
+            self.final_sample = False
 
     def launch_game(self) -> None:
         log.info("[%s / #%s] Recovery action: launch verified package", self.name, self.index)
@@ -139,6 +187,7 @@ def run_home_recovery(
     result: RecoveryResult | None = None
     launch_attempt: dict | None = None
     ownership_uncertain = False
+    port = None
     try:
         if not target.running:
             if cancelled():
@@ -183,6 +232,10 @@ def run_home_recovery(
         result = RecoveryResult(RecoveryStatus.ADB_ERROR, error="Recovery did not produce a result.")
     result.launch_attempt = launch_attempt
     result.ownership_uncertain = ownership_uncertain
+    if port is not None and result.status in {
+        RecoveryStatus.LOADING_TIMEOUT, RecoveryStatus.LIMIT_REACHED, RecoveryStatus.UNKNOWN_SCREEN,
+    }:
+        port.persist_final()
 
     report_path = folder / "report.json"
     cleanup_performed = False
@@ -212,6 +265,7 @@ def run_home_recovery(
             "cleanup_performed": cleanup_performed,
             "launch_attempt": launch_attempt,
             "ownership_uncertain": ownership_uncertain,
+            "diagnostic_samples": port.diagnostic_samples if port is not None else [],
             **result.as_dict(),
         }
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

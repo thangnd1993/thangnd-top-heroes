@@ -83,6 +83,12 @@ class Store:
                     UNIQUE(namespace,instance_index,reward_id,cycle_key),
                     FOREIGN KEY(task_run_id) REFERENCES task_runs(id));
             """)
+            columns = {row[1] for row in db.execute('PRAGMA table_info(reward_claims)')}
+            if 'dispatch_state' not in columns:
+                db.execute("ALTER TABLE reward_claims ADD COLUMN dispatch_state TEXT NOT NULL DEFAULT 'UNKNOWN'")
+            db.execute('''CREATE TABLE IF NOT EXISTS reward_release_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, claim_id INTEGER NOT NULL UNIQUE,
+                released_at TEXT NOT NULL, original_row TEXT NOT NULL, evidence TEXT NOT NULL)''')
             db.execute(
                 "UPDATE runs SET status=?, finished_at=COALESCE(finished_at, ?) WHERE status IN (?, ?)",
                 (RunStatus.INTERRUPTED, _stamp(), RunStatus.QUEUED, RunStatus.RUNNING),
@@ -275,6 +281,7 @@ class Store:
     def reserve_reward_claim(
         self, task_run_id: int, reward_id: str, cycle_key: str, before_evidence: str,
         *, expected_instance: tuple[int, str] | None = None,
+        not_dispatched: bool = False,
     ) -> int:
         """Commit intent BEFORE input; interruption must never make it retryable.
 
@@ -309,7 +316,37 @@ class Store:
                    VALUES (?,?,?,?,?,?,'RESERVED',?,?)""",
                 (namespace, index, name, reward_id, cycle_key, task_run_id, _stamp(), before_evidence),
             )
+            if not_dispatched:
+                db.execute("UPDATE reward_claims SET dispatch_state='NOT_DISPATCHED' WHERE id=?", (cursor.lastrowid,))
             return int(cursor.lastrowid)
+
+    def mark_reward_dispatch(self, claim_id: int, task_run_id: int):
+        """Commit uncertainty BEFORE entering claim-capable transport, never after."""
+        with self.connect() as db:
+            cursor = db.execute(
+                """UPDATE reward_claims SET dispatch_state='POSSIBLE'
+                   WHERE id=? AND task_run_id=? AND status='RESERVED' AND dispatch_state='NOT_DISPATCHED'""",
+                (claim_id, task_run_id),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError('Claim reservation missing or already final.')
+
+    def release_undispatched_reward(self, claim_id: int, task_run_id: int, evidence: str):
+        """Archive only a positively undispatched reservation; legacy UNKNOWN stays locked."""
+        import json
+
+        if not evidence.strip():
+            raise ValueError('Release requires evidence.')
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.row_factory = sqlite3.Row
+            row = db.execute('SELECT * FROM reward_claims WHERE id=? AND task_run_id=?',
+                             (claim_id, task_run_id)).fetchone()
+            if row is None or row['status'] != 'RESERVED' or row['dispatch_state'] != 'NOT_DISPATCHED':
+                raise ValueError('Only proven NOT_DISPATCHED reservations can be released.')
+            db.execute('INSERT INTO reward_release_audit(claim_id,released_at,original_row,evidence) VALUES (?,?,?,?)',
+                       (claim_id, _stamp(), json.dumps(dict(row), ensure_ascii=False), evidence))
+            db.execute('DELETE FROM reward_claims WHERE id=? AND task_run_id=?', (claim_id, task_run_id))
 
     def verify_reward_claim(self, claim_id: int, task_run_id: int, after_evidence: str):
         """A receipt is permanent and belongs only to its reserving task run."""

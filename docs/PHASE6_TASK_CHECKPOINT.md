@@ -1,5 +1,13 @@
 # Phase 6 task ledger — audited 2026-09-22
 
+## 2026-09-23 post-trial repair checkpoint
+
+[Exact journal/Idle/recovery repair and evidence](FLEET_REPAIR_20260923.md).
+Only index 2 was observed; no claim or Phase 6 survey was repeated. Three
+historical pre-claim trial locks were audited/released, not marked claimed.
+Current authorization is repair/detection only; no automatic fleet retry.
+The per-reward completion state below is unchanged by this repair.
+
 ## 2026-09-23 authorized index-2 ADB restoration and clean runtime evidence
 
 The user explicitly authorized one persistent change for the stopped
