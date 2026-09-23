@@ -1,0 +1,12 @@
+{
+  "id": "promo-stranger-cta",
+  "state": "PROMO_BLOCKING",
+  "template": "promo-stranger-cta.png",
+  "expected_region": [0.0, 0.0, 1.0, 1.0],
+  "threshold": 0.96,
+  "required": true,
+  "weight": 1.0,
+  "variant": "stranger-promo-visible",
+  "reference_resolution": [1280, 720],
+  "notes": "Stable event-card CTA paired with the Stranger Things title to distinguish the visible blocker; recognition only, never an input target."
+}

@@ -18,6 +18,7 @@ class RecoveryStatus(StrEnum):
     ALREADY_HOME = "ALREADY_HOME"
     UNKNOWN_SCREEN = "UNKNOWN_SCREEN"
     LOADING_TIMEOUT = "LOADING_TIMEOUT"
+    PROMO_BLOCKING = "PROMO_BLOCKING"
     ACTION_FAILED = "ACTION_FAILED"
     ADB_ERROR = "ADB_ERROR"
     SCREEN_NOT_READY = "SCREEN_NOT_READY"
@@ -192,6 +193,26 @@ class HomeRecoveryEngine:
             result.steps.append(step)
             if detection.state == ScreenState.GAME_HOME:
                 return finish(RecoveryStatus.SUCCESS if result.actions else RecoveryStatus.ALREADY_HOME)
+            if detection.state == ScreenState.PROMO_BLOCKING:
+                if loading_started is None:
+                    loading_started = self.clock()
+                if self.clock() - loading_started >= self.loading_timeout:
+                    return finish(
+                        RecoveryStatus.PROMO_BLOCKING,
+                        "Recognized promotional screen remained visible; no qualified dismiss action, no input sent.",
+                    )
+                if cancelled():
+                    return finish(RecoveryStatus.CANCELLED)
+                result.actions.append("wait")
+                result.steps[-1] = RecoveryStep(
+                    step.number,
+                    step.state,
+                    step.confidence,
+                    step.screenshot,
+                    "wait",
+                )
+                self.sleep(self.loading_interval)
+                continue
             if detection.state == ScreenState.UNKNOWN:
                 if loading_started is not None:
                     if self.clock() - loading_started >= self.loading_timeout:
@@ -240,10 +261,15 @@ class HomeRecoveryEngine:
                 )
                 self.sleep(self.action_settle)
                 continue
-            if detection.state == ScreenState.GAME_LOADING:
+            if detection.state in {ScreenState.GAME_LOADING, ScreenState.PROMO_LOADING}:
                 if loading_started is None:
                     loading_started = self.clock()
                 if self.clock() - loading_started >= self.loading_timeout:
+                    if detection.state == ScreenState.PROMO_LOADING:
+                        return finish(
+                            RecoveryStatus.PROMO_BLOCKING,
+                            "Recognized promotional loading screen remained visible; no input sent.",
+                        )
                     return finish(RecoveryStatus.LOADING_TIMEOUT, "GAME_LOADING exceeded timeout.")
                 if cancelled():
                     return finish(RecoveryStatus.CANCELLED)

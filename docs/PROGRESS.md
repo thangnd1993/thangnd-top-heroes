@@ -1,16 +1,26 @@
 # Tiến độ
 
+## 2026-09-23 Queen con promotional recovery (offline; no claim)
+
+The saved Queen con 14% and 65% Stranger Things startup frames now classify as
+`PROMO_LOADING` at the unchanged 0.96 unique-anchor threshold. The separate
+event card is `PROMO_BLOCKING` only when both its Stranger Things title and
+`Đến` button anchors match uniquely. Recovery waits for fresh frames within the
+existing bound; a transition to `GAME_HOME` succeeds, while a persistent known
+promo returns `PROMO_BLOCKING` and sends no dismiss input. The card's button is
+recognition evidence only. Idle detection and claim behavior were not changed.
+Focused recovery/detector tests (52) and Ruff pass; no emulator was launched.
+After fresh CI, only the user-authorized non-claim recovery acceptance on
+`3 / Queen con` may run. Pooh5, fleet, claims and Phase 7 remain out of scope.
+
 ## 2026-09-23 recovery loading recognition (offline; no gameplay)
 
-The saved `3 / Queen con` startup frame at 14% is now recognized as
-`GAME_LOADING` by a unique live-frame Stranger Things title anchor at the
-existing 0.96 threshold. It no longer depends on the changing loading caption
-or percentage. The Google Play service notice remains non-actionable; recovery
-waits without tapping. The later Stranger Things event frame remains UNKNOWN,
-and weak/conflicting evidence stays fail-closed. Focused recovery tests and
-Ruff pass. No LDPlayer was launched and the Idle detector was not changed.
-After CI, only the already authorized screenshot/recovery acceptance on
-`3 / Queen con` may be performed; no claim or fleet run is authorized.
+The saved `3 / Queen con` startup frame at 14% was recognized as loading by a
+unique live-frame Stranger Things title anchor at the existing 0.96 threshold.
+It no longer depended on the changing loading caption or percentage. The
+Google Play service notice remained non-actionable; recovery waited without
+tapping. The later event-card UNKNOWN result was subsequently repaired in the
+entry above. The Idle detector was not changed.
 
 ## 2026-09-23 Idle result-semantics repair (offline; no claim replay)
 

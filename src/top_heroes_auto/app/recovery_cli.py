@@ -254,6 +254,7 @@ def run_home_recovery(
     result.ownership_uncertain = ownership_uncertain
     if port is not None and result.status in {
         RecoveryStatus.LOADING_TIMEOUT, RecoveryStatus.LIMIT_REACHED, RecoveryStatus.UNKNOWN_SCREEN,
+        RecoveryStatus.PROMO_BLOCKING,
     }:
         port.persist_final()
 

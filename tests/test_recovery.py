@@ -130,6 +130,74 @@ def test_game_loading_waits_without_input_and_times_out():
     assert result.actions == ["wait", "wait"]
 
 
+def test_promo_loading_waits_then_home_succeeds_without_dismissal_input():
+    clock = Clock()
+    port = Port(ScreenState.ANDROID_HOME, ScreenState.PROMO_LOADING, ScreenState.GAME_HOME)
+    result = HomeRecoveryEngine(
+        loading_timeout=20,
+        loading_interval=5,
+        action_settle=0,
+        clock=clock,
+        sleep=clock.sleep,
+    ).ensure_game_home(port)
+
+    assert result.status == RecoveryStatus.SUCCESS
+    assert result.states_seen == ["ANDROID_HOME", "PROMO_LOADING", "GAME_HOME"]
+    assert result.actions == ["launch_game", "wait"]
+    assert port.launches == 1
+
+
+def test_visible_promo_that_naturally_disappears_reaches_home_without_dismissal():
+    clock = Clock()
+    port = Port(ScreenState.PROMO_BLOCKING, ScreenState.GAME_HOME)
+    result = HomeRecoveryEngine(
+        loading_timeout=20,
+        loading_interval=5,
+        clock=clock,
+        sleep=clock.sleep,
+    ).ensure_game_home(port)
+
+    assert result.status == RecoveryStatus.SUCCESS
+    assert result.states_seen == ["PROMO_BLOCKING", "GAME_HOME"]
+    assert result.actions == ["wait"]
+    assert port.launches == 0
+
+
+def test_persistent_visible_promo_fails_closed_at_existing_bound_without_input():
+    clock = Clock()
+    port = Port(ScreenState.PROMO_BLOCKING)
+    result = HomeRecoveryEngine(
+        loading_timeout=5,
+        loading_interval=5,
+        max_duration=20,
+        clock=clock,
+        sleep=clock.sleep,
+    ).ensure_game_home(port)
+
+    assert result.status == RecoveryStatus.PROMO_BLOCKING
+    assert result.states_seen == ["PROMO_BLOCKING", "PROMO_BLOCKING"]
+    assert result.actions == ["wait"]
+    assert port.launches == 0
+
+
+def test_promo_still_loading_at_existing_bound_returns_promo_blocking():
+    clock = Clock()
+    port = Port(ScreenState.ANDROID_HOME, ScreenState.PROMO_LOADING)
+    result = HomeRecoveryEngine(
+        loading_timeout=10,
+        loading_interval=5,
+        action_settle=0,
+        max_duration=30,
+        clock=clock,
+        sleep=clock.sleep,
+    ).ensure_game_home(port)
+
+    assert result.status == RecoveryStatus.PROMO_BLOCKING
+    assert result.states_seen[-1] == "PROMO_LOADING"
+    assert result.actions == ["launch_game", "wait", "wait"]
+    assert port.launches == 1
+
+
 def test_transient_unknown_after_verified_loading_waits_without_input():
     port = Port(
         ScreenState.ANDROID_HOME,
