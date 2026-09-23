@@ -316,15 +316,17 @@ class ManagerRewardPort(ExplorerPort):
     def set_entry_geometry(self, geometry: dict | None) -> None:
         self.entry_geometry = geometry
 
-    def _dispatch(self, action: str, values: tuple[int, ...]):
+    def _dispatch(self, action: str, values: tuple[int, ...], *, before_input=None):
         if self._target is None:
             raise SafetyError("No current screenshot target is available.")
+        journal_hook = {"before_input": before_input} if before_input is not None else {}
         return self.manager.execute(
             self.index,
             action,
             values=values,
             snapshot=self.snapshot,
             observed_target=self._target,
+            **journal_hook,
         )
 
     def observe(self) -> RewardScreen:
@@ -401,7 +403,7 @@ class ManagerRewardPort(ExplorerPort):
         }
         self._prepared_claim = (screen.capture_id, reward.reward_id, point)
 
-    def claim(self, screen: RewardScreen, reward: RewardEvidence, point: tuple[int, int]) -> None:
+    def claim(self, screen: RewardScreen, reward: RewardEvidence, point: tuple[int, int], *, before_input=None) -> None:
         self._current(screen)
         if self.adapter.profile.geometry_required and self._prepared_claim != (
             screen.capture_id,
@@ -410,7 +412,7 @@ class ManagerRewardPort(ExplorerPort):
         ):
             raise SafetyError("VIP claim geometry was not validated from this fresh frame.")
         self._prepared_claim = None
-        self._dispatch("tap", point)
+        self._dispatch("tap", point, before_input=before_input)
 
     def verify_claim(self, before: RewardScreen, after: RewardScreen, reward: RewardEvidence) -> bool:
         self._current(after)
