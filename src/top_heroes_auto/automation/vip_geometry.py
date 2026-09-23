@@ -98,28 +98,27 @@ def write_vip_geometry_overlay(
         2,
     )
 
-    x_offset = left.shape[1]
     cv2.rectangle(
         right,
-        (claim_box.x + x_offset, claim_box.y + right_shift),
-        (claim_box.x + claim_box.width + x_offset, claim_box.y + claim_box.height + right_shift),
+        (claim_box.x, claim_box.y + right_shift),
+        (claim_box.x + claim_box.width, claim_box.y + claim_box.height + right_shift),
         (30, 220, 40),
         3,
     )
     for forbidden in paid_boxes:
         cv2.rectangle(
             right,
-            (forbidden.x + x_offset, forbidden.y + right_shift),
-            (forbidden.x + forbidden.width + x_offset, forbidden.y + forbidden.height + right_shift),
+            (forbidden.x, forbidden.y + right_shift),
+            (forbidden.x + forbidden.width, forbidden.y + forbidden.height + right_shift),
             (30, 30, 240),
             3,
         )
-    point = normalized_tap_point[0] + x_offset, normalized_tap_point[1] + right_shift
+    point = normalized_tap_point[0], normalized_tap_point[1] + right_shift
     cv2.drawMarker(right, point, (0, 230, 255), cv2.MARKER_CROSS, 22, 3)
     cv2.putText(
         right,
         f"ADB tap {adb_tap_point}; inside free bbox; outside paid region",
-        (12 + x_offset, right.shape[0] - 14),
+        (12, right.shape[0] - 14),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.58,
         (0, 230, 255),

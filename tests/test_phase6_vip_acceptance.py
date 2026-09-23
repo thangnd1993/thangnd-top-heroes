@@ -83,6 +83,10 @@ def test_claim_geometry_uses_live_vip_bbox_and_excludes_paid_region(tmp_path):
     )
     image = cv2.imread(str(overlay))
     assert image is not None and image.size
+    # Draw in panel-local coordinates before concatenation; boxes must be visible.
+    x_offset = home.normalized.shape[1]
+    assert tuple(image[claim.normalized_box.y + 42, claim.normalized_box.x + x_offset]) == (30, 220, 40)
+    assert tuple(image[paid.normalized_box.y + 42, paid.normalized_box.x + x_offset]) == (30, 30, 240)
 
 
 def test_paid_region_overlap_is_rejected_before_any_claim_reservation():
@@ -158,4 +162,3 @@ def test_popup_only_receipt_or_unchanged_claimable_state_is_not_verified():
     )
     assert adapter.classify_claim(before.screen, popup, reward) == ClaimOutcome.UNKNOWN
     assert adapter.classify_claim(before.screen, before.screen, reward) == ClaimOutcome.UNKNOWN
-
