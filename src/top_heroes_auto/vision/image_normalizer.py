@@ -9,8 +9,9 @@ from top_heroes_auto.automation.guard import SafetyError
 class ScreenshotInvalid(SafetyError):
     code = "SCREENSHOT_INVALID"
 
-    def __init__(self, detail: str):
+    def __init__(self, detail: str, *, blank_frame: bool = False):
         super().__init__(f"{self.code}: {detail}")
+        self.blank_frame = blank_frame
 
 
 class ImageNormalizer:
@@ -34,7 +35,7 @@ class ImageNormalizer:
             height, width = image.shape[:2]
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         if float(gray.mean()) < 1.0 or float(gray.std()) < self.blank_stddev:
-            raise ScreenshotInvalid("Image is blank or effectively uniform.")
+            raise ScreenshotInvalid("Image is blank or effectively uniform.", blank_frame=True)
         if width < height:
             raise ScreenshotInvalid("Landscape orientation is required.")
         return image, device_size, rotated_from_portrait

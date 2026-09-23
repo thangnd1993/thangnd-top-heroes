@@ -26,6 +26,7 @@ from top_heroes_auto.automation.recovery import (
     RecoveryStatus,
 )
 from top_heroes_auto.vision.detector import ScreenDetector
+from top_heroes_auto.vision.image_normalizer import ScreenshotInvalid
 from top_heroes_auto.vision.matcher import match_anchor
 from top_heroes_auto.vision.resources import template_folder
 from top_heroes_auto.vision.screenshot import ScreenshotService
@@ -113,11 +114,31 @@ class DiagnosticRecoveryPort:
                 'adb_target': target.serial, 'boot_id': target.boot_id,
                 'capture_error': 'Frame captured; decoding/detection not completed.',
             })
-        screen = ScreenshotService(exact_capture).take(
-            target,
-            None,
-            f"{step:03d}-recovery",
-        )
+        try:
+            screen = ScreenshotService(exact_capture).take(
+                target,
+                None,
+                f"{step:03d}-recovery",
+            )
+        except ScreenshotInvalid as exc:
+            sample_path = raw
+            if sample_path is None:
+                sample_path = self.folder / f"invalid-{step:03d}-raw.png"
+                sample_path.write_bytes(payload)
+                self.diagnostic_samples.append({
+                    'label': f'invalid-{step:03d}',
+                    'elapsed_seconds': elapsed,
+                    'screenshot': str(sample_path),
+                    'index': target.index,
+                    'name': target.name,
+                    'adb_target': target.serial,
+                    'boot_id': target.boot_id,
+                })
+            for sample in reversed(self.diagnostic_samples):
+                if sample.get('screenshot') == str(sample_path):
+                    sample['capture_error'] = str(exc)
+                    break
+            raise
         detection = self.detector.detect(screen)
         if persist:
             self.diagnostic_samples[-1].pop('capture_error')

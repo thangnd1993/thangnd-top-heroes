@@ -20,6 +20,7 @@ class RecoveryStatus(StrEnum):
     LOADING_TIMEOUT = "LOADING_TIMEOUT"
     ACTION_FAILED = "ACTION_FAILED"
     ADB_ERROR = "ADB_ERROR"
+    SCREEN_NOT_READY = "SCREEN_NOT_READY"
     CANCELLED = "CANCELLED"
     LIMIT_REACHED = "LIMIT_REACHED"
 
@@ -102,6 +103,8 @@ class HomeRecoveryEngine:
         max_duration: float = 120.0,
         loading_timeout: float = 90.0,
         loading_interval: float = 5.0,
+        initial_blank_retries: int = 2,
+        initial_blank_interval: float = 2.0,
         action_settle: float = 2.0,
         unknown_confirmations: int = 2,
         clock: Callable[[], float] = time.monotonic,
@@ -111,6 +114,8 @@ class HomeRecoveryEngine:
         self.max_duration = max_duration
         self.loading_timeout = loading_timeout
         self.loading_interval = loading_interval
+        self.initial_blank_retries = initial_blank_retries
+        self.initial_blank_interval = initial_blank_interval
         self.action_settle = action_settle
         self.unknown_confirmations = unknown_confirmations
         self.clock = clock
@@ -124,6 +129,7 @@ class HomeRecoveryEngine:
         started = self.clock()
         result = RecoveryResult(RecoveryStatus.LIMIT_REACHED)
         loading_started: float | None = None
+        initial_blank_count = 0
         unknown_count = 0
         launched = False
 
@@ -142,7 +148,23 @@ class HomeRecoveryEngine:
                 observation = port.observe(number)
             except ScreenshotInvalid as exc:
                 if loading_started is None:
-                    return finish(RecoveryStatus.ADB_ERROR, str(exc))
+                    if exc.blank_frame and initial_blank_count < self.initial_blank_retries:
+                        initial_blank_count += 1
+                        result.steps.append(
+                            RecoveryStep(number, ScreenState.UNKNOWN, 0.0, None, "wait")
+                        )
+                        result.actions.append("wait")
+                        if cancelled():
+                            return finish(RecoveryStatus.CANCELLED)
+                        self.sleep(self.initial_blank_interval)
+                        continue
+                    result.steps.append(
+                        RecoveryStep(number, ScreenState.UNKNOWN, 0.0, None)
+                    )
+                    return finish(
+                        RecoveryStatus.SCREEN_NOT_READY,
+                        f"Initial screenshot remained invalid after {initial_blank_count + 1} capture(s); no input sent: {exc}",
+                    )
                 if self.clock() - loading_started >= self.loading_timeout:
                     return finish(
                         RecoveryStatus.LOADING_TIMEOUT,

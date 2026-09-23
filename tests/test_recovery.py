@@ -4,9 +4,11 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 
+from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app.process import CommandError
 from top_heroes_auto.app.recovery_cli import (
     DiagnosticRecoveryPort,
@@ -73,14 +75,27 @@ class BlankDuringLoadingPort(Port):
     def observe(self, step):
         if step == 2:
             self.observations += 1
-            raise ScreenshotInvalid("Image is blank or effectively uniform.")
+            raise ScreenshotInvalid("Image is blank or effectively uniform.", blank_frame=True)
         return super().observe(step)
 
 
 class BlankPort(Port):
     def observe(self, step):
         self.observations += 1
-        raise ScreenshotInvalid("Image is blank or effectively uniform.")
+        raise ScreenshotInvalid("Image is blank or effectively uniform.", blank_frame=True)
+
+
+class TransientBlankPort(Port):
+    def __init__(self, blank_count, final_state=ScreenState.GAME_HOME):
+        super().__init__(final_state)
+        self.blank_count = blank_count
+
+    def observe(self, step):
+        if self.blank_count:
+            self.blank_count -= 1
+            self.observations += 1
+            raise ScreenshotInvalid("Image is blank or effectively uniform.", blank_frame=True)
+        return super().observe(step)
 
 
 def test_already_game_home_short_circuits_without_input():
@@ -166,12 +181,121 @@ def test_blank_frame_after_verified_loading_waits_without_input():
     assert port.launches == 0
 
 
-def test_blank_frame_before_verified_loading_fails_closed():
-    port = BlankPort(ScreenState.UNKNOWN)
-    result = HomeRecoveryEngine(sleep=lambda _: None).ensure_game_home(port)
-    assert result.status == RecoveryStatus.ADB_ERROR
-    assert result.actions == []
+def test_initial_blank_screenshot_then_valid_screen_is_recaptured_without_navigation():
+    clock = Clock()
+    port = TransientBlankPort(blank_count=1)
+    result = HomeRecoveryEngine(clock=clock, sleep=clock.sleep).ensure_game_home(port)
+
+    assert result.status == RecoveryStatus.SUCCESS
+    assert result.actions == ["wait"]
+    assert result.states_seen == ["UNKNOWN", "GAME_HOME"]
+    assert result.duration == 2
+    assert port.observations == 2
     assert port.launches == 0
+
+
+def test_multiple_initial_blank_screenshots_then_valid_screen_are_bounded():
+    clock = Clock()
+    port = TransientBlankPort(blank_count=2)
+    result = HomeRecoveryEngine(clock=clock, sleep=clock.sleep).ensure_game_home(port)
+
+    assert result.status == RecoveryStatus.SUCCESS
+    assert result.actions == ["wait", "wait"]
+    assert result.states_seen == ["UNKNOWN", "UNKNOWN", "GAME_HOME"]
+    assert result.duration == 4
+    assert port.observations == 3
+    assert port.launches == 0
+
+
+def test_persistent_initial_blank_screenshots_fail_boundedly_as_screen_not_ready():
+    clock = Clock()
+    port = BlankPort(ScreenState.UNKNOWN)
+    result = HomeRecoveryEngine(clock=clock, sleep=clock.sleep).ensure_game_home(port)
+
+    assert result.status == RecoveryStatus.SCREEN_NOT_READY
+    assert "3 capture" in result.error
+    assert result.actions == ["wait", "wait"]
+    assert result.states_seen == ["UNKNOWN", "UNKNOWN", "UNKNOWN"]
+    assert result.duration == 4
+    assert port.observations == 3
+    assert port.launches == 0
+
+
+def test_nonblank_screenshot_decode_failure_is_not_an_adb_transport_error():
+    class UndecodablePort(Port):
+        def observe(self, step):
+            self.observations += 1
+            raise ScreenshotInvalid("PNG cannot be decoded.")
+
+    port = UndecodablePort(ScreenState.UNKNOWN)
+    result = HomeRecoveryEngine(sleep=lambda _: None).ensure_game_home(port)
+
+    assert result.status == RecoveryStatus.SCREEN_NOT_READY
+    assert result.actions == []
+    assert port.observations == 1
+    assert port.launches == 0
+
+
+def test_blank_wait_keeps_same_verified_target_and_persists_each_invalid_sample(
+    rig, tmp_path, monkeypatch
+):
+    manager, _, _ = rig
+    snapshot = RunSnapshot(manager.namespace, ((7, "Farm-007"),), True)
+    port = DiagnosticRecoveryPort(manager, snapshot, 7, "Farm-007", tmp_path)
+    target = Target(7, "Farm-007", "emulator-5568", "boot")
+    changed_target = Target(7, "Farm-007", "emulator-5570", "other-boot")
+    returned = iter(((target, b"blank-one"), (target, b"blank-two"), (changed_target, b"blank-three")))
+    monkeypatch.setattr(manager, "capture_verified", lambda *args: next(returned))
+    monkeypatch.setattr(
+        ScreenshotService,
+        "take",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            ScreenshotInvalid("Image is blank or effectively uniform.", blank_frame=True)
+        ),
+    )
+
+    for step in (1, 2):
+        with pytest.raises(ScreenshotInvalid):
+            port.observe(step)
+    with pytest.raises(SafetyError, match="identity changed"):
+        port.observe(3)
+
+    assert [sample["adb_target"] for sample in port.diagnostic_samples] == [
+        "emulator-5568", "emulator-5568"
+    ]
+    assert [Path(sample["screenshot"]).read_bytes() for sample in port.diagnostic_samples] == [
+        b"blank-one", b"blank-two"
+    ]
+
+
+def test_valid_black_png_is_screen_not_ready_and_persisted_with_bounded_recaptures(
+    rig, tmp_path, monkeypatch
+):
+    manager, _, _ = rig
+    snapshot = RunSnapshot(manager.namespace, ((7, "Farm-007"),), True)
+    port = DiagnosticRecoveryPort(manager, snapshot, 7, "Farm-007", tmp_path)
+    target = Target(7, "Farm-007", "emulator-5568", "boot")
+    encoded, payload = cv2.imencode(".png", np.zeros((720, 1280, 3), dtype=np.uint8))
+    assert encoded
+    captures = []
+
+    def capture_verified(*args):
+        captures.append(args[0])
+        return target, payload.tobytes()
+
+    monkeypatch.setattr(manager, "capture_verified", capture_verified)
+    clock = Clock()
+    result = HomeRecoveryEngine(clock=clock, sleep=clock.sleep).ensure_game_home(port)
+
+    assert result.status == RecoveryStatus.SCREEN_NOT_READY
+    assert "3 capture" in result.error
+    assert result.actions == ["wait", "wait"]
+    assert result.states_seen == ["UNKNOWN", "UNKNOWN", "UNKNOWN"]
+    assert result.duration == 4
+    assert captures == [7, 7, 7]
+    assert len(port.diagnostic_samples) == 3
+    assert all(Path(sample["screenshot"]).is_file() for sample in port.diagnostic_samples)
+    assert all(sample["adb_target"] == target.serial for sample in port.diagnostic_samples)
 
 
 def test_unknown_confirms_with_new_screenshot_then_fails_closed():
