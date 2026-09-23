@@ -138,7 +138,9 @@ def test_unrelated_loading_is_not_misclassified_as_stranger_promo():
 def test_promo_card_requires_both_unique_title_and_cta_and_idle_stays_unknown():
     assets = Path(__file__).parents[1] / "assets" / "tasks" / "phase6" / "promo"
     title = read_image(assets / "promo-stranger-title.png")
-    cta = read_image(assets / "promo-stranger-cta.png")
+    cta = read_image(
+        Path(__file__).parents[1] / "assets" / "tasks" / "phase6" / "promo-recovery" / "promo-stranger-cta.png"
+    )
     image = np.zeros((720, 1280, 3), dtype=np.uint8)
     image[85 : 85 + title.shape[0], 900 : 900 + title.shape[1]] = title
     image[430 : 430 + cta.shape[0], 110 : 110 + cta.shape[1]] = cta
@@ -185,7 +187,12 @@ def test_promo_card_requires_both_unique_title_and_cta_and_idle_stays_unknown():
 
 def test_side_panel_like_cta_without_promo_title_is_not_a_known_promo():
     cta = read_image(
-        Path(__file__).parents[1] / "assets" / "tasks" / "phase6" / "promo" / "promo-stranger-cta.png"
+        Path(__file__).parents[1]
+        / "assets"
+        / "tasks"
+        / "phase6"
+        / "promo-recovery"
+        / "promo-stranger-cta.png"
     )
     result = RecoveryScreenDetector().detect(screen_with(cta, (110, 430)))
 
@@ -196,7 +203,9 @@ def test_side_panel_like_cta_without_promo_title_is_not_a_known_promo():
 def test_duplicate_promo_cta_fails_closed_as_ambiguous():
     assets = Path(__file__).parents[1] / "assets" / "tasks" / "phase6" / "promo"
     title = read_image(assets / "promo-stranger-title.png")
-    cta = read_image(assets / "promo-stranger-cta.png")
+    cta = read_image(
+        Path(__file__).parents[1] / "assets" / "tasks" / "phase6" / "promo-recovery" / "promo-stranger-cta.png"
+    )
     image = np.zeros((720, 1280, 3), dtype=np.uint8)
     image[85 : 85 + title.shape[0], 900 : 900 + title.shape[1]] = title
     image[350 : 350 + cta.shape[0], 110 : 110 + cta.shape[1]] = cta
@@ -220,7 +229,9 @@ def test_duplicate_promo_cta_fails_closed_as_ambiguous():
 def test_conflicting_screen_evidence_prevents_promo_classification():
     assets = Path(__file__).parents[1] / "assets" / "tasks" / "phase6" / "promo"
     title = read_image(assets / "promo-stranger-title.png")
-    cta = read_image(assets / "promo-stranger-cta.png")
+    cta = read_image(
+        Path(__file__).parents[1] / "assets" / "tasks" / "phase6" / "promo-recovery" / "promo-stranger-cta.png"
+    )
     image = np.zeros((720, 1280, 3), dtype=np.uint8)
     image[85 : 85 + title.shape[0], 900 : 900 + title.shape[1]] = title
     image[430 : 430 + cta.shape[0], 110 : 110 + cta.shape[1]] = cta

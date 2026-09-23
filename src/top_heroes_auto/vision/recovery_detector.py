@@ -18,12 +18,13 @@ class RecoveryScreenDetector:
         self.anchors = load_anchors(templates)
         self.detector = ScreenDetector(self.anchors)
         promo_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "promo")
+        promo_cta_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "promo-recovery")
         self.promo_title = self._full_frame_anchor(
             next(anchor for anchor in promo_anchors if anchor.id == "promo-stranger-title"),
             ScreenState.PROMO_BLOCKING,
         )
         self.promo_cta = self._full_frame_anchor(
-            next(anchor for anchor in promo_anchors if anchor.id == "promo-stranger-cta"),
+            next(anchor for anchor in promo_cta_anchors if anchor.id == "promo-stranger-cta"),
             ScreenState.PROMO_BLOCKING,
         )
         loading_title = next(
