@@ -47,6 +47,29 @@ class RecoveryScreenDetector:
 
     def detect(self, screen):
         detected = self.detector.detect(screen)
+        if detected.state in {ScreenState.GAME_LOADING, ScreenState.POPUP_GENERIC} and any(
+            item.anchor_id.startswith(self._unique_anchor_prefixes)
+            for item in detected.evidence
+        ):
+            anchors = {anchor.id: anchor for anchor in self.anchors}
+            evidence = tuple(
+                unique_current_anchor(screen, anchors[item.anchor_id])
+                for item in detected.evidence
+            )
+            if not evidence or any(not item.matched for item in evidence):
+                detected = replace(
+                    detected,
+                    state=ScreenState.UNKNOWN,
+                    confidence=0,
+                    evidence=evidence or detected.evidence,
+                )
+            else:
+                detected = replace(
+                    detected,
+                    confidence=min(item.score for item in evidence),
+                    evidence=evidence,
+                )
+
         promo_title = unique_current_anchor(screen, self.promo_title)
         promo_cta = unique_current_anchor(screen, self.promo_cta)
         if promo_title.matched and promo_cta.matched:
@@ -79,29 +102,4 @@ class RecoveryScreenDetector:
                 screen.source_image,
                 detected.duration_ms,
             )
-
-        if detected.state not in {ScreenState.GAME_LOADING, ScreenState.POPUP_GENERIC}:
-            return detected
-        if not any(
-            item.anchor_id.startswith(self._unique_anchor_prefixes)
-            for item in detected.evidence
-        ):
-            return detected
-
-        anchors = {anchor.id: anchor for anchor in self.anchors}
-        evidence = tuple(
-            unique_current_anchor(screen, anchors[item.anchor_id])
-            for item in detected.evidence
-        )
-        if not evidence or any(not item.matched for item in evidence):
-            return replace(
-                detected,
-                state=ScreenState.UNKNOWN,
-                confidence=0,
-                evidence=evidence or detected.evidence,
-            )
-        return replace(
-            detected,
-            confidence=min(item.score for item in evidence),
-            evidence=evidence,
-        )
+        return detected
