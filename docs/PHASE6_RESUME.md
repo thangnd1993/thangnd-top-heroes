@@ -84,6 +84,23 @@ strict paired-title/unique-match rules, and extend observation-only reconciliati
 to the independent shop IDs. After fresh CI resume only 5 daily/weekly, 9 pending
 checks, 10 daily/weekly. Completed 2/3/4/8/11 stay untouched.
 
+### Second unfinished-only resume: 2026-09-24 18:31 UTC
+
+Build 28c7b63, CI 36040566812 green (691 passed, 26 skipped), artifact
+10826558985. Report `bxh-shop-fixed/20260924-183141-258695Z/fleet-report.json`.
+10 daily journal 42 reconciled VERIFIED with zero second claim. 5 daily 41 stays
+POSSIBLE because a broadcast banner covers “Đã nhận”; no repeat. Both 5/10 weekly
+gifts remain UNKNOWN/no dispatch: legitimate orange gift core/badge variant.
+9 again failed recovery, this time final screenshot positively shows Blood Night
+event overlay (not continuing loading). BXH 38 remains POSSIBLE; no new reward
+action. All cleanup/restoration succeeded; all instances stopped, Protected unchanged.
+
+Targeted repair: qualify only that event's three stable anchors for existing
+bottom-left dismissal; weekly core/badge variant; bounded announcement waits.
+Reconciliation freshness now checks the current screenshot and immediate original
+receipt separately, rather than expiring an action while CI runs. Never redispatch
+38 or 41. After fresh CI, resume only 9 pending, 5 daily/weekly, 10 weekly.
+
 VIP fleet is complete: CI 35995071686, commit 3544e5b, report
 `vip-daily-fleet/20260924-120209-630859Z/fleet-report.json`. All eight targets
 processed, seven VERIFIED actions; index-5 upper gift remains RESERVED/POSSIBLE.

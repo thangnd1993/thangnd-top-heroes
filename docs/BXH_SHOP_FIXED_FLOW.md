@@ -92,8 +92,10 @@ Newly discovered accounts are not added. Existing journal locks still apply.
 A recent BXH POSSIBLE record can be reconciled without input only when its saved
 AVAILABLE frame and rank receipt are independently reclassified, their original
 task/ADB/boot identities agree, and the freshly reverified same persistent target
-shows positive NOT_AVAILABLE evidence. The saved-to-current chain must be under
-one hour (an evidence freshness bound, not a reset assumption). Receipt alone,
+shows positive NOT_AVAILABLE evidence. The current capture must be under 30 seconds
+old; the original receipt must follow its claimable frame within 60 seconds.
+Time spent awaiting repairs/CI does not invalidate an otherwise complete chain or
+grant another claim opportunity. Existing period/journal locks still apply. Receipt alone,
 missing files, stale evidence, identity changes or still-active/unknown UI keep
 the original lock. This path cannot send or repeat a claim.
 
@@ -102,3 +104,14 @@ phase, paired with the unchanged independent title. An ambiguous/duplicate brigh
 text cannot be rescued by the dim variant. The same evidence-only reconciliation
 can resolve each separate shop journal after fresh positive “Đã nhận” evidence;
 it never dispatches a locked gift again.
+
+The observed custom-weekly gift style has an additional clean orange-box core and
+adjacent attention crop, on the verified weekly page only. Duplicate/conflicting
+variants remain UNKNOWN; no account-specific route or lower threshold is used.
+A recognized announcement speaker in the shop header means the gift may be
+covered: at most four observation-only waits, then UNKNOWN if still covered.
+
+The observed Blood Night event overlay uses title, started text and close symbol
+at .98, excluding timer and animated art. It permits only the already authorized
+bottom-left dismissal, with existing budgets and fresh capture. The detected X
+is classification evidence, not an extra navigation/claim action.

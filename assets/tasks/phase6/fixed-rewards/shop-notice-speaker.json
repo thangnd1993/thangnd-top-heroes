@@ -1,0 +1,14 @@
+{
+  "id": "shop-notice-speaker",
+  "state": "FREE_REWARD_PAGE",
+  "template": "shop-notice-speaker.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.96,
+  "required": false,
+  "notes": "Clean UI crop from 20260924-183501-206934Z-bxh-shop.png; no annotations or account text."
+}

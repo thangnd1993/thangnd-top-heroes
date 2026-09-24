@@ -400,7 +400,7 @@ def test_final_bounded_dismissal_always_captures_fresh_screen(rig, tmp_path, det
     assert events == ['capture', 'capture', 'capture', 'dismiss', 'capture']
 
 
-@pytest.mark.parametrize('outcome', ['unavailable', 'still_active', 'popup_only', 'old', 'wrong_receipt', 'disk_changed'])
+@pytest.mark.parametrize('outcome', ['unavailable', 'old_claim', 'still_active', 'popup_only', 'old', 'wrong_receipt', 'disk_changed'])
 @pytest.mark.parametrize('reward_id', REWARDS)
 def test_recent_dispatched_receipt_reconciles_without_second_claim(tmp_path, detector, outcome, reward_id):
     store = Store(tmp_path/'claim.sqlite3')
@@ -413,6 +413,10 @@ def test_recent_dispatched_receipt_reconciles_without_second_claim(tmp_path, det
     before = detector.observe(saved(make_frame(reward_id), 'before'))
     popup_frame = ranking_receipt_frame(missing='gem' if outcome == 'wrong_receipt' else None) if reward_id == 'ranking-chest' else shop_receipt_frame(missing=outcome == 'wrong_receipt')
     popup = detector.observe(saved(popup_frame, 'receipt'))
+    if outcome == 'old_claim':
+        old = datetime.now(timezone.utc)-timedelta(hours=2)
+        before = replace(before, captured=replace(before.captured, timestamp=old.isoformat()))
+        popup = replace(popup, captured=replace(popup.captured, timestamp=(old+timedelta(seconds=10)).isoformat()))
     calls = []
 
     def tap(frame, anchor, before_input):
@@ -439,8 +443,8 @@ def test_recent_dispatched_receipt_reconciles_without_second_claim(tmp_path, det
     process_reward(port, store, 'n', task, reward_id, 'other' if outcome == 'disk_changed' else 'disk', result, lambda: None)
     assert calls == ['one original claim']
     row = store.reward_claims('n', 13)[0]
-    assert row['status'] == ('VERIFIED' if outcome == 'unavailable' else 'RESERVED')
-    if outcome == 'unavailable':
+    assert row['status'] == ('VERIFIED' if outcome in {'unavailable', 'old_claim'} else 'RESERVED')
+    if outcome in {'unavailable', 'old_claim'}:
         assert result['claim_dispatched'] is False
         assert result['reconciliation']['claim_redispatched'] is False
 
@@ -473,3 +477,62 @@ def test_resume_only_unfinished_rewards_and_original_snapshot(rig, tmp_path):
     manager.protect(7, True)
     plan = fleet.resume_plan(previous, fleet.inventory(manager))
     assert 'identity_error' in plan[0][0]
+
+
+@pytest.mark.parametrize('offset', [0, 24])
+def test_weekly_clean_gift_variant_uses_current_geometry(detector, offset):
+    image = cv2.rotate(make_frame('shop-weekly-card-gift', badge=False, page=True).normalized,
+                       cv2.ROTATE_90_COUNTERCLOCKWISE)
+    image[200:440, 580:720] = (150, 120, 70)
+    paste(image, 'weekly-gift-core', 625-offset, 345)
+    paste(image, 'weekly-gift-attention', 681-offset, 318)
+    frame = ScreenshotService(lambda _:cv2.imencode('.png', image)[1].tobytes()).take(Target(13,'different','s','b'))
+    obs = detector.observe(frame)
+    state, core, _ = detector.availability(obs, 'shop-weekly-card-gift')
+    assert state == 'AVAILABLE'
+    assert claim_geometry(obs, 'shop-weekly-card-gift', core)['tap'] == list(core.device_box.center)
+    paste(image, 'weekly-gift-core', 420, 300)
+    duplicate = ScreenshotService(lambda _:cv2.imencode('.png', image)[1].tobytes()).take(Target(13,'different','s','b'))
+    assert detector.availability(detector.observe(duplicate), 'shop-weekly-card-gift')[0] == 'UNKNOWN'
+
+
+@pytest.mark.parametrize('persistent', [False, True])
+def test_shop_announcement_is_observation_only_and_bounded(detector, monkeypatch, persistent):
+    from top_heroes_auto.automation.fixed_reward_claims import observe_reward
+    ready = detector.observe(make_frame('shop-daily-gift', badge=False))
+    image = cv2.rotate(ready.captured.normalized, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    paste(image, 'shop-notice-speaker', 40, 239)
+    c = ScreenshotService(lambda _:cv2.imencode('.png', image)[1].tobytes()).take(Target(13,'x','s','b'))
+    covered = detector.observe(c)
+    assert detector.availability(covered, 'shop-daily-gift')[0] == 'UNKNOWN'
+    captures = []
+    def observe():
+        captures.append('capture')
+        return covered if persistent else ready
+    monkeypatch.setattr('top_heroes_auto.automation.fixed_reward_claims.time.sleep', lambda _: None)
+    port = SimpleNamespace(detector=detector, observe_settled=observe)
+    _, state, _, _ = observe_reward(port, covered, 'shop-daily-gift')
+    assert state == ('UNKNOWN' if persistent else 'NOT_AVAILABLE')
+    assert len(captures) == (4 if persistent else 1)
+
+
+@pytest.mark.parametrize('missing', [None, 'blood-night-title', 'blood-night-started', 'blood-night-close', 'conflicting_receipt'])
+def test_event_requires_three_stable_anchors_excluding_timer(detector, missing):
+    from top_heroes_auto.automation.overlays import dismiss_overlay_bottom_left
+    image = np.full((1280, 720, 3), (20, 40, 35), np.uint8)
+    for name, (x, y) in {'blood-night-title':(64,627), 'blood-night-started':(247,768), 'blood-night-close':(320,1045)}.items():
+        if name == missing:
+            continue
+        crop = cv2.rotate(cv2.imread(str(ASSETS.parent/'event-overlays'/f'{name}.png')),cv2.ROTATE_90_COUNTERCLOCKWISE)
+        h,w = crop.shape[:2]
+        image[y:y+h,x:x+w] = crop
+    if missing == 'conflicting_receipt':
+        for name, (x,y) in {'receipt-title':(205,282), 'receipt-continue-dim':(258,996)}.items():
+            crop = cv2.rotate(cv2.imread(str(ASSETS.parent/'overlays'/f'{name}.png')),cv2.ROTATE_90_COUNTERCLOCKWISE)
+            h,w = crop.shape[:2]
+            image[y:y+h,x:x+w] = crop
+    frame = ScreenshotService(lambda _:cv2.imencode('.png',image)[1].tobytes()).take(Target(13,'x','s','b'))
+    detected = detector.recovery.detect(frame)
+    assert (detected.state == 'EVENT_PROMO') == (missing is None)
+    if missing is None:
+        assert dismiss_overlay_bottom_left(frame, detected) == (58,1203)

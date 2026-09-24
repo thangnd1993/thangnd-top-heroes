@@ -1,7 +1,7 @@
 """Observation-only completion of a recently dispatched fixed reward receipt."""
 import json
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import cv2
@@ -34,7 +34,8 @@ def reconcile_fixed_reward(store, row, detector, current, identity):
 
     No transport is available here. A changed boot is permitted only after the
     caller has reverified the same persistent disk and explicit ADB association.
-    The one-hour evidence window is not a claim/reset policy.
+    Freshness applies to the current observation, not to time spent waiting for
+    repair/CI. The original receipt must immediately follow its claimable frame.
     """
     reward_id = row['reward_id']
     if (reward_id not in REWARDS or row['status'] != 'RESERVED'
@@ -45,8 +46,8 @@ def reconcile_fixed_reward(store, row, detector, current, identity):
         return None
     if detector.availability(current, reward_id)[0] != 'NOT_AVAILABLE':
         return None
-    elapsed = datetime.fromisoformat(current.captured.timestamp) - datetime.fromisoformat(before['timestamp'])
-    if not timedelta(0) < elapsed < timedelta(hours=1):
+    age = datetime.now(timezone.utc) - datetime.fromisoformat(current.captured.timestamp)
+    if not timedelta(0) <= age < timedelta(seconds=30):
         return None
     with store.connect() as db:
         task = db.execute('SELECT namespace,instance_index,task,report_path FROM task_runs WHERE id=?',
@@ -66,6 +67,8 @@ def reconcile_fixed_reward(store, row, detector, current, identity):
     if (current.captured.index, current.captured.serial) != (before['index'], before['adb']):
         return None
     if not datetime.fromisoformat(before['timestamp']) < datetime.fromisoformat(receipt['timestamp']) < datetime.fromisoformat(current.captured.timestamp):
+        return None
+    if datetime.fromisoformat(receipt['timestamp']) - datetime.fromisoformat(before['timestamp']) > timedelta(seconds=60):
         return None
     original = detector.observe(saved_frame(before, path.parent))
     popup = detector.recovery.detect(saved_frame(receipt, path.parent))

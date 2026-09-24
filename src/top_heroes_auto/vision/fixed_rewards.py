@@ -57,6 +57,8 @@ class FixedRewardDetector:
             # Semantic surfaces only. These regions never supply tap coordinates.
             if name.startswith("avatar-"):
                 region = portrait_region(0, 0, .22, .15)
+            elif name == 'shop-notice-speaker':
+                region = portrait_region(0, .16, .15, .25)
             elif name in {"profile-bxh", "back", "daily-tab", "weekly-tab"}:
                 region = portrait_region(0, .90, 1, 1)
             elif name == "ranking-close":
@@ -98,7 +100,25 @@ class FixedRewardDetector:
         conflict = recovery.state not in {ScreenState.UNKNOWN, ScreenState.GAME_HOME}
         conflict |= recovery.state == ScreenState.UNKNOWN and bool(recovery.evidence)
         page = known[0] if len(known) == 1 and not conflict else "UNKNOWN"
+        if page == 'shop-weekly':
+            base, variant = anchors['shop-gift'], anchors['weekly-gift-core']
+            if not base.matched and base.score < base.threshold and not variant.matched and variant.score < variant.threshold:
+                anchors['weekly-gift-core'] = unique_pose_anchor(captured, replace(
+                    self.anchors['weekly-gift-core'], expected_region=portrait_region(0, 0, 1, .36)))
+            for role, variant in [('shop-gift', 'weekly-gift-core'), ('shop-attention', 'weekly-gift-attention')]:
+                anchors[role] = self._same_target_variant(anchors[role], anchors[variant])
         return FixedObservation(captured, page, anchors, recovery)
+
+    @staticmethod
+    def _same_target_variant(base, variant):
+        strong = [v for v in (base, variant) if v.score >= v.threshold]
+        if any(not v.matched for v in strong):
+            return replace(base, matched=False, score=max(v.score for v in strong), device_box=None)
+        if base.matched and variant.matched:
+            a, b = base.device_box, variant.device_box
+            if abs(a.center[0]-b.center[0]) > max(a.width, b.width)*.5 or abs(a.center[1]-b.center[1]) > max(a.height, b.height)*.5:
+                return replace(base, matched=False, device_box=None)
+        return base if base.matched else variant if variant.matched else base
 
     def avatar_frame(self, captured):
         variants = [self._avatar_variant(captured, style) for style in ('avatar', 'avatar-floral')]
@@ -130,6 +150,8 @@ class FixedRewardDetector:
         if reward not in PAGES or observation.page != PAGES[reward]:
             return "UNKNOWN", None, None
         ranking = reward == "ranking-chest"
+        if not ranking and observation.box('shop-notice-speaker'):
+            return 'UNKNOWN', None, None  # Broadcast banner can cover the gift/received label.
         core_role = "ranking-chest" if ranking else "shop-gift"
         badge_role = "ranking-attention" if ranking else "shop-attention"
         core = observation.anchors[core_role]

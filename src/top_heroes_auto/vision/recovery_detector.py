@@ -18,6 +18,7 @@ class RecoveryScreenDetector:
         self.anchors = load_anchors(templates)
         self.detector = ScreenDetector(self.anchors)
         self.receipt_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "overlays")
+        self.event_anchors = load_anchors(templates.parent / 'tasks/phase6/event-overlays')
         promo_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "promo")
         promo_cta_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "promo-recovery")
         self.promo_title = self._full_frame_anchor(
@@ -50,6 +51,14 @@ class RecoveryScreenDetector:
         detected = self.detector.detect(screen)
         promo_title = unique_current_anchor(screen, self.promo_title)
         promo_cta = unique_current_anchor(screen, self.promo_cta)
+        event = tuple(unique_current_anchor(screen, a) for a in self.event_anchors)
+        event_visible = bool(event) and all(e.matched for e in event)
+        event_qualified = event_visible
+        if event_qualified:
+            boxes = {e.anchor_id: e.device_box for e in event}
+            title, started, close = (boxes[k] for k in ('blood-night-title', 'blood-night-started', 'blood-night-close'))
+            layout = title.y+title.height < started.y < close.y and abs(started.center[0]-close.center[0]) < started.width*.3
+            event_qualified = layout
         groups = {}
         for anchor in self.receipt_anchors:
             groups.setdefault(anchor.variant, []).append(unique_current_anchor(screen, anchor))
@@ -76,11 +85,15 @@ class RecoveryScreenDetector:
                            evidence=tuple(e for items in qualified_receipts for e in items))
         if qualified_receipts:
             receipt = qualified_receipts[0]
-            if detected.state != ScreenState.UNKNOWN or detected.evidence or (promo_title.matched and promo_cta.matched):
+            if detected.state != ScreenState.UNKNOWN or detected.evidence or event_visible or (promo_title.matched and promo_cta.matched):
                 return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
                                evidence=(*detected.evidence, *receipt))
             return replace(detected, state=ScreenState.REWARD_RECEIPT,
                            confidence=min(e.score for e in receipt), evidence=receipt)
+        if event_visible:
+            if event_qualified and detected.state == ScreenState.UNKNOWN and not detected.evidence and not (promo_title.matched and promo_cta.matched):
+                return replace(detected, state=ScreenState.EVENT_PROMO, confidence=min(e.score for e in event), evidence=event)
+            return replace(detected, state=ScreenState.UNKNOWN, confidence=0, evidence=(*detected.evidence, *event))
         if detected.state in {ScreenState.GAME_LOADING, ScreenState.POPUP_GENERIC} and any(
             item.anchor_id.startswith(self._unique_anchor_prefixes)
             for item in detected.evidence

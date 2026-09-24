@@ -106,3 +106,24 @@ if __name__ == "__main__":
         threshold=.98, required=True, variant='continue-alternative',
         notes='Clean dim continue-text phase. Requires the existing independent congratulations title.'
     ), indent=2)+'\n', encoding='utf-8', newline='\n')
+    weekly = fleet.parent/'20260924-183141-258695Z/5/20260924-183526-516231Z-bxh-shop.png'
+    extract('weekly-gift-core', weekly, (625, 345, 55, 31), saved_normalized=True)
+    extract('weekly-gift-attention', weekly, (681, 318, 16, 21), saved_normalized=True)
+    notice = weekly.parent/'20260924-183501-206934Z-bxh-shop.png'
+    extract('shop-notice-speaker', notice, (40, 239, 20, 31), saved_normalized=True)
+    event = Path(r'C:\Users\ADMIN\AppData\Local\TopHeroesAutoManager\diagnostics\recovery\Pooh5\20260924-183141-419906Z\final-raw.png')
+    portrait = cv2.imread(str(event))
+    event_folder = DEST.parent/'event-overlays'
+    event_folder.mkdir(exist_ok=True)
+    for name, (x, y, w, h) in {
+        'blood-night-title': (64, 627, 594, 50),
+        'blood-night-started': (247, 768, 227, 37),
+        'blood-night-close': (320, 1045, 65, 50),
+    }.items():
+        crop = cv2.rotate(portrait[y:y+h, x:x+w], cv2.ROTATE_90_CLOCKWISE)
+        (event_folder/f'{name}.png').write_bytes(cv2.imencode('.png', crop)[1].tobytes())
+        (event_folder/f'{name}.json').write_text(json.dumps(dict(
+            id=name, state='EVENT_PROMO', template=f'{name}.png', expected_region=[0, 0, 1, 1],
+            threshold=.98, required=True, variant='blood-night',
+            notes='Stable event title/started label/close symbol. Excludes timer/artwork; bottom-left dismissal only.'
+        ), indent=2)+'\n', encoding='utf-8', newline='\n')

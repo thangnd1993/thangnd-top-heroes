@@ -1,0 +1,15 @@
+{
+  "id": "blood-night-started",
+  "state": "EVENT_PROMO",
+  "template": "blood-night-started.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": true,
+  "variant": "blood-night",
+  "notes": "Stable event title/started label/close symbol. Excludes timer/artwork; bottom-left dismissal only."
+}

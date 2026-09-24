@@ -1,0 +1,14 @@
+{
+  "id": "weekly-gift-core",
+  "state": "FREE_REWARD_PAGE",
+  "template": "weekly-gift-core.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.96,
+  "required": false,
+  "notes": "Clean UI crop from 20260924-183526-516231Z-bxh-shop.png; no annotations or account text."
+}
