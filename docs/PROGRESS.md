@@ -2,6 +2,16 @@
 
 ## 2026-09-24 Current work: BXH and Tiệm fixed rewards
 
+Latest acceptance: **PARTIAL, only 5 / 4-Em Pé unfinished**. Eight original
+non-Protected accounts processed, 10 one-shot claims / 9 VERIFIED / 13 rewards
+NOT_AVAILABLE. Daily journal 41 remains POSSIBLE and must never be retried;
+its postcondition and the untouched weekly gift await Home on the externally
+running index 5, currently on an unrelated event page. Recovery sent no input.
+All other routes completed, all selections restored, Protected untouched and
+old VIP/Idle journals unchanged. Current production build `967b69f`, CI
+`36045277881` fully green (703 passed, 26 skipped). Read the newest section in
+`PHASE6_RESUME.md` and aggregate report before any continuation. No Phase 7.
+
 The latest user request supersedes historical fixed-index/VIP-only scopes below.
 Implement BXH chest and the distinct daily-offer/custom-weekly-card shop gifts.
 Random live non-Protected test account; then all non-Protected sequential

@@ -2,6 +2,58 @@
 
 ## Current authorization: BXH and two Tiệm gifts — 2026-09-24
 
+### Latest real result — 2026-09-24 19:22 UTC: PARTIAL, only index 5 unfinished
+
+Production build `967b69f`, CI `36045277881` passed lint, 703 tests (26 skipped),
+Windows portable build, executable smoke and artifact upload. Artifact
+`10828104998`; local `artifacts/phase6-967b69f/provenance.json` records verified
+run/head, 184 matching assets and EXE SHA-256.
+
+Authoritative aggregate report:
+`%LOCALAPPDATA%/TopHeroesAutoManager/diagnostics/tasks/bxh-shop-fixed/20260924-191528-646416Z/fleet-report.json`.
+Local independent journal/tap audit: `artifacts/bxh-shop-final-audit.json`.
+All 8 original non-Protected accounts processed sequentially; completed routes
+were preserved across unfinished-only resumes. Random development checks were
+8/Soup and 11/Nấm đùi gà (`secrets.choice`, recorded eligible sets).
+
+| Index | BXH | Daily offer | Custom weekly |
+|---|---|---|---|
+| 2 | NOT_AVAILABLE | NOT_AVAILABLE | NOT_AVAILABLE |
+| 3 | VERIFIED | NOT_AVAILABLE | NOT_AVAILABLE |
+| 4 | VERIFIED | NOT_AVAILABLE | NOT_AVAILABLE |
+| 5 | VERIFIED | RESERVED/POSSIBLE (41), no retry | Unfinished; last qualified frame AVAILABLE |
+| 8 | NOT_AVAILABLE | NOT_AVAILABLE | NOT_AVAILABLE |
+| 9 | VERIFIED | VERIFIED | VERIFIED |
+| 10 | VERIFIED | VERIFIED | VERIFIED |
+| 11 | NOT_AVAILABLE | NOT_AVAILABLE | NOT_AVAILABLE |
+
+Ten actual claim taps total, exactly one per journal 36–45; nine VERIFIED.
+Daily 41 must NEVER be redispatched. All three required claim paths now have
+real independent AVAILABLE -> NOT_AVAILABLE proof on at least one account.
+No claim is verified from a receipt alone; all nine receipts have underlying
+empty BXH header or open gift/“Đã nhận” proof. Thirteen rewards NOT_AVAILABLE.
+
+Index 5 was already running before the latest resume, on the unrelated event
+page “Chiến Trường Vùng Sương”. Its recovery returned UNKNOWN_SCREEN with
+actions=[], ownership=false. No input was sent and it was left running.
+The user has been asked to return this account to Home, or choose to end PARTIAL.
+Do not add routes through that event or force-close the externally running game.
+After a Home handoff, use the same passing build and --resume-report on the
+aggregate above: only 5 daily reconciliation + untouched weekly gift remain.
+Do not restart the full fleet, repeat completed routes or tap daily 41 again.
+
+Latest before/after: 2/4/5 already running and left running; all others stopped.
+Protected 0/1/6/7 remain Protected, unselected and untouched. Every selection
+restored; all owned cleanup succeeded (5 cleanup NOT_REQUIRED). Old VIP/Idle
+journal rows match the pre-resume SHA-256 exactly. Paid/product geometry was
+excluded for every tap. No VIP, Idle, unrelated reward, config rewrite or Phase 7.
+
+The Blood Night overlay was qualified from saved evidence only; it did not recur
+in the successful last Pooh5 recovery, which reached Home by bounded waiting.
+Do not claim a new real dismissal acceptance for that overlay.
+BXH/custom-weekly reset semantics remain unqualified; keep conservative future
+period locks until actual reset evidence exists. Current status stays PARTIAL.
+
 This supersedes the historical VIP-only restrictions below. Implement and accept
 BXH top-left chest, Tiệm Ưu Đãi Mỗi Ngày upper-right gift, and Thẻ Tuần Tự Chọn
 upper-right gift. No VIP/Idle/unrelated reward or Phase 7. Use one agent.
