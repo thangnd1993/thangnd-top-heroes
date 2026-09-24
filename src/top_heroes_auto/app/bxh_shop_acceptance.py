@@ -110,7 +110,7 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
             try:
                 frame = port.home()
                 if reward == 'ranking-chest':
-                    frame = port.navigate(frame, 'avatar-left', 'profile')
+                    frame = port.navigate(frame, 'avatar-frame', 'profile')
                     port.navigate(frame, 'profile-bxh', 'ranking')
                 else:
                     frame = port.navigate(frame, 'home-shop-entry', 'shop-daily')
@@ -181,6 +181,14 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
     eligible = candidates(before)
     selected = None
     if random_test:
+        if not exclude:
+            tested = []
+            history = data/'diagnostics/tasks/bxh-shop-fixed'
+            for previous in history.glob('*/fleet-report.json'):
+                old = json.loads(previous.read_text(encoding='utf-8'))
+                if old.get('mode') == 'random-test' and old.get('random_target'):
+                    tested.append(old['random_target']['index'])
+            exclude = tuple(tested)
         selected, eligible = choose_random(before, exclude=exclude)
     targets = [selected] if selected else eligible
     stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%fZ')

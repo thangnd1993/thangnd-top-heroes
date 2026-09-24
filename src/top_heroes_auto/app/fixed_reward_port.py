@@ -83,7 +83,7 @@ class FixedRewardPort:
 
     def navigate(self, observation, role, expected):
         permitted = {
-            ('home', 'avatar-left'): 'profile', ('profile', 'profile-bxh'): 'ranking',
+            ('home', 'avatar-frame'): 'profile', ('profile', 'profile-bxh'): 'ranking',
             ('ranking', 'ranking-close'): 'profile', ('profile', 'back'): 'home',
             ('home', 'home-shop-entry'): 'shop-daily',
             ('shop-daily', 'weekly-tab'): 'shop-weekly', ('shop-weekly', 'daily-tab'): 'shop-daily',
@@ -91,12 +91,6 @@ class FixedRewardPort:
         }
         if permitted.get((observation.page, role)) != expected:
             raise SafetyError('Route is not an annotated navigation edge.')
-        if role == 'avatar-left':
-            left, right = observation.box(role), observation.box('avatar-right')
-            if not left or not right or abs(left.y-right.y) > left.height*.2 or not (
-                left.width*5 < right.x-left.x < left.width*12
-            ):
-                raise SafetyError('Avatar requires both stable frame edges.')
         if not observation.box(role):
             raise SafetyError(f'Current-frame route anchor missing: {role}')
         self.tap(observation, observation.anchors[role])

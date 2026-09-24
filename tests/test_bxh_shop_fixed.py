@@ -29,7 +29,7 @@ def paste(image, name, x, y):
 
 
 def make_frame(reward, *, badge=True, offset=0, other_badge=False, duplicate=False,
-               weak=False, capture='before', page=True):
+               weak=False, capture='before', page=True, received=True):
     image = np.full((1280, 720, 3), (150, 120, 70), dtype=np.uint8)
     if reward == 'ranking-chest':
         if page:
@@ -41,7 +41,10 @@ def make_frame(reward, *, badge=True, offset=0, other_badge=False, duplicate=Fal
             paste(image, 'shop-title', 313, 25)
             paste(image, 'daily-title' if reward == 'shop-daily-gift' else 'weekly-title', 35, 136)
         x, y, core, attention, dx, dy = 606-offset, 231, 'shop-gift', 'shop-attention', 51, -17
-    paste(image, core, x, y)
+    if reward != 'ranking-chest' and not badge and received and not (weak or duplicate):
+        paste(image, 'daily-received' if reward == 'shop-daily-gift' else 'weekly-received', 592-offset, 212)
+    else:
+        paste(image, core, x, y)
     if badge:
         paste(image, attention, x+dx, y+dy)
     if other_badge:
@@ -81,6 +84,32 @@ def test_ambiguous_and_unrelated_badge_never_enable_claim(detector, reward, vari
                        other_badge=variant == 'red_elsewhere')
     state = detector.availability(detector.observe(frame), reward)[0]
     assert state == ('NOT_AVAILABLE' if variant == 'red_elsewhere' else 'UNKNOWN')
+
+
+@pytest.mark.parametrize('reward', REWARDS[1:])
+def test_closed_gift_without_badge_is_not_independent_unavailable_proof(detector, reward):
+    observed = detector.observe(make_frame(reward, badge=False, received=False))
+    assert detector.availability(observed, reward)[0] == 'UNKNOWN'
+
+
+def test_avatar_frame_ignores_portrait_pixels_and_rejects_duplicate(detector):
+    template = cv2.imread(str(ASSETS/'avatar-frame.png'))
+    mask = cv2.imread(str(ASSETS/'avatar-mask.png'), 0)
+    template = cv2.rotate(template, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    mask = cv2.rotate(mask, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    rng = np.random.default_rng(102)
+    image = rng.integers(0, 255, (1280, 720, 3), dtype=np.uint8)
+    for x in (20,):
+        patch = image[66:150, x:x+87]
+        patch[mask>0] = template[mask>0]
+    frame = ScreenshotService(lambda _:cv2.imencode('.png', image)[1].tobytes()).take(Target(13,'changed','serial','boot'))
+    evidence = detector.avatar_frame(frame)
+    assert evidence.matched and evidence.device_box.x == 20
+    image = rng.integers(0, 255, (1280, 720, 3), dtype=np.uint8)
+    for y in (10, 118):
+        image[y:y+84, 20:107][mask>0] = template[mask>0]
+    frame = ScreenshotService(lambda _:cv2.imencode('.png', image)[1].tobytes()).take(Target(13,'changed','serial','boot'))
+    assert not detector.avatar_frame(frame).matched
 
 
 @pytest.mark.parametrize('after_kind', ['inactive', 'still_active', 'popup_only', 'exception'])

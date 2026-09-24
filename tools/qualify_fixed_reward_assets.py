@@ -10,8 +10,10 @@ SOURCE = ROOT / "diagnostics/phase6-clean-20260923"
 DEST = ROOT / "assets/tasks/phase6/fixed-rewards"
 
 
-def extract(name, source, box, *, width=720):
+def extract(name, source, box, *, width=720, saved_normalized=False):
     image = cv2.imdecode(np.frombuffer(source.read_bytes(), np.uint8), 1)
+    if saved_normalized:
+        image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
     x, y, w, h = box
     if width != 720:
         sx, sy = 720/image.shape[1], 1280/image.shape[0]
@@ -30,8 +32,6 @@ def extract(name, source, box, *, width=720):
 
 if __name__ == "__main__":
     for name, source, box in (
-        ("avatar-left", "02-home.png", (20, 80, 8, 44)),
-        ("avatar-right", "02-home.png", (94, 82, 8, 44)),
         ("profile-title", "12-profile.png", (176, 24, 368, 40)),
         ("profile-bxh", "12-profile.png", (460, 1200, 57, 72)),
         ("back", "12-profile.png", (35, 1215, 52, 47)),
@@ -53,3 +53,17 @@ if __name__ == "__main__":
             (25, 112, 260, 34), width=565)
     extract("shop-title-reference", Path(r"C:\Users\ADMIN\Desktop\TIỆM1.png"),
             (244, 23, 75, 37), width=565)
+    soup = Path(r"C:\Users\ADMIN\AppData\Local\TopHeroesAutoManager\diagnostics\tasks\bxh-shop-fixed\20260924-162405-406610Z\8")
+    extract('weekly-title', soup/'20260924-162626-792592Z-bxh-shop.png', (34, 136, 343, 48), saved_normalized=True)
+    extract('daily-received', soup/'20260924-162553-874492Z-bxh-shop.png', (592, 212, 94, 80), saved_normalized=True)
+    extract('weekly-received', soup/'20260924-162626-792592Z-bxh-shop.png', (614, 314, 96, 85), saved_normalized=True)
+    # Preserve only the invariant border; erase every avatar/level/badge pixel.
+    raw = cv2.imread(str(SOURCE/'02-home.png'))[66:150, 19:106].copy()
+    mask = np.zeros(raw.shape[:2], np.uint8)
+    mask[3:8, 8:70] = 255
+    mask[12:60, 2:7] = 255
+    mask[12:60, 79:84] = 255
+    raw[mask == 0] = 0
+    for name, array in [('avatar-frame', raw), ('avatar-mask', mask)]:
+        image = cv2.rotate(array, cv2.ROTATE_90_CLOCKWISE)
+        (DEST/f'{name}.png').write_bytes(cv2.imencode('.png', image)[1].tobytes())

@@ -13,9 +13,26 @@ Implementation now includes reusable current-frame detectors, bounded annotated
 navigation, independent one-shot journals, existing popup dismissal, GUI selected
 target integration, random-test and full-fleet CLI modes. Local gate: 76 focused
 tests passed plus Ruff; fresh CI/build and real acceptance are still pending.
-No emulator or reward action has been run for this change yet. Preserve the
+Before the first check below, no emulator/reward action had run for this change. Preserve the
 documented unqualified BXH/custom-weekly reset limitation until real evidence
 supports a specific period policy; never silently remove a conservative lock.
+
+### First random real check completed (Soup): 2026-09-24 16:24 UTC
+
+Commit 5714b95, CI 36025883630 all green, artifact 10819534522. Selected via
+`secrets.choice` from 2/3/4/5/8/9/10/11: index 8 / Soup. Report
+`bxh-shop-fixed/20260924-162405-406610Z/fleet-report.json`.
+Verified ADB emulator-5570; Home recovery SUCCESS. Zero claims/reservations.
+BXH blocked by avatar-edge false negative; daily gift UNKNOWN because its open
+gift says Đã nhận; weekly navigation reached the correct card but title scoring
+was .9428. Owned cleanup SUCCESS; all selection states restored; Protected
+0/1/6/7 remained stopped and unchanged. Earlier Chicken-running state is history.
+
+Targeted repair uses avatar border mask (no portrait pixels), actual clean weekly
+title and positive open-gift/Đã nhận evidence for both shop pages. Saved Soup
+frames now classify Home and both NOT_AVAILABLE pages offline. Fresh CI and
+another random eligible development account, then full sequential acceptance,
+remain pending. Do not repeat VIP/Idle or any successful reward claim.
 
 VIP fleet is complete: CI 35995071686, commit 3544e5b, report
 `vip-daily-fleet/20260924-120209-630859Z/fleet-report.json`. All eight targets
@@ -23,7 +40,7 @@ processed, seven VERIFIED actions; index-5 upper gift remains RESERVED/POSSIBLE.
 Do not repeat VIP. All selections restored. Protected Chicken was externally
 running and remained running; never stop a Protected instance for restoration.
 
-## Current task: fixed VIP fleet authorized (supersedes no-claim scan stop)
+## Historical task: fixed VIP fleet authorized (completed above)
 
 The latest pasted user request authorizes one sequential VIP run on ALL live
 non-Protected accounts, using current-frame fixed free targets, one tap each,

@@ -1,7 +1,7 @@
 {
-  "id": "weekly-title",
+  "id": "weekly-received",
   "state": "FREE_REWARD_PAGE",
-  "template": "weekly-title.png",
+  "template": "weekly-received.png",
   "expected_region": [
     0,
     0,

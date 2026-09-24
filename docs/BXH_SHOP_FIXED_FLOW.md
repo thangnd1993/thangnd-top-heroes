@@ -8,16 +8,19 @@ No other shop tab, VIP, Idle or Phase 7 is included.
 
 Clean 2026-09-23 evidence supplies avatar frame edges (not the account avatar),
 profile title/BXH tab, BXH title/chest/attention, shop title/daily title/gift,
-back and allowed tab icons. The custom-weekly title is a clean text-only crop
-from the user's TIỆM1 reference, excluding every annotation. All new assets are
+back and allowed tab icons. The first Soup acceptance supplies the clean weekly
+title and both positive “Đã nhận” variants. The Home frame matcher masks out all
+portrait, level and badge pixels. All new assets are
 UI-only crops; full profile screenshots, UID, guild and chat are not uploaded.
 `tools/qualify_fixed_reward_assets.py` records extraction provenance; it never
 runs during gameplay and its crop coordinates are not action coordinates.
 
 The runtime requires paired screen anchors, a unique current gift core and a
 badge associated geometrically with that core. Threshold .96 is unchanged;
-inactive classification additionally needs a .985 intact core and clear badge
-area. Weak, duplicate, occluded or conflicting observations stay UNKNOWN.
+BXH inactive classification additionally needs a .985 intact core and clear badge
+area. Shop inactive classification needs a .98 positive open-gift/“Đã nhận”
+anchor on its exact daily/weekly page. Missing shop attention alone is UNKNOWN.
+Weak, duplicate, occluded or conflicting observations stay UNKNOWN.
 At most two observation-only extra captures accommodate rocking gift artwork.
 Navigation edges are explicitly enumerated; a bottom-tab swipe never authorizes
 a tap on Gói Mỗi Ngày, Gói Mỗi Tuần or any other paid/unlisted section.
@@ -44,6 +47,8 @@ targets are left running, and Protected accounts receive no action.
 `bxh-shop-acceptance --random-test` uses `secrets.choice` over recorded live
 eligible candidates. `--confirm-non-protected` creates a new immutable fleet
 snapshot and runs every member sequentially. Use only a fresh passing CI artifact.
+Later random development checks exclude accounts already recorded as random
+tests in this flow, so a failed test does not establish a preferred account.
 Normal GUI BXH/Tiệm buttons act only on their explicitly selected target;
 they do not temporarily select or expand to other accounts. Run Selected is unchanged.
 

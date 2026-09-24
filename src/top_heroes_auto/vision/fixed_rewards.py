@@ -11,7 +11,7 @@ import numpy as np
 from top_heroes_auto.vision.detector import load_anchors
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.gift_detector import unique_pose_anchor
-from top_heroes_auto.vision.models import BoundingBox, NormalizedRect, ScreenState
+from top_heroes_auto.vision.models import AnchorEvidence, BoundingBox, NormalizedRect, ScreenState
 from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
 from top_heroes_auto.vision.resources import template_folder
 
@@ -48,6 +48,7 @@ class FixedRewardDetector:
         self.anchors = {a.id: a for a in load_anchors(root / "fixed-rewards")}
         self.anchors.update({a.id: a for a in load_anchors(root / "home")
                              if a.id == "home-shop-entry"})
+        self.folder = root/'fixed-rewards'
         self.recovery = RecoveryScreenDetector()
 
     def observe(self, captured):
@@ -76,6 +77,7 @@ class FixedRewardDetector:
             elif not title.matched:
                 anchors['shop-title'] = reference
         recovery = self.recovery.detect(captured)
+        anchors['avatar-frame'] = self.avatar_frame(captured)
         known = []
         def matched(*roles):
             return all(anchors[r].matched for r in roles)
@@ -96,6 +98,23 @@ class FixedRewardDetector:
         page = known[0] if len(known) == 1 and not conflict else "UNKNOWN"
         return FixedObservation(captured, page, anchors, recovery)
 
+    def avatar_frame(self, captured):
+        template = cv2.imdecode(np.frombuffer((self.folder/'avatar-frame.png').read_bytes(), np.uint8), 1)
+        mask = cv2.imdecode(np.frombuffer((self.folder/'avatar-mask.png').read_bytes(), np.uint8), 0)
+        region = portrait_region(0, 0, .23, .17)
+        height, width = captured.normalized.shape[:2]
+        left, top, right, bottom = region.pixels(width, height)
+        source = captured.normalized[top:bottom, left:right]
+        scores = cv2.matchTemplate(source, template, cv2.TM_CCOEFF_NORMED, mask=mask)
+        scores = np.nan_to_num(scores, nan=-1, posinf=-1, neginf=-1)
+        _, score, _, (x, y) = cv2.minMaxLoc(scores)
+        th, tw = template.shape[:2]
+        scores[max(0, y-th//2):y+th//2+1, max(0, x-tw//2):x+tw//2+1] = -1
+        matched = score >= .98 and float(scores.max()) < .98
+        box = BoundingBox(left+x, top+y, tw, th) if matched else None
+        return AnchorEvidence('avatar-frame', ScreenState.GAME_HOME, score, .98, matched,
+                              box, captured.to_device_box(box) if box else None)
+
     def availability(self, observation, reward):
         if reward not in PAGES or observation.page != PAGES[reward]:
             return "UNKNOWN", None, None
@@ -104,6 +123,19 @@ class FixedRewardDetector:
         badge_role = "ranking-attention" if ranking else "shop-attention"
         core = observation.anchors[core_role]
         badge = observation.anchors[badge_role]
+        if not ranking:
+            received = observation.anchors['daily-received' if reward == 'shop-daily-gift' else 'weekly-received']
+            if received.matched and received.device_box:
+                # Positive open gift + "Đã nhận", not mere badge disappearance.
+                b = received.device_box
+                width, height = observation.captured.device_size or observation.captured.original_size
+                attention = badge.device_box if badge.matched else None
+                local_badge = attention and b.x-b.width*.2 < attention.center[0] < b.x+b.width*1.2 and (
+                    b.y-b.height*.2 < attention.center[1] < b.y+b.height
+                )
+                if (not local_badge and not core.matched and received.score >= .98
+                        and b.x > width*.75 and b.y+b.height < height*.36):
+                    return 'NOT_AVAILABLE', received, badge
         if not core.matched or core.device_box is None:
             return "UNKNOWN", core, badge
         box = core.device_box
@@ -121,6 +153,8 @@ class FixedRewardDetector:
                 box.y - box.height*.65 <= b.center[1] <= box.y + box.height*.3
             ):
                 return "AVAILABLE", core, badge
+        if not ranking:
+            return 'UNKNOWN', core, badge
         # Strong intact gift + clear attached badge area. Any red/partial badge
         # remains UNKNOWN rather than being mistaken for an inactive gift.
         if core.score < .985:
