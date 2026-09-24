@@ -92,6 +92,22 @@ def test_closed_gift_without_badge_is_not_independent_unavailable_proof(detector
     assert detector.availability(observed, reward)[0] == 'UNKNOWN'
 
 
+def test_conflicting_active_and_received_gifts_fail_closed(detector):
+    active = detector.observe(make_frame('shop-daily-gift'))
+    inactive = detector.observe(make_frame('shop-daily-gift', badge=False))
+    conflicting = replace(active, anchors={**active.anchors, 'daily-received': inactive.anchors['daily-received']})
+    assert detector.availability(conflicting, 'shop-daily-gift')[0] == 'UNKNOWN'
+
+
+def test_duplicate_page_variant_cannot_be_rescued_by_another_template(detector):
+    frame = make_frame('shop-daily-gift')
+    image = cv2.rotate(frame.normalized, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    paste(image, 'shop-title', 90, 35)
+    paste(image, 'shop-title-reference', 450, 90)
+    frame = ScreenshotService(lambda _:cv2.imencode('.png', image)[1].tobytes()).take(Target(13,'x','s','b'))
+    assert detector.observe(frame).page == 'UNKNOWN'
+
+
 def test_avatar_frame_ignores_portrait_pixels_and_rejects_duplicate(detector):
     template = cv2.imread(str(ASSETS/'avatar-frame.png'))
     mask = cv2.imread(str(ASSETS/'avatar-mask.png'), 0)

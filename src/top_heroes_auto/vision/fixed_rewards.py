@@ -74,8 +74,10 @@ class FixedRewardDetector:
                 or abs(title.device_box.center[1] - reference.device_box.center[1]) > title.device_box.height/2
             ):
                 anchors['shop-title'] = replace(title, matched=False, device_box=None, normalized_box=None)
-            elif not title.matched:
+            elif not title.matched and title.score < title.threshold:
                 anchors['shop-title'] = reference
+        if reference and not reference.matched and reference.score >= reference.threshold:
+            anchors['shop-title'] = replace(title, matched=False, device_box=None, normalized_box=None)
         recovery = self.recovery.detect(captured)
         anchors['avatar-frame'] = self.avatar_frame(captured)
         known = []
@@ -123,6 +125,8 @@ class FixedRewardDetector:
         badge_role = "ranking-attention" if ranking else "shop-attention"
         core = observation.anchors[core_role]
         badge = observation.anchors[badge_role]
+        if not core.matched and core.score >= core.threshold:
+            return 'UNKNOWN', core, badge
         if not ranking:
             received = observation.anchors['daily-received' if reward == 'shop-daily-gift' else 'weekly-received']
             if received.matched and received.device_box:
@@ -136,6 +140,9 @@ class FixedRewardDetector:
                 if (not local_badge and not core.matched and received.score >= .98
                         and b.x > width*.75 and b.y+b.height < height*.36):
                     return 'NOT_AVAILABLE', received, badge
+                return 'UNKNOWN', core, badge
+            if not received.matched and received.score >= received.threshold:
+                return 'UNKNOWN', core, badge
         if not core.matched or core.device_box is None:
             return "UNKNOWN", core, badge
         box = core.device_box
