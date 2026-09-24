@@ -1,0 +1,55 @@
+"""Extract only clean UI pixels; local qualification helper, never a runtime route."""
+import json
+from pathlib import Path
+
+import cv2
+import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE = ROOT / "diagnostics/phase6-clean-20260923"
+DEST = ROOT / "assets/tasks/phase6/fixed-rewards"
+
+
+def extract(name, source, box, *, width=720):
+    image = cv2.imdecode(np.frombuffer(source.read_bytes(), np.uint8), 1)
+    x, y, w, h = box
+    if width != 720:
+        sx, sy = 720/image.shape[1], 1280/image.shape[0]
+        image = cv2.resize(image, (720, 1280), interpolation=cv2.INTER_AREA)
+        x, y, w, h = round(x*sx), round(y*sy), round(w*sx), round(h*sy)
+    crop = image[y:y+h, x:x+w]
+    crop = cv2.rotate(crop, cv2.ROTATE_90_CLOCKWISE)
+    DEST.mkdir(parents=True, exist_ok=True)
+    (DEST / f"{name}.png").write_bytes(cv2.imencode(".png", crop)[1].tobytes())
+    (DEST / f"{name}.json").write_text(json.dumps(dict(
+        id=name, state="FREE_REWARD_PAGE", template=f"{name}.png",
+        expected_region=[0, 0, 1, 1], threshold=.96, required=False,
+        notes=f"Clean UI crop from {source.name}; no annotations or account text."
+    ), indent=2) + "\n", encoding="utf-8", newline="\n")
+
+
+if __name__ == "__main__":
+    for name, source, box in (
+        ("avatar-left", "02-home.png", (20, 80, 8, 44)),
+        ("avatar-right", "02-home.png", (94, 82, 8, 44)),
+        ("profile-title", "12-profile.png", (176, 24, 368, 40)),
+        ("profile-bxh", "12-profile.png", (460, 1200, 57, 72)),
+        ("back", "12-profile.png", (35, 1215, 52, 47)),
+        ("ranking-title", "14-bxh.png", (324, 115, 72, 34)),
+        ("ranking-tab", "14-bxh.png", (111, 223, 80, 26)),
+        ("ranking-chest", "14-bxh.png", (110, 119, 57, 42)),
+        ("ranking-attention", "14-bxh.png", (164, 104, 15, 15)),
+        ("ranking-close", "14-bxh.png", (332, 1177, 53, 42)),
+        ("shop-title", "06-shop-entry.png", (313, 25, 96, 47)),
+        ("daily-title", "06-shop-entry.png", (35, 136, 301, 47)),
+        ("shop-gift", "06-shop-entry.png", (606, 231, 52, 41)),
+        ("shop-attention", "06-shop-entry.png", (657, 214, 16, 23)),
+        ("daily-tab", "06-shop-entry.png", (174, 1220, 53, 30)),
+        ("weekly-tab", "06-shop-entry.png", (660, 1219, 33, 34)),
+    ):
+        extract(name, SOURCE / source, box)
+    # This text-only rectangle contains no blue/red annotation pixels.
+    extract("weekly-title", Path(r"C:\Users\ADMIN\Desktop\TIỆM1.png"),
+            (25, 112, 260, 34), width=565)
+    extract("shop-title-reference", Path(r"C:\Users\ADMIN\Desktop\TIỆM1.png"),
+            (244, 23, 75, 37), width=565)

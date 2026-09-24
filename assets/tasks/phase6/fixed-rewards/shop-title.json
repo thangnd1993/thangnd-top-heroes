@@ -1,0 +1,14 @@
+{
+  "id": "shop-title",
+  "state": "FREE_REWARD_PAGE",
+  "template": "shop-title.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.96,
+  "required": false,
+  "notes": "Clean UI crop from 06-shop-entry.png; no annotations or account text."
+}

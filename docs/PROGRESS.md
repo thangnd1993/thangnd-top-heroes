@@ -1,5 +1,13 @@
 # Tiến độ
 
+## 2026-09-24 Current work: BXH and Tiệm fixed rewards
+
+The latest user request supersedes historical fixed-index/VIP-only scopes below.
+Implement BXH chest and the distinct daily-offer/custom-weekly-card shop gifts.
+Random live non-Protected test account; then all non-Protected sequential
+acceptance using passing CI artifact. No VIP, Idle or Phase 7. Preserve all
+existing journals and Protected accounts. See `PHASE6_RESUME.md`.
+
 ## 2026-09-24 VIP popup correction — current authorization
 
 Only `2 / 5-Emmmmm` is authorized for this real acceptance, after passing CI.

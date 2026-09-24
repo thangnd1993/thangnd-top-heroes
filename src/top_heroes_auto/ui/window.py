@@ -275,14 +275,17 @@ class Window(QMainWindow):
         self.phase6_status.setWordWrap(True)
         tasks.addWidget(self.phase6_status)
         self.phase6_buttons = []
+        self.fixed_reward_buttons = []
         for title, task in (
             ("VIP miễn phí", "vip-reward"),
-            ("Free Pack (an toàn)", "free-pack"),
+            ("Quà Tiệm miễn phí", "free-pack"),
             ("Recruit miễn phí", "free-recruit"),
             ("Rương BXH (an toàn)", "ranking-chest"),
         ):
             button = self.button(tasks, title, lambda _, value=task: self.run_phase6_task(value))
             self.phase6_buttons.append(button)
+            if task in {"free-pack", "ranking-chest"}:
+                self.fixed_reward_buttons.append(button)
             self.action_buttons.append(button)
         self.phase6_sequence_button = self.button(tasks, "Phase 6 theo chuỗi", self.run_phase6_sequence)
         self.phase6_buttons.append(self.phase6_sequence_button)
@@ -695,6 +698,14 @@ class Window(QMainWindow):
         enabled = allowed and self.worker is None
         for button in self.phase6_buttons:
             button.setEnabled(enabled)
+        fixed_allowed = False
+        if self.manager and instance:
+            metadata = self.store.metadata(self.manager.namespace, index)
+            fixed_allowed = metadata.selected and not metadata.protected
+        for button in self.fixed_reward_buttons:
+            button.setEnabled(fixed_allowed and self.worker is None)
+        if fixed_allowed:
+            self.phase6_eligibility.setText("BXH/Tiệm: tài khoản đã chọn, không Protected; chỉ nhận quà miễn phí.")
 
     def _set_phase6_busy(self, busy):
         """Lock mutable UI state while leaving the cooperative cancel button live."""
@@ -780,10 +791,10 @@ class Window(QMainWindow):
             ),
         )
 
-    def _phase6_target(self):
+    def _phase6_target(self, fixed=False):
         index = self.target.currentData()
         instance = next((item for item in self.instances if item.index == index), None)
-        if not self.manager or instance is None or (index, instance.name) != PHASE6_TARGET:
+        if not self.manager or instance is None or (not fixed and (index, instance.name) != PHASE6_TARGET):
             return None
         self.update_phase6_controls(instance)
         try:
@@ -797,15 +808,21 @@ class Window(QMainWindow):
         return index, instance.name
 
     def run_phase6_task(self, task):
-        target = self._phase6_target()
+        fixed = task in {"free-pack", "ranking-chest"}
+        target = self._phase6_target(fixed=fixed)
         if target is None or self.worker:
             return
         index, name = target
         self.phase6_cancelled.clear()
         self.phase6_status.setText(f"Phase 6 {task}: đang chạy…")
+        runner = run_free_reward_task
+        if fixed:
+            from top_heroes_auto.app.bxh_shop_acceptance import run_selected_task
+
+            runner = run_selected_task
         self.run_job(
             "phase6",
-            lambda: run_free_reward_task(
+            lambda: runner(
                 self.manager,
                 self.data_dir,
                 index,

@@ -12,6 +12,18 @@ self-review diff → commit/push when authorized → GitHub Actions full
 lint/test/Windows build/smoke → real Windows acceptance only when explicitly
 authorized.
 
+Real development checks must choose a test account randomly from live authorized
+non-Protected inventory. Record the eligible set and selection method, then bind
+the whole test to that exact verified instance. Never default to index 2 or any
+preferred name. Use another eligible account for additional cross-account checks;
+never repeat a successful claim for coverage.
+
+When full phase acceptance is authorized, use the fresh passing CI artifact and
+an explicit snapshot of ALL currently non-Protected targets, sequentially
+(`max_concurrency = 1`). A successful random test or availability scan does not
+finish acceptance. Preserve same-period claim locks, original selections and
+external running instances. Normal application Run Selected scope is unchanged.
+
 Preserve all project safety rules:
 
 - Queen is Protected; never mutate without explicit current-task authorization.

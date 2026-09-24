@@ -98,7 +98,7 @@ def test_phase6_shop_survey_button_uses_navigation_runner_and_scope(rig, tmp_pat
     assert store.get("window_geometry")
 
 
-def test_phase6_controls_require_exact_target_and_use_worker_cancellation(rig, tmp_path, monkeypatch):
+def test_fixed_rewards_use_selected_target_and_worker_cancellation(rig, tmp_path, monkeypatch):
     manager, process, store = rig
     QApplication.instance() or QApplication([])
     monkeypatch.setattr(Window, "discover_ld", lambda self: None)
@@ -106,7 +106,10 @@ def test_phase6_controls_require_exact_target_and_use_worker_cancellation(rig, t
     window.manager = manager
     window.instances = manager.refresh()
     window.render()
-    assert all(not button.isEnabled() for button in window.phase6_buttons)
+    assert window.target.currentData() == 7
+    assert all(button.isEnabled() for button in window.fixed_reward_buttons)
+    assert all(not button.isEnabled() for button in window.phase6_buttons
+               if button not in window.fixed_reward_buttons)
 
     process.listing = "0,Queen,0,0,0,-1,-1\n2,5-Emmmmm,0,0,0,-1,-1\n"
     manager.refresh()
@@ -134,6 +137,9 @@ def test_phase6_controls_require_exact_target_and_use_worker_cancellation(rig, t
         function()
 
     monkeypatch.setattr(window_module, "run_free_reward_task", fake_task)
+    from top_heroes_auto.app import bxh_shop_acceptance
+
+    monkeypatch.setattr(bxh_shop_acceptance, "run_selected_task", fake_task)
     monkeypatch.setattr(window, "run_job", fake_run_job)
     window.run_phase6_task("free-pack")
     assert calls[0] == "phase6"

@@ -14,6 +14,15 @@ def data_directory() -> Path:
 
 def main(argv: list[str] | None = None):
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == "bxh-shop-acceptance":
+        if argv[1:] not in (["--random-test"], ["--confirm-non-protected"]):
+            raise ValueError("BXH/shop acceptance needs --random-test or --confirm-non-protected.")
+        from top_heroes_auto.app.bxh_shop_acceptance import run_acceptance
+        from top_heroes_auto.app.diagnostic import _manager
+
+        data = data_directory()
+        run_acceptance(_manager(data), data, random_test=argv[1] == "--random-test")
+        return 0
     if argv and argv[0] == "vip-fleet":
         if argv != ["vip-fleet", "--confirm-non-protected"]:
             raise ValueError("VIP fleet requires explicit --confirm-non-protected.")

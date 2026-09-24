@@ -283,6 +283,7 @@ class Store:
         *, expected_instance: tuple[int, str] | None = None,
         not_dispatched: bool = False,
         vip_daily_period: bool = False,
+        fixed_reward_period: bool = False,
     ) -> int:
         """Commit intent BEFORE input; interruption must never make it retryable.
 
@@ -304,7 +305,19 @@ class Store:
             namespace, index, name, _ = run
             if expected_instance is not None and expected_instance != (index, name):
                 raise ValueError("Claim evidence does not belong to the task run's account.")
-            if vip_daily_period:
+            if vip_daily_period and fixed_reward_period:
+                raise ValueError('Reward period policies cannot be combined.')
+            if fixed_reward_period:
+                from top_heroes_auto.automation.fixed_reward_period import current_attempts
+                from top_heroes_auto.automation.fixed_reward_period import cycle_key as fixed_cycle_key
+
+                if cycle_key != fixed_cycle_key(reward_id):
+                    raise ValueError('Fixed reward period changed; fresh evidence required.')
+                db.row_factory = sqlite3.Row
+                rows = db.execute('SELECT * FROM reward_claims WHERE namespace=? AND instance_index=? AND reward_id=?',
+                                  (namespace, index, reward_id)).fetchall()
+                existing = current_attempts(rows, reward_id)
+            elif vip_daily_period:
                 from top_heroes_auto.automation.vip_period import current_attempts
                 from top_heroes_auto.automation.vip_period import cycle_key as vip_cycle_key
 

@@ -15,7 +15,26 @@ For each substantial task, the single agent follows this sequence:
 7. Let GitHub Actions run the full lint, test, Windows build, and smoke gate.
 8. Perform real Windows/LDPlayer acceptance only when explicitly authorized.
 
-## Safety boundaries
+## Real account selection and acceptance
+
+- Discover live inventory and current protection. Randomly select from the
+  authorized non-Protected candidates; record candidates, method and result.
+- Bind the entire test to that verified identity. Randomize between runs, never
+  between actions. There is no default test account or preferred index/name.
+- For additional cross-account coverage choose a different eligible account.
+  Successful test claims count toward acceptance and must never be repeated.
+- After implementation and passing CI, use the fresh artifact and a new explicit
+  snapshot of all authorized non-Protected accounts for full phase acceptance.
+  Process sequentially, max_concurrency = 1, and finish unaffected accounts.
+- Record original selection/running state and excluded Protected accounts.
+  Re-check protection before each action, including cleanup; never override it.
+- Restore each target's selection and only stop instances owned by this run.
+  Do not add newly discovered accounts mid-run. Run Selected remains unchanged.
+- Report unresolved paths honestly as PARTIAL/BLOCKED, never as unavailable or
+  PASS. Do not stop at survey-only or CI-only evidence when real acceptance is
+  authorized. Real scope still requires explicit user authorization.
+
+## Safety boundaries (all runs)
 
 - Read `docs/PROGRESS.md`, `docs/SAFETY.md`, and the current phase checkpoint
   before any real mutation.

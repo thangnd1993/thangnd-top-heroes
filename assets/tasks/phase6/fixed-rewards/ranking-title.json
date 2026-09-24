@@ -1,0 +1,14 @@
+{
+  "id": "ranking-title",
+  "state": "FREE_REWARD_PAGE",
+  "template": "ranking-title.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.96,
+  "required": false,
+  "notes": "Clean UI crop from 14-bxh.png; no annotations or account text."
+}

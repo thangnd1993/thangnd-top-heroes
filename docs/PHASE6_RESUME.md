@@ -1,5 +1,28 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## Current authorization: BXH and two Tiệm gifts — 2026-09-24
+
+This supersedes the historical VIP-only restrictions below. Implement and accept
+BXH top-left chest, Tiệm Ưu Đãi Mỗi Ngày upper-right gift, and Thẻ Tuần Tự Chọn
+upper-right gift. No VIP/Idle/unrelated reward or Phase 7. Use one agent.
+The user authorizes random live non-Protected development targets and full
+sequential non-Protected acceptance after fresh passing CI. Read
+`docs/BXH_SHOP_FIXED_FLOW.md` and the permanent account-selection workflow.
+
+Implementation now includes reusable current-frame detectors, bounded annotated
+navigation, independent one-shot journals, existing popup dismissal, GUI selected
+target integration, random-test and full-fleet CLI modes. Local gate: 76 focused
+tests passed plus Ruff; fresh CI/build and real acceptance are still pending.
+No emulator or reward action has been run for this change yet. Preserve the
+documented unqualified BXH/custom-weekly reset limitation until real evidence
+supports a specific period policy; never silently remove a conservative lock.
+
+VIP fleet is complete: CI 35995071686, commit 3544e5b, report
+`vip-daily-fleet/20260924-120209-630859Z/fleet-report.json`. All eight targets
+processed, seven VERIFIED actions; index-5 upper gift remains RESERVED/POSSIBLE.
+Do not repeat VIP. All selections restored. Protected Chicken was externally
+running and remained running; never stop a Protected instance for restoration.
+
 ## Current task: fixed VIP fleet authorized (supersedes no-claim scan stop)
 
 The latest pasted user request authorizes one sequential VIP run on ALL live
