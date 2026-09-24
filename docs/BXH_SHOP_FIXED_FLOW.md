@@ -21,6 +21,9 @@ BXH inactive classification additionally needs a .985 intact core and clear badg
 area. Shop inactive classification needs a .98 positive open-gift/“Đã nhận”
 anchor on its exact daily/weekly page. Missing shop attention alone is UNKNOWN.
 Weak, duplicate, occluded or conflicting observations stay UNKNOWN.
+Index-11 evidence additionally qualifies the unobstructed, chest-free BXH header
+slot (.98), with both page anchors and no conflicting chest/attention. An absent
+template on a blank or occluded frame alone does not prove unavailability.
 At most two observation-only extra captures accommodate rocking gift artwork.
 Navigation edges are explicitly enumerated; a bottom-tab swipe never authorizes
 a tap on Gói Mỗi Ngày, Gói Mỗi Tuần or any other paid/unlisted section.

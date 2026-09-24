@@ -108,6 +108,21 @@ def test_duplicate_page_variant_cannot_be_rescued_by_another_template(detector):
     assert detector.observe(frame).page == 'UNKNOWN'
 
 
+def test_ranking_positive_empty_slot_and_conflict(detector):
+    frame = make_frame('ranking-chest')
+    image = cv2.rotate(frame.normalized, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    paste(image, 'ranking-empty-slot', 85, 100)
+    frame = ScreenshotService(lambda _:cv2.imencode('.png', image)[1].tobytes()).take(Target(13,'x','s','b'))
+    empty = detector.observe(frame)
+    assert detector.availability(empty, 'ranking-chest')[0] == 'NOT_AVAILABLE'
+    active = detector.observe(make_frame('ranking-chest'))
+    mixed = replace(active, anchors={**active.anchors, 'ranking-empty-slot': empty.anchors['ranking-empty-slot']})
+    assert detector.availability(mixed, 'ranking-chest')[0] == 'UNKNOWN'
+    image[100:180, 85:200] = 0
+    frame = ScreenshotService(lambda _:cv2.imencode('.png', image)[1].tobytes()).take(Target(13,'x','s','b'))
+    assert detector.availability(detector.observe(frame), 'ranking-chest')[0] == 'UNKNOWN'
+
+
 def test_avatar_frame_ignores_portrait_pixels_and_rejects_duplicate(detector):
     template = cv2.imread(str(ASSETS/'avatar-frame.png'))
     mask = cv2.imread(str(ASSETS/'avatar-mask.png'), 0)

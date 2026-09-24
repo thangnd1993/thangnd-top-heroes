@@ -34,6 +34,21 @@ frames now classify Home and both NOT_AVAILABLE pages offline. Fresh CI and
 another random eligible development account, then full sequential acceptance,
 remain pending. Do not repeat VIP/Idle or any successful reward claim.
 
+### Second random check completed (index 11): 2026-09-24 16:47 UTC
+
+Commit 1dbfc0a, CI 36028782026 all green, artifact 10820164361. Soup excluded
+from the random candidate set; selected 11 / Nấm đùi gà via secrets.choice.
+Report `bxh-shop-fixed/20260924-164739-729787Z/fleet-report.json`.
+ADB emulator-5576, Home recovery SUCCESS, all three routes reached. Both shop
+gifts positively NOT_AVAILABLE (open gift + Đã nhận); BXH chest absent from
+three saved bounded frames, so old active-core detector returned UNKNOWN.
+Zero claim taps/reservations; cleanup SUCCESS and selection restored.
+
+The targeted fix adds positive empty BXH header-slot evidence; missing/occluded
+pixels alone remain UNKNOWN. After its fresh CI artifact passes, continue into
+the full non-Protected sequential acceptance. Two random real route checks are
+already complete; do not repeat them as another survey-only stopping point.
+
 VIP fleet is complete: CI 35995071686, commit 3544e5b, report
 `vip-daily-fleet/20260924-120209-630859Z/fleet-report.json`. All eight targets
 processed, seven VERIFIED actions; index-5 upper gift remains RESERVED/POSSIBLE.

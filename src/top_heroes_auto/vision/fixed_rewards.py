@@ -127,6 +127,15 @@ class FixedRewardDetector:
         badge = observation.anchors[badge_role]
         if not core.matched and core.score >= core.threshold:
             return 'UNKNOWN', core, badge
+        if ranking:
+            empty = observation.anchors['ranking-empty-slot']
+            if empty.matched:
+                title = observation.box('ranking-title')
+                b = empty.device_box
+                if (not core.matched and not badge.matched and empty.score >= .98 and b and title
+                        and b.x+b.width < title.x and abs(b.center[1]-title.center[1]) < b.height*.5):
+                    return 'NOT_AVAILABLE', empty, badge
+                return 'UNKNOWN', core, badge
         if not ranking:
             received = observation.anchors['daily-received' if reward == 'shop-daily-gift' else 'weekly-received']
             if received.matched and received.device_box:

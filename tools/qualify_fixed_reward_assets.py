@@ -57,6 +57,8 @@ if __name__ == "__main__":
     extract('weekly-title', soup/'20260924-162626-792592Z-bxh-shop.png', (34, 136, 343, 48), saved_normalized=True)
     extract('daily-received', soup/'20260924-162553-874492Z-bxh-shop.png', (592, 212, 94, 80), saved_normalized=True)
     extract('weekly-received', soup/'20260924-162626-792592Z-bxh-shop.png', (614, 314, 96, 85), saved_normalized=True)
+    ranking = Path(r"C:\Users\ADMIN\AppData\Local\TopHeroesAutoManager\diagnostics\tasks\bxh-shop-fixed\20260924-164739-729787Z\11\20260924-164912-070155Z-bxh-shop.png")
+    extract('ranking-empty-slot', ranking, (85, 100, 115, 80), saved_normalized=True)
     # Preserve only the invariant border; erase every avatar/level/badge pixel.
     raw = cv2.imread(str(SOURCE/'02-home.png'))[66:150, 19:106].copy()
     mask = np.zeros(raw.shape[:2], np.uint8)
