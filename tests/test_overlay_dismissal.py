@@ -142,7 +142,7 @@ def test_upper_gift_current_icon_and_badge_required():
     changed = captured.normalized.copy()
     changed[badge.y:badge.y+badge.height,badge.x:badge.x+badge.width] = (20,40,70)
     after = adapter.observe(replace(captured, normalized=changed))
-    assert gift_state(after.screen) == 'NOT_AVAILABLE'
+    assert gift_state(after.screen) == 'UNKNOWN'  # Erasure is not positive unavailable evidence.
     assert gift_state(adapter.observe(screen()).screen) == 'UNKNOWN'
 
 
@@ -190,7 +190,8 @@ def test_receipt_transport_error_cannot_reuse_frame(rig,tmp_path,monkeypatch):
     assert len(calls)==1
 
 
-def test_upper_gift_journal_is_one_shot_and_independent_of_daily(rig,tmp_path,monkeypatch):
+@pytest.mark.parametrize("receipt_present", [False, True])
+def test_upper_gift_journal_is_one_shot_and_independent_of_daily(rig,tmp_path,monkeypatch,receipt_present):
     from types import SimpleNamespace
 
     from top_heroes_auto.app import vip_gift
@@ -202,10 +203,7 @@ def test_upper_gift_journal_is_one_shot_and_independent_of_daily(rig,tmp_path,mo
     profile,_=_load_profile_details('vip-reward')
     adapter=FrameRewardAdapter(gift_profile(profile))
     before=adapter.observe(screen('index2-vip-claimable.png'))
-    badge=before.evidence['available'].normalized_box
-    changed=before.captured.normalized.copy()
-    changed[badge.y:badge.y+badge.height,badge.x:badge.x+badge.width]=(20,40,70)
-    after=adapter.observe(replace(before.captured,normalized=changed,timestamp='after'))
+    after=adapter.observe(replace(screen('soup-vip-unavailable.png'),timestamp='after'))
     frames=iter([before.screen,after.screen])
     calls=[]
     def claim(*args,before_input):
@@ -213,7 +211,7 @@ def test_upper_gift_journal_is_one_shot_and_independent_of_daily(rig,tmp_path,mo
         calls.append('claim')
     port=SimpleNamespace(set_entry_geometry=lambda _:None,observe=lambda:next(frames),
         validate_claim=lambda *args:None,geometry_report={},claim=claim,
-        dismiss_receipts=lambda frame:frame,overlay_events=[{'receipt':'qualified'}])
+        dismiss_receipts=lambda frame:frame,overlay_events=[{'receipt':'qualified'}] if receipt_present else [])
     monkeypatch.setattr(vip_gift,'reward_port_factory',lambda *args:port)
     task=store.create_task_run(manager.namespace,'vip-reward',2,TARGET.name)
     snap=RunSnapshot(manager.namespace,((2,TARGET.name),),True)

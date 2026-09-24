@@ -1,5 +1,39 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## Current task: fixed VIP fleet authorized (supersedes no-claim scan stop)
+
+The latest pasted user request authorizes one sequential VIP run on ALL live
+non-Protected accounts, using current-frame fixed free targets, one tap each,
+active-to-inactive verification and qualified bottom-left popup dismissal.
+Read [VIP_FIXED_FLOW.md](VIP_FIXED_FLOW.md). New VIP periods use the observed
+02:00 UTC game reset; same-period uncertain actions remain locked and old rows
+are preserved. No Tiệm, BXH, Idle, seasonal tasks, or Phase 7. Stop after one fleet.
+Implementation and focused tests complete; fresh CI and real fleet pending.
+
+
+## 2026-09-24 VIP no-claim availability scan — STOP awaiting authorization
+
+This supersedes older index-2 continuation instructions. Index 2 is excluded;
+upper gift claim 27 remains RESERVED/POSSIBLE. Protected 0/1/6/7 are untouched.
+No Tiệm/BXH/Idle/fleet claims/Phase 7 are authorized.
+
+Scan `vip-availability-scan/20260924-101003-105923Z`, concurrency 1:
+- 3/8/11: upper and daily NOT_AVAILABLE.
+- 4/5: upper UNKNOWN (badge below .96); daily AVAILABLE but journal locked.
+- 9/10: upper AVAILABLE; daily AVAILABLE but journal locked.
+- Zero reward inputs; every journal unchanged. All selections restored and
+  owned cleanup succeeded. All final instances stopped; unrelated state unchanged.
+
+Recommended later qualification: 9 / Pooh5, upper gift only. Its upper journal
+is untouched; its daily RESERVED/POSSIBLE lock must never be blindly retried.
+Wait for explicit claim authorization and revalidate current screenshots.
+
+Offline unavailable detection now requires a unique .98 positive full badge-free
+gift/clear badge-area match plus verified VIP page. Missing badge alone is UNKNOWN.
+Existing claimable thresholds are unchanged. 41 focused tests and Ruff passed.
+Soup fixture/runtime crop and code are local changes, not committed or uploaded.
+An actual upper-gift before/after success transition remains unproven.
+
 ### Fifth portable acceptance (f012b1c; CI 35910107501 passed)
 
 Index 2's upper VIP gift qualified at 0.994918; one tap at (648,215), bbox

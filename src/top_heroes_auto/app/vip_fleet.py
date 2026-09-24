@@ -15,6 +15,7 @@ from top_heroes_auto.automation.free_rewards import ClaimOutcome, FreeRewardGuar
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
 from top_heroes_auto.automation.recovery import RecoveryStatus
 from top_heroes_auto.automation.reward_journal import evidence_json
+from top_heroes_auto.automation.vip_period import current_attempts, cycle_key
 
 PROTECTED = {0: "Queen", 1: "anh Ry", 6: "Chicken", 7: "Happy"}
 
@@ -53,8 +54,7 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
         if meta.protected or index in PROTECTED:
             row["final_result"] = "SKIPPED_PROTECTED"
             return row
-        prior = [r for r in manager.store.reward_claims(manager.namespace, index)
-                 if r["reward_id"] == "vip-daily" and r["status"] in {"RESERVED", "VERIFIED"}]
+        prior = current_attempts(manager.store.reward_claims(manager.namespace, index), "vip-daily")
         if prior and not include_upper_gift:
             row["journal_state"] = prior[-1]["status"]
             row["final_result"] = "ALREADY_VERIFIED" if prior[-1]["status"] == "VERIFIED" else "ALREADY_ATTEMPTED"
@@ -93,9 +93,6 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
             row["upper_gift"] = {}
             run_upper_gift(manager, snapshot, index, name, profile, gift_folder, entry, task_id, row["upper_gift"])
             row["vip_screen_verified"] = row["upper_gift"].get("before", {}).get("detection", {}).get("state") == "FREE_REWARD_PAGE"
-            if row["upper_gift"]["result"] not in {"SUCCESS", "NOT_AVAILABLE", "ALREADY_VERIFIED", "ALREADY_ATTEMPTED"}:
-                row["final_result"] = row["upper_gift"]["result"]
-                return row
         port = reward_port_factory(manager, snapshot, index, name, profile, folder)
         port.set_entry_geometry(entry)
         before = port.observe()
@@ -122,8 +119,8 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
         port.validate_claim(before, reward, point)
         row.update(free_reward_state="FREE_CLAIMABLE", geometry=port.geometry_report)
         claim_id = manager.store.reserve_reward_claim(
-            task_id, "vip-daily", "phase6:vip-reward:conservative-opportunity", evidence_json(before),
-            expected_instance=(index, name), not_dispatched=True,
+            task_id, "vip-daily", cycle_key("vip-daily"), evidence_json(before),
+            expected_instance=(index, name), not_dispatched=True, vip_daily_period=True,
         )
         row.update(claim_id=claim_id, journal_state="RESERVED")
         _write(folder / "account-report.json", row)
@@ -187,7 +184,10 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
             receipt = next(r for r in manager.store.reward_claims(manager.namespace, index) if r["id"] == claim_id)
             row["journal_state"] = receipt["status"]
             row["dispatch_state"] = receipt["dispatch_state"]
-        if row.get("upper_gift", {}).get("result") == "ALREADY_ATTEMPTED":
+            if receipt["dispatch_state"] == "NOT_DISPATCHED":
+                manager.store.release_undispatched_reward(claim_id, task_id, "VIP dispatch hook was never entered.")
+                row["journal_state"] = "NONE"
+        if row.get("upper_gift", {}).get("result") in {"ALREADY_ATTEMPTED", "ACTION_DISPATCHED_UNVERIFIED", "UNKNOWN"}:
             row["daily_result"] = row["final_result"]
             row["final_result"] = "PARTIAL_UPPER_GIFT_UNVERIFIED"
         _write(folder / "account-report.json", row)
@@ -211,7 +211,8 @@ def run_vip_fleet(manager, data: Path, *, account_runner=run_vip_account):
         account_folder.mkdir()
         print(f"VIP START #{index} / {name}", flush=True)
         try:
-            row = account_runner(manager, data, index, name, account_folder)
+            row = (account_runner(manager, data, index, name, account_folder, include_upper_gift=True)
+                   if account_runner is run_vip_account else account_runner(manager, data, index, name, account_folder))
         except Exception as exc:  # noqa: BLE001 - preserve a row even after account report failure
             row = dict(index=index, name=name, final_result="FAILED", error=str(exc))
         report["accounts"].append(row)

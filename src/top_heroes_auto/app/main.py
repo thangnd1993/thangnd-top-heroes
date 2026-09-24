@@ -14,6 +14,15 @@ def data_directory() -> Path:
 
 def main(argv: list[str] | None = None):
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == "vip-fleet":
+        if argv != ["vip-fleet", "--confirm-non-protected"]:
+            raise ValueError("VIP fleet requires explicit --confirm-non-protected.")
+        from top_heroes_auto.app.diagnostic import _manager
+        from top_heroes_auto.app.vip_fleet import run_vip_fleet
+
+        data = data_directory()
+        run_vip_fleet(_manager(data), data)
+        return 0
     if argv and argv[0] == "vip-acceptance":
         if argv != ["vip-acceptance", "--confirm-index2"]:
             raise ValueError("VIP acceptance requires explicit --confirm-index2; no other target is supported.")

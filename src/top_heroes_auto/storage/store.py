@@ -282,13 +282,14 @@ class Store:
         self, task_run_id: int, reward_id: str, cycle_key: str, before_evidence: str,
         *, expected_instance: tuple[int, str] | None = None,
         not_dispatched: bool = False,
+        vip_daily_period: bool = False,
     ) -> int:
         """Commit intent BEFORE input; interruption must never make it retryable.
 
         cycle_key must identify a visually proven reward opportunity, not a
         screenshot hash, process/boot ID, or an assumed local-midnight reset.
-        An unresolved attempt blocks ALL cycles and survives instance renaming.
-        There is deliberately no automatic expiry, retry or reset operation.
+        By default an unresolved attempt blocks all cycles. The explicit fixed
+        VIP policy permits a new proven daily period, preserving old rows.
         """
         if not all(isinstance(v, str) and v.strip() for v in (reward_id, cycle_key, before_evidence)):
             raise ValueError("Reward identity, proven cycle and before evidence are required.")
@@ -303,11 +304,22 @@ class Store:
             namespace, index, name, _ = run
             if expected_instance is not None and expected_instance != (index, name):
                 raise ValueError("Claim evidence does not belong to the task run's account.")
-            existing = db.execute(
-                """SELECT id FROM reward_claims WHERE namespace=? AND instance_index=?
-                   AND reward_id=? AND (cycle_key=? OR status='RESERVED')""",
-                (namespace, index, reward_id, cycle_key),
-            ).fetchone()
+            if vip_daily_period:
+                from top_heroes_auto.automation.vip_period import current_attempts
+                from top_heroes_auto.automation.vip_period import cycle_key as vip_cycle_key
+
+                if cycle_key != vip_cycle_key(reward_id):
+                    raise ValueError('VIP period changed; take fresh evidence before reserving.')
+                db.row_factory = sqlite3.Row
+                rows = db.execute('SELECT * FROM reward_claims WHERE namespace=? AND instance_index=? AND reward_id=?',
+                                  (namespace, index, reward_id)).fetchall()
+                existing = current_attempts(rows, reward_id)
+            else:
+                existing = db.execute(
+                    """SELECT id FROM reward_claims WHERE namespace=? AND instance_index=?
+                       AND reward_id=? AND (cycle_key=? OR status='RESERVED')""",
+                    (namespace, index, reward_id, cycle_key),
+                ).fetchone()
             if existing:
                 raise ValueError("Reward already attempted or unresolved; automatic retry forbidden.")
             cursor = db.execute(

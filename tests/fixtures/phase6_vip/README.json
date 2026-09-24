@@ -1,10 +1,11 @@
 {
-  "purpose": "Targeted regression fixtures for the account-2 VIP daily free flow only.",
+  "purpose": "Targeted regression fixtures for fixed VIP visual states; no runtime account routing.",
   "source": "Clean unannotated real screenshots captured on 2026-09-23 from 2 / 5-Emmmmm.",
   "runtime_input": false,
   "files": {
     "index2-home.png": "Home frame used to validate current-frame VIP entry matching.",
-    "index2-vip-claimable.png": "VIP frame used to validate current-frame claim, free, availability and paid-region geometry."
+    "index2-vip-claimable.png": "VIP frame used to validate current-frame claim, free, availability and paid-region geometry.",
+    "soup-vip-unavailable.png": "Saved Soup VIP observation, 20260924-095650-267895Z, rotated back to device portrait orientation. Full badge-free gift and disabled daily countdown. No claim was dispatched. Runtime asset gift-unavailable crops normalized x=1028,y=598,w=110,h=117; those coordinates are fixture extraction only, never runtime taps."
   },
   "account_credentials": false
 }

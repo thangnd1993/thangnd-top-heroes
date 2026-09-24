@@ -1,0 +1,14 @@
+{
+  "id": "gift-unavailable",
+  "state": "FREE_REWARD_PAGE",
+  "template": "gift-unavailable.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": true,
+  "notes": "Positive complete badge-free gift silhouette plus clear adjacent badge area, from saved Soup evidence. Not absence-of-match proof. No action authority."
+}

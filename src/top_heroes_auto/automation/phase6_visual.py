@@ -320,7 +320,7 @@ class ManagerRewardPort(ExplorerPort):
         self.geometry_report: dict | None = None
         self._prepared_claim: tuple[str, str, tuple[int, int]] | None = None
         self.overlay_events: list[dict] = []
-        self._overlay_budget = OverlayBudget(max_total=4, max_same=2)
+        self._overlay_budget = OverlayBudget(max_total=4, max_same=1 if profile.task.startswith("vip-") else 2)
         self._dismissed_captures: set[str] = set()
 
     def set_entry_geometry(self, geometry: dict | None) -> None:
@@ -365,7 +365,10 @@ class ManagerRewardPort(ExplorerPort):
         for attempt in range(5):
             current = self._current(screen)
             detection = detector.detect(current.captured)
-            if detection.state == ScreenState.REWARD_RECEIPT:
+            allowed = {ScreenState.REWARD_RECEIPT}
+            if self.adapter.profile.task.startswith("vip-"):
+                allowed.update({ScreenState.EVENT_PROMO, ScreenState.PROMO_AD})
+            if detection.state in allowed:
                 point = dismiss_overlay_bottom_left(current.captured, detection)
                 if screen.capture_id in self._dismissed_captures:
                     raise SafetyError("Cannot reuse a dismissed overlay frame.")
