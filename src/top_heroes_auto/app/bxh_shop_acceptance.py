@@ -220,6 +220,15 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
     previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
     targets = previous['targets'] if previous else [selected] if selected else eligible
     plan = resume_plan(previous, before) if previous else [(target, REWARDS) for target in targets]
+    if previous:
+        # Resolve older uncertainty first while its evidence remains fresh.
+        # This orders accounts, never changes the immutable target/reward scope.
+        def oldest_pending(item):
+            target, rewards = item
+            times = [r['reserved_at'] for r in manager.store.reward_claims(manager.namespace, target['index'])
+                     if r['reward_id'] in rewards and r['status'] == 'RESERVED']
+            return min(times, default='9999')
+        plan.sort(key=oldest_pending)
     stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%fZ')
     folder = data / 'diagnostics/tasks/bxh-shop-fixed' / stamp
     folder.mkdir(parents=True, exist_ok=False)

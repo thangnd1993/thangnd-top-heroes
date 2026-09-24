@@ -96,3 +96,13 @@ if __name__ == "__main__":
             expected_region=[0, 0, 1, 1], threshold=.98, required=True,
             variant='ranking-receipt', notes='Paired rank reward receipt. Excludes rank/amount/account pixels; dismissal only.'
         ), indent=2)+'\n', encoding='utf-8', newline='\n')
+    shop = fleet.parent/'20260924-180234-771324Z/5/20260924-180839-162046Z-bxh-shop.png'
+    receipt = cv2.rotate(cv2.imread(str(shop)), cv2.ROTATE_90_COUNTERCLOCKWISE)
+    name = 'receipt-continue-dim'
+    crop = cv2.rotate(receipt[996:1028, 258:465], cv2.ROTATE_90_CLOCKWISE)
+    (overlays/f'{name}.png').write_bytes(cv2.imencode('.png', crop)[1].tobytes())
+    (overlays/f'{name}.json').write_text(json.dumps(dict(
+        id=name, state='REWARD_RECEIPT', template=f'{name}.png', expected_region=[0, 0, 1, 1],
+        threshold=.98, required=True, variant='continue-alternative',
+        notes='Clean dim continue-text phase. Requires the existing independent congratulations title.'
+    ), indent=2)+'\n', encoding='utf-8', newline='\n')

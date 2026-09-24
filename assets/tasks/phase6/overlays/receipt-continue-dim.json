@@ -1,0 +1,15 @@
+{
+  "id": "receipt-continue-dim",
+  "state": "REWARD_RECEIPT",
+  "template": "receipt-continue-dim.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": true,
+  "variant": "continue-alternative",
+  "notes": "Clean dim continue-text phase. Requires the existing independent congratulations title."
+}

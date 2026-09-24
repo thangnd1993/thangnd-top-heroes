@@ -53,6 +53,21 @@ class RecoveryScreenDetector:
         groups = {}
         for anchor in self.receipt_anchors:
             groups.setdefault(anchor.variant, []).append(unique_current_anchor(screen, anchor))
+        alternatives = groups.pop('continue-alternative', [])
+        if alternatives:
+            default = groups.get('default', [])
+            continuation = next((e for e in default if e.anchor_id == 'receipt-continue'), None)
+            alternative = alternatives[0]
+            # Legitimate opacity variant; never rescue duplicate/conflicting text.
+            if continuation and not continuation.matched and continuation.score < continuation.threshold and alternative.matched:
+                groups['default'] = [alternative if e is continuation else e for e in default]
+            elif continuation and continuation.matched and alternative.matched and (
+                abs(continuation.device_box.center[0]-alternative.device_box.center[0]) > continuation.device_box.width*.5
+                or abs(continuation.device_box.center[1]-alternative.device_box.center[1]) > continuation.device_box.height
+            ):
+                groups['default'] = []
+            elif alternative.score >= alternative.threshold and not alternative.matched:
+                groups['default'] = []
         qualified_receipts = [tuple(items) for variant, items in groups.items()
                               if len(items) >= 2 and all(e.matched for e in items)
                               and self._receipt_layout(screen, variant, items)]

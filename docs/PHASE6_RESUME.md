@@ -65,6 +65,25 @@ plus observation-only reconciliation and explicit unfinished-only resume mode.
 Fresh passing CI is required before resuming only 3 BXH and 4/5/9/10 pending
 checks. No full fleet restart and no replay of completed reward checks.
 
+### First unfinished-only resume: 2026-09-24 18:02 UTC
+
+Build 8c7357e, CI 36037268449 green (676 passed, 26 skipped), artifact
+10824104560. Report `bxh-shop-fixed/20260924-180234-771324Z/fleet-report.json`.
+Queen con BXH claim ID 40 dispatched once and VERIFIED after receipt dismissal
+and fresh empty header. BXH 36/37/39 (4/5/10) reconciled from saved claimable+
+receipt and fresh unavailable evidence with zero new claim taps. ID 38 (9)
+still RESERVED/POSSIBLE: recovery lost verified Android boot ID after blank
+loading captures, no reward navigation/input. Cleanup/restoration succeeded.
+
+4 shop gifts are NOT_AVAILABLE. 5/10 daily gifts were AVAILABLE and each received
+one tap (41/42), now RESERVED/POSSIBLE. Their standard congratulations title is
+recognized, but continue text's dim animation phase scored .925 against the
+bright reference. Weekly checks stopped behind that UNKNOWN receipt. Do not
+repeat either daily claim. Add only the qualified dim-text variant, preserve
+strict paired-title/unique-match rules, and extend observation-only reconciliation
+to the independent shop IDs. After fresh CI resume only 5 daily/weekly, 9 pending
+checks, 10 daily/weekly. Completed 2/3/4/8/11 stay untouched.
+
 VIP fleet is complete: CI 35995071686, commit 3544e5b, report
 `vip-daily-fleet/20260924-120209-630859Z/fleet-report.json`. All eight targets
 processed, seven VERIFIED actions; index-5 upper gift remains RESERVED/POSSIBLE.

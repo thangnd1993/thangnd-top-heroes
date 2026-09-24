@@ -1,4 +1,4 @@
-"""Observation-only completion of a recently dispatched BXH receipt chain."""
+"""Observation-only completion of a recently dispatched fixed reward receipt."""
 import json
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 
 from top_heroes_auto.adb.client import Target
+from top_heroes_auto.vision.fixed_rewards import REWARDS
 from top_heroes_auto.vision.models import ScreenState
 from top_heroes_auto.vision.screenshot import ScreenshotService
 
@@ -28,20 +29,21 @@ def saved_frame(evidence, folder):
     return replace(frame, source_image=path, timestamp=evidence['timestamp'])
 
 
-def reconcile_ranking(store, row, detector, current, identity):
+def reconcile_fixed_reward(store, row, detector, current, identity):
     """Receipt alone never verifies; require saved AVAILABLE and fresh empty slot.
 
     No transport is available here. A changed boot is permitted only after the
     caller has reverified the same persistent disk and explicit ADB association.
     The one-hour evidence window is not a claim/reset policy.
     """
-    if (row['reward_id'] != 'ranking-chest' or row['status'] != 'RESERVED'
+    reward_id = row['reward_id']
+    if (reward_id not in REWARDS or row['status'] != 'RESERVED'
             or row['dispatch_state'] != 'POSSIBLE'):
         return None
     before = json.loads(row['before_evidence'])
     if before.get('persistent_identity') != identity:
         return None
-    if detector.availability(current, 'ranking-chest')[0] != 'NOT_AVAILABLE':
+    if detector.availability(current, reward_id)[0] != 'NOT_AVAILABLE':
         return None
     elapsed = datetime.fromisoformat(current.captured.timestamp) - datetime.fromisoformat(before['timestamp'])
     if not timedelta(0) < elapsed < timedelta(hours=1):
@@ -53,7 +55,7 @@ def reconcile_ranking(store, row, detector, current, identity):
         return None
     path = Path(task[3])
     report = json.loads(path.read_text(encoding='utf-8'))
-    reward = report['rewards']['ranking-chest']
+    reward = report['rewards'][reward_id]
     if (report.get('persistent_identity') != identity or reward.get('claim_id') != row['id']
             or reward.get('claim_dispatched') is not True or reward['before']['capture'] != before['capture']):
         return None
@@ -67,12 +69,13 @@ def reconcile_ranking(store, row, detector, current, identity):
         return None
     original = detector.observe(saved_frame(before, path.parent))
     popup = detector.recovery.detect(saved_frame(receipt, path.parent))
-    if (detector.availability(original, 'ranking-chest')[0] != 'AVAILABLE'
-            or popup.state != ScreenState.REWARD_RECEIPT
-            or {e.anchor_id for e in popup.evidence} != {
-                'ranking-receipt-title', 'ranking-receipt-gem', 'ranking-receipt-continue'}):
+    anchors = {e.anchor_id for e in popup.evidence}
+    qualified = anchors == {'ranking-receipt-title', 'ranking-receipt-gem', 'ranking-receipt-continue'} if reward_id == 'ranking-chest' else anchors in (
+        {'receipt-title', 'receipt-continue'}, {'receipt-title', 'receipt-continue-dim'})
+    if (detector.availability(original, reward_id)[0] != 'AVAILABLE'
+            or popup.state != ScreenState.REWARD_RECEIPT or not qualified):
         return None
-    proof = dict(method='saved_available_and_rank_receipt_then_fresh_unavailable',
+    proof = dict(method='saved_available_and_receipt_then_fresh_unavailable',
                  original_claim_id=row['id'], original_task_run_id=row['task_run_id'],
                  persistent_identity=identity, before=original.evidence(),
                  receipt=popup.as_dict(), after=current.evidence(), claim_redispatched=False)

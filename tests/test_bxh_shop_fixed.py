@@ -353,6 +353,27 @@ def ranking_receipt_frame(*, missing=None, duplicate=False, wrong_layout=False):
         Target(13, 'renamable', 'emulator-5580', 'same-boot'))
 
 
+def shop_receipt_frame(*, missing=False, duplicate=False):
+    image = np.full((1280, 720, 3), (55, 42, 32), np.uint8)
+    for name, (x, y) in {'receipt-title': (205, 282), 'receipt-continue-dim': (258, 996)}.items():
+        if missing and name == 'receipt-title':
+            continue
+        crop = cv2.imread(str(ASSETS.parent/'overlays'/f'{name}.png'))
+        crop = cv2.rotate(crop, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        h, w = crop.shape[:2]
+        image[y:y+h, x:x+w] = crop
+        if duplicate and name == 'receipt-continue-dim':
+            image[800:800+h, x:x+w] = crop
+    return ScreenshotService(lambda _:cv2.imencode('.png', image)[1].tobytes()).take(
+        Target(13, 'renamable', 'emulator-5580', 'same-boot'))
+
+
+@pytest.mark.parametrize('variant', ['good', 'missing', 'duplicate'])
+def test_dim_continue_requires_independent_title_and_unique_text(detector, variant):
+    frame = shop_receipt_frame(missing=variant == 'missing', duplicate=variant == 'duplicate')
+    assert (detector.recovery.detect(frame).state == 'REWARD_RECEIPT') == (variant == 'good')
+
+
 @pytest.mark.parametrize('variant', ['good', 'missing_title', 'missing_gem', 'missing_continue', 'duplicate', 'wrong_layout'])
 def test_ranking_receipt_three_anchors_and_layout(detector, variant):
     from top_heroes_auto.vision.models import ScreenState
@@ -380,7 +401,8 @@ def test_final_bounded_dismissal_always_captures_fresh_screen(rig, tmp_path, det
 
 
 @pytest.mark.parametrize('outcome', ['unavailable', 'still_active', 'popup_only', 'old', 'wrong_receipt', 'disk_changed'])
-def test_recent_dispatched_receipt_reconciles_without_second_claim(tmp_path, detector, outcome):
+@pytest.mark.parametrize('reward_id', REWARDS)
+def test_recent_dispatched_receipt_reconciles_without_second_claim(tmp_path, detector, outcome, reward_id):
     store = Store(tmp_path/'claim.sqlite3')
     target = Target(13, 'renamable', 'emulator-5580', 'same-boot')
 
@@ -388,8 +410,9 @@ def test_recent_dispatched_receipt_reconciles_without_second_claim(tmp_path, det
         raw = cv2.rotate(frame.normalized, cv2.ROTATE_90_COUNTERCLOCKWISE)
         return ScreenshotService(lambda _: cv2.imencode('.png', raw)[1].tobytes()).take(target, tmp_path, tag)
 
-    before = detector.observe(saved(make_frame('ranking-chest'), 'before'))
-    popup = detector.observe(saved(ranking_receipt_frame(missing='gem' if outcome == 'wrong_receipt' else None), 'receipt'))
+    before = detector.observe(saved(make_frame(reward_id), 'before'))
+    popup_frame = ranking_receipt_frame(missing='gem' if outcome == 'wrong_receipt' else None) if reward_id == 'ranking-chest' else shop_receipt_frame(missing=outcome == 'wrong_receipt')
+    popup = detector.observe(saved(popup_frame, 'receipt'))
     calls = []
 
     def tap(frame, anchor, before_input):
@@ -399,13 +422,13 @@ def test_recent_dispatched_receipt_reconciles_without_second_claim(tmp_path, det
     port = SimpleNamespace(detector=detector, observe_settled=lambda: before, tap=tap,
                            observe=lambda: popup, settle=lambda f: f, save_geometry=lambda *a: None)
     task = store.create_task_run('n', 'bxh-shop-fixed', 13, target.name)
-    report = dict(persistent_identity='disk', rewards={'ranking-chest': {}})
+    report = dict(persistent_identity='disk', rewards={reward_id: {}})
     path = tmp_path/'account-report.json'
     def persist():
         path.write_text(json.dumps(report), encoding='utf-8')
-    process_reward(port, store, 'n', task, 'ranking-chest', 'disk', report['rewards']['ranking-chest'], persist)
+    process_reward(port, store, 'n', task, reward_id, 'disk', report['rewards'][reward_id], persist)
     store.finish_task_run(task, 'PARTIAL', report_path=str(path))
-    current = detector.observe(saved(make_frame('ranking-chest', badge=outcome == 'still_active'), 'current'))
+    current = detector.observe(saved(make_frame(reward_id, badge=outcome == 'still_active'), 'current'))
     if outcome == 'popup_only':
         current = popup
     if outcome == 'old':
@@ -413,7 +436,7 @@ def test_recent_dispatched_receipt_reconciles_without_second_claim(tmp_path, det
             datetime.now(timezone.utc)+timedelta(hours=2)).isoformat()))
     port.observe_settled = lambda: current
     result = {}
-    process_reward(port, store, 'n', task, 'ranking-chest', 'other' if outcome == 'disk_changed' else 'disk', result, lambda: None)
+    process_reward(port, store, 'n', task, reward_id, 'other' if outcome == 'disk_changed' else 'disk', result, lambda: None)
     assert calls == ['one original claim']
     row = store.reward_claims('n', 13)[0]
     assert row['status'] == ('VERIFIED' if outcome == 'unavailable' else 'RESERVED')

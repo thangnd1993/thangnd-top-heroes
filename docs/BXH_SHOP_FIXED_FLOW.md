@@ -96,3 +96,9 @@ shows positive NOT_AVAILABLE evidence. The saved-to-current chain must be under
 one hour (an evidence freshness bound, not a reset assumption). Receipt alone,
 missing files, stale evidence, identity changes or still-active/unknown UI keep
 the original lock. This path cannot send or repeat a claim.
+
+The standard congratulations receipt also supports its observed dim continue-text
+phase, paired with the unchanged independent title. An ambiguous/duplicate bright
+text cannot be rescued by the dim variant. The same evidence-only reconciliation
+can resolve each separate shop journal after fresh positive “Đã nhận” evidence;
+it never dispatches a locked gift again.

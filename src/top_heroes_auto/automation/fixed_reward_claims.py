@@ -36,10 +36,10 @@ def process_reward(port, store, namespace, task_id, reward, identity, report, pe
     if locked:
         report.update(result='ALREADY_VERIFIED' if locked[-1]['status'] == 'VERIFIED' else 'ALREADY_ATTEMPTED',
                       journal=locked[-1]['status'], claim_id=locked[-1]['id'])
-        from top_heroes_auto.automation.fixed_reward_reconcile import reconcile_ranking
+        from top_heroes_auto.automation.fixed_reward_reconcile import reconcile_fixed_reward
 
         try:
-            proof = reconcile_ranking(store, locked[-1], port.detector, before, identity)
+            proof = reconcile_fixed_reward(store, locked[-1], port.detector, before, identity)
             if proof:
                 report.update(result='SUCCESS', journal='VERIFIED', reconciliation=proof,
                               post_condition='NOT_AVAILABLE')
