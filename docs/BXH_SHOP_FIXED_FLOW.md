@@ -72,3 +72,27 @@ a targeted period-policy update. Do not infer these periods from VIP or local mi
 Full PASS requires every snapshot member handled, all available gifts verified,
 no hidden unknown/error, paid/Protected safety, cleanup and selection restoration,
 and actual verified coverage of every required claim path. Otherwise report PARTIAL.
+
+## Resume after the first fleet
+
+The first complete fleet (20260924-171957-687304Z) processed all eight targets.
+Four BXH actions produced rank-specific receipts, kept RESERVED/POSSIBLE because
+the old generic receipt title did not match. The repaired receipt uses three
+unique anchors (rank title excluding digits, gem core excluding amount, continue
+text), plus their relative arrangement. It grants bottom-left dismissal only.
+The floral avatar frame is a masked UI-style variant excluding all portrait,
+level and attention pixels; no account name or fixed tap is involved.
+
+`bxh-shop-acceptance --resume-report PATH` preserves the original target snapshot
+and continues only unfinished rewards, after current protection/disk checks.
+Previously successful/unavailable routes are copied with their evidence; the
+source report is immutable and each subsequent attempt is retained in history.
+Newly discovered accounts are not added. Existing journal locks still apply.
+
+A recent BXH POSSIBLE record can be reconciled without input only when its saved
+AVAILABLE frame and rank receipt are independently reclassified, their original
+task/ADB/boot identities agree, and the freshly reverified same persistent target
+shows positive NOT_AVAILABLE evidence. The saved-to-current chain must be under
+one hour (an evidence freshness bound, not a reset assumption). Receipt alone,
+missing files, stale evidence, identity changes or still-active/unknown UI keep
+the original lock. This path cannot send or repeat a claim.

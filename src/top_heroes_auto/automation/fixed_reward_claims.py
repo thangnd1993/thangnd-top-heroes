@@ -36,6 +36,16 @@ def process_reward(port, store, namespace, task_id, reward, identity, report, pe
     if locked:
         report.update(result='ALREADY_VERIFIED' if locked[-1]['status'] == 'VERIFIED' else 'ALREADY_ATTEMPTED',
                       journal=locked[-1]['status'], claim_id=locked[-1]['id'])
+        from top_heroes_auto.automation.fixed_reward_reconcile import reconcile_ranking
+
+        try:
+            proof = reconcile_ranking(store, locked[-1], port.detector, before, identity)
+            if proof:
+                report.update(result='SUCCESS', journal='VERIFIED', reconciliation=proof,
+                              post_condition='NOT_AVAILABLE')
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            # Missing/invalid evidence cannot unlock or re-dispatch anything.
+            report['reconciliation_error'] = str(exc)
         return
     if state != 'AVAILABLE':
         return

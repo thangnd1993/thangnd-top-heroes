@@ -1,3 +1,4 @@
+import json
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -123,22 +124,24 @@ def test_ranking_positive_empty_slot_and_conflict(detector):
     assert detector.availability(detector.observe(frame), 'ranking-chest')[0] == 'UNKNOWN'
 
 
-def test_avatar_frame_ignores_portrait_pixels_and_rejects_duplicate(detector):
-    template = cv2.imread(str(ASSETS/'avatar-frame.png'))
-    mask = cv2.imread(str(ASSETS/'avatar-mask.png'), 0)
+@pytest.mark.parametrize('style', ['avatar', 'avatar-floral'])
+def test_avatar_frame_ignores_portrait_pixels_and_rejects_duplicate(detector, style):
+    template = cv2.imread(str(ASSETS/f'{style}-frame.png'))
+    mask = cv2.imread(str(ASSETS/f'{style}-mask.png'), 0)
     template = cv2.rotate(template, cv2.ROTATE_90_COUNTERCLOCKWISE)
     mask = cv2.rotate(mask, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    h, w = mask.shape
     rng = np.random.default_rng(102)
     image = rng.integers(0, 255, (1280, 720, 3), dtype=np.uint8)
     for x in (20,):
-        patch = image[66:150, x:x+87]
+        patch = image[66:66+h, x:x+w]
         patch[mask>0] = template[mask>0]
     frame = ScreenshotService(lambda _:cv2.imencode('.png', image)[1].tobytes()).take(Target(13,'changed','serial','boot'))
     evidence = detector.avatar_frame(frame)
     assert evidence.matched and evidence.device_box.x == 20
     image = rng.integers(0, 255, (1280, 720, 3), dtype=np.uint8)
     for y in (10, 118):
-        image[y:y+84, 20:107][mask>0] = template[mask>0]
+        image[y:y+h, 20:20+w][mask>0] = template[mask>0]
     frame = ScreenshotService(lambda _:cv2.imencode('.png', image)[1].tobytes()).take(Target(13,'changed','serial','boot'))
     assert not detector.avatar_frame(frame).matched
 
@@ -331,3 +334,119 @@ def test_shop_remembered_allowed_tab_is_not_misreported_as_unknown(rig, tmp_path
     port.tap = lambda *a: None
     port.observe_settled = lambda: weekly
     assert port.navigate(home, 'home-shop-entry', 'shop-daily') is weekly
+
+
+def ranking_receipt_frame(*, missing=None, duplicate=False, wrong_layout=False):
+    image = np.full((1280, 720, 3), (55, 42, 32), np.uint8)
+    for name, (x, y) in {'title': (207, 279), 'gem': (326, 414), 'continue': (259, 916)}.items():
+        if name == missing:
+            continue
+        crop = cv2.imread(str(ASSETS.parent/'overlays'/f'ranking-receipt-{name}.png'))
+        crop = cv2.rotate(crop, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        h, w = crop.shape[:2]
+        if wrong_layout and name == 'gem':
+            y = 970
+        image[y:y+h, x:x+w] = crop
+        if duplicate and name == 'title':
+            image[100:100+h, x:x+w] = crop
+    return ScreenshotService(lambda _: cv2.imencode('.png', image)[1].tobytes()).take(
+        Target(13, 'renamable', 'emulator-5580', 'same-boot'))
+
+
+@pytest.mark.parametrize('variant', ['good', 'missing_title', 'missing_gem', 'missing_continue', 'duplicate', 'wrong_layout'])
+def test_ranking_receipt_three_anchors_and_layout(detector, variant):
+    from top_heroes_auto.vision.models import ScreenState
+    frame = ranking_receipt_frame(missing=variant.removeprefix('missing_'),
+                                  duplicate=variant == 'duplicate', wrong_layout=variant == 'wrong_layout')
+    found = detector.recovery.detect(frame)
+    assert (found.state == ScreenState.REWARD_RECEIPT) == (variant == 'good')
+    assert detector.availability(detector.observe(frame), 'ranking-chest')[0] == 'UNKNOWN'
+
+
+def test_final_bounded_dismissal_always_captures_fresh_screen(rig, tmp_path, detector, monkeypatch):
+    manager, _, _ = rig
+    port = FixedRewardPort(manager, RunSnapshot(manager.namespace, ((7, 'Farm-007'),), True),
+                           7, 'Farm-007', tmp_path)
+    receipt = detector.observe(ranking_receipt_frame())
+    unknown = replace(receipt, overlay=replace(receipt.overlay, state='UNKNOWN'))
+    final = detector.observe(make_frame('ranking-chest', badge=False))
+    frames = iter([unknown, unknown, receipt, final])
+    events = []
+    port.observe = lambda: (events.append('capture'), next(frames))[1]
+    port.dispatch = lambda *a: events.append('dismiss')
+    monkeypatch.setattr('top_heroes_auto.app.fixed_reward_port.time.sleep', lambda _: None)
+    assert port.settle(unknown) is final
+    assert events == ['capture', 'capture', 'capture', 'dismiss', 'capture']
+
+
+@pytest.mark.parametrize('outcome', ['unavailable', 'still_active', 'popup_only', 'old', 'wrong_receipt', 'disk_changed'])
+def test_recent_dispatched_receipt_reconciles_without_second_claim(tmp_path, detector, outcome):
+    store = Store(tmp_path/'claim.sqlite3')
+    target = Target(13, 'renamable', 'emulator-5580', 'same-boot')
+
+    def saved(frame, tag):
+        raw = cv2.rotate(frame.normalized, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        return ScreenshotService(lambda _: cv2.imencode('.png', raw)[1].tobytes()).take(target, tmp_path, tag)
+
+    before = detector.observe(saved(make_frame('ranking-chest'), 'before'))
+    popup = detector.observe(saved(ranking_receipt_frame(missing='gem' if outcome == 'wrong_receipt' else None), 'receipt'))
+    calls = []
+
+    def tap(frame, anchor, before_input):
+        before_input()
+        calls.append('one original claim')
+
+    port = SimpleNamespace(detector=detector, observe_settled=lambda: before, tap=tap,
+                           observe=lambda: popup, settle=lambda f: f, save_geometry=lambda *a: None)
+    task = store.create_task_run('n', 'bxh-shop-fixed', 13, target.name)
+    report = dict(persistent_identity='disk', rewards={'ranking-chest': {}})
+    path = tmp_path/'account-report.json'
+    def persist():
+        path.write_text(json.dumps(report), encoding='utf-8')
+    process_reward(port, store, 'n', task, 'ranking-chest', 'disk', report['rewards']['ranking-chest'], persist)
+    store.finish_task_run(task, 'PARTIAL', report_path=str(path))
+    current = detector.observe(saved(make_frame('ranking-chest', badge=outcome == 'still_active'), 'current'))
+    if outcome == 'popup_only':
+        current = popup
+    if outcome == 'old':
+        current = replace(current, captured=replace(current.captured, timestamp=(
+            datetime.now(timezone.utc)+timedelta(hours=2)).isoformat()))
+    port.observe_settled = lambda: current
+    result = {}
+    process_reward(port, store, 'n', task, 'ranking-chest', 'other' if outcome == 'disk_changed' else 'disk', result, lambda: None)
+    assert calls == ['one original claim']
+    row = store.reward_claims('n', 13)[0]
+    assert row['status'] == ('VERIFIED' if outcome == 'unavailable' else 'RESERVED')
+    if outcome == 'unavailable':
+        assert result['claim_dispatched'] is False
+        assert result['reconciliation']['claim_redispatched'] is False
+
+
+def test_resume_only_unfinished_rewards_and_original_snapshot(rig, tmp_path):
+    manager, process, _ = rig
+    process.listing += '13,newly discovered,0,0,0,-1,-1\n'
+    before = fleet.inventory(manager)
+    target = next(dict(r, persistent_identity='disk') for r in before if r['index'] == 7)
+    previous = dict(mode='fleet', targets=[target], after_instances=before, accounts=[dict(
+        index=7, name=target['name'], result='PARTIAL', rewards={
+            'ranking-chest': {'result': 'ACTION_DISPATCHED_UNVERIFIED', 'journal': 'RESERVED'},
+            'shop-daily-gift': {'result': 'NOT_AVAILABLE', 'journal': 'NONE'},
+            'shop-weekly-card-gift': {'result': 'BLOCKED', 'journal': 'NONE'}})])
+    path = tmp_path/'previous.json'
+    path.write_text(json.dumps(previous), encoding='utf-8')
+    calls = []
+
+    def run(manager, data, target, folder, *, rewards):
+        calls.append((target['index'], rewards))
+        return dict(index=target['index'], result='COMPLETE', rewards={
+            r: dict(result='NOT_AVAILABLE', journal='NONE') for r in rewards})
+
+    report = fleet.run_acceptance(manager, tmp_path, resume_report=path, account_runner=run,
+                                  identity_reader=lambda *a: 'disk')
+    assert calls == [(7, ('ranking-chest', 'shop-weekly-card-gift'))]
+    assert len(report['accounts']) == 1
+    assert len(report['accounts'][0]['attempt_history']) == 1
+    assert json.loads(path.read_text(encoding='utf-8')) == previous
+    manager.protect(7, True)
+    plan = fleet.resume_plan(previous, fleet.inventory(manager))
+    assert 'identity_error' in plan[0][0]

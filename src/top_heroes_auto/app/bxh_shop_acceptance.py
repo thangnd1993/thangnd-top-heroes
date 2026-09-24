@@ -14,6 +14,7 @@ from top_heroes_auto.automation.recovery import RecoveryStatus
 from top_heroes_auto.vision.fixed_rewards import REWARDS
 
 MANDATORY_PROTECTED = frozenset({'Queen', 'anh Ry', 'Chicken', 'Happy'})
+COMPLETE_REWARDS = frozenset({'SUCCESS', 'NOT_AVAILABLE', 'ALREADY_VERIFIED'})
 
 
 def write(path, payload):
@@ -175,8 +176,34 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
     return row
 
 
+def resume_plan(previous, live):
+    """Keep the original snapshot; only unfinished rewards may be revisited."""
+    if previous.get('mode') not in {'fleet', 'resume'} or 'after_instances' not in previous:
+        raise SafetyError('Resume requires a completed fixed-flow fleet report.')
+    targets = previous['targets']
+    rows = {row['index']: row for row in previous['accounts']}
+    if len(rows) != len(targets) or len({t['index'] for t in targets}) != len(targets):
+        raise SafetyError('Original fleet snapshot is incomplete or ambiguous.')
+    current = {row['index']: row for row in live}
+    plan = []
+    for target in targets:
+        old = rows[target['index']]
+        remaining = tuple(r for r in REWARDS if old.get('rewards', {}).get(r, {}).get('result') not in COMPLETE_REWARDS)
+        if not remaining:
+            continue
+        now = current.get(target['index'])
+        if not now or now['name'] != target['name'] or now['protected'] or now['name'] in MANDATORY_PROTECTED:
+            # Preserve the blocker, without preventing independent accounts.
+            plan.append((dict(target, identity_error='Resume target missing, renamed or Protected.'), remaining))
+        else:
+            plan.append((dict(target), remaining))
+    return plan
+
+
 def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run_account,
-                   identity_reader=persistent_identity, exclude=()):
+                   identity_reader=persistent_identity, exclude=(), resume_report=None):
+    if random_test and resume_report:
+        raise SafetyError('Resume and random development test cannot be combined.')
     before = inventory(manager)
     eligible = candidates(before)
     selected = None
@@ -190,30 +217,50 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
                     tested.append(old['random_target']['index'])
             exclude = tuple(tested)
         selected, eligible = choose_random(before, exclude=exclude)
-    targets = [selected] if selected else eligible
+    previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
+    targets = previous['targets'] if previous else [selected] if selected else eligible
+    plan = resume_plan(previous, before) if previous else [(target, REWARDS) for target in targets]
     stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%fZ')
     folder = data / 'diagnostics/tasks/bxh-shop-fixed' / stamp
     folder.mkdir(parents=True, exist_ok=False)
-    report = dict(max_concurrency=1, mode='random-test' if random_test else 'fleet',
+    report = dict(max_concurrency=1, mode='resume' if previous else 'random-test' if random_test else 'fleet',
                   random_method='secrets.choice' if random_test else None,
                   eligible_candidates=eligible, random_target=selected, before_instances=before,
                   excluded_protected=[r for r in before if r['protected']], targets=targets, accounts=[])
-    for target in targets:
+    if previous:
+        report.update(resumed_from=str(Path(resume_report).resolve()), accounts=previous['accounts'],
+                      resume_plan=[dict(index=t['index'], rewards=list(rewards)) for t, rewards in plan])
+    for target, _ in plan:
         try:
-            target['persistent_identity'] = identity_reader(manager, target['index'])
+            if 'identity_error' in target:
+                continue
+            identity = identity_reader(manager, target['index'])
+            if previous and target.get('persistent_identity') != identity:
+                raise SafetyError('Original snapshot disk identity changed.')
+            target['persistent_identity'] = identity
         except (OSError, SafetyError) as exc:
             target['identity_error'] = str(exc)
     path = folder / 'fleet-report.json'
     write(path, report)
-    for target in targets:
+    for target, rewards in plan:
         print(f"BXH/TIEM START #{target['index']} / {target['name']}", flush=True)
         try:
             if 'identity_error' in target:
                 raise SafetyError(target['identity_error'])
-            row = account_runner(manager, data, target, folder / str(target['index']))
+            kwargs = dict(rewards=rewards) if previous else {}
+            row = account_runner(manager, data, target, folder / str(target['index']), **kwargs)
         except Exception as exc:  # noqa: BLE001 - remaining snapshot members must still run
             row = dict(index=target['index'], name=target['name'], result='BLOCKED', error=str(exc))
-        report['accounts'].append(row)
+        if previous:
+            old = next(r for r in report['accounts'] if r['index'] == target['index'])
+            history = list(old.get('attempt_history', [])) + [dict(old, attempt_history=[])]
+            merged = {**old.get('rewards', {}), **row.get('rewards', {})}
+            old.update(row, rewards=merged, attempt_history=history)
+            old['result'] = 'COMPLETE' if (
+                row['result'] == 'COMPLETE' and all(r.get('result') in COMPLETE_REWARDS for r in merged.values())
+            ) else 'PARTIAL'
+        else:
+            report['accounts'].append(row)
         write(path, report)
         print(f"BXH/TIEM END #{target['index']}: {row['result']}", flush=True)
     report['after_instances'] = inventory(manager)

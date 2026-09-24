@@ -1,0 +1,15 @@
+{
+  "id": "ranking-receipt-title",
+  "state": "REWARD_RECEIPT",
+  "template": "ranking-receipt-title.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": true,
+  "variant": "ranking-receipt",
+  "notes": "Paired rank reward receipt. Excludes rank/amount/account pixels; dismissal only."
+}

@@ -53,8 +53,9 @@ class RecoveryScreenDetector:
         groups = {}
         for anchor in self.receipt_anchors:
             groups.setdefault(anchor.variant, []).append(unique_current_anchor(screen, anchor))
-        qualified_receipts = [tuple(items) for items in groups.values()
-                              if len(items) >= 2 and all(e.matched for e in items)]
+        qualified_receipts = [tuple(items) for variant, items in groups.items()
+                              if len(items) >= 2 and all(e.matched for e in items)
+                              and self._receipt_layout(screen, variant, items)]
         if len(qualified_receipts) > 1:
             return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
                            evidence=tuple(e for items in qualified_receipts for e in items))
@@ -119,3 +120,18 @@ class RecoveryScreenDetector:
                 detected.duration_ms,
             )
         return detected
+
+    @staticmethod
+    def _receipt_layout(screen, variant, items):
+        if variant != 'ranking-receipt':
+            return True
+        boxes = {e.anchor_id: e.device_box for e in items}
+        title = boxes['ranking-receipt-title']
+        gem = boxes['ranking-receipt-gem']
+        continuation = boxes['ranking-receipt-continue']
+        if not all((title, gem, continuation)):
+            return False
+        width, height = screen.device_size or screen.original_size
+        return (title.y+title.height < gem.y < continuation.y
+                and continuation.y-gem.y > height*.2
+                and all(abs(b.center[0]-width*.5) < width*.15 for b in (title, gem, continuation)))

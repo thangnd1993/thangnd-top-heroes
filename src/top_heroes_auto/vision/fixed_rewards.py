@@ -101,8 +101,17 @@ class FixedRewardDetector:
         return FixedObservation(captured, page, anchors, recovery)
 
     def avatar_frame(self, captured):
-        template = cv2.imdecode(np.frombuffer((self.folder/'avatar-frame.png').read_bytes(), np.uint8), 1)
-        mask = cv2.imdecode(np.frombuffer((self.folder/'avatar-mask.png').read_bytes(), np.uint8), 0)
+        variants = [self._avatar_variant(captured, style) for style in ('avatar', 'avatar-floral')]
+        # A duplicate in either style cannot be rescued by the other style.
+        strong = [v for v in variants if v.score >= v.threshold]
+        if len(strong) == 1 and strong[0].matched:
+            return strong[0]
+        return replace(max(variants, key=lambda v: v.score), matched=False,
+                       device_box=None, normalized_box=None)
+
+    def _avatar_variant(self, captured, style):
+        template = cv2.imdecode(np.frombuffer((self.folder/f'{style}-frame.png').read_bytes(), np.uint8), 1)
+        mask = cv2.imdecode(np.frombuffer((self.folder/f'{style}-mask.png').read_bytes(), np.uint8), 0)
         region = portrait_region(0, 0, .23, .17)
         height, width = captured.normalized.shape[:2]
         left, top, right, bottom = region.pixels(width, height)

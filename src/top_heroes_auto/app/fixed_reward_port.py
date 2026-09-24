@@ -71,9 +71,11 @@ class FixedRewardPort:
                 self.overlay_budget.reserve(observation.overlay)
                 point = dismiss_overlay_bottom_left(observation.captured, observation.overlay)
                 self.dispatch(observation, 'tap', point)
+                time.sleep(.6)
+                observation = self.observe()  # Fresh even after the last allowed dismissal.
             elif observation.page != 'UNKNOWN':
                 return observation
-            if attempt < 3:
+            elif attempt < 3:
                 time.sleep(.6)
                 observation = self.observe()
         return observation

@@ -49,6 +49,22 @@ pixels alone remain UNKNOWN. After its fresh CI artifact passes, continue into
 the full non-Protected sequential acceptance. Two random real route checks are
 already complete; do not repeat them as another survey-only stopping point.
 
+### First full fleet completed: 2026-09-24 17:19 UTC
+
+Build 482dfd6, CI 36032068169 green (661 passed, 26 skipped), artifact
+10823692015. Report `bxh-shop-fixed/20260924-171957-687304Z/fleet-report.json`.
+All 8 snapshot accounts processed, all cleanup/selection restoration succeeded,
+Protected 0/1/6/7 unchanged/stopped. 2/8/11: all three NOT_AVAILABLE.
+3: shop gifts NOT_AVAILABLE, BXH blocked by a floral avatar frame variant.
+4/5/9/10: one BXH tap each, journal IDs 36/37/38/39 RESERVED/POSSIBLE;
+their two shop checks blocked behind an unrecognized rank reward receipt.
+NEVER redispatch these four BXH claims. No VIP/Idle action occurred.
+
+Offline repair qualifies the floral frame mask and three-anchor rank receipt,
+plus observation-only reconciliation and explicit unfinished-only resume mode.
+Fresh passing CI is required before resuming only 3 BXH and 4/5/9/10 pending
+checks. No full fleet restart and no replay of completed reward checks.
+
 VIP fleet is complete: CI 35995071686, commit 3544e5b, report
 `vip-daily-fleet/20260924-120209-630859Z/fleet-report.json`. All eight targets
 processed, seven VERIFIED actions; index-5 upper gift remains RESERVED/POSSIBLE.

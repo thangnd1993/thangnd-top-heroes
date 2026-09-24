@@ -69,3 +69,30 @@ if __name__ == "__main__":
     for name, array in [('avatar-frame', raw), ('avatar-mask', mask)]:
         image = cv2.rotate(array, cv2.ROTATE_90_CLOCKWISE)
         (DEST/f'{name}.png').write_bytes(cv2.imencode('.png', image)[1].tobytes())
+    fleet = soup.parent.parent/'20260924-171957-687304Z'
+    floral = cv2.imread(str(fleet/'3/20260924-172339-007819Z-bxh-shop.png'))
+    floral = cv2.rotate(floral, cv2.ROTATE_90_COUNTERCLOCKWISE)[64:155, 17:110].copy()
+    mask = np.zeros(floral.shape[:2], np.uint8)
+    mask[5:12, 20:65] = 255
+    mask[4:17, 4:16] = 255
+    mask[24:53, 2:9] = 255
+    mask[24:53, 80:88] = 255
+    floral[mask == 0] = 0
+    for name, array in [('avatar-floral-frame', floral), ('avatar-floral-mask', mask)]:
+        image = cv2.rotate(array, cv2.ROTATE_90_CLOCKWISE)
+        (DEST/f'{name}.png').write_bytes(cv2.imencode('.png', image)[1].tobytes())
+    receipt = cv2.imread(str(fleet/'4/20260924-172551-007060Z-bxh-shop.png'))
+    receipt = cv2.rotate(receipt, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    overlays = DEST.parent/'overlays'
+    for name, (x, y, w, h) in {
+        'ranking-receipt-title': (207, 279, 224, 45),
+        'ranking-receipt-gem': (326, 414, 63, 58),
+        'ranking-receipt-continue': (259, 916, 204, 32),
+    }.items():
+        crop = cv2.rotate(receipt[y:y+h, x:x+w], cv2.ROTATE_90_CLOCKWISE)
+        (overlays/f'{name}.png').write_bytes(cv2.imencode('.png', crop)[1].tobytes())
+        (overlays/f'{name}.json').write_text(json.dumps(dict(
+            id=name, state='REWARD_RECEIPT', template=f'{name}.png',
+            expected_region=[0, 0, 1, 1], threshold=.98, required=True,
+            variant='ranking-receipt', notes='Paired rank reward receipt. Excludes rank/amount/account pixels; dismissal only.'
+        ), indent=2)+'\n', encoding='utf-8', newline='\n')
