@@ -99,6 +99,8 @@ class FixedRewardPort:
         if observation.page in SHOP_PAGES:
             permitted.update({(observation.page, f'{route}-tab'): f'shop-{route}' for route in SHOP_ROUTES.values()})
             permitted[(observation.page, 'back')] = 'home'
+        permitted[('shop-monthly', 'monthly-gift')] = 'shop-ad-privileges'
+        permitted[('shop-ad-privileges', 'ads-close')] = 'shop-monthly'
         if permitted.get((observation.page, role)) != expected:
             raise SafetyError('Route is not an annotated navigation edge.')
         if not observation.box(role):
@@ -108,7 +110,7 @@ class FixedRewardPort:
         after = self.observe_settled()
         if role == 'home-shop-entry' and after.page in SHOP_PAGES:
             return after  # Shop may remember its last positively recognized tab.
-        if (expected in {'shop-permanent', 'shop-monthly'} and
+        if (expected in {'shop-permanent', 'shop-monthly'} and role.endswith('-tab') and
                 not self.detector.selected_tab(after, expected.removeprefix('shop-'))):
             raise SafetyError('Selected shop tab not independently verified.')
         if after.page != expected:
@@ -161,15 +163,22 @@ class FixedRewardPort:
         if observation.page != expected:
             observation = self.find_tab(observation, f'{route}-tab')
             observation = self.navigate(observation, f'{route}-tab', expected)
+        if route == 'monthly':
+            state, _, _ = self.detector.availability(observation, reward)
+            if state != 'AVAILABLE':
+                raise SafetyError('Monthly entry is not independently qualified; no navigation tap.')
+            observation = self.navigate(observation, 'monthly-gift', 'shop-ad-privileges')
         return observation
 
     def home(self):
         observation = self.observe_settled()
-        for _ in range(2):
+        for _ in range(3):
             if observation.page == 'home':
                 return observation
             if observation.page == 'ranking':
                 observation = self.navigate(observation, 'ranking-close', 'profile')
+            elif observation.page == 'shop-ad-privileges':
+                observation = self.navigate(observation, 'ads-close', 'shop-monthly')
             elif observation.page in {'profile', *SHOP_PAGES}:
                 observation = self.navigate(observation, 'back', 'home')
             else:

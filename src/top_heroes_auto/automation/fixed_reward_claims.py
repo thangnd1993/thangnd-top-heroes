@@ -23,6 +23,8 @@ def observe_reward(port, frame, reward):
 def process_reward(port, store, namespace, task_id, reward, identity, report, persist):
     if reward not in REWARDS:
         raise ValueError("Reward is outside the annotated fixed flow.")
+    if reward == 'shop-monthly-privilege-gift':
+        raise ValueError('Monthly upper gift is navigation, not a reward claim. Preserve legacy journal.')
     before, state, core, badge = observe_reward(port, port.observe_settled(), reward)
     report.update(before=before.evidence(), availability=state, claim_dispatched=False,
                   journal="NONE", result=state,

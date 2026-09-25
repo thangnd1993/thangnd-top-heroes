@@ -17,9 +17,11 @@ from top_heroes_auto.vision.resources import template_folder
 
 REWARDS = ("ranking-chest", "shop-daily-gift", "shop-weekly-card-gift")
 SHOP_REWARDS = (*REWARDS[1:], "shop-permanent-privilege-gift", "shop-monthly-privilege-gift")
-ALL_REWARDS = (REWARDS[0], *SHOP_REWARDS)
+MONTHLY_QUICK = 'shop-monthly-quick-collect'
+ALL_REWARDS = (REWARDS[0], *SHOP_REWARDS, MONTHLY_QUICK)
 SHOP_ROUTES = dict(zip(SHOP_REWARDS, ("daily", "weekly", "permanent", "monthly"), strict=True))
 PAGES = {REWARDS[0]: "ranking", **{reward: f"shop-{route}" for reward, route in SHOP_ROUTES.items()}}
+PAGES[MONTHLY_QUICK] = 'shop-ad-privileges'
 SHOP_PAGES = frozenset(f"shop-{route}" for route in SHOP_ROUTES.values())
 
 
@@ -59,7 +61,11 @@ class FixedRewardDetector:
         anchors = {}
         for name, anchor in self.anchors.items():
             # Semantic surfaces only. These regions never supply tap coordinates.
-            if name.startswith("avatar-"):
+            if name.startswith('ads-'):
+                region = portrait_region(0, 0, 1, 1)
+            elif name == 'permanent-active-current':
+                region = portrait_region(0, .90, 1, 1)
+            elif name.startswith("avatar-"):
                 region = portrait_region(0, 0, .22, .15)
             elif name == 'shop-notice-speaker':
                 region = portrait_region(0, .16, .15, .25)
@@ -100,6 +106,10 @@ class FixedRewardDetector:
         for route in ('permanent', 'monthly'):
             if matched('shop-title', f'{route}-title'):
                 known.append(f'shop-{route}')
+        if matched('ads-title', 'ads-banner', 'ads-close'):
+            title, banner, close = (anchors[r].device_box for r in ('ads-title', 'ads-banner', 'ads-close'))
+            if title.y+title.height < banner.y < close.y and abs(title.center[0]-close.center[0]) < title.width/2:
+                known.append('shop-ad-privileges')
         if recovery.state == ScreenState.GAME_HOME:
             known.append("home")
         # Known overlays take precedence. A partial/conflicting recovery signature
@@ -114,6 +124,15 @@ class FixedRewardDetector:
                     self.anchors['weekly-gift-core'], expected_region=portrait_region(0, 0, 1, .36)))
             for role, variant in [('shop-gift', 'weekly-gift-core'), ('shop-attention', 'weekly-gift-attention')]:
                 anchors[role] = self._same_target_variant(anchors[role], anchors[variant])
+        for expected, pairs in {
+            'shop-daily': [('shop-gift', 'daily-core-current'), ('shop-attention', 'daily-badge-current')],
+            'shop-permanent': [('permanent-gift', 'permanent-core-current'),
+                               ('permanent-attention', 'permanent-badge-current'),
+                               ('permanent-active-tab', 'permanent-active-current')],
+        }.items():
+            if page == expected:
+                for role, variant in pairs:
+                    anchors[role] = self._same_target_variant(anchors[role], anchors[variant])
         return FixedObservation(captured, page, anchors, recovery)
 
     @staticmethod
@@ -161,6 +180,15 @@ class FixedRewardDetector:
     def availability(self, observation, reward):
         if reward not in PAGES or observation.page != PAGES[reward]:
             return "UNKNOWN", None, None
+        if reward == MONTHLY_QUICK:
+            core = observation.anchors['ads-quick']
+            try:
+                claim_geometry(observation, reward, core)
+            except ValueError:
+                return 'UNKNOWN', core, None
+            # Absence/disabled-looking pixels are NOT independent proof of a
+            # successful collection. Qualify a positive post-state separately.
+            return 'AVAILABLE', core, None
         ranking = reward == "ranking-chest"
         if not ranking and observation.box('shop-notice-speaker'):
             return 'UNKNOWN', None, None  # Broadcast banner can cover the gift/received label.
@@ -245,6 +273,18 @@ def claim_geometry(observation, reward, core):
         raise ValueError("Claim needs a uniquely recognized gift on its exact page.")
     box = core.device_box
     width, height = observation.captured.device_size or observation.captured.original_size
+    if reward == MONTHLY_QUICK:
+        title, banner, close = (observation.box(r) for r in ('ads-title', 'ads-banner', 'ads-close'))
+        if not all((title, banner, close)) or core is not observation.anchors.get('ads-quick'):
+            raise ValueError('Quick collect requires its own paired page and exact button.')
+        if not (banner.y+banner.height < box.y and box.y > height*.70
+                and box.y+box.height < close.y and box.x > width*.15
+                and box.x+box.width < width*.85
+                and abs(box.center[0]-close.center[0]) < box.width*.25):
+            raise ValueError('Quick collect is outside its isolated bottom action area.')
+        forbidden = BoundingBox(0, 0, width, box.y)
+        return dict(bbox=vars(box), tap=list(box.center), forbidden=vars(forbidden),
+                    inside_allowed=True, outside_forbidden=True, confidence=core.score)
     # All annotated targets live in the isolated top panel. Fail if a layout
     # moves into the product/list region; never reinterpret a paid gift icon.
     boundary = round(height * (.15 if reward == "ranking-chest" else .36))

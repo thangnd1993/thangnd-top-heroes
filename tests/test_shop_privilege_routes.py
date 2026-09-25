@@ -123,7 +123,7 @@ def test_open_route_uses_new_frame_and_never_claims():
     assert calls==['permanent-tab']
 
 
-@pytest.mark.parametrize('route,reward', list(zip(('permanent', 'monthly'), SHOP_REWARDS[2:], strict=True)))
+@pytest.mark.parametrize('route,reward', [('permanent', SHOP_REWARDS[2])])
 def test_privilege_one_shot_needs_underlying_received_state(detector, tmp_path, route, reward):
     from top_heroes_auto.automation.fixed_reward_claims import process_reward
     from top_heroes_auto.storage.store import Store

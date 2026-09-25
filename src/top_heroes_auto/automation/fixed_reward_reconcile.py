@@ -56,7 +56,10 @@ def reconcile_fixed_reward(store, row, detector, current, identity):
         return None
     path = Path(task[3])
     report = json.loads(path.read_text(encoding='utf-8'))
-    reward = report['rewards'][reward_id]
+    matches = [r for key, r in report['rewards'].items() if r.get('action_reward_id', key) == reward_id]
+    if len(matches) != 1:
+        return None
+    reward = matches[0]
     if (report.get('persistent_identity') != identity or reward.get('claim_id') != row['id']
             or reward.get('claim_dispatched') is not True or reward['before']['capture'] != before['capture']):
         return None

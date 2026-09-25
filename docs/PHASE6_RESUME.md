@@ -1,5 +1,30 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## Shop bottom quick-collect clarification — 2026-09-25
+
+User explicitly authorized the bottom collect-all action. Saved monthly menu
+actually labels it “Nhận Nhanh”. The upper gift opens “Đặc Quyền Quảng Cáo”;
+it is navigation, not proof of a reward. Preserve its old POSSIBLE journal.
+New actual bottom action uses shop-monthly-quick-collect, paired title/banner/
+close and unique green button, current-frame geometry, one-shot journal.
+No individual ad-row actions or paid card activation. Button disappearance or
+receipt alone cannot verify this new action; positive post-state still needs
+qualification from real evidence. Unknown remains locked, no second tap.
+
+Fleet 20260925-090912-465343Z processed 2/3/4/5/8/9, then Windows cp1252
+console output failed before 10/11. Its original target snapshot is intact.
+Index4 weekly claim VERIFIED; monthly upper-entry POSSIBLE only. Other visited
+accounts had explicit recovery/ADB blockers. The owned failed CLI was stopped;
+no Protected instance was stopped. Resume interrupted reports only for genuinely
+unvisited members with original persistent identity and no partial account folder.
+
+Current repair: console logging cannot abort Unicode names; clean current gift
+pose/selected-tab variants at strict thresholds; monthly bottom menu recognition.
+Offline images are game UI crops only, no credentials or unrelated private data.
+Real validation must use fresh passing CI. Preserve journal41, all existing
+VERIFIED actions, non-Shop journals and no-rename guards. No Phase7.
+
+
 ## Resumed Shop authorization — 2026-09-25
 
 User authorized resuming four Shop routes, random live non-Protected development

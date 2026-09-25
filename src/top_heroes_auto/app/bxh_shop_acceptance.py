@@ -2,6 +2,7 @@
 import hashlib
 import json
 import secrets
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
 from top_heroes_auto.automation.fixed_reward_claims import process_reward
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
 from top_heroes_auto.automation.recovery import RecoveryStatus
-from top_heroes_auto.vision.fixed_rewards import REWARDS, SHOP_REWARDS
+from top_heroes_auto.vision.fixed_rewards import MONTHLY_QUICK, REWARDS, SHOP_REWARDS
 
 MANDATORY_PROTECTED = frozenset({'Queen', 'anh Ry', 'Chicken', 'Happy'})
 COMPLETE_REWARDS = frozenset({'SUCCESS', 'NOT_AVAILABLE', 'ALREADY_VERIFIED'})
@@ -19,6 +20,21 @@ COMPLETE_REWARDS = frozenset({'SUCCESS', 'NOT_AVAILABLE', 'ALREADY_VERIFIED'})
 
 def write(path, payload):
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+
+
+def progress(message):
+    """Console encoding must never interrupt cleanup or the remaining targets."""
+    try:
+        print(message, flush=True)
+    except UnicodeEncodeError:
+        # Escape display output only; names in inventory/evidence stay exact.
+        try:
+            print(message.encode(sys.stdout.encoding or 'ascii', errors='backslashreplace').decode(
+                sys.stdout.encoding or 'ascii'), flush=True)
+        except (OSError, UnicodeError):
+            pass
+    except OSError:
+        pass
 
 
 def persistent_identity(manager, index):
@@ -80,7 +96,12 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
 
     prior_rows = manager.store.reward_claims(manager.namespace, index)
     for reward, outcome in row['rewards'].items():
-        locked = current_attempts(prior_rows, reward)
+        action_reward = MONTHLY_QUICK if reward == 'shop-monthly-privilege-gift' else reward
+        if action_reward != reward:
+            outcome['action_reward_id'] = action_reward
+            outcome['legacy_entry_journals'] = [dict(id=r['id'], status=r['status'],
+                dispatch_state=r['dispatch_state']) for r in prior_rows if r['reward_id'] == reward]
+        locked = current_attempts(prior_rows, action_reward)
         if locked:
             prior = locked[-1]
             outcome.update(journal=prior['status'], claim_id=prior['id'],
@@ -133,7 +154,8 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
                     port.navigate(frame, 'profile-bxh', 'ranking')
                 else:
                     port.open_shop_reward(frame, reward)
-                process_reward(port, manager.store, manager.namespace, task_id, reward, identity, outcome, persist)
+                action_reward = MONTHLY_QUICK if reward == 'shop-monthly-privilege-gift' else reward
+                process_reward(port, manager.store, manager.namespace, task_id, action_reward, identity, outcome, persist)
             except Exception as exc:  # noqa: BLE001 - each reward retains its own durable result
                 if outcome['result'] in {'NOT_STARTED', 'RESERVED'}:
                     outcome['result'] = 'TAB_NOT_FOUND' if isinstance(exc, TabNotFound) else 'BLOCKED'
@@ -190,16 +212,29 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
 
 def resume_plan(previous, live, rewards=REWARDS):
     """Keep the original snapshot; only unfinished rewards may be revisited."""
-    if previous.get('mode') not in {'fleet', 'resume'} or 'after_instances' not in previous:
-        raise SafetyError('Resume requires a completed fixed-flow fleet report.')
+    if previous.get('mode') not in {'fleet', 'resume'}:
+        raise SafetyError('Resume requires a fixed-flow fleet report.')
     targets = previous['targets']
     rows = {row['index']: row for row in previous['accounts']}
-    if len(rows) != len(targets) or len({t['index'] for t in targets}) != len(targets):
+    indexes = {t['index'] for t in targets}
+    interrupted = 'after_instances' not in previous
+    if (len(rows) != len(previous['accounts']) or len(indexes) != len(targets)
+            or not set(rows).issubset(indexes)
+            or (not interrupted and len(rows) != len(targets))):
         raise SafetyError('Original fleet snapshot is incomplete or ambiguous.')
+    if interrupted and (previous.get('max_concurrency') != 1
+                        or previous.get('required_rewards') != list(rewards)):
+        raise SafetyError('Interrupted fleet scope is not independently recorded.')
+    if interrupted and any(not t.get('persistent_identity') for t in targets):
+        raise SafetyError('Interrupted fleet needs the original persistent identities.')
     current = {row['index']: row for row in live}
     plan = []
     for target in targets:
-        old = rows[target['index']]
+        # An interrupted run resumes unvisited members only. Earlier failures
+        # remain explicit; their cleanup/claim histories are never replayed.
+        if interrupted and target['index'] in rows:
+            continue
+        old = rows.get(target['index'], {})
         remaining = tuple(r for r in rewards if old.get('rewards', {}).get(r, {}).get('result') not in COMPLETE_REWARDS)
         if not remaining:
             continue
@@ -232,6 +267,10 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
     previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
     targets = previous['targets'] if previous else [selected] if selected else eligible
     plan = resume_plan(previous, before, rewards) if previous else [(target, rewards) for target in targets]
+    if previous and 'after_instances' not in previous:
+        for target, _ in plan:
+            if (Path(resume_report).parent / str(target['index'])).exists():
+                raise SafetyError('Interrupted account has partial evidence; cannot treat it as unvisited.')
     if previous:
         # Resolve older uncertainty first while its evidence remains fresh.
         # This orders accounts, never changes the immutable target/reward scope.
@@ -264,7 +303,7 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
     path = folder / 'fleet-report.json'
     write(path, report)
     for target, rewards in plan:
-        print(f"BXH/TIEM START #{target['index']} / {target['name']}", flush=True)
+        progress(f"BXH/TIEM START #{target['index']} / {target['name']}")
         try:
             if 'identity_error' in target:
                 raise SafetyError(target['identity_error'])
@@ -272,7 +311,7 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
             row = account_runner(manager, data, target, folder / str(target['index']), **kwargs)
         except Exception as exc:  # noqa: BLE001 - remaining snapshot members must still run
             row = dict(index=target['index'], name=target['name'], result='BLOCKED', error=str(exc))
-        if previous:
+        if previous and any(r['index'] == target['index'] for r in report['accounts']):
             old = next(r for r in report['accounts'] if r['index'] == target['index'])
             history = list(old.get('attempt_history', [])) + [dict(old, attempt_history=[])]
             merged = {**old.get('rewards', {}), **row.get('rewards', {})}
@@ -283,7 +322,7 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
         else:
             report['accounts'].append(row)
         write(path, report)
-        print(f"BXH/TIEM END #{target['index']}: {row['result']}", flush=True)
+        progress(f"BXH/TIEM END #{target['index']}: {row['result']}")
     report['after_instances'] = inventory(manager)
     report['all_selection_states_restored'] = {r['index']: r['selected'] for r in before} == {
         r['index']: r['selected'] for r in report['after_instances']}
@@ -299,7 +338,7 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
         and report['all_selection_states_restored'] and report['protected_state_unchanged']
         and (tuple(report['required_rewards']) == SHOP_REWARDS or not report['claim_paths_not_verified'])) else 'PARTIAL'
     write(path, report)
-    print(f'REPORT: {path}', flush=True)
+    progress(f'REPORT: {path}')
     return report
 
 

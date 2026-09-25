@@ -1,0 +1,14 @@
+{
+  "id": "ads-close",
+  "state": "FREE_REWARD_PAGE",
+  "template": "ads-close.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": false,
+  "notes": "Clean game UI crop: artifacts/shop-monthly-after.png; no account identifiers. Current-frame search only."
+}
