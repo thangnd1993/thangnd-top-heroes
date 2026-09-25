@@ -1,0 +1,14 @@
+{
+  "id": "permanent-received",
+  "state": "FREE_REWARD_PAGE",
+  "template": "permanent-received.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": false,
+  "notes": "Clean post-action gift and Da nhan label, no account text."
+}

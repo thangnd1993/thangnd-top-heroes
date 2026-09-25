@@ -1,0 +1,14 @@
+{
+  "id": "ads-completed-meat",
+  "state": "FREE_REWARD_PAGE",
+  "template": "ads-completed-meat.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": false,
+  "notes": "Clean post-collect game UI; five row labels each require an adjacent completed button. No account data."
+}

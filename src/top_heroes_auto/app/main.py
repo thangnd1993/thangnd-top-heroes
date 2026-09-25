@@ -14,6 +14,15 @@ def data_directory() -> Path:
 
 def main(argv: list[str] | None = None):
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == 'shop-reconcile-saved':
+        if len(argv) != 2 or not argv[1].isdigit():
+            raise ValueError('Saved Shop reconciliation requires one explicit claim ID.')
+        from top_heroes_auto.app.bxh_shop_acceptance import progress
+        from top_heroes_auto.automation.fixed_reward_reconcile import reconcile_saved_fixed_reward
+
+        result = reconcile_saved_fixed_reward(Store(data_directory()/'config.sqlite3'), int(argv[1]))
+        progress(f"Shop saved claim {result['claim_id']}: {result['result']}; no input dispatched.")
+        return 0
     if argv and argv[0] in {"bxh-shop-acceptance", "shop-acceptance"}:
         resume = Path(argv[2]) if len(argv) == 3 and argv[1] == '--resume-report' else None
         if not resume and argv[1:] not in (["--random-test"], ["--confirm-non-protected"]):

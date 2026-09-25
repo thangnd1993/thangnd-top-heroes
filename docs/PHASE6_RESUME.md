@@ -1,5 +1,32 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## Shop real evidence and offline post-state qualification — 2026-09-25
+
+Fresh portable 22dca5b, CI36120987015 all gates passed, resumed original fleet.
+Final aggregate: bxh-shop-fixed/20260925-101932-930753Z/fleet-report.json.
+All8 original non-Protected members processed; all selection restored, Protected
+and names unchanged. No new gameplay run is needed for the following repair.
+
+Em Pe bottom “Nhận Nhanh” received exactly one screenshot-bound tap (359,1013),
+claim51. Receipt followed; all five rows became “Hoàn Thành” and bottom CTA
+vanished. This supplies the positive independent post-state. Old upper-entry47
+and old daily41 remain POSSIBLE and must not be altered or redispatched.
+Weekly49 (index11) and permanent56 (Soup) show their own “Đã nhận” after their
+single original tap. Runtime conservatively kept these three claims POSSIBLE.
+
+Offline repair qualifies those saved post-states. shop-reconcile-saved CLAIM_ID
+validates original task/journal ownership, identity/boot, metadata, <60-second
+original screenshot sequence, exactly one logged geometry-matching tap, AVAILABLE
+before and positively NOT_AVAILABLE after. No emulator/ADB access. Daily reset
+claims, upper-entry records and unrelated rewards are excluded. Apply journal
+verification only with fresh passing CI artifact; do not replay claim input.
+
+Also fixed a concrete sqlite3.Row/dict mismatch in transactional fixed reward
+period checks (blocked index10 before dispatch). Existing RESERVED rows remain
+locked across periods; previously VERIFIED rows are preserved. No name/config
+writers changed. Remaining recovery/navigation blockers stay PARTIAL, not NA.
+
+
 ## Shop bottom quick-collect clarification — 2026-09-25
 
 User explicitly authorized the bottom collect-all action. Saved monthly menu

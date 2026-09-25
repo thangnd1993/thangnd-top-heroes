@@ -146,3 +146,106 @@ def test_interrupted_fleet_appends_unvisited_preserving_history(rig,tmp_path):
     with pytest.raises(SafetyError,match='partial evidence'):
         fleet.run_acceptance(manager,tmp_path,resume_report=path,account_runner=runner,
                              identity_reader=lambda *a:'disk',rewards=fleet.SHOP_REWARDS)
+
+
+def completed_menu(*, missing=None, active=False):
+    image=cv2.rotate(menu(missing=None if active else 'ads-quick').normalized,cv2.ROTATE_90_COUNTERCLOCKWISE)
+    for row,y in zip(('energy','meat','wood','stone','rune'),(383,513,640,771,902),strict=True):
+        paste(image,f'ads-{row}',185,y)
+        if row!=missing:
+            paste(image,'ads-completed',482,y+28)
+    return ScreenshotService(lambda _:cv2.imencode('.png',image)[1].tobytes()).take(Target(23,'any name','explicit','boot'))
+
+
+@pytest.mark.parametrize('missing', [None,'energy','meat','wood','stone','rune'])
+def test_positive_five_completed_rows_required(detector,missing):
+    state=detector.availability(detector.observe(completed_menu(missing=missing)),MONTHLY_QUICK)[0]
+    assert state==('NOT_AVAILABLE' if missing is None else 'UNKNOWN')
+    assert detector.availability(detector.observe(completed_menu(active=True)),MONTHLY_QUICK)[0]=='UNKNOWN'
+
+
+@pytest.mark.parametrize('bad', [None,'missing_row','wrong_tap','changed_boot','stale_after'])
+def test_saved_original_poststate_reconciliation_never_redispatches(detector,tmp_path,bad):
+    import json
+    from datetime import datetime, timedelta
+
+    from top_heroes_auto.automation.fixed_reward_reconcile import reconcile_saved_fixed_reward
+    from top_heroes_auto.storage.store import Store
+    store=Store(tmp_path/'claims.sqlite3')
+    task=store.create_task_run('n','bxh-shop-fixed',23,'any name')
+    target=Target(23,'any name','explicit','boot')
+    def save(frame,name):
+        raw=cv2.rotate(frame.normalized,cv2.ROTATE_90_COUNTERCLOCKWISE)
+        return ScreenshotService(lambda _:cv2.imencode('.png',raw)[1].tobytes()).take(target,tmp_path,name)
+    before=detector.observe(save(menu(),'before'))
+    # The old runtime could not qualify this new post-state. Preserve its raw
+    # image and reconcile using the new positive row detector, without input.
+    immediate=detector.observe(save(menu(missing='ads-quick'),'immediate'))
+    after=detector.observe(save(completed_menu(missing='wood' if bad=='missing_row' else None),'after'))
+    after=replace(after,page='UNKNOWN')
+    actions=[]
+    report=dict(persistent_identity='disk',rewards={'shop-monthly-privilege-gift':dict(action_reward_id=MONTHLY_QUICK)})
+    path=tmp_path/'account-report.json'
+    def persist():
+        path.write_text(json.dumps(report),encoding='utf-8')
+    def tap(obs,core,before_input):
+        before_input()
+        actions.append(dict(before=str(obs.captured.source_image),action='tap',values=list(core.device_box.center),outcome='DISPATCHED'))
+    port=SimpleNamespace(detector=detector,observe_settled=lambda:before,tap=tap,
+                         observe=lambda:immediate,settle=lambda _:after,save_geometry=lambda *a:None)
+    outcome=report['rewards']['shop-monthly-privilege-gift']
+    process_reward(port,store,'n',task,MONTHLY_QUICK,'disk',outcome,persist)
+    store.finish_task_run(task,'PARTIAL',report_path=str(path))
+    assert outcome['result']=='ACTION_DISPATCHED_UNVERIFIED'
+    if bad=='wrong_tap':
+        actions[0]['values']=[600,400]
+    if bad=='changed_boot':
+        outcome['after']['boot_id']='different'
+    if bad=='stale_after':
+        outcome['after']['timestamp']=(datetime.fromisoformat(before.captured.timestamp)+timedelta(minutes=5)).isoformat()
+    persist()
+    (tmp_path/'actions.json').write_text(json.dumps(actions),encoding='utf-8')
+    if bad:
+        with pytest.raises(ValueError):
+            reconcile_saved_fixed_reward(store,outcome['claim_id'])
+    else:
+        proof=reconcile_saved_fixed_reward(store,outcome['claim_id'])
+        assert proof['result']=='VERIFIED' and not proof['claim_redispatched']
+    assert len(actions)==1
+    assert store.reward_claims('n',23)[0]['status']==('RESERVED' if bad else 'VERIFIED')
+
+
+
+def test_period_check_accepts_transactional_sqlite_rows():
+    import sqlite3
+    from datetime import datetime, timedelta, timezone
+
+    from top_heroes_auto.automation.fixed_reward_period import current_attempts
+    with sqlite3.connect(':memory:') as db:
+        db.row_factory=sqlite3.Row
+        row=db.execute("SELECT 'shop-daily-gift' AS reward_id, 'VERIFIED' AS status, 'POSSIBLE' AS dispatch_state, ? AS reserved_at",
+                       ((datetime.now(timezone.utc)-timedelta(days=3)).isoformat(),)).fetchone()
+        assert current_attempts([row],'shop-daily-gift')==[]
+        row=db.execute("SELECT 'shop-daily-gift' AS reward_id, 'RESERVED' AS status, 'POSSIBLE' AS dispatch_state, ? AS reserved_at",
+                       ((datetime.now(timezone.utc)-timedelta(days=3)).isoformat(),)).fetchone()
+        assert len(current_attempts([row],'shop-daily-gift'))==1
+
+
+
+@pytest.mark.parametrize('reward', ['shop-weekly-card-gift','shop-permanent-privilege-gift'])
+def test_received_gift_requires_its_own_page(detector,reward):
+    from test_bxh_shop_fixed import make_frame
+    from test_shop_privilege_routes import frame
+    if reward=='shop-weekly-card-gift':
+        c=make_frame(reward,badge=False)
+        name,point='weekly-received-current',(609,318)
+    else:
+        c=frame('permanent',target=False,badge=False)
+        name,point='permanent-received',(588,188)
+    raw=cv2.rotate(c.normalized,cv2.ROTATE_90_COUNTERCLOCKWISE)
+    raw[185:450,575:720]=(150,120,70)
+    paste(raw,name,*point)
+    obs=detector.observe(ScreenshotService(lambda _:cv2.imencode('.png',raw)[1].tobytes()).take(Target(23,'any name','explicit','boot')))
+    assert detector.availability(obs,reward)[0]=='NOT_AVAILABLE'
+    other='shop-permanent-privilege-gift' if reward=='shop-weekly-card-gift' else 'shop-weekly-card-gift'
+    assert detector.availability(obs,other)[0]=='UNKNOWN'

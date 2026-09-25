@@ -18,6 +18,7 @@ from top_heroes_auto.vision.resources import template_folder
 REWARDS = ("ranking-chest", "shop-daily-gift", "shop-weekly-card-gift")
 SHOP_REWARDS = (*REWARDS[1:], "shop-permanent-privilege-gift", "shop-monthly-privilege-gift")
 MONTHLY_QUICK = 'shop-monthly-quick-collect'
+ADS_ROWS = ('energy', 'meat', 'wood', 'stone', 'rune')
 ALL_REWARDS = (REWARDS[0], *SHOP_REWARDS, MONTHLY_QUICK)
 SHOP_ROUTES = dict(zip(SHOP_REWARDS, ("daily", "weekly", "permanent", "monthly"), strict=True))
 PAGES = {REWARDS[0]: "ranking", **{reward: f"shop-{route}" for reward, route in SHOP_ROUTES.items()}}
@@ -60,10 +61,12 @@ class FixedRewardDetector:
     def observe(self, captured):
         anchors = {}
         for name, anchor in self.anchors.items():
+            if name.startswith('ads-completed') or name in {f'ads-{row}' for row in ADS_ROWS}:
+                continue  # Repeated completion controls need independent row association.
             # Semantic surfaces only. These regions never supply tap coordinates.
             if name.startswith('ads-'):
                 region = portrait_region(0, 0, 1, 1)
-            elif name == 'permanent-active-current':
+            elif name in {'permanent-active-current', 'permanent-tab-current'}:
                 region = portrait_region(0, .90, 1, 1)
             elif name.startswith("avatar-"):
                 region = portrait_region(0, 0, .22, .15)
@@ -91,6 +94,8 @@ class FixedRewardDetector:
         if reference and not reference.matched and reference.score >= reference.threshold:
             anchors['shop-title'] = replace(title, matched=False, device_box=None, normalized_box=None)
         recovery = self.recovery.detect(captured)
+        for role, variant in [('weekly-title', 'weekly-title-current'), ('permanent-tab', 'permanent-tab-current')]:
+            anchors[role] = self._same_target_variant(anchors[role], anchors[variant])
         anchors['avatar-frame'] = self.avatar_frame(captured)
         known = []
         def matched(*roles):
@@ -117,7 +122,25 @@ class FixedRewardDetector:
         conflict = recovery.state not in {ScreenState.UNKNOWN, ScreenState.GAME_HOME}
         conflict |= recovery.state == ScreenState.UNKNOWN and bool(recovery.evidence)
         page = known[0] if len(known) == 1 and not conflict else "UNKNOWN"
+        if page == 'shop-ad-privileges':
+            for row in ADS_ROWS:
+                role = f'ads-{row}'
+                label = unique_current_anchor(captured, replace(self.anchors[role],
+                    expected_region=portrait_region(.18, .28, .62, .80)))
+                anchors[role] = label
+                if label.matched and label.device_box:
+                    box = label.device_box
+                    width, height = captured.device_size or captured.original_size
+                    top, bottom = box.y/height, min((box.y+box.height*3)/height, .85)
+                    anchors[f'ads-done-{row}'] = unique_current_anchor(captured, replace(
+                        self.anchors['ads-completed'], expected_region=portrait_region(.64, top, .93, bottom)))
+                    for variant in ('ads-completed-meat', 'ads-completed-stone'):
+                        found = unique_current_anchor(captured, replace(self.anchors[variant],
+                            expected_region=portrait_region(.64, top, .93, bottom)))
+                        anchors[f'ads-done-{row}'] = self._same_target_variant(anchors[f'ads-done-{row}'], found)
         if page == 'shop-weekly':
+            anchors['weekly-received'] = self._same_target_variant(
+                anchors['weekly-received'], anchors['weekly-received-current'])
             base, variant = anchors['shop-gift'], anchors['weekly-gift-core']
             if not base.matched and base.score < base.threshold and not variant.matched and variant.score < variant.threshold:
                 anchors['weekly-gift-core'] = unique_pose_anchor(captured, replace(
@@ -182,6 +205,14 @@ class FixedRewardDetector:
             return "UNKNOWN", None, None
         if reward == MONTHLY_QUICK:
             core = observation.anchors['ads-quick']
+            completed = [observation.box(f'ads-done-{row}') for row in ADS_ROWS]
+            if all(completed):
+                # Positive state in every visible reward row plus absent CTA;
+                # no receipt-only or missing-button-only acceptance.
+                ordered = all(a.y+a.height < b.y for a, b in zip(completed, completed[1:], strict=False))
+                if ordered and not core.matched and core.score < core.threshold:
+                    return 'NOT_AVAILABLE', observation.anchors['ads-done-energy'], None
+                return 'UNKNOWN', core, None
             try:
                 claim_geometry(observation, reward, core)
             except ValueError:
@@ -213,6 +244,8 @@ class FixedRewardDetector:
                 return 'UNKNOWN', core, badge
         if not ranking:
             received = observation.anchors['weekly-received' if route == 'weekly' else 'daily-received']
+            if route == 'permanent':
+                received = self._same_target_variant(received, observation.anchors['permanent-received'])
             if received.matched and received.device_box:
                 # Positive open gift + "Đã nhận", not mere badge disappearance.
                 b = received.device_box
@@ -221,7 +254,10 @@ class FixedRewardDetector:
                 local_badge = attention and b.x-b.width*.2 < attention.center[0] < b.x+b.width*1.2 and (
                     b.y-b.height*.2 < attention.center[1] < b.y+b.height
                 )
-                if (not local_badge and not core.matched and received.score >= .98
+                same_core = core.matched and core.device_box and (
+                    b.x <= core.device_box.center[0] <= b.x+b.width
+                    and b.y <= core.device_box.center[1] <= b.y+b.height)
+                if (not local_badge and (not core.matched or (route == 'permanent' and same_core)) and received.score >= .98
                         and b.x > width*.75 and b.y+b.height < height*.36):
                     return 'NOT_AVAILABLE', received, badge
                 return 'UNKNOWN', core, badge

@@ -157,7 +157,7 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
                 action_reward = MONTHLY_QUICK if reward == 'shop-monthly-privilege-gift' else reward
                 process_reward(port, manager.store, manager.namespace, task_id, action_reward, identity, outcome, persist)
             except Exception as exc:  # noqa: BLE001 - each reward retains its own durable result
-                if outcome['result'] in {'NOT_STARTED', 'RESERVED'}:
+                if outcome['result'] in {'NOT_STARTED', 'RESERVED', 'AVAILABLE'}:
                     outcome['result'] = 'TAB_NOT_FOUND' if isinstance(exc, TabNotFound) else 'BLOCKED'
                 outcome['error'] = f'{type(exc).__name__}: {exc}'
             persist()

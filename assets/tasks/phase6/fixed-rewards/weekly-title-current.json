@@ -1,0 +1,14 @@
+{
+  "id": "weekly-title-current",
+  "state": "FREE_REWARD_PAGE",
+  "template": "weekly-title-current.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": false,
+  "notes": "Clean current rendered UI title/tab variant; no account data or runtime fixed coordinates."
+}

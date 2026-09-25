@@ -87,3 +87,79 @@ def reconcile_fixed_reward(store, row, detector, current, identity):
                  receipt=popup.as_dict(), after=current.evidence(), claim_redispatched=False)
     store.verify_reward_claim(row['id'], row['task_run_id'], json.dumps(proof, ensure_ascii=False))
     return proof
+
+
+def reconcile_saved_fixed_reward(store, claim_id):
+    """Qualify the original immediate post-state offline; never access transport.
+
+    Only the bottom action, weekly gift and permanent gift have qualified saved
+    post-states here. Legacy upper entries, daily reset disputes and unrelated
+    rewards are excluded; no period is reopened and no new action is possible.
+    """
+    import sqlite3
+
+    from top_heroes_auto.vision.fixed_rewards import MONTHLY_QUICK, FixedRewardDetector, claim_geometry
+
+    with store.connect() as db:
+        db.row_factory = sqlite3.Row
+        row = db.execute('SELECT * FROM reward_claims WHERE id=?', (claim_id,)).fetchone()
+    if not row or row['reward_id'] not in {MONTHLY_QUICK, 'shop-weekly-card-gift', 'shop-permanent-privilege-gift'} or row['status'] != 'RESERVED' or row['dispatch_state'] != 'POSSIBLE':
+        raise ValueError('Only an existing POSSIBLE qualified Shop action may be reconciled.')
+    row = dict(row)
+    if store.metadata(row['namespace'], row['instance_index']).protected:
+        raise ValueError('Protected journal is outside the authorized reconciliation scope.')
+    with store.connect() as db:
+        db.row_factory = sqlite3.Row
+        task = db.execute('SELECT * FROM task_runs WHERE id=?', (row['task_run_id'],)).fetchone()
+    if (not task or task['namespace'] != row['namespace'] or task['instance_index'] != row['instance_index']
+            or task['task'] != 'bxh-shop-fixed' or not task['report_path']):
+        raise ValueError('Original task ownership is not proven.')
+    path = Path(task['report_path'])
+    report = json.loads(path.read_text(encoding='utf-8'))
+    matches = [r for key, r in report['rewards'].items() if r.get('action_reward_id', key) == row['reward_id']]
+    if len(matches) != 1 or matches[0].get('claim_id') != claim_id or matches[0].get('claim_dispatched') is not True:
+        raise ValueError('Original dispatched action report is missing or ambiguous.')
+    outcome = matches[0]
+    before = json.loads(row['before_evidence'])
+    if (before['capture'] != outcome['before']['capture'] or not before.get('persistent_identity')
+            or before['persistent_identity'] != report.get('persistent_identity')):
+        raise ValueError('Original persistent identity/evidence mismatch.')
+    evidence = [before, outcome['immediate_after'], outcome['after']]
+    times = [datetime.fromisoformat(e['timestamp']) for e in evidence]
+    if not times[0] < times[1] < times[2] <= times[0]+timedelta(seconds=60):
+        raise ValueError('Post-state was not captured immediately after the original action.')
+    detector = FixedRewardDetector()
+    frames = []
+    for item in evidence:
+        if (item['index'], item['name'], item['adb'], item['boot_id']) != (
+                before['index'], before['name'], before['adb'], before['boot_id']):
+            raise ValueError('Capture target/boot changed.')
+        metadata = json.loads(Path(item['capture']).with_suffix('.json').read_text(encoding='utf-8'))
+        # ScreenshotService persists metadata immediately before constructing
+        # CapturedScreen, whose timestamp is created a few milliseconds later.
+        delay = datetime.fromisoformat(item['timestamp'])-datetime.fromisoformat(metadata['timestamp'])
+        if not timedelta(0) <= delay < timedelta(seconds=1):
+            raise ValueError('Capture timestamp mismatch.')
+        frames.append(detector.observe(saved_frame(item, path.parent)))
+    if before['index'] != row['instance_index']:
+        raise ValueError('Claim index mismatch.')
+    reward_id = row['reward_id']
+    state, core, _ = detector.availability(frames[0], reward_id)
+    if state != 'AVAILABLE' or detector.availability(frames[2], reward_id)[0] != 'NOT_AVAILABLE':
+        raise ValueError('Independent AVAILABLE to positive received state is not proven.')
+    geometry = claim_geometry(frames[0], reward_id, core)
+    actions = json.loads((path.parent/'actions.json').read_text(encoding='utf-8'))
+    taps = [a for a in actions if a['before'] == before['capture']]
+    if (len(taps) != 1 or taps[0]['action'] != 'tap' or taps[0]['outcome'] != 'DISPATCHED'
+            or taps[0]['values'] != geometry['tap'] or geometry != before['geometry']):
+        raise ValueError('Exactly one qualified original tap is not proven.')
+    # Confetti can obscure the immediate receipt title. Verification is supplied
+    # independently by all five completed rows, never by that popup alone.
+    proof = dict(method='original_one_shot_and_independent_received_state', reward_id=reward_id,
+                 claim_id=claim_id, task_run_id=row['task_run_id'], claim_redispatched=False,
+                 before=frames[0].evidence(), receipt=frames[1].evidence(), after=frames[2].evidence())
+    store.verify_reward_claim(claim_id, row['task_run_id'], json.dumps(proof, ensure_ascii=False))
+    result = dict(result='VERIFIED', **proof)
+    (path.parent/f'saved-reconciliation-{claim_id}.json').write_text(
+        json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+    return result

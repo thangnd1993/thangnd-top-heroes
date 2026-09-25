@@ -28,6 +28,7 @@ def current_attempts(rows, reward, now=None):
     start = period_start(reward, now)
     result = []
     for row in rows:
+        row = dict(row)  # Store's transactional reservation also supplies sqlite3.Row.
         if row['reward_id'] != reward:
             continue
         if row.get('status') == 'RESERVED' and row.get('dispatch_state') != 'NOT_DISPATCHED':
