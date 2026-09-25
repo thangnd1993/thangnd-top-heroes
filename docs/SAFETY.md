@@ -1,3 +1,26 @@
+# Permanent no-rename invariant — all phases
+
+LDPlayer instance names are user-owned and read-only. Automation must never
+rename an instance unless the user explicitly requests that exact rename.
+This applies to production, diagnostics, tests, recovery, migrations, discovery,
+reconciliation and fleet execution. No CLI rename/modify, config-name writes,
+normalization/transliteration, generated names, copied names or old-name restoration.
+Tests simulate user edits in temporary fixtures; never rename a real instance.
+
+Current live names are preserved exactly in internal display metadata. Protection
+is keyed by installation namespace/index and survives rename. Names alone never
+authorize a target: explicit selection, unique live index, explicit ADB/boot
+mapping and existing stable-disk checks still apply. Rediscover and use a fresh
+snapshot after a user rename. A stale active snapshot or uncertain runtime/disk
+identity fails closed; do not silently reauthorize it or write the old name back.
+A freshly authorized renamed target can proceed through normal ADB verification.
+
+LDPlayer transport accepts only list2/launch/quit/indexed adb. The obsolete
+whole-config ADB remediation writer is disabled, including backup restoration:
+its old rollback could overwrite concurrent user-owned metadata. No automated
+rename path or generic config replacement is available. Manual LDPlayer settings
+remain user-owned. This rule does not authorize real emulator actions in tests.
+
 # Thiết kế an toàn Phase 1
 
 ## Luồng thực thi

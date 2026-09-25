@@ -1,5 +1,11 @@
 # auto-top-heroes workflow
 
+**Permanent, all phases:** LDPlayer instance names are user-owned and read-only.
+Automation must never rename an instance unless the user explicitly requests
+that exact rename. Never repair identity by changing an LDPlayer name or restoring
+an old config. Rediscover current names exactly, preserve Protection, verify
+technical identity, and fail closed if ambiguous.
+
 This repository uses one Codex agent. On a new substantial task, inspect Git
 status, current branch and recent commits, then read the latest applicable
 progress/safety checkpoint. Do not restart completed work or discard uncommitted

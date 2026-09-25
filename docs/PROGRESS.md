@@ -1,5 +1,14 @@
 # Tiến độ
 
+## 2026-09-25 Current: no-rename safety enforcement only
+
+Gameplay acceptance paused by user. Audited LDPlayer wrappers, config writes,
+recovery, fleet, diagnostics and metadata. No automatic CLI rename found; retired
+the whole-config ADB writer/rollback that could overwrite a user edit. Added
+transport allowlists and Unicode/protection/runtime identity regressions.
+Read latest PHASE6_RESUME section before continuing; do not run gameplay.
+
+
 ## 2026-09-25 Current: four Shop routes
 
 See the newest PHASE6_RESUME section. Implementing horizontal tab discovery

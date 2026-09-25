@@ -199,6 +199,9 @@ class LDPlayer:
         raise ValueError("LDPlayer returned an empty inventory after bounded rediscovery; no state was accepted.")
 
     def _indexed(self, command: str, index: int, *args: str) -> bytes:
+        # No generic config/rename/restore surface, even for future callers.
+        if command not in {"launch", "quit", "adb"}:
+            raise ValueError("LDPlayer command is outside the read-only-name allowlist.")
         if type(index) is not int or index < 0:
             raise ValueError("Index bắt buộc, không fallback.")
         return self.process.run([str(self.installation.console), command, "--index", str(index), *args])

@@ -1,5 +1,35 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## Current scope: permanent no-rename enforcement — 2026-09-25
+
+User paused gameplay/Shop acceptance and requested a no-rename audit, targeted
+regressions, commit/push and full CI only. No real emulator actions in this task.
+Names are user-owned/read-only in every phase. See AGENTS.md and SAFETY.md.
+
+Audit found no automatic CLI rename call. The retired adbDebug helper could
+replace/restore the entire config, including a stale name after a concurrent
+user edit. It is now disabled without file writes. Both subprocess and indexed
+LDPlayer boundaries reject rename/modify/restore and other unlisted commands.
+Live names/Unicode are still discovered exactly. Protection remains tied to
+namespace/index; fresh selected snapshots verify explicit ADB/boot. Stale active
+snapshots fail closed rather than silently reauthorizing changed identities.
+
+Shop work is paused at 7064c0a (CI 36106218751 passed). The random development
+run on 4976903 selected index9/Pooh5; the exact launch was followed by LDPlayer
+reporting LDPlayer-9, with missing name/adb fields in its config. No gameplay or
+claim was dispatched. Cause is not established; do NOT assert an app rename or
+restore the name/config. Latest read-only inventory had index9 running/unselected;
+all others stopped/unselected and Protected 0/1/6/7 unchanged. Run ownership is
+UNKNOWN, so no quit was sent. Report: bxh-shop-fixed/20260925-064501-184027Z.
+The old CLI process was closed only after it had stopped at this error.
+
+Two unfinished Shop period-reconciliation edits are preserved in the Git stash
+named "paused shop period reconciliation before no-rename safety task". They are
+not part of this no-rename change. Claim41 remains RESERVED/POSSIBLE. No fleet,
+VIP, Idle, BXH, reward claim, Protected change, name/config repair or Phase7 is
+authorized by this task.
+
+
 ## Current authorization: four Shop routes — 2026-09-25
 
 Supersedes the prior two-Shop-route scope. Continue from 967b69f/1c8bda4;

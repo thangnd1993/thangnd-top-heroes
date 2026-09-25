@@ -11,6 +11,10 @@ class CommandError(RuntimeError):
 
 class Process:
     def run(self, args: list[str], timeout: int = 20) -> bytes:
+        executable = args[0].replace("\\", "/").rsplit("/", 1)[-1].casefold() if args else ""
+        if executable in {"ldconsole.exe", "dnconsole.exe", "ldconsole", "dnconsole"}:
+            if len(args) < 2 or args[1] not in {"list2", "launch", "quit", "adb"}:
+                raise CommandError("LDPlayer command blocked: instance names are user-owned and read-only.")
         try:
             result = subprocess.run(
                 args,
