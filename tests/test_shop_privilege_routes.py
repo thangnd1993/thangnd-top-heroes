@@ -221,3 +221,25 @@ def test_visible_reward_with_unqualified_reset_is_not_reported_complete(detector
     assert result['journal']=='VERIFIED'
     assert result['result']=='PERIOD_UNQUALIFIED'
     assert result['claim_dispatched'] is False
+
+
+@pytest.mark.parametrize('state,expected',[('UNKNOWN','UNKNOWN'),('AVAILABLE','STATE_CONFLICT')])
+def test_verified_journal_cannot_hide_current_unknown_or_conflict(detector,state,expected):
+    import json
+
+    from test_bxh_shop_fixed import make_frame
+
+    from top_heroes_auto.automation.fixed_reward_claims import process_reward
+
+    before=detector.observe(make_frame('shop-daily-gift'))
+    row=dict(id=99,reward_id='shop-daily-gift',status='VERIFIED',dispatch_state='POSSIBLE',
+             reserved_at=datetime.now(timezone.utc).isoformat(),
+             before_evidence=json.dumps({'persistent_identity':'disk'}))
+    store=SimpleNamespace(reward_claims=lambda *a:[row])
+    port=SimpleNamespace(detector=SimpleNamespace(availability=lambda *a:(state,None,None)),
+                         observe_settled=lambda:before)
+    result={}
+    process_reward(port,store,'n',1,'shop-daily-gift','disk',result,lambda:None)
+    assert result['journal']=='VERIFIED'
+    assert result['result']==expected
+    assert result['claim_dispatched'] is False

@@ -54,6 +54,10 @@ def process_reward(port, store, namespace, task_id, reward, identity, report, pe
             report['result'] = 'PERIOD_UNQUALIFIED'
             report['period_error'] = 'A prior VERIFIED claim stays locked; a new reward period has not been proven.'
             return
+        if reward.startswith('shop-') and locked[-1]['status'] == 'VERIFIED' and state != 'NOT_AVAILABLE':
+            report['result'] = 'UNKNOWN' if state == 'UNKNOWN' else 'STATE_CONFLICT'
+            report['state_error'] = 'Existing VERIFIED journal preserved; current reward state is not independently unavailable.'
+            return
         if start is not None and locked[-1]['status'] != 'VERIFIED':
             try:
                 original = datetime.fromisoformat(locked[-1]['reserved_at'])
