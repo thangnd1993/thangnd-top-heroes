@@ -208,6 +208,8 @@ class HomeRecoveryEngine:
                     continue
                 if cancelled():
                     return finish(RecoveryStatus.CANCELLED)
+                if number == self.max_steps:
+                    return finish(RecoveryStatus.LIMIT_REACHED, 'No capture budget remains after a dismissal.')
                 try:
                     overlays.reserve(detection)
                     point = port.dismiss_overlay(observation)
@@ -222,26 +224,10 @@ class HomeRecoveryEngine:
                 continue  # Next iteration always captures and classifies a fresh frame.
             stable_overlay = None
             if overlays.total and detection.state == ScreenState.UNKNOWN:
-                return finish(RecoveryStatus.UNKNOWN_SCREEN, "Unknown destination after overlay dismissal; no further input.")
-            if detection.state == ScreenState.PROMO_BLOCKING:
-                if loading_started is None:
-                    loading_started = self.clock()
-                if self.clock() - loading_started >= self.loading_timeout:
-                    return finish(
-                        RecoveryStatus.PROMO_BLOCKING,
-                        "Recognized promotional screen remained visible; no qualified dismiss action, no input sent.",
-                    )
-                if cancelled():
-                    return finish(RecoveryStatus.CANCELLED)
-                result.actions.append("wait")
-                result.steps[-1] = RecoveryStep(
-                    step.number,
-                    step.state,
-                    step.confidence,
-                    step.screenshot,
-                    "wait",
-                )
-                self.sleep(self.loading_interval)
+                unknown_count += 1
+                if unknown_count >= self.unknown_confirmations:
+                    return finish(RecoveryStatus.UNKNOWN_SCREEN, "Unknown destination after overlay dismissal; no further input.")
+                self.sleep(self.action_settle)
                 continue
             if detection.state == ScreenState.UNKNOWN:
                 if loading_started is not None:
@@ -297,8 +283,8 @@ class HomeRecoveryEngine:
                 if self.clock() - loading_started >= self.loading_timeout:
                     if detection.state == ScreenState.PROMO_LOADING:
                         return finish(
-                            RecoveryStatus.PROMO_BLOCKING,
-                            "Recognized promotional loading screen remained visible; no input sent.",
+                            RecoveryStatus.LOADING_TIMEOUT,
+                            "Game loading with promotional artwork exceeded timeout; Home not reached, no input sent.",
                         )
                     return finish(RecoveryStatus.LOADING_TIMEOUT, "GAME_LOADING exceeded timeout.")
                 if cancelled():

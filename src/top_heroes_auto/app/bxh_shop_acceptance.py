@@ -145,14 +145,19 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
             raise SafetyError(recovery.error or f'Recovery failed: {recovery.status.value}')
         row['recovery'] = 'SUCCESS'
         port = port_factory(manager, snapshot, index, name, folder, check_identity, cancelled)
+        shop_started = False
         for reward in rewards:
             outcome = row['rewards'][reward]
             try:
-                frame = port.home()
                 if reward == 'ranking-chest':
+                    frame = port.home()
                     frame = port.navigate(frame, 'avatar-frame', 'profile')
                     port.navigate(frame, 'profile-bxh', 'ranking')
                 else:
+                    # One Shop session for the account. A receipt or a blocked
+                    # independent reward never sends traversal back Home.
+                    frame = port.observe_settled() if shop_started else port.home()
+                    shop_started = True
                     port.open_shop_reward(frame, reward)
                 action_reward = MONTHLY_QUICK if reward == 'shop-monthly-privilege-gift' else reward
                 process_reward(port, manager.store, manager.namespace, task_id, action_reward, identity, outcome, persist)
@@ -160,6 +165,12 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
                 if outcome['result'] in {'NOT_STARTED', 'RESERVED', 'AVAILABLE'}:
                     outcome['result'] = 'TAB_NOT_FOUND' if isinstance(exc, TabNotFound) else 'BLOCKED'
                 outcome['error'] = f'{type(exc).__name__}: {exc}'
+            if reward in SHOP_REWARDS and hasattr(port, 'shop_state'):
+                traversal = port.shop_state()
+                traversal.routes_processed.append(reward)
+                traversal.rewards[reward] = {k: outcome.get(k) for k in
+                    ('result', 'availability', 'claim_dispatched', 'journal', 'claim_id')}
+                row['shop_traversal'] = traversal.report()
             persist()
         try:
             port.home()
@@ -167,6 +178,8 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
         except Exception as exc:  # noqa: BLE001 - never downgrade a VERIFIED reward
             row['return_home'] = f'FAILED: {exc}'
         row['actions'] = port.events
+        if hasattr(port, 'shop_state'):
+            row['shop_traversal'] = port.shop_state().report()
         good = {'SUCCESS', 'NOT_AVAILABLE', 'ALREADY_VERIFIED'}
         row['result'] = 'COMPLETE' if (
             all(r['result'] in good for r in row['rewards'].values()) and row['return_home'] == 'SUCCESS'
@@ -255,7 +268,7 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
     eligible = candidates(before)
     selected = None
     if random_test:
-        if not exclude:
+        if not exclude and rewards != SHOP_REWARDS:
             tested = []
             history = data/'diagnostics/tasks/bxh-shop-fixed'
             for previous in history.glob('*/fleet-report.json'):

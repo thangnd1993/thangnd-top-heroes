@@ -100,10 +100,10 @@ def test_same_popup_bounded_retry_and_unknown_after_dismiss_stops():
     result = HomeRecoveryEngine(sleep=lambda _: None).ensure_game_home(port)
     assert result.status == RecoveryStatus.PROMO_BLOCKING
     assert len(port.actions) == 2 and port.observations == 4
-    port = RecoveryPort([ScreenState.EVENT_PROMO]*2 + [ScreenState.UNKNOWN])
+    port = RecoveryPort([ScreenState.EVENT_PROMO]*2 + [ScreenState.UNKNOWN]*2)
     result = HomeRecoveryEngine(sleep=lambda _: None).ensure_game_home(port)
     assert result.status == RecoveryStatus.UNKNOWN_SCREEN
-    assert len(port.actions) == 1 and port.observations == 3
+    assert len(port.actions) == 1 and port.observations == 4
 
 
 def test_total_overlay_count_is_bounded_even_for_distinct_anchors():

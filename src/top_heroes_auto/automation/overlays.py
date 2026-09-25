@@ -6,7 +6,8 @@ from collections import Counter
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.vision.models import ScreenState
 
-DISMISSIBLE = frozenset({ScreenState.PROMO_AD, ScreenState.EVENT_PROMO, ScreenState.REWARD_RECEIPT})
+DISMISSIBLE = frozenset({ScreenState.PROMO_AD, ScreenState.EVENT_PROMO, ScreenState.REWARD_RECEIPT,
+                         ScreenState.HOME_OVERLAY, ScreenState.PROMO_BLOCKING})
 
 
 def overlay_signature(detection):

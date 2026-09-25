@@ -306,7 +306,7 @@ def test_allowed_tab_discovered_after_bounded_scroll(rig, tmp_path, detector):
     port.observe_settled = lambda: hidden
     with pytest.raises(SafetyError, match='TAB_NOT_FOUND'):
         port.find_tab(hidden, 'weekly-tab')
-    assert calls == ['swipe', 'swipe']
+    assert calls == ['swipe']  # Account traversal retains visited tab-strip states.
 
 
 def test_reused_disk_identity_cannot_unlock_claim(tmp_path, detector):

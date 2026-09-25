@@ -2,6 +2,7 @@
 import hashlib
 import json
 import time
+from dataclasses import dataclass, field
 
 import cv2
 
@@ -15,6 +16,28 @@ class TabNotFound(SafetyError):
     """Bounded navigation failure, never reward unavailability."""
 
 
+@dataclass
+class ShopTraversal:
+    entries: int = 0
+    swipes: int = 0
+    current_tab: str | None = None
+    viewport: str | None = None
+    fingerprints: set = field(default_factory=set)
+    visited: dict = field(default_factory=dict)
+    routes_processed: list = field(default_factory=list)
+    rewards: dict = field(default_factory=dict)
+    forced_reentries: list = field(default_factory=list)
+
+    def report(self):
+        return dict(entries=self.entries, horizontal_swipes=self.swipes,
+                    current_tab=self.current_tab, viewport=self.viewport,
+                    visible_viewports=sorted(self.fingerprints),
+                    tab_fingerprints={k: sorted(v) for k, v in self.visited.items()},
+                    routes_processed=list(self.routes_processed), rewards=dict(self.rewards),
+                    routes_processed_without_reentry=len(self.routes_processed) if self.entries <= 1 else 0,
+                    forced_reentries=list(self.forced_reentries))
+
+
 class FixedRewardPort:
     def __init__(self, manager, snapshot, index, name, folder, identity_check=lambda: None,
                  cancelled=lambda: False):
@@ -25,6 +48,12 @@ class FixedRewardPort:
         self.last = None
         self.events = []
         self.overlay_budget = OverlayBudget(max_total=6, max_same=3)
+        self.shop = ShopTraversal()
+
+    def shop_state(self):
+        if not hasattr(self, 'shop'):
+            self.shop = ShopTraversal()
+        return self.shop
 
     def check(self):
         if self.cancelled():
@@ -45,7 +74,20 @@ class FixedRewardPort:
         captured = ScreenshotService(lambda serial: payload if serial == target.serial else b'').take(
             target, self.folder, 'bxh-shop')
         self.last = self.detector.observe(captured)
+        if self.last.page in SHOP_PAGES:
+            state = self.shop_state()
+            state.current_tab = self.last.page
+            state.viewport = self.viewport_signature(self.last)
+            state.fingerprints.add(state.viewport)
         return self.last
+
+    @staticmethod
+    def viewport_signature(observation):
+        image = observation.captured.original
+        if observation.captured.rotated_from_portrait:
+            image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        strip = image[round(image.shape[0]*.92):, round(image.shape[1]*.22):]
+        return hashlib.sha256(cv2.resize(strip, (128, 16)).tobytes()).hexdigest()
 
     def dispatch(self, observation, action, values, before_input=None):
         self.check()
@@ -105,22 +147,31 @@ class FixedRewardPort:
             raise SafetyError('Route is not an annotated navigation edge.')
         if not observation.box(role):
             raise SafetyError(f'Current-frame route anchor missing: {role}')
+        if role == 'home-shop-entry':
+            state = self.shop_state()
+            if state.entries:
+                raise SafetyError('Unexpected Shop exit: re-entry requires documented recovery; no automatic reopening.')
+            state.entries += 1  # Count uncertain entry dispatch too; never repeat blindly.
         self.tap(observation, observation.anchors[role])
         time.sleep(.4)
         after = self.observe_settled()
         if role == 'home-shop-entry' and after.page in SHOP_PAGES:
+            self.shop_state().current_tab = after.page
             return after  # Shop may remember its last positively recognized tab.
         if (expected in {'shop-permanent', 'shop-monthly'} and role.endswith('-tab') and
                 not self.detector.selected_tab(after, expected.removeprefix('shop-'))):
             raise SafetyError('Selected shop tab not independently verified.')
         if after.page != expected:
             raise SafetyError(f'Expected {expected}; current page {after.page}.')
+        if after.page in SHOP_PAGES:
+            self.shop_state().current_tab = after.page
         return after
 
     def find_tab(self, observation, role):
         if role not in {f'{route}-tab' for route in SHOP_ROUTES.values()}:
             raise SafetyError('Forbidden shop tab.')
-        seen = set()
+        state = self.shop_state()
+        seen = state.visited.setdefault(role, set())
         for attempt in range(5):
             if observation.page not in SHOP_PAGES or not observation.box('back'):
                 raise SafetyError('Shop/tab-bar identity unavailable; no scroll.')
@@ -131,13 +182,10 @@ class FixedRewardPort:
             # control. Partial-template matches cannot authorize a tab tap.
             if box and box.x > back.x+back.width+width*.02 and box.x+box.width < width*.98:
                 return observation
-            if attempt == 4:
+            if attempt == 4 or state.swipes >= 12:
                 break
-            image = observation.captured.original
-            if observation.captured.rotated_from_portrait:
-                image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            strip = image[round(image.shape[0]*.92):, round(image.shape[1]*.22):]
-            signature = hashlib.sha256(cv2.resize(strip, (128, 16)).tobytes()).hexdigest()
+            signature = self.viewport_signature(observation)
+            state.viewport = signature
             if signature in seen:
                 break
             seen.add(signature)
@@ -149,6 +197,7 @@ class FixedRewardPort:
                     or back.x+back.width >= width*.26):
                 raise SafetyError('Bottom tab bar geometry is not qualified.')
             self.dispatch(observation, 'swipe', (round(width*start), y, round(width*end), y, 400))
+            state.swipes += 1
             time.sleep(.4)
             observation = self.observe_settled()
         raise TabNotFound('TAB_NOT_FOUND: bounded tab-strip search exhausted.')
@@ -157,6 +206,8 @@ class FixedRewardPort:
         route = SHOP_ROUTES.get(reward)
         if route is None:
             raise SafetyError('Forbidden shop route.')
+        if observation.page == 'shop-ad-privileges':
+            observation = self.navigate(observation, 'ads-close', 'shop-monthly')
         if observation.page == 'home':
             observation = self.navigate(observation, 'home-shop-entry', 'shop-daily')
         expected = f'shop-{route}'

@@ -50,11 +50,16 @@ class Port:
         self.states = list(states)
         self.observations = 0
         self.launches = 0
+        self.dismissals = 0
 
     def observe(self, step):
         self.observations += 1
         state = self.states.pop(0) if len(self.states) > 1 else self.states[0]
         return RecoveryObservation(detection(state), Path(f"{step:03d}.png"), "emulator-5568")
+
+    def dismiss_overlay(self, observation):
+        self.dismissals += 1
+        return (58, 1203)
 
     def launch_game(self):
         self.launches += 1
@@ -159,11 +164,11 @@ def test_visible_promo_that_naturally_disappears_reaches_home_without_dismissal(
 
     assert result.status == RecoveryStatus.SUCCESS
     assert result.states_seen == ["PROMO_BLOCKING", "GAME_HOME"]
-    assert result.actions == ["wait"]
+    assert result.actions == ["wait_overlay_stable"]
     assert port.launches == 0
 
 
-def test_persistent_visible_promo_fails_closed_at_existing_bound_without_input():
+def test_persistent_visible_promo_dismisses_twice_then_fails_closed():
     clock = Clock()
     port = Port(ScreenState.PROMO_BLOCKING)
     result = HomeRecoveryEngine(
@@ -175,12 +180,13 @@ def test_persistent_visible_promo_fails_closed_at_existing_bound_without_input()
     ).ensure_game_home(port)
 
     assert result.status == RecoveryStatus.PROMO_BLOCKING
-    assert result.states_seen == ["PROMO_BLOCKING", "PROMO_BLOCKING"]
-    assert result.actions == ["wait"]
+    assert result.states_seen == ["PROMO_BLOCKING"] * 4
+    assert port.dismissals == 2
+    assert result.actions[0] == "wait_overlay_stable"
     assert port.launches == 0
 
 
-def test_promo_still_loading_at_existing_bound_returns_promo_blocking():
+def test_promo_artwork_on_actual_loading_returns_loading_timeout():
     clock = Clock()
     port = Port(ScreenState.ANDROID_HOME, ScreenState.PROMO_LOADING)
     result = HomeRecoveryEngine(
@@ -192,7 +198,7 @@ def test_promo_still_loading_at_existing_bound_returns_promo_blocking():
         sleep=clock.sleep,
     ).ensure_game_home(port)
 
-    assert result.status == RecoveryStatus.PROMO_BLOCKING
+    assert result.status == RecoveryStatus.LOADING_TIMEOUT
     assert result.states_seen[-1] == "PROMO_LOADING"
     assert result.actions == ["launch_game", "wait", "wait"]
     assert port.launches == 1

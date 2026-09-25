@@ -1,5 +1,31 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## Permanent Home-overlay and continuous Shop rules — 2026-09-25
+
+User authorized one agent, offline repair then fresh-CI random development and
+all-current-non-Protected sequential Shop acceptance. No VIP/BXH/Idle or Phase7.
+A known overlay covering Home is dismissed with the approved normalized game
+bottom-left action, followed by a fresh classification. Bounded retries only;
+actual unrelated UNKNOWN and true loading receive no blind Back. Generic Home
+coverage uses paired opposite-corner dimmed Home HUD, plus a sharp foreground;
+no new seasonal artwork templates. True promotional splash loading is reported
+as LOADING_TIMEOUT, not a Home popup waiting forever as PROMO_BLOCKING.
+
+Shop is one continuous account session: enter once, process all four allowed
+tabs from the current screen, dismiss receipts back into Shop, then exit once.
+Keep traversal state, current tab/viewport/fingerprints, max12 total swipes and
+max4 per search; reacquire each tab after scrolling. Never click forbidden tabs.
+Blocked independent rewards do not reset traversal. Unexpected exit fails closed
+with an explicit re-entry reason; no silent reopening. Record entry/swipe/route
+metrics and reward journals before owned cleanup and selection restoration.
+
+Prior fleet claims46,48,49,50,51,52,53,54,55,56 are VERIFIED. Journal41 and legacy
+upper-entry47 remain RESERVED/POSSIBLE. Never replay them. Prior final audit is
+artifacts/shop-resumed-final-audit.json; all24 unrelated journals unchanged.
+Current random target must come from LIVE non-Protected candidates, including
+accounts already tested when only navigation is possible. No hardcoded account.
+
+
 ## Shop real evidence and offline post-state qualification — 2026-09-25
 
 Fresh portable 22dca5b, CI36120987015 all gates passed, resumed original fleet.

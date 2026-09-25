@@ -1,0 +1,14 @@
+{
+  "id": "covered-home-shop",
+  "state": "HOME_OVERLAY",
+  "template": "covered-home-shop.png",
+  "expected_region": [
+    0.93,
+    0.72,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": true,
+  "notes": "Reusable dimmed Home HUD only. No event artwork. Both opposite-corner HUD anchors and sharp foreground required."
+}
