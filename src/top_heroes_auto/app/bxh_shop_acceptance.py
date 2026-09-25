@@ -30,7 +30,14 @@ def persistent_identity(manager, index):
     """
     if type(index) is not int or index < 0:
         raise SafetyError('Invalid target index.')
-    path = manager.ld.installation.console.parent / 'vms' / f'leidian{index}' / 'data.vmdk'
+    root = manager.ld.installation.console.parent / 'vms'
+    # A default console label after a damaged/missing instance config must not
+    # silently become a new authorized identity on the next fleet snapshot.
+    config = json.loads((root / 'config' / f'leidian{index}.config').read_text(encoding='utf-8-sig'))
+    configured_name = config.get('statusSettings.playerName')
+    if not configured_name or configured_name != manager.query(index).name:
+        raise SafetyError('Persistent instance name unavailable or mismatched; no lifecycle/input permitted.')
+    path = root / f'leidian{index}' / 'data.vmdk'
     stat = path.stat()
     created = getattr(stat, 'st_birthtime_ns', None)
     if created is None or not stat.st_ino:
@@ -252,7 +259,7 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
             if previous and target.get('persistent_identity') != identity:
                 raise SafetyError('Original snapshot disk identity changed.')
             target['persistent_identity'] = identity
-        except (OSError, SafetyError) as exc:
+        except (OSError, ValueError, SafetyError) as exc:
             target['identity_error'] = str(exc)
     path = folder / 'fleet-report.json'
     write(path, report)
