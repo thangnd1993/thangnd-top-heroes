@@ -43,7 +43,26 @@ def process_reward(port, store, namespace, task_id, reward, identity, report, pe
     if locked:
         report.update(result='ALREADY_VERIFIED' if locked[-1]['status'] == 'VERIFIED' else 'ALREADY_ATTEMPTED',
                       journal=locked[-1]['status'], claim_id=locked[-1]['id'])
+        from datetime import datetime
+
+        from top_heroes_auto.automation.fixed_reward_period import period_start
         from top_heroes_auto.automation.fixed_reward_reconcile import reconcile_fixed_reward
+
+        start = period_start(reward)
+        if (reward.startswith('shop-') and start is None and state == 'AVAILABLE'
+                and locked[-1]['status'] == 'VERIFIED'):
+            report['result'] = 'PERIOD_UNQUALIFIED'
+            report['period_error'] = 'A prior VERIFIED claim stays locked; a new reward period has not been proven.'
+            return
+        if start is not None and locked[-1]['status'] != 'VERIFIED':
+            try:
+                original = datetime.fromisoformat(locked[-1]['reserved_at'])
+                same_period = original.tzinfo is not None and original >= start
+            except (ValueError, TypeError):
+                same_period = False
+            if not same_period:
+                report['reconciliation_error'] = 'Current state cannot prove an uncertain claim from a prior reset period.'
+                return
 
         try:
             proof = reconcile_fixed_reward(store, locked[-1], port.detector, before, identity)

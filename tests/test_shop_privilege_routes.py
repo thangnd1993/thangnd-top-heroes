@@ -181,3 +181,43 @@ def test_missing_or_changed_persistent_name_blocks_before_lifecycle(tmp_path, co
                             query=lambda _:SimpleNamespace(name='authorized'))
     with pytest.raises(SafetyError,match='Persistent instance name'):
         persistent_identity(manager,23)
+
+
+def test_old_possible_cannot_be_verified_from_new_daily_period(detector):
+    import json
+
+    from test_bxh_shop_fixed import make_frame
+
+    from top_heroes_auto.automation.fixed_reward_claims import process_reward
+
+    before=detector.observe(make_frame('shop-daily-gift',badge=False))
+    row=dict(id=41,reward_id='shop-daily-gift',status='RESERVED',dispatch_state='POSSIBLE',
+             reserved_at=(datetime.now(timezone.utc)-timedelta(days=3)).isoformat(),
+             before_evidence=json.dumps({'persistent_identity':'disk'}))
+    store=SimpleNamespace(reward_claims=lambda *a:[row])
+    port=SimpleNamespace(detector=detector,observe_settled=lambda:before)
+    result={}
+    process_reward(port,store,'n',1,'shop-daily-gift','disk',result,lambda:None)
+    assert result['journal']=='RESERVED'
+    assert result['result']=='ALREADY_ATTEMPTED'
+    assert result['claim_dispatched'] is False
+    assert 'prior reset' in result['reconciliation_error']
+
+
+def test_visible_reward_with_unqualified_reset_is_not_reported_complete(detector):
+    import json
+
+    from top_heroes_auto.automation.fixed_reward_claims import process_reward
+
+    reward=SHOP_REWARDS[2]
+    before=detector.observe(frame('permanent'))
+    row=dict(id=90,reward_id=reward,status='VERIFIED',dispatch_state='POSSIBLE',
+             reserved_at=(datetime.now(timezone.utc)-timedelta(days=3)).isoformat(),
+             before_evidence=json.dumps({'persistent_identity':'disk'}))
+    store=SimpleNamespace(reward_claims=lambda *a:[row])
+    port=SimpleNamespace(detector=detector,observe_settled=lambda:before)
+    result={}
+    process_reward(port,store,'n',1,reward,'disk',result,lambda:None)
+    assert result['journal']=='VERIFIED'
+    assert result['result']=='PERIOD_UNQUALIFIED'
+    assert result['claim_dispatched'] is False

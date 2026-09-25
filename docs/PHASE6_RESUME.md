@@ -1,5 +1,21 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## Resumed Shop authorization — 2026-09-25
+
+User authorized resuming four Shop routes, random live non-Protected development
+check and then all-current-non-Protected sequential fleet using fresh passing CI.
+No VIP/BXH/Idle reruns, paid actions, config/name writes or Phase7.
+
+Inspected and applied (not popped) stash 91a55575a673a0fa537a58b59ddb23240e719a7f,
+"paused shop period reconciliation before no-rename safety task". It contains
+only fixed_reward_claims.py and its regression: a new daily period cannot prove
+an old uncertain claim. Applied cleanly onto 692ee47; no-rename safety preserved.
+The four-route traversal is already committed in 4976903/7064c0a; do not restart.
+Stash remains a backup. Journal41 must remain locked, with no repeat claim.
+Index9's earlier identity/config failure must not be repaired by a rename; use
+fresh live discovery and existing fail-closed stable/config/runtime checks.
+
+
 ## Current scope: permanent no-rename enforcement — 2026-09-25
 
 User paused gameplay/Shop acceptance and requested a no-rename audit, targeted

@@ -1,5 +1,14 @@
 # Tiến độ
 
+## 2026-09-25 Shop resumed on no-rename-safe HEAD
+
+Applied verified Shop stash 91a5557 without popping; no conflicts. Four routes
+remain production-shared; old uncertain daily claims cannot be verified from a
+new reset period. User authorized random development plus full sequential Shop
+acceptance after targeted checks and fresh CI. No name/config writes, no other
+reward tasks and no Phase7. See latest PHASE6_RESUME section.
+
+
 ## 2026-09-25 Current: no-rename safety enforcement only
 
 Gameplay acceptance paused by user. Audited LDPlayer wrappers, config writes,
