@@ -6,12 +6,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from top_heroes_auto.app.diagnostic import _instance, _view
-from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
+from top_heroes_auto.app.fixed_reward_port import FixedRewardPort, TabNotFound
 from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
 from top_heroes_auto.automation.fixed_reward_claims import process_reward
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
 from top_heroes_auto.automation.recovery import RecoveryStatus
-from top_heroes_auto.vision.fixed_rewards import REWARDS
+from top_heroes_auto.vision.fixed_rewards import REWARDS, SHOP_REWARDS
 
 MANDATORY_PROTECTED = frozenset({'Queen', 'anh Ry', 'Chicken', 'Happy'})
 COMPLETE_REWARDS = frozenset({'SUCCESS', 'NOT_AVAILABLE', 'ALREADY_VERIFIED'})
@@ -67,6 +67,17 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
     row = dict(index=index, name=name, recovery='NOT_STARTED', adb=None,
                rewards={r: dict(result='NOT_STARTED', claim_dispatched=False, journal='NONE') for r in rewards},
                cleanup='NOT_REQUIRED', selection_restored=False, result='BLOCKED')
+    # Report durable prior actions even when recovery fails before visiting a
+    # reward. This is reporting only; no journal is rewritten or released.
+    from top_heroes_auto.automation.fixed_reward_period import current_attempts
+
+    prior_rows = manager.store.reward_claims(manager.namespace, index)
+    for reward, outcome in row['rewards'].items():
+        locked = current_attempts(prior_rows, reward)
+        if locked:
+            prior = locked[-1]
+            outcome.update(journal=prior['status'], claim_id=prior['id'],
+                           prior_dispatch_state=prior['dispatch_state'])
     folder.mkdir(parents=True, exist_ok=True)
     def persist():
         write(folder / 'account-report.json', row)
@@ -114,17 +125,11 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
                     frame = port.navigate(frame, 'avatar-frame', 'profile')
                     port.navigate(frame, 'profile-bxh', 'ranking')
                 else:
-                    frame = port.navigate(frame, 'home-shop-entry', 'shop-daily')
-                    if reward == 'shop-daily-gift' and frame.page == 'shop-weekly':
-                        frame = port.find_tab(frame, 'daily-tab')
-                        port.navigate(frame, 'daily-tab', 'shop-daily')
-                    elif reward == 'shop-weekly-card-gift' and frame.page == 'shop-daily':
-                        frame = port.find_tab(frame, 'weekly-tab')
-                        port.navigate(frame, 'weekly-tab', 'shop-weekly')
+                    port.open_shop_reward(frame, reward)
                 process_reward(port, manager.store, manager.namespace, task_id, reward, identity, outcome, persist)
             except Exception as exc:  # noqa: BLE001 - each reward retains its own durable result
                 if outcome['result'] in {'NOT_STARTED', 'RESERVED'}:
-                    outcome['result'] = 'BLOCKED'
+                    outcome['result'] = 'TAB_NOT_FOUND' if isinstance(exc, TabNotFound) else 'BLOCKED'
                 outcome['error'] = f'{type(exc).__name__}: {exc}'
             persist()
         try:
@@ -176,7 +181,7 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
     return row
 
 
-def resume_plan(previous, live):
+def resume_plan(previous, live, rewards=REWARDS):
     """Keep the original snapshot; only unfinished rewards may be revisited."""
     if previous.get('mode') not in {'fleet', 'resume'} or 'after_instances' not in previous:
         raise SafetyError('Resume requires a completed fixed-flow fleet report.')
@@ -188,7 +193,7 @@ def resume_plan(previous, live):
     plan = []
     for target in targets:
         old = rows[target['index']]
-        remaining = tuple(r for r in REWARDS if old.get('rewards', {}).get(r, {}).get('result') not in COMPLETE_REWARDS)
+        remaining = tuple(r for r in rewards if old.get('rewards', {}).get(r, {}).get('result') not in COMPLETE_REWARDS)
         if not remaining:
             continue
         now = current.get(target['index'])
@@ -201,7 +206,7 @@ def resume_plan(previous, live):
 
 
 def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run_account,
-                   identity_reader=persistent_identity, exclude=(), resume_report=None):
+                   identity_reader=persistent_identity, exclude=(), resume_report=None, rewards=REWARDS):
     if random_test and resume_report:
         raise SafetyError('Resume and random development test cannot be combined.')
     before = inventory(manager)
@@ -219,7 +224,7 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
         selected, eligible = choose_random(before, exclude=exclude)
     previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
     targets = previous['targets'] if previous else [selected] if selected else eligible
-    plan = resume_plan(previous, before) if previous else [(target, REWARDS) for target in targets]
+    plan = resume_plan(previous, before, rewards) if previous else [(target, rewards) for target in targets]
     if previous:
         # Resolve older uncertainty first while its evidence remains fresh.
         # This orders accounts, never changes the immutable target/reward scope.
@@ -232,7 +237,7 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
     stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%fZ')
     folder = data / 'diagnostics/tasks/bxh-shop-fixed' / stamp
     folder.mkdir(parents=True, exist_ok=False)
-    report = dict(max_concurrency=1, mode='resume' if previous else 'random-test' if random_test else 'fleet',
+    report = dict(required_rewards=list(rewards), max_concurrency=1, mode='resume' if previous else 'random-test' if random_test else 'fleet',
                   random_method='secrets.choice' if random_test else None,
                   eligible_candidates=eligible, random_target=selected, before_instances=before,
                   excluded_protected=[r for r in before if r['protected']], targets=targets, accounts=[])
@@ -256,7 +261,7 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
         try:
             if 'identity_error' in target:
                 raise SafetyError(target['identity_error'])
-            kwargs = dict(rewards=rewards) if previous else {}
+            kwargs = dict(rewards=rewards) if previous or rewards != REWARDS else {}
             row = account_runner(manager, data, target, folder / str(target['index']), **kwargs)
         except Exception as exc:  # noqa: BLE001 - remaining snapshot members must still run
             row = dict(index=target['index'], name=target['name'], result='BLOCKED', error=str(exc))
@@ -279,11 +284,13 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
     # Passing requires actual VERIFIED coverage of each required claim path.
     verified = {reward for row in report['accounts'] for reward, r in row.get('rewards', {}).items()
                 if r['journal'] == 'VERIFIED'}
-    report['claim_paths_not_verified'] = sorted(set(REWARDS)-verified)
+    report['claim_paths_not_verified'] = sorted(set(report['required_rewards'])-verified)
     report['result'] = 'PASS' if (len(report['accounts']) == len(targets) and targets
-        and all(r['result'] == 'COMPLETE' for r in report['accounts'])
+        and all(r['result'] == 'COMPLETE' and all(
+            r.get('rewards', {}).get(reward, {}).get('result') in COMPLETE_REWARDS
+            for reward in report['required_rewards']) for r in report['accounts'])
         and report['all_selection_states_restored'] and report['protected_state_unchanged']
-        and not report['claim_paths_not_verified']) else 'PARTIAL'
+        and (tuple(report['required_rewards']) == SHOP_REWARDS or not report['claim_paths_not_verified'])) else 'PARTIAL'
     write(path, report)
     print(f'REPORT: {path}', flush=True)
     return report
@@ -293,7 +300,7 @@ def run_selected_task(manager, data, index, name, task, *, cancelled=lambda: Fal
     """Normal UI entry: one explicitly selected target, no random/fleet expansion."""
     from top_heroes_auto.app.free_reward_tasks import Phase6TaskResult
 
-    routes = {'ranking-chest': (REWARDS[0],), 'free-pack': REWARDS[1:]}
+    routes = {'ranking-chest': (REWARDS[0],), 'free-pack': SHOP_REWARDS}
     if task not in routes:
         raise ValueError('Only BXH and annotated shop gifts are supported.')
     _instance(manager, index, name)

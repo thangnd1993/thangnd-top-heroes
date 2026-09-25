@@ -1,0 +1,14 @@
+{
+  "id": "permanent-tab",
+  "state": "FREE_REWARD_PAGE",
+  "template": "permanent-tab.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.96,
+  "required": false,
+  "notes": "Clean UI crop from 20260920-174202-924249Z-phase6-shop-permanent-card-after.png; no annotations or account text."
+}

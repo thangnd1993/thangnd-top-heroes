@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 
 from top_heroes_auto.adb.client import Target
-from top_heroes_auto.vision.fixed_rewards import REWARDS
+from top_heroes_auto.vision.fixed_rewards import ALL_REWARDS as REWARDS
 from top_heroes_auto.vision.models import ScreenState
 from top_heroes_auto.vision.screenshot import ScreenshotService
 

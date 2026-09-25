@@ -16,7 +16,11 @@ from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
 from top_heroes_auto.vision.resources import template_folder
 
 REWARDS = ("ranking-chest", "shop-daily-gift", "shop-weekly-card-gift")
-PAGES = dict(zip(REWARDS, ("ranking", "shop-daily", "shop-weekly"), strict=True))
+SHOP_REWARDS = (*REWARDS[1:], "shop-permanent-privilege-gift", "shop-monthly-privilege-gift")
+ALL_REWARDS = (REWARDS[0], *SHOP_REWARDS)
+SHOP_ROUTES = dict(zip(SHOP_REWARDS, ("daily", "weekly", "permanent", "monthly"), strict=True))
+PAGES = {REWARDS[0]: "ranking", **{reward: f"shop-{route}" for reward, route in SHOP_ROUTES.items()}}
+SHOP_PAGES = frozenset(f"shop-{route}" for route in SHOP_ROUTES.values())
 
 
 def portrait_region(left, top, right, bottom):
@@ -59,7 +63,7 @@ class FixedRewardDetector:
                 region = portrait_region(0, 0, .22, .15)
             elif name == 'shop-notice-speaker':
                 region = portrait_region(0, .16, .15, .25)
-            elif name in {"profile-bxh", "back", "daily-tab", "weekly-tab"}:
+            elif name in {"profile-bxh", "back", "daily-tab", "weekly-tab"} or name in {"permanent-tab", "monthly-tab", "permanent-active-tab", "monthly-active-tab"}:
                 region = portrait_region(0, .90, 1, 1)
             elif name == "ranking-close":
                 region = portrait_region(.3, .86, .7, 1)
@@ -93,6 +97,9 @@ class FixedRewardDetector:
             known.append("shop-daily")
         if matched("shop-title", "weekly-title"):
             known.append("shop-weekly")
+        for route in ('permanent', 'monthly'):
+            if matched('shop-title', f'{route}-title'):
+                known.append(f'shop-{route}')
         if recovery.state == ScreenState.GAME_HOME:
             known.append("home")
         # Known overlays take precedence. A partial/conflicting recovery signature
@@ -146,14 +153,23 @@ class FixedRewardDetector:
         return AnchorEvidence('avatar-frame', ScreenState.GAME_HOME, score, .98, matched,
                               box, captured.to_device_box(box) if box else None)
 
+    @staticmethod
+    def selected_tab(observation, route):
+        active, tab = observation.box(f'{route}-active-tab'), observation.box(f'{route}-tab')
+        return bool(active and tab and active.x <= tab.center[0] <= active.x+active.width)
+
     def availability(self, observation, reward):
         if reward not in PAGES or observation.page != PAGES[reward]:
             return "UNKNOWN", None, None
         ranking = reward == "ranking-chest"
         if not ranking and observation.box('shop-notice-speaker'):
             return 'UNKNOWN', None, None  # Broadcast banner can cover the gift/received label.
-        core_role = "ranking-chest" if ranking else "shop-gift"
-        badge_role = "ranking-attention" if ranking else "shop-attention"
+        route = SHOP_ROUTES.get(reward)
+        privilege = route in {"permanent", "monthly"}
+        if privilege and not self.selected_tab(observation, route):
+            return 'UNKNOWN', None, None
+        core_role = f"{route}-gift" if privilege else "ranking-chest" if ranking else "shop-gift"
+        badge_role = f"{route}-attention" if privilege else "ranking-attention" if ranking else "shop-attention"
         core = observation.anchors[core_role]
         badge = observation.anchors[badge_role]
         if not core.matched and core.score >= core.threshold:
@@ -168,7 +184,7 @@ class FixedRewardDetector:
                     return 'NOT_AVAILABLE', empty, badge
                 return 'UNKNOWN', core, badge
         if not ranking:
-            received = observation.anchors['daily-received' if reward == 'shop-daily-gift' else 'weekly-received']
+            received = observation.anchors['weekly-received' if route == 'weekly' else 'daily-received']
             if received.matched and received.device_box:
                 # Positive open gift + "Đã nhận", not mere badge disappearance.
                 b = received.device_box
@@ -189,7 +205,7 @@ class FixedRewardDetector:
         w, h = observation.captured.device_size or observation.captured.original_size
         # Association to the appropriate title, not a generic red dot elsewhere.
         title = observation.box("ranking-title" if ranking else
-                                "daily-title" if reward == "shop-daily-gift" else "weekly-title")
+                                f"{route}-title")
         if title is None or box.y < title.y - h*.025 or box.y > title.y + h*.23:
             return "UNKNOWN", core, badge
         if (ranking and box.x >= title.x) or (not ranking and box.x <= title.x+title.width):

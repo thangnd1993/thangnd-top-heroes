@@ -127,3 +127,19 @@ if __name__ == "__main__":
             threshold=.98, required=True, variant='blood-night',
             notes='Stable event title/started label/close symbol. Excludes timer/artwork; bottom-left dismissal only.'
         ), indent=2)+'\n', encoding='utf-8', newline='\n')
+
+    # Privilege pages captured in the earlier read-only survey. Templates use
+    # only clean title/tab/core/attention pixels, never annotated references.
+    legacy = Path(r"C:\Users\ADMIN\AppData\Local\TopHeroesAutoManager\diagnostics\vision\5-Emmmmm")
+    for stem, boxes in [
+        ('20260920-174202-924249Z-phase6-shop-permanent-card-after', {
+            'permanent-title': (34,139,382,47), 'permanent-tab': (197,1201,41,43),
+            'permanent-active-tab': (151,1175,136,15), 'permanent-gift': (595,211,77,65),
+            'permanent-attention': (667,190,21,27)}),
+        ('20260920-174056-638024Z-phase6-shop-monthly-card-after', {
+            'monthly-title': (34,139,192,42), 'monthly-tab': (358,1201,34,43),
+            'monthly-active-tab': (310,1175,137,15), 'monthly-gift': (583,150,106,99),
+            'monthly-attention': (666,135,23,26), 'monthly-video': (630,191,66,48)}),
+    ]:
+        for name, box in boxes.items():
+            extract(name, legacy/(stem+'.png'), box, saved_normalized=True)

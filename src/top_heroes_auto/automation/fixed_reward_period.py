@@ -1,7 +1,7 @@
 """Only observed reset policies; no inferred VIP policy for unrelated rewards."""
 from datetime import datetime, timedelta, timezone
 
-from top_heroes_auto.vision.fixed_rewards import REWARDS
+from top_heroes_auto.vision.fixed_rewards import ALL_REWARDS as REWARDS
 
 
 def period_start(reward, now=None):
@@ -29,6 +29,9 @@ def current_attempts(rows, reward, now=None):
     result = []
     for row in rows:
         if row['reward_id'] != reward:
+            continue
+        if row.get('status') == 'RESERVED' and row.get('dispatch_state') != 'NOT_DISPATCHED':
+            result.append(row)
             continue
         try:
             reserved = datetime.fromisoformat(row['reserved_at'])

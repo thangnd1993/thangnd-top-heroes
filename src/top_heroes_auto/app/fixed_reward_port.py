@@ -1,4 +1,5 @@
 """Explicit Manager transport for screenshot-bound BXH/shop navigation."""
+import hashlib
 import json
 import time
 
@@ -6,8 +7,12 @@ import cv2
 
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, OverlayBudget, dismiss_overlay_bottom_left
-from top_heroes_auto.vision.fixed_rewards import FixedRewardDetector
+from top_heroes_auto.vision.fixed_rewards import SHOP_PAGES, SHOP_ROUTES, FixedRewardDetector
 from top_heroes_auto.vision.screenshot import ScreenshotService
+
+
+class TabNotFound(SafetyError):
+    """Bounded navigation failure, never reward unavailability."""
 
 
 class FixedRewardPort:
@@ -91,6 +96,9 @@ class FixedRewardPort:
             ('shop-daily', 'weekly-tab'): 'shop-weekly', ('shop-weekly', 'daily-tab'): 'shop-daily',
             ('shop-daily', 'back'): 'home', ('shop-weekly', 'back'): 'home',
         }
+        if observation.page in SHOP_PAGES:
+            permitted.update({(observation.page, f'{route}-tab'): f'shop-{route}' for route in SHOP_ROUTES.values()})
+            permitted[(observation.page, 'back')] = 'home'
         if permitted.get((observation.page, role)) != expected:
             raise SafetyError('Route is not an annotated navigation edge.')
         if not observation.box(role):
@@ -98,33 +106,62 @@ class FixedRewardPort:
         self.tap(observation, observation.anchors[role])
         time.sleep(.4)
         after = self.observe_settled()
-        if role == 'home-shop-entry' and after.page in {'shop-daily', 'shop-weekly'}:
+        if role == 'home-shop-entry' and after.page in SHOP_PAGES:
             return after  # Shop may remember its last positively recognized tab.
+        if (expected in {'shop-permanent', 'shop-monthly'} and
+                not self.detector.selected_tab(after, expected.removeprefix('shop-'))):
+            raise SafetyError('Selected shop tab not independently verified.')
         if after.page != expected:
             raise SafetyError(f'Expected {expected}; current page {after.page}.')
         return after
 
     def find_tab(self, observation, role):
-        if role not in {'daily-tab', 'weekly-tab'}:
+        if role not in {f'{route}-tab' for route in SHOP_ROUTES.values()}:
             raise SafetyError('Forbidden shop tab.')
-        for attempt in range(3):
-            if observation.page not in {'shop-daily', 'shop-weekly'} or not observation.box('back'):
+        seen = set()
+        for attempt in range(5):
+            if observation.page not in SHOP_PAGES or not observation.box('back'):
                 raise SafetyError('Shop/tab-bar identity unavailable; no scroll.')
-            if observation.box(role):
-                return observation
-            if attempt == 2:
-                break
             width, height = observation.captured.device_size or observation.captured.original_size
-            # Qualified shop + visible back control identify the bottom tab bar.
-            # Swipe stays to its right. No tap uses an ordinal slot.
-            y = observation.box('back').center[1]
-            start, end = ((.88, .28) if role == 'weekly-tab' else (.28, .88))
-            if not .92*height < y < height or observation.box('back').x > width*.2:
+            back = observation.box('back')
+            box = observation.box(role)
+            # Entire icon must clear both viewport edges and the separate Back
+            # control. Partial-template matches cannot authorize a tab tap.
+            if box and box.x > back.x+back.width+width*.02 and box.x+box.width < width*.98:
+                return observation
+            if attempt == 4:
+                break
+            image = observation.captured.original
+            if observation.captured.rotated_from_portrait:
+                image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            strip = image[round(image.shape[0]*.92):, round(image.shape[1]*.22):]
+            signature = hashlib.sha256(cv2.resize(strip, (128, 16)).tobytes()).hexdigest()
+            if signature in seen:
+                break
+            seen.add(signature)
+            y = back.center[1]
+            order = [f'{route}-tab' for route in SHOP_ROUTES.values()]
+            later_visible = any(observation.box(tab) for tab in order[order.index(role)+1:])
+            start, end = ((.28, .88) if later_visible or role == 'daily-tab' else (.88, .28))
+            if (not .92*height < y < height or back.x > width*.2
+                    or back.x+back.width >= width*.26):
                 raise SafetyError('Bottom tab bar geometry is not qualified.')
             self.dispatch(observation, 'swipe', (round(width*start), y, round(width*end), y, 400))
             time.sleep(.4)
             observation = self.observe_settled()
-        raise SafetyError('Allowed tab not found within two tab-bar swipes.')
+        raise TabNotFound('TAB_NOT_FOUND: bounded tab-strip search exhausted.')
+
+    def open_shop_reward(self, observation, reward):
+        route = SHOP_ROUTES.get(reward)
+        if route is None:
+            raise SafetyError('Forbidden shop route.')
+        if observation.page == 'home':
+            observation = self.navigate(observation, 'home-shop-entry', 'shop-daily')
+        expected = f'shop-{route}'
+        if observation.page != expected:
+            observation = self.find_tab(observation, f'{route}-tab')
+            observation = self.navigate(observation, f'{route}-tab', expected)
+        return observation
 
     def home(self):
         observation = self.observe_settled()
@@ -133,7 +170,7 @@ class FixedRewardPort:
                 return observation
             if observation.page == 'ranking':
                 observation = self.navigate(observation, 'ranking-close', 'profile')
-            elif observation.page in {'profile', 'shop-daily', 'shop-weekly'}:
+            elif observation.page in {'profile', *SHOP_PAGES}:
                 observation = self.navigate(observation, 'back', 'home')
             else:
                 raise SafetyError('UNKNOWN prevents fixed-flow return Home.')

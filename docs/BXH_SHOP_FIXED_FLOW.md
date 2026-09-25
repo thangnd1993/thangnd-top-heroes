@@ -1,8 +1,24 @@
 # BXH and Tiệm fixed reward acceptance
 
-Scope: BXH top-left chest, Tiệm Ưu Đãi Mỗi Ngày upper-right gift and
-Thẻ Tuần Tự Chọn upper-right gift. These have three independent reward IDs.
-No other shop tab, VIP, Idle or Phase 7 is included.
+Current Shop scope: daily offer, custom weekly, permanent privilege and
+monthly privilege. Each has a distinct reward ID. `shop-acceptance` runs only
+these four routes; GUI Tiệm uses the same traversal. Historical BXH logic is
+preserved but is not authorized to rerun in this task. No VIP/Idle/Phase 7.
+
+A tab-strip swipe is navigation only. Up to four swipes use current Shop/Back
+geometry, entirely to the right of Back, with fresh screenshots and repeated
+viewport detection. Search direction follows visible allowed tabs. An offscreen
+or clipped tab is never unavailable: exhausted search reports TAB_NOT_FOUND.
+A new tab is tapped only from a fresh bbox, then its distinct content title and
+selected tile must be verified. The previous weekly gift cannot satisfy either
+privilege route. Clean survey crops provide exact upper-gift/attention identities;
+no highlighted paid tile, VND button or purchase entitlement is an action target.
+Positive received evidence must match on the correct page; missing attention
+alone stays UNKNOWN. Unknown dialogs and unsupported ad transitions block input.
+
+An unresolved POSSIBLE action remains locked even across daily reset. In
+particular journal 41 must not be retried. That lock does not suppress independent
+privilege rewards; they proceed only if navigation state remains known.
 
 ## Evidence and runtime
 

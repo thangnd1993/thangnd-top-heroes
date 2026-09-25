@@ -1,5 +1,23 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## Current authorization: four Shop routes — 2026-09-25
+
+Supersedes the prior two-Shop-route scope. Continue from 967b69f/1c8bda4;
+Shop only: daily offer, custom weekly, permanent privilege, monthly privilege.
+No BXH/VIP/Idle reruns and no Phase 7. One agent. Use `shop-acceptance` for
+random development then all live non-Protected targets sequentially, after
+fresh passing CI. The annotated TIEM2 tab strip does NOT prove its visible
+weekly content belongs to permanent/monthly pages.
+
+Implementation in progress: bounded current-frame horizontal tab traversal,
+separate selected-tab/content gates, distinct privilege reward journals.
+Clean legacy survey screenshots supply the two new page/target references.
+Positive attention is associated with the exact upper gift, never paid tiles.
+Missing/inconclusive inactive evidence remains UNKNOWN. No new real run yet.
+Journal 41 remains RESERVED/POSSIBLE across reset; never retry it. Unrelated
+VIP/Idle/BXH journals must stay unchanged. Busy external gameplay stays blocked.
+
+
 ## Current authorization: BXH and two Tiệm gifts — 2026-09-24
 
 ### Latest real result — 2026-09-24 19:22 UTC: PARTIAL, only index 5 unfinished

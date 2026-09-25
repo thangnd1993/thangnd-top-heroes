@@ -1,0 +1,14 @@
+{
+  "id": "monthly-tab",
+  "state": "FREE_REWARD_PAGE",
+  "template": "monthly-tab.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.96,
+  "required": false,
+  "notes": "Clean UI crop from 20260920-174056-638024Z-phase6-shop-monthly-card-after.png; no annotations or account text."
+}

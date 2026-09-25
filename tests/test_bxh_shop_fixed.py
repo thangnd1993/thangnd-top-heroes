@@ -304,9 +304,9 @@ def test_allowed_tab_discovered_after_bounded_scroll(rig, tmp_path, detector):
     assert port.find_tab(hidden, 'weekly-tab') is visible
     assert calls == ['swipe']
     port.observe_settled = lambda: hidden
-    with pytest.raises(SafetyError, match='two tab-bar'):
+    with pytest.raises(SafetyError, match='TAB_NOT_FOUND'):
         port.find_tab(hidden, 'weekly-tab')
-    assert calls == ['swipe', 'swipe', 'swipe']
+    assert calls == ['swipe', 'swipe']
 
 
 def test_reused_disk_identity_cannot_unlock_claim(tmp_path, detector):

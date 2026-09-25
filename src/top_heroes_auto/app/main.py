@@ -14,7 +14,7 @@ def data_directory() -> Path:
 
 def main(argv: list[str] | None = None):
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv and argv[0] == "bxh-shop-acceptance":
+    if argv and argv[0] in {"bxh-shop-acceptance", "shop-acceptance"}:
         resume = Path(argv[2]) if len(argv) == 3 and argv[1] == '--resume-report' else None
         if not resume and argv[1:] not in (["--random-test"], ["--confirm-non-protected"]):
             raise ValueError("BXH/shop acceptance needs --random-test, --confirm-non-protected or --resume-report PATH.")
@@ -22,7 +22,10 @@ def main(argv: list[str] | None = None):
         from top_heroes_auto.app.diagnostic import _manager
 
         data = data_directory()
-        run_acceptance(_manager(data), data, random_test=argv[1] == "--random-test", resume_report=resume)
+        from top_heroes_auto.vision.fixed_rewards import REWARDS, SHOP_REWARDS
+
+        run_acceptance(_manager(data), data, random_test=argv[1] == "--random-test", resume_report=resume,
+                       rewards=SHOP_REWARDS if argv[0] == 'shop-acceptance' else REWARDS)
         return 0
     if argv and argv[0] == "vip-fleet":
         if argv != ["vip-fleet", "--confirm-non-protected"]:

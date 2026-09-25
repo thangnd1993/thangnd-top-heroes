@@ -2,7 +2,8 @@
 import json
 import time
 
-from top_heroes_auto.vision.fixed_rewards import REWARDS, claim_geometry
+from top_heroes_auto.vision.fixed_rewards import ALL_REWARDS as REWARDS
+from top_heroes_auto.vision.fixed_rewards import claim_geometry
 
 
 def observe_reward(port, frame, reward):

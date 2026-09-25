@@ -1,5 +1,11 @@
 # Tiến độ
 
+## 2026-09-25 Current: four Shop routes
+
+See the newest PHASE6_RESUME section. Implementing horizontal tab discovery
+and independent permanent/monthly privilege pages. No real action yet; preserve
+claim 41 and all VIP/Idle/BXH journals. Fresh CI and Shop-only fleet pending.
+
 ## 2026-09-24 Current work: BXH and Tiệm fixed rewards
 
 Latest acceptance: **PARTIAL, only 5 / 4-Em Pé unfinished**. Eight original
