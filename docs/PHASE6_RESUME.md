@@ -2,6 +2,15 @@
 
 ## Instance-first real acceptance and remaining repair — 2026-09-26
 
+Additional original VIP74 evidence: same-task, same-boot frame13 seconds after
+its sole successful dispatch shows the upper gift positively inactive. Offline
+VIP reconciliation now validates journal/task ownership, exact saved folders,
+metadata/chronology <=60s, original screenshot-derived free/paid geometry and
+FREE_CLAIMABLE -> NOT_AVAILABLE. No caller-supplied later-run capture, no notice-
+only verification, no transport. Protected and uncertain/invalid evidence remain
+locked. New command vip-gift-reconcile-saved requires an explicit claim ID and
+must be applied using fresh CI only. No journal has been changed for this repair.
+
 Code8449dd4 / CI36231494265 passed lint, 822 pytest +26 skips, Windows portable
 build, GUI smoke and upload10902871512. Desktop app verified against531 files.
 Random live candidate set [2,3,4,5,8,9,11], secrets.choice selected3 (excluded

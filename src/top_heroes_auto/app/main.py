@@ -24,6 +24,15 @@ def main(argv: list[str] | None = None):
         data = data_directory()
         run(_manager(data), data, random_test=argv[1] == '--random-test', resume_report=resume)
         return 0
+    if argv and argv[0] == 'vip-gift-reconcile-saved':
+        if len(argv) != 2 or not argv[1].isdigit():
+            raise ValueError('Saved VIP reconciliation requires one explicit claim ID.')
+        from top_heroes_auto.app.bxh_shop_acceptance import progress
+        from top_heroes_auto.app.vip_gift_reconcile import reconcile_saved_vip_gift
+
+        result = reconcile_saved_vip_gift(Store(data_directory()/'config.sqlite3'), int(argv[1]))
+        progress(f"VIP saved claim {result['claim_id']}: {result['result']}; no input dispatched.")
+        return 0
     if argv and argv[0] == 'shop-reconcile-saved':
         if len(argv) != 2 or not argv[1].isdigit():
             raise ValueError('Saved Shop reconciliation requires one explicit claim ID.')
