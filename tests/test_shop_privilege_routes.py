@@ -204,23 +204,15 @@ def test_old_possible_cannot_be_verified_from_new_daily_period(detector):
     assert 'prior reset' in result['reconciliation_error']
 
 
-def test_visible_reward_with_unqualified_reset_is_not_reported_complete(detector):
-    import json
-
-    from top_heroes_auto.automation.fixed_reward_claims import process_reward
-
-    reward=SHOP_REWARDS[2]
-    before=detector.observe(frame('permanent'))
-    row=dict(id=90,reward_id=reward,status='VERIFIED',dispatch_state='POSSIBLE',
-             reserved_at=(datetime.now(timezone.utc)-timedelta(days=3)).isoformat(),
-             before_evidence=json.dumps({'persistent_identity':'disk'}))
-    store=SimpleNamespace(reward_claims=lambda *a:[row])
-    port=SimpleNamespace(detector=detector,observe_settled=lambda:before)
-    result={}
-    process_reward(port,store,'n',1,reward,'disk',result,lambda:None)
-    assert result['journal']=='VERIFIED'
-    assert result['result']=='PERIOD_UNQUALIFIED'
-    assert result['claim_dispatched'] is False
+def test_confirmed_reset_preserves_old_verified_record_without_locking_new_period():
+    now=datetime(2026,9,26,3,tzinfo=timezone.utc)
+    for reward in ['ranking-chest',*SHOP_REWARDS[1:3],'shop-monthly-quick-collect']:
+        row=dict(id=90,reward_id=reward,status='VERIFIED',dispatch_state='POSSIBLE',
+                 reserved_at=(now-timedelta(days=1)).isoformat())
+        assert current_attempts([row],reward,now)==[]
+        assert row['status']=='VERIFIED'
+        row['reserved_at']=now.isoformat()
+        assert current_attempts([row],reward,now)==[row]
 
 
 @pytest.mark.parametrize('state,expected',[('UNKNOWN','UNKNOWN'),('AVAILABLE','STATE_CONFLICT')])

@@ -29,7 +29,7 @@ def frame(capture, name="Pooh5"):
 
 
 @pytest.mark.parametrize("outcome", [ClaimOutcome.CLAIMED, ClaimOutcome.UNKNOWN])
-@pytest.mark.parametrize("locked_upper", [False, True])
+@pytest.mark.parametrize("locked_upper", [False, True, "error"])
 def test_one_shot_journal_and_selection_restore_for_non_index2(rig, tmp_path, monkeypatch, outcome, locked_upper):
     manager, store = prepare(rig)
     captures = iter((frame("before"), frame("after")))
@@ -54,8 +54,11 @@ def test_one_shot_journal_and_selection_restore_for_non_index2(rig, tmp_path, mo
     if locked_upper:
         from top_heroes_auto.app import vip_gift
 
-        monkeypatch.setattr(vip_gift, "run_upper_gift", lambda *a: a[-1].update(
-            result="ALREADY_ATTEMPTED", claim_dispatched=False, journal_state="RESERVED"))
+        def upper(*args):
+            args[-1].update(result="ALREADY_ATTEMPTED", claim_dispatched=False, journal_state="RESERVED")
+            if locked_upper == "error":
+                raise OSError("Upper-gift independent evidence failure; green requires its own fresh evidence.")
+        monkeypatch.setattr(vip_gift, "run_upper_gift", upper)
     row = vip_fleet.run_vip_account(manager, tmp_path, 9, "Pooh5", tmp_path, include_upper_gift=locked_upper)
     assert calls == ["claim"]
     assert row["selection_restored"] and not store.metadata(manager.namespace, 9).selected

@@ -220,6 +220,7 @@ def run_home_recovery(
     *,
     cancelled=lambda: False,
     cleanup_owned: bool = True,
+    allow_start: bool = True,
     engine: HomeRecoveryEngine | None = None,
 ) -> tuple[RecoveryResult, Path, bool]:
     target = _instance(manager, index, name)
@@ -241,6 +242,8 @@ def run_home_recovery(
     port = None
     try:
         if not target.running:
+            if not allow_start:
+                raise SafetyError("Instance session stopped; automatic restart between flows is forbidden.")
             if cancelled():
                 launch_attempt = LifecycleAttempt(
                     index=index,

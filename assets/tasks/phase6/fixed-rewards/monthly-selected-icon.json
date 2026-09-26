@@ -1,0 +1,14 @@
+{
+  "id": "monthly-selected-icon",
+  "state": "FREE_REWARD_PAGE",
+  "template": "monthly-selected-icon.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": false,
+  "notes": "Clean selected-tab icon render variant from 2026-09-26 saved evidence. No account text, annotations or tap coordinates; page/title and local selection proof required."
+}

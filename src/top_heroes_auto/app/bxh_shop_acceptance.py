@@ -84,7 +84,7 @@ def choose_random(rows, *, choice=secrets.choice, exclude=()):
 
 def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lambda: False,
                 identity_reader=persistent_identity, port_factory=FixedRewardPort,
-                recovery_runner=run_home_recovery, temporary_selection=True):
+                recovery_runner=run_home_recovery, temporary_selection=True, session=None):
     index, name = target['index'], target['name']
     snapshot = RunSnapshot(manager.namespace, ((index, name),), True)
     row = dict(index=index, name=name, recovery='NOT_STARTED', adb=None,
@@ -122,6 +122,8 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
             raise SafetyError('Persistent target identity changed; no action or cleanup permitted.')
 
     try:
+        if session is not None:
+            session.check()
         _instance(manager, index, name)
         metadata = manager.store.metadata(manager.namespace, index)
         selected_before = metadata.selected
@@ -131,15 +133,18 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
         check_identity()
         row['persistent_identity'] = identity
         if not metadata.selected:
-            if not temporary_selection:
+            if session is not None or not temporary_selection:
                 raise SafetyError('Normal application task requires explicit selection.')
             manager.select(index, True)
             changed_selection = True
         task_id = manager.store.create_task_run(manager.namespace, 'bxh-shop-fixed', index, name)
         row['task_run_id'] = task_id
         persist()
-        recovery, path, started = recovery_runner(manager, data, index, name, cleanup_owned=False,
-                                                  cancelled=cancelled)
+        if session is not None:
+            recovery, path, started = session.recover()
+        else:
+            recovery, path, started = recovery_runner(manager, data, index, name, cleanup_owned=False,
+                                                      cancelled=cancelled)
         row.update(recovery=recovery.status.value, recovery_report=str(path), adb=recovery.adb_target)
         if recovery.status not in {RecoveryStatus.SUCCESS, RecoveryStatus.ALREADY_HOME}:
             raise SafetyError(recovery.error or f'Recovery failed: {recovery.status.value}')
@@ -194,7 +199,7 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
             if outcome['result'] == 'NOT_STARTED':
                 outcome.update(result='BLOCKED', error=row['error'])
     finally:
-        if started and not cleanup_attempted:
+        if session is None and started and not cleanup_attempted:
             try:
                 check_identity()
                 if manager.store.metadata(manager.namespace, index).protected:

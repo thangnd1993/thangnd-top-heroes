@@ -1,5 +1,4 @@
 """Real failed frames and strict seven-reward acceptance regressions, offline."""
-import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -8,7 +7,6 @@ import numpy as np
 import pytest
 
 from top_heroes_auto.adb.client import Target
-from top_heroes_auto.app import phase6_acceptance as final
 from top_heroes_auto.automation.overlays import dismiss_overlay_bottom_left
 from top_heroes_auto.vision.fixed_rewards import FixedRewardDetector, claim_geometry
 from top_heroes_auto.vision.models import ScreenState
@@ -96,92 +94,28 @@ def test_duplicate_attention_does_not_rescue_pose_match(detector):
     assert detector.availability(obs,'shop-monthly-privilege-gift')[0]=='UNKNOWN'
 
 
-def runners(calls):
-    def vip(manager,data,index,name,folder,*,include_upper_gift,include_daily):
-        calls.append(('vip',index,include_upper_gift,include_daily))
-        return dict(final_result='NOT_AVAILABLE',journal_state='NONE',free_reward_state='UNAVAILABLE',
-                    upper_gift=dict(result='NOT_AVAILABLE',journal_state='NONE'),
-                    cleanup='SUCCESS',selection_restored=True,return_home='SUCCESS')
-    def fixed(manager,data,target,folder,*,rewards):
-        calls.append(('fixed',target['index'],rewards))
-        return dict(rewards={r:dict(result='NOT_AVAILABLE',journal='NONE',claim_dispatched=False) for r in rewards},
-                    cleanup='SUCCESS',selection_restored=True,return_home='SUCCESS',
-                    shop_traversal=dict(entries=1,horizontal_swipes=2))
-    return vip,fixed
-
-
-def test_final_snapshot_all_seven_routes_and_protection(rig,tmp_path):
-    manager,process,_=rig
-    calls=[]
-    vip,fixed=runners(calls)
-    result=final.run(manager,tmp_path,identity_reader=lambda *a:'disk',vip_runner=vip,fixed_runner=fixed)
-    assert result['result']=='PASS'
-    assert result['max_concurrency']==1
-    assert [r['index'] for r in result['targets']]==[7]
-    assert set(result['accounts'][0]['rewards'])==set(final.REQUIRED)
-    assert calls==[('vip',7,True,True),('fixed',7,final.FIXED)]
-    assert all(c[1:]==['list2'] for c in process.calls)
-
-
-def test_resume_only_unfinished_routes_keeps_completed_proof(rig,tmp_path):
-    manager,_,_=rig
-    calls=[]
-    vip,fixed=runners(calls)
-    result=final.run(manager,tmp_path,identity_reader=lambda *a:'disk',vip_runner=vip,fixed_runner=fixed)
-    row=result['accounts'][0]
-    row['rewards']['vip-daily']['result']='UNKNOWN'
-    row['rewards']['shop-monthly-privilege-gift']['result']='BLOCKED'
-    row['rewards']['shop-daily-gift'].update(result='SUCCESS',journal='VERIFIED',claim_id=123)
-    old=tmp_path/'resume.json'
-    old.write_text(json.dumps(result),encoding='utf-8')
-    calls.clear()
-    resumed=final.run(manager,tmp_path,resume_report=old,identity_reader=lambda *a:'disk',vip_runner=vip,fixed_runner=fixed)
-    assert calls==[('vip',7,False,True),('fixed',7,('shop-monthly-privilege-gift',))]
-    assert resumed['accounts'][0]['rewards']['shop-daily-gift']['claim_id']==123
-    assert resumed['result']=='PASS'
-
-
-def test_identity_change_before_resume_sends_no_action(rig,tmp_path):
-    manager,_,_=rig
-    calls=[]
-    vip,fixed=runners(calls)
-    result=final.run(manager,tmp_path,identity_reader=lambda *a:'disk',vip_runner=vip,fixed_runner=fixed)
-    old=tmp_path/'resume.json'
-    old.write_text(json.dumps(result),encoding='utf-8')
-    calls.clear()
-    resumed=final.run(manager,tmp_path,resume_report=old,identity_reader=lambda *a:'different-disk',vip_runner=vip,fixed_runner=fixed)
-    assert not calls and resumed['result']=='PARTIAL'
-
-
-def test_no_false_pass_for_uncertain_flow(rig,tmp_path):
-    manager,_,_=rig
-    calls=[]
-    vip,fixed=runners(calls)
-    def uncertain(*a,**kw):
-        r=vip(*a,**kw)
-        r['upper_gift']=dict(result='ALREADY_ATTEMPTED',journal_state='RESERVED')
-        return r
-    result=final.run(manager,tmp_path,identity_reader=lambda *a:'disk',vip_runner=uncertain,fixed_runner=fixed)
-    assert result['result']=='PARTIAL'
-    assert calls[-1][0]=='fixed'
-    assert result['accounts'][0]['rewards']['vip-upper-gift']['journal']=='RESERVED'
-
-
 def test_missing_or_changed_content_cannot_be_selected(detector):
     obs=detector.observe(captured('permanent-clipped-tab'))
     assert not detector.selected_tab(replace(obs,page='shop-weekly'),'monthly')
 
 
-def test_recovery_only_resume_never_replays_completed_rewards(rig,tmp_path):
-    manager,_,_=rig
-    calls=[]
-    vip,fixed=runners(calls)
-    result=final.run(manager,tmp_path,identity_reader=lambda *a:'disk',vip_runner=vip,fixed_runner=fixed)
-    result['accounts'][0]['recovery_ok']=False
-    old=tmp_path/'recovery-resume.json'
-    old.write_text(json.dumps(result),encoding='utf-8')
-    calls.clear()
-    resumed=final.run(manager,tmp_path,resume_report=old,identity_reader=lambda *a:'disk',vip_runner=vip,fixed_runner=fixed)
-    assert calls==[('fixed',7,())]
-    assert resumed['result']=='PASS'
-    assert resumed['accounts'][0]['new_claims']==0
+
+@pytest.mark.parametrize('route',['permanent','monthly'])
+def test_new_selected_icon_variant_qualifies_current_page(detector,route):
+    obs=detector.observe(captured(f'{route}-selected-icon'))
+    assert detector.selected_tab(obs,route)
+    state,core,_=detector.availability(obs,f'shop-{route}-privilege-gift')
+    assert state=='AVAILABLE' and core.score>=.96
+    assert claim_geometry(obs,f'shop-{route}-privilege-gift',core)['outside_forbidden']
+    assert not detector.selected_tab(replace(obs,page='UNKNOWN'),route)
+
+
+@pytest.mark.parametrize('route',['permanent','monthly'])
+def test_duplicate_selected_icon_variant_fails_closed(detector,route):
+    def duplicate(image):
+        x=387 if route=='permanent' else 180
+        image[1201:1244,490:490+(41 if route=='permanent' else 34)]=image[1201:1244,x:x+(41 if route=='permanent' else 34)]
+        return image
+    obs=detector.observe(captured(f'{route}-selected-icon',duplicate))
+    assert not detector.selected_tab(obs,route)
+    assert detector.availability(obs,f'shop-{route}-privilege-gift')[0]=='UNKNOWN'

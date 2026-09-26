@@ -122,3 +122,15 @@ sẽ bị chặn. Cần dữ liệu thực tế trước khi bổ sung adapter c
 
 Không task gameplay, không scheduler, không tự tắt sau tác vụ, không chạy đồng thời nhiều giả lập.
 Các guard tiêu kim cương/vật phẩm sẽ được thiết kế cùng state recognition trong phase tương lai.
+
+## Permanent instance-first automation
+
+The outer loop is the instance snapshot. Start/attach once, execute the frozen
+plan from the extensible enabled/supported flow registry, then cleanup once.
+Finish every flow's authorized sub-rewards in one feature visit before leaving.
+No feature-wide fleet passes or lifecycle restart between features/rewards.
+Future features register with the same pipeline; the scheduler has no phase list.
+Record disabled, not-applicable and blocked flows explicitly. A blocked reward
+locks only itself; continue independent work only with fresh safe evidence.
+Preserve live Protection, exact identity, original selection and external running
+ownership. A stopped/replaced instance during a session fails closed, never restarts.

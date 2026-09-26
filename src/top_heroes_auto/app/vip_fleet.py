@@ -32,7 +32,7 @@ def _protected(manager):
             raise SafetyError(f"Protected account #{index} must remain Protected and unselected.")
 
 
-def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=False, include_daily=True):
+def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=False, include_daily=True, session=None, cancelled=lambda: False):
     """Use production guards and visual ports; one claim call, no explorer routes."""
     row = dict(index=index, name=name, adb_target=None, recovery_result="NOT_STARTED",
                game_home_confidence=None, vip_entry=None, vip_screen_verified=False,
@@ -47,7 +47,12 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
     claim_id = None
     snapshot = RunSnapshot(manager.namespace, ((index, name),), True)
     try:
-        _protected(manager)
+        if session is not None:
+            session.check()
+        else:
+            _protected(manager)
+        if cancelled():
+            raise SafetyError("Run cancelled.")
         _instance(manager, index, name)
         meta = manager.store.metadata(manager.namespace, index)
         original_selected = meta.selected
@@ -66,10 +71,13 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
             raise SafetyError(error or "VIP profile unavailable.")
         task_id = manager.store.create_task_run(manager.namespace, "vip-reward", index, name)
         row["task_run_id"] = task_id
-        if not original_selected:
+        if not original_selected and session is None:
             selection_changed = True
             manager.select(index, True)
-        recovery, report, started = run_home_recovery(manager, data, index, name, cleanup_owned=False)
+        if session is not None:
+            recovery, report, started = session.recover()
+        else:
+            recovery, report, started = run_home_recovery(manager, data, index, name, cleanup_owned=False)
         row.update(recovery_report=str(report), recovery_result=recovery.status.value, adb_target=recovery.adb_target)
         if recovery.status not in {RecoveryStatus.SUCCESS, RecoveryStatus.ALREADY_HOME}:
             row["final_result"] = "BLOCKED_ADB_CONFIG" if recovery.status == RecoveryStatus.ADB_ERROR else recovery.status.value
@@ -85,23 +93,33 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
             return row
         entry = navigation.target_evidence[-1] if navigation.target_evidence else None
         row["vip_entry"] = entry
+        if cancelled():
+            raise SafetyError("Run cancelled.")
         if include_upper_gift:
             from top_heroes_auto.app.vip_gift import run_upper_gift
 
             gift_folder = folder / "upper-gift"
             gift_folder.mkdir(exist_ok=True)
             row["upper_gift"] = {}
-            run_upper_gift(manager, snapshot, index, name, profile, gift_folder, entry, task_id, row["upper_gift"])
+            try:
+                run_upper_gift(manager, snapshot, index, name, profile, gift_folder, entry, task_id, row["upper_gift"])
+            except Exception as exc:  # noqa: BLE001 - fresh daily evidence must independently qualify continuation
+                upper = row['upper_gift']
+                upper.update(result='SUCCESS_WITH_RECOVERY_WARNING' if upper.get('journal_state') == 'VERIFIED' else
+                             'ACTION_DISPATCHED_UNVERIFIED' if upper.get('claim_dispatched') else 'UNKNOWN',
+                             error=f'{type(exc).__name__}: {exc}')
             row["vip_screen_verified"] = row["upper_gift"].get("before", {}).get("detection", {}).get("state") == "FREE_REWARD_PAGE"
         port = reward_port_factory(manager, snapshot, index, name, profile, folder)
         port.set_entry_geometry(entry)
-        before = port.observe()
+        before = port.dismiss_receipts(port.observe())
         guard = FreeRewardGuard(index, name)
         guard.observe(before)
         row.update(adb_target=before.adb_target, before_evidence=json.loads(evidence_json(before)))
         row["vip_screen_verified"] = before.detection.state.value == "FREE_REWARD_PAGE" and before.detection.confidence >= .9
         if not row["vip_screen_verified"]:
             raise SafetyError("Current VIP screen is not qualified.")
+        if cancelled():
+            raise SafetyError("Run cancelled.")
         if not include_daily:
             row.update(free_reward_state="NOT_REQUESTED", final_result="NOT_REQUESTED")
             row["return_home"] = "SUCCESS" if port.return_home(before) else "FAILED"
@@ -167,7 +185,7 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
         )
         return row
     finally:
-        if started and not cleanup_attempted:
+        if session is None and started and not cleanup_attempted:
             try:
                 manager.execute(index, "quit", snapshot=snapshot)
                 row["cleanup"] = "SUCCESS"

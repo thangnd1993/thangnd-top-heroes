@@ -1,4 +1,4 @@
-"""Only observed reset policies; no inferred VIP policy for unrelated rewards."""
+"""Qualified reward reset policies; historical journals are never rewritten."""
 from datetime import datetime, timedelta, timezone
 
 from top_heroes_auto.vision.fixed_rewards import ALL_REWARDS as REWARDS
@@ -7,8 +7,10 @@ from top_heroes_auto.vision.fixed_rewards import ALL_REWARDS as REWARDS
 def period_start(reward, now=None):
     if reward not in REWARDS:
         raise ValueError('Unsupported fixed reward period.')
-    if reward != 'shop-daily-gift':
+    if reward == 'shop-monthly-privilege-gift':
         return None
+    # User confirmed BXH/weekly/permanent/monthly quick collect reset daily
+    # at 09:00 Vietnam (02:00 UTC), 2026-09-26. Legacy monthly entry stays locked.
     # Clean daily-offer frame written 2026-09-23 01:05:26 UTC: 00:54:33 left,
     # giving 01:59:59 UTC (one second capture/rounding uncertainty).
     now = now or datetime.now(timezone.utc)
@@ -31,6 +33,7 @@ def current_attempts(rows, reward, now=None):
         row = dict(row)  # Store's transactional reservation also supplies sqlite3.Row.
         if row['reward_id'] != reward:
             continue
+        # Preserve unresolved historical dispatches; reset does not verify them.
         if row.get('status') == 'RESERVED' and row.get('dispatch_state') != 'NOT_DISPATCHED':
             result.append(row)
             continue

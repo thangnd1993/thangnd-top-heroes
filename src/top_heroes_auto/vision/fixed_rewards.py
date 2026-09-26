@@ -66,7 +66,7 @@ class FixedRewardDetector:
             # Semantic surfaces only. These regions never supply tap coordinates.
             if name.startswith('ads-'):
                 region = portrait_region(0, 0, 1, 1)
-            elif name in {'permanent-active-current', 'permanent-tab-current'}:
+            elif name in {'permanent-active-current', 'permanent-tab-current', 'permanent-selected-icon', 'monthly-selected-icon'}:
                 region = portrait_region(0, .90, 1, 1)
             elif name.startswith("avatar-"):
                 region = portrait_region(0, 0, .22, .15)
@@ -96,6 +96,9 @@ class FixedRewardDetector:
         recovery = self.recovery.detect(captured)
         for role, variant in [('weekly-title', 'weekly-title-current'), ('permanent-tab', 'permanent-tab-current')]:
             anchors[role] = self._same_target_variant(anchors[role], anchors[variant])
+        for route in ('permanent', 'monthly'):
+            role = f'{route}-tab'
+            anchors[role] = self._same_target_variant(anchors[role], anchors[f'{route}-selected-icon'])
         anchors['avatar-frame'] = self.avatar_frame(captured)
         known = []
         def matched(*roles):
@@ -158,6 +161,8 @@ class FixedRewardDetector:
                     anchors[role] = self._same_target_variant(anchors[role], anchors[variant])
         if page in {'shop-permanent', 'shop-monthly'}:
             route = page.removeprefix('shop-')
+            if route == 'monthly':
+                anchors['monthly-gift'] = self._same_target_variant(anchors['monthly-gift'], anchors['monthly-gift-tilted'])
             core, badge = anchors[f'{route}-gift'], anchors[f'{route}-attention']
             if not core.matched and core.score < core.threshold and badge.matched and badge.device_box:
                 # The gift rocks independently of the current attention badge.
@@ -211,6 +216,8 @@ class FixedRewardDetector:
 
     @staticmethod
     def selected_tab(observation, route):
+        if observation.page != f'shop-{route}':
+            return False
         active, tab = observation.box(f'{route}-active-tab'), observation.box(f'{route}-tab')
         if active and tab and active.x <= tab.center[0] <= active.x+active.width:
             return True

@@ -14,12 +14,12 @@ def data_directory() -> Path:
 
 def main(argv: list[str] | None = None):
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv and argv[0] == 'phase6-acceptance':
+    if argv and argv[0] in {'automation-acceptance', 'phase6-acceptance'}:
         resume = Path(argv[2]) if len(argv) == 3 and argv[1] == '--resume-report' else None
         if not resume and argv[1:] not in (["--random-test"], ["--confirm-non-protected"]):
             raise ValueError('Phase 6 requires an explicit random/fleet/resume scope.')
+        from top_heroes_auto.app.automation_fleet import run
         from top_heroes_auto.app.diagnostic import _manager
-        from top_heroes_auto.app.phase6_acceptance import run
 
         data = data_directory()
         run(_manager(data), data, random_test=argv[1] == '--random-test', resume_report=resume)

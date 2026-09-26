@@ -33,7 +33,6 @@ from PySide6.QtWidgets import (
 
 from top_heroes_auto.app.free_reward_tasks import (
     PHASE6_TARGET,
-    run_free_reward_sequence,
     run_free_reward_task,
 )
 from top_heroes_auto.app.phase6_runtime import promo_recovery_factory
@@ -54,6 +53,7 @@ from top_heroes_auto.app.phase6_vip_survey_tasks import (
 )
 from top_heroes_auto.app.process import Process
 from top_heroes_auto.app.recovery_cli import run_home_recovery
+from top_heroes_auto.app.registered_tasks import run_registered_selected
 from top_heroes_auto.app.run_queue import RunController
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.app.task_cli import run_idle_reward_diagnostic
@@ -841,7 +841,7 @@ class Window(QMainWindow):
         self.phase6_status.setText("Phase 6 chuỗi: đang chạy…")
         self.run_job(
             "phase6",
-            lambda: run_free_reward_sequence(
+            lambda: run_registered_selected(
                 self.manager,
                 self.data_dir,
                 index,

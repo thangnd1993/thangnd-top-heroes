@@ -642,7 +642,7 @@ def test_cli_parser_exposes_phase6_tasks_and_sequence():
     args = task_parser().parse_args(["vip-reward", "--index", "2", "--name", "5-Emmmmm"])
     assert args.command == "vip-reward"
     args = task_parser().parse_args(["free-rewards", "--index", "2", "--name", "5-Emmmmm"])
-    assert tuple(args.tasks) == ("vip-reward", "free-pack", "free-recruit", "ranking-chest")
+    assert args.tasks is None  # Enabled supported registry supplies the plan; Recruit is deferred.
     args = task_parser().parse_args(
         [SHOP_NAVIGATION_TASK, "--index", "2", "--name", "5-Emmmmm"]
     )

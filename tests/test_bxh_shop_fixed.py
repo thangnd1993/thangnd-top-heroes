@@ -177,7 +177,7 @@ def test_one_shot_independent_postcondition_and_persistent_lock(tmp_path, detect
     second = {}
     process_reward(port, store, 'namespace', task, 'ranking-chest', 'disk', second, lambda: None)
     assert calls == ['claim']
-    assert second['result'] in {'ALREADY_VERIFIED', 'ALREADY_ATTEMPTED', 'PERIOD_UNQUALIFIED'}
+    assert second['result'] in {'ALREADY_VERIFIED', 'ALREADY_ATTEMPTED', 'STATE_CONFLICT'}
 
 
 def test_three_rewards_independent_and_unavailable_does_not_reserve(tmp_path, detector):
@@ -202,7 +202,7 @@ def test_actual_daily_period_preserves_old_receipt_but_not_new_period_lock():
     assert rows[0]['status'] == 'VERIFIED'
     rows[0]['reserved_at'] = now.isoformat()
     assert current_attempts(rows, 'shop-daily-gift', now) == rows
-    assert cycle_key('ranking-chest', now).endswith('initial-period-unqualified')
+    assert cycle_key('ranking-chest', now).endswith('2026-09-24T02:00:00+00:00')
 
 
 def test_random_excludes_all_protected_no_fixed_index():

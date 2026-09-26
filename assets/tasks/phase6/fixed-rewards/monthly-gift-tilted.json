@@ -1,0 +1,14 @@
+{
+  "id": "monthly-gift-tilted",
+  "state": "FREE_REWARD_PAGE",
+  "template": "monthly-gift-tilted.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": false,
+  "notes": "Clean gift/video core in saved rocking pose, 2026-09-26. Navigation only; paired current title, selected tab and attached attention required."
+}

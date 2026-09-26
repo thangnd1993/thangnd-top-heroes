@@ -158,11 +158,11 @@ class FixedRewardPort:
         if role == 'home-shop-entry' and after.page in SHOP_PAGES:
             self.shop_state().current_tab = after.page
             return after  # Shop may remember its last positively recognized tab.
+        if after.page != expected:
+            raise SafetyError(f'Expected {expected}; current page {after.page}.')
         if (expected in {'shop-permanent', 'shop-monthly'} and role.endswith('-tab') and
                 not self.detector.selected_tab(after, expected.removeprefix('shop-'))):
             raise SafetyError('Selected shop tab not independently verified.')
-        if after.page != expected:
-            raise SafetyError(f'Expected {expected}; current page {after.page}.')
         if after.page in SHOP_PAGES:
             self.shop_state().current_tab = after.page
         return after

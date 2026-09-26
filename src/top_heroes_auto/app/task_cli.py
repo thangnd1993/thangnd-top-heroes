@@ -12,7 +12,6 @@ from top_heroes_auto.app.diagnostic import _instance, _manager, _only_target_cha
 from top_heroes_auto.app.free_reward_tasks import (
     PHASE6_TASKS,
     SUCCESS_STATUSES,
-    run_free_reward_sequence,
     run_free_reward_task,
 )
 from top_heroes_auto.app.phase6_runtime import promo_recovery_factory, shop_survey_factory
@@ -365,7 +364,7 @@ def parser():
     sequence = commands.add_parser("free-rewards")
     sequence.add_argument("--index", type=int, required=True)
     sequence.add_argument("--name", required=True)
-    sequence.add_argument("--tasks", nargs="+", choices=PHASE6_TASKS, default=list(PHASE6_TASKS))
+    sequence.add_argument("--tasks", nargs="+", choices=('vip-reward', 'ranking-chest', 'free-pack'), default=None)
     survey = commands.add_parser(
         SHOP_NAVIGATION_TASK,
         help="khảo sát Tiệm / không nhận quà (navigation-only)",
@@ -438,12 +437,14 @@ def main(argv: list[str], data: Path) -> int:
         result = run_phase6_vip_survey(manager, data, args.index, args.name)
         print(json.dumps(result.as_dict(), ensure_ascii=True, indent=2))
         return 0 if result.status == "SUCCESS" else 2
-    results = run_free_reward_sequence(
+    from top_heroes_auto.app.registered_tasks import run_registered_selected
+
+    results = run_registered_selected(
         manager,
         data,
         args.index,
         args.name,
-        tuple(args.tasks),
+        tasks=tuple(args.tasks) if args.tasks else None,
     )
     print(json.dumps({"results": [result.as_dict() for result in results]}, ensure_ascii=True, indent=2))
-    return 0 if results and all(result.status in SUCCESS_STATUSES for result in results) else 2
+    return 0 if results and all(result.status in {*SUCCESS_STATUSES, "COMPLETE", "DISABLED", "NOT_APPLICABLE", "ALREADY_COMPLETED"} for result in results) else 2

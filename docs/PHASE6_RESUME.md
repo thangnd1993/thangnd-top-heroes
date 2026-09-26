@@ -1,5 +1,31 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## Global instance-first correction — 2026-09-26
+
+User requires a permanent extensible per-instance pipeline, superseding the
+short-lived Phase6 runner's separate VIP and fixed lifecycle sessions. Global
+FlowRegistry snapshots all configured flows per instance; InstanceSession owns
+selection/start/attach/cleanup once. VIP, BXH and Shop register complete feature
+handlers. GUI sequence and CLI use that same pipeline. The Phase6 CLI name is a
+compatibility alias; no hardcoded Phase6 scheduler. Blocked/missing/disabled
+flows have explicit terminal results; later independent flows remain eligible.
+
+User confirmed daily 09:00 Vietnam reset for BXH, custom weekly upper gift,
+permanent gift and monthly quick collect. Their VERIFIED records remain intact;
+new periods get new journal keys. Unresolved RESERVED/POSSIBLE remains locked
+conservatively; a new period cannot verify an old action. Legacy monthly upper
+entry is still navigation, not a claim. Never replay current claims59/60/61:
+Nấm hương random acceptance on 8b6a273 verified VIP upper, VIP daily, Shop daily.
+That run cleaned up/restored selection but was PARTIAL on other routes.
+
+Saved new selected-tab render variants at >=.98 and tilted monthly navigation
+gift at >=.98 fix the concrete Nấm hương current-frame mismatch. Correct page,
+selected local tab, current attached badge and paid exclusion stay mandatory.
+Game-only evidence assets are qualified offline; real use requires fresh CI.
+Protected Chicken was externally running: leave it untouched. No Idle/Recruit,
+paid tasks, rename/config change or Phase7. Full fleet acceptance still pending.
+
+
 ## Final seven-reward Phase 6 acceptance — 2026-09-26
 
 User authorized final VIP upper/daily, BXH, and four Shop routes across ALL LIVE
