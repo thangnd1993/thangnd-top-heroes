@@ -21,8 +21,8 @@ def unique_subpixel_anchor(screen, anchor):
     if min(h,w) <= margin*2 or region.shape[0] < h or region.shape[1] < w:
         return AnchorEvidence(anchor.id, anchor.state, best, threshold, False)
     for scale in (.98, 1., 1.02):
-        for dx in (-.5, 0., .5):
-            for dy in (-.5, 0., .5):
+        for dx in (-.5, -.25, 0., .25, .5):
+            for dy in (-.5, -.25, 0., .25, .5):
                 matrix = cv2.getRotationMatrix2D((w/2, h/2), 0, scale)
                 matrix[:,2] += dx, dy
                 patch = cv2.warpAffine(template, matrix, (w,h))[margin:-margin,margin:-margin]

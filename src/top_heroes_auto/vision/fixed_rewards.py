@@ -100,7 +100,10 @@ class FixedRewardDetector:
         for route in ('permanent', 'monthly'):
             role = f'{route}-tab'
             anchors[role] = self._same_target_variant(anchors[role], anchors[f'{route}-selected-icon'])
-            if not anchors[role].matched and anchors[role].score < anchors[role].threshold:
+            # A retrieval gate avoids transforming unrelated low-score UI. It
+            # never authorizes input; final confidence remains >=.98 and unique.
+            seed = max(anchors[role].score,anchors[f'{route}-selected-icon'].score)
+            if not anchors[role].matched and anchors[role].score < anchors[role].threshold and seed >= .85:
                 for variant in (role, f'{route}-selected-icon'):
                     aligned = unique_subpixel_anchor(captured, replace(self.anchors[variant],
                         expected_region=portrait_region(0, .90, 1, 1)))

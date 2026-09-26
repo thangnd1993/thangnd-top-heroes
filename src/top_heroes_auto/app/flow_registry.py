@@ -16,6 +16,8 @@ class Flow:
     enabled: bool = True
     supported: bool = True
     applicable: Callable = lambda target: True
+    # Read-only feature-owned journal qualification before lifecycle/navigation.
+    completed: Callable = lambda session, rewards: {}
 
 
 class FlowRegistry:

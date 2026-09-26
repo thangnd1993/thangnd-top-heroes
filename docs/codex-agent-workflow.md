@@ -71,3 +71,11 @@ Record disabled, not-applicable and blocked flows explicitly. A blocked reward
 locks only itself; continue independent work only with fresh safe evidence.
 Preserve live Protection, exact identity, original selection and external running
 ownership. A stopped/replaced instance during a session fails closed, never restarts.
+
+
+Feature registry completion hooks are read-only and run before lifecycle or
+navigation. They may report only bound current-period VERIFIED journal evidence.
+Completed rewards skip only themselves; an all-completed instance needs no
+start/feature visit. Future feature-specific period/identity rules belong in the
+registered feature, never in the global instance scheduler. Uncertain evidence
+stays blocked, and later independent work must still receive explicit results.

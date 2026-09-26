@@ -45,10 +45,25 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
             try:
                 status = ('DISABLED' if not flow.enabled else 'NOT_APPLICABLE' if not flow.applicable(target)
                           else 'BLOCKED' if not flow.supported else None)
+                completed = flow.completed(session,flow.rewards) if status is None else {}
+                for reward, proof in completed.items():
+                    if (reward not in flow.rewards or proof.get('result') != 'ALREADY_VERIFIED'
+                            or proof.get('journal') != 'VERIFIED' or not proof.get('claim_id')):
+                        raise SafetyError('Invalid feature journal completion evidence.')
+                    prior_reward = row['rewards'].get(reward,{})
+                    if prior_reward.get('result') not in COMPLETE:
+                        row['rewards'][reward] = dict(proof,claim_dispatched=False,
+                            prior_result=prior_reward.get('result'))
+                    elif not prior_reward.get('claim_id'):
+                        row['rewards'][reward] = dict(prior_reward,claim_id=proof['claim_id'],
+                            journal='VERIFIED',completion_source=proof.get('completion_source','journal'))
+
             except Exception as exc:  # noqa: BLE001 - invalid applicability cannot omit later independent flows
                 row['flows'][flow.id] = dict(result='BLOCKED', error=str(exc))
+                row['error'] = str(exc)
                 for reward in flow.rewards:
-                    row['rewards'][reward] = blocked(exc)
+                    if row['rewards'].get(reward,{}).get('result') not in COMPLETE:
+                        row['rewards'][reward] = blocked(exc)
                 persist()
                 continue
             if status:
@@ -92,6 +107,9 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                     row['rewards'][reward] = blocked(exc)
                 row['recovery_ok'] = False
             persist()
+        if not started and not prior and row['rewards'] and all(
+                r['result'] in COMPLETE for r in row['rewards'].values()):
+            row['recovery_ok'] = True  # Nothing required lifecycle or navigation.
         # Recovery-only resume never calls reward adapters again.
         if row['rewards'] and all(r['result'] in {'DISABLED', 'NOT_APPLICABLE'} for r in row['rewards'].values()):
             row['recovery_ok'] = True

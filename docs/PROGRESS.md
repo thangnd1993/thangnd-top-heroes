@@ -1,5 +1,38 @@
 # Tiến độ
 
+## Unfinished-only final resume — 2026-09-26
+
+Artifact06fe757 / CI36240466603 passed all gates (862 passed,26 skipped),
+533 Desktop app files verified. Original saved claims65/73/74/79/82/84/103
+were verified offline from their own same-boot <60s positive post-states; no
+input redispatched. Resume automation/20260926-125523-720468Z processed8/8,
+adding10 claims104..113. BXH109 then verified with the same saved-proof command.
+All52 claims since the45-journal baseline are now VERIFIED; all45 original rows
+are unchanged. All targets ended stopped; selections/names/Protected unchanged.
+Current seven-reward period:55/56 satisfied. ONLY index10 / Nấm hương's permanent
+Shop gift remains unclaimed. Current journal preflight confirms other7 accounts
+have7/7 VERIFIED; do not reopen those accounts/rewards for another trial.
+
+Concrete last repair: the visible permanent tab in131337 frame has quarter-pixel
+raster phase. Added bounded quarter offsets at unchanged>=.98; score.9837 (no
+account coordinates). A weak seed gate only avoids transforming unrelated UI;
+it never lowers final confidence. New clean game-only frame fixture inspected.
+
+Registry Flow now offers a read-only feature-owned completed-journal hook BEFORE
+any lifecycle/navigation. Future features can implement their own period/proof
+rules without scheduler changes. Current VIP/fixed adapters bind current-period
+VERIFIED ids to exact account (fixed rewards also require original persistent
+identity). POSSIBLE/unknown/conflicting proofs never skip work. Completed rewards
+skip only themselves; an all-completed instance never starts. This repairs Queen
+con's stale BLOCKED monthly report after offline verification and fills missing
+completed claim IDs. Existing reports/journals remain intact.
+
+Local60 focused registry/vision tests passed, then33 pipeline tests after report
+ID enrichment. Ruff/diff-check passed. Read-only actual-journal preflight returns
+one pending reward only:10 / shop-permanent-privilege-gift. Self-review: no journal
+downgrade/retry, no target fallback, bounded matching, no paid input. Require
+fresh CI/artifact, then resume125523 report; only index10 should acquire a session.
+
 ## Instance-first real acceptance and remaining repair — 2026-09-26
 
 Original BXH82 also has a late action-bound empty-slot frame095105 after its

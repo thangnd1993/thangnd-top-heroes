@@ -334,3 +334,72 @@ def test_new_period_reservation_preserves_old_possible_and_blocks_same_period(ri
     assert new!=cid and dict(store.reward_claims('n',23)[0])==original
     with pytest.raises(ValueError,match='already attempted'):
         store.reserve_reward_claim(task,reward,cycle_key(reward),'{}',fixed_reward_period=True)
+
+
+
+def test_registry_journal_completion_precedes_lifecycle_and_skips_only_its_reward(rig,tmp_path):
+    calls=[]
+    registry,session,feature=setup(calls)
+    registry=FlowRegistry()
+    def done(s,rs):
+        return {'one':dict(result='ALREADY_VERIFIED',journal='VERIFIED',claim_id=91)}
+    registry.register(Flow('future',('one','two'),feature,completed=done))
+    result=fleet.run(rig[0],tmp_path,registry=registry,session_factory=session,identity_reader=lambda *a:'disk')
+    row=result['accounts'][0]
+    assert row['rewards']['one']['result']=='ALREADY_VERIFIED'
+    assert row['rewards']['one']['claim_dispatched'] is False
+    assert (7,'future',('two',)) in calls
+    assert calls[0]==(7,'start') and calls[-1]==(7,'cleanup')
+
+
+def test_all_journals_completed_never_start_or_enter_a_flow(rig,tmp_path):
+    calls=[]
+    _,session,feature=setup(calls)
+    registry=FlowRegistry()
+    def done(s,rs):
+        return {r:dict(result='ALREADY_VERIFIED',journal='VERIFIED',claim_id=i+1) for i,r in enumerate(rs)}
+    registry.register(Flow('future',('one','two'),feature,completed=done))
+    result=fleet.run(rig[0],tmp_path,registry=registry,session_factory=session,identity_reader=lambda *a:'disk')
+    assert calls==[] and result['accounts'][0]['result']=='COMPLETE'
+    assert result['accounts'][0]['cleanup']=='NOT_REQUIRED'
+    result['accounts'][0]['rewards']['one']['claim_id']=None
+    path=tmp_path/'resume.json'
+    path.write_text(json.dumps(result),encoding='utf-8')
+    resumed=fleet.run(rig[0],tmp_path,registry=registry,session_factory=session,
+                      identity_reader=lambda *a:'disk',resume_report=path)
+    assert calls==[] and resumed['accounts'][0]['rewards']['one']['claim_id']==1
+
+
+
+def test_invalid_completion_cannot_skip_later_independent_flow(rig,tmp_path):
+    calls=[]
+    _,session,feature=setup(calls)
+    registry=FlowRegistry()
+    registry.register(Flow('bad',('one',),feature,completed=lambda s,r:{'one':dict(result='SUCCESS')}))
+    registry.register(Flow('later',('two',),feature))
+    result=fleet.run(rig[0],tmp_path,registry=registry,session_factory=session,identity_reader=lambda *a:'disk')
+    assert result['accounts'][0]['result']=='PARTIAL'
+    assert (7,'later',('two',)) in calls
+
+
+@pytest.mark.parametrize('bad',[None,'possible','name','identity','protected'])
+def test_fixed_feature_completes_only_bound_current_verified_journal(bad):
+    from types import SimpleNamespace
+
+    from top_heroes_auto.app.reward_flows import journal_completions
+    reward='shop-monthly-quick-collect'
+    row=dict(id=73,reward_id=reward,instance_name='changed' if bad=='name' else 'exact',
+        status='RESERVED' if bad=='possible' else 'VERIFIED',dispatch_state='POSSIBLE',
+        reserved_at=datetime.now(timezone.utc).isoformat(),
+        before_evidence=json.dumps(dict(persistent_identity='other' if bad=='identity' else 'disk')))
+    store=SimpleNamespace(metadata=lambda *a:SimpleNamespace(protected=bad=='protected'),reward_claims=lambda *a:[row])
+    session=SimpleNamespace(index=23,name='exact',target=dict(persistent_identity='disk'),
+                            manager=SimpleNamespace(namespace='n',store=store))
+    if bad=='protected':
+        with pytest.raises(SafetyError):
+            journal_completions(session,('shop-monthly-privilege-gift',))
+    else:
+        result=journal_completions(session,('shop-monthly-privilege-gift',))
+        assert bool(result)==(bad is None)
+        if result:
+            assert result['shop-monthly-privilege-gift']['claim_id']==73

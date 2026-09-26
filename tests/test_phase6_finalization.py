@@ -187,3 +187,13 @@ def test_real_rocking_ranking_chest_uses_current_badge_and_pose(detector,offset,
     else:
         assert state=='AVAILABLE' and core.score>=.96
         assert claim_geometry(obs,'ranking-chest',core)['tap']==list(core.device_box.center)
+
+
+
+def test_real_quarter_pixel_tab_alignment_keeps_strict_threshold(detector):
+    obs=detector.observe(captured('scrolled-tabs-quarter'))
+    tab=obs.anchors['permanent-tab']
+    assert obs.page=='shop-daily' and tab.matched and tab.score>=.98
+    assert tab.device_box and tab.device_box.x>obs.box('back').x+obs.box('back').width
+    assert not detector.selected_tab(obs,'permanent')
+    assert detector.availability(obs,'shop-permanent-privilege-gift')[0]=='UNKNOWN'
