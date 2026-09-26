@@ -2,6 +2,16 @@
 
 ## Instance-first real acceptance and remaining repair — 2026-09-26
 
+Period lock correction: canonical dated POSSIBLE rows from a strictly older,
+qualified 09:00 Vietnam period no longer block a new period. Historical rows
+remain byte-for-byte unchanged and uncertain; this NEVER verifies an old claim.
+Same-period, malformed, inconsistent or undated legacy locks remain blocked.
+Current fresh AVAILABLE/free evidence is still mandatory for a new reservation.
+This fixes daily41's known24Sep period blocking26Sep; legacy monthly entry47
+is unqualified and stays locked/navigation-only. Thirteen targeted reset/period
+checks passed, including transactional same-period duplicate rejection. This
+supersedes the conservative cross-period lock notes below, not their history.
+
 Additional original VIP74 evidence: same-task, same-boot frame13 seconds after
 its sole successful dispatch shows the upper gift positively inactive. Offline
 VIP reconciliation now validates journal/task ownership, exact saved folders,

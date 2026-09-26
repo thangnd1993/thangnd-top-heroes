@@ -33,13 +33,15 @@ def current_attempts(rows, reward, now=None):
         row = dict(row)  # Store's transactional reservation also supplies sqlite3.Row.
         if row['reward_id'] != reward:
             continue
-        # Preserve unresolved historical dispatches; reset does not verify them.
-        if row.get('status') == 'RESERVED' and row.get('dispatch_state') != 'NOT_DISPATCHED':
-            result.append(row)
-            continue
         try:
             reserved = datetime.fromisoformat(row['reserved_at'])
             locked = start is None or reserved.tzinfo is None or reserved >= start
+            if (not locked and row.get('status') == 'RESERVED'
+                    and row.get('dispatch_state') != 'NOT_DISPATCHED'):
+                # A canonical, independently qualified old period may expire
+                # its eligibility lock, never its historical uncertainty. Legacy
+                # or mismatched period evidence remains locked indefinitely.
+                locked = row.get('cycle_key') != cycle_key(reward, reserved)
         except (KeyError, ValueError, TypeError):
             locked = True
         if locked:

@@ -300,3 +300,37 @@ def test_uncertain_lifecycle_ownership_never_reports_cleanup_success(rig,tmp_pat
     session.close()
     assert session.report['cleanup']=='OWNERSHIP_UNKNOWN'
     assert not any(c[1]=='quit' for c in process.calls)
+
+
+@pytest.mark.parametrize('reward',['ranking-chest','shop-daily-gift','shop-weekly-card-gift',
+                                  'shop-permanent-privilege-gift','shop-monthly-quick-collect'])
+def test_canonical_past_possible_period_expires_eligibility_only(reward):
+    from top_heroes_auto.automation.fixed_reward_period import cycle_key
+    reset=datetime(2026,9,26,2,tzinfo=timezone.utc)
+    earlier=reset-timedelta(seconds=1)
+    row=dict(reward_id=reward,status='RESERVED',dispatch_state='POSSIBLE',
+             reserved_at=earlier.isoformat(),cycle_key=cycle_key(reward,earlier))
+    original=dict(row)
+    assert current_attempts([row],reward,earlier)==[row]
+    assert current_attempts([row],reward,reset)==[]
+    assert row==original  # Never verify/delete/downgrade historical POSSIBLE.
+    row['cycle_key']=cycle_key(reward,reset)
+    assert current_attempts([row],reward,reset)==[row]  # Inconsistent period evidence.
+
+
+def test_new_period_reservation_preserves_old_possible_and_blocks_same_period(rig):
+    from top_heroes_auto.automation.fixed_reward_period import cycle_key
+    _,_,store=rig
+    reward='shop-daily-gift'
+    task=store.create_task_run('n','bxh-shop-fixed',23,'exact')
+    cid=store.reserve_reward_claim(task,reward,cycle_key(reward),'{}',not_dispatched=True,fixed_reward_period=True)
+    store.mark_reward_dispatch(cid,task)
+    old=datetime.now(timezone.utc)-timedelta(days=2)
+    with store.connect() as db:
+        db.execute('UPDATE reward_claims SET reserved_at=?,cycle_key=? WHERE id=?',
+                   (old.isoformat(),cycle_key(reward,old),cid))
+    original=dict(store.reward_claims('n',23)[0])
+    new=store.reserve_reward_claim(task,reward,cycle_key(reward),'{}',not_dispatched=True,fixed_reward_period=True)
+    assert new!=cid and dict(store.reward_claims('n',23)[0])==original
+    with pytest.raises(ValueError,match='already attempted'):
+        store.reserve_reward_claim(task,reward,cycle_key(reward),'{}',fixed_reward_period=True)
