@@ -92,8 +92,8 @@ def reconcile_fixed_reward(store, row, detector, current, identity):
 def reconcile_saved_fixed_reward(store, claim_id):
     """Qualify the original immediate post-state offline; never access transport.
 
-    Only the bottom action, weekly gift and permanent gift have qualified saved
-    post-states here. Legacy upper entries, daily reset disputes and unrelated
+    Only the bottom action, ranking, weekly gift and permanent gift have qualified
+    saved post-states here. Legacy upper entries, daily reset disputes and unrelated
     rewards are excluded; no period is reopened and no new action is possible.
     """
     import sqlite3
@@ -103,8 +103,8 @@ def reconcile_saved_fixed_reward(store, claim_id):
     with store.connect() as db:
         db.row_factory = sqlite3.Row
         row = db.execute('SELECT * FROM reward_claims WHERE id=?', (claim_id,)).fetchone()
-    if not row or row['reward_id'] not in {MONTHLY_QUICK, 'shop-weekly-card-gift', 'shop-permanent-privilege-gift'} or row['status'] != 'RESERVED' or row['dispatch_state'] != 'POSSIBLE':
-        raise ValueError('Only an existing POSSIBLE qualified Shop action may be reconciled.')
+    if not row or row['reward_id'] not in {MONTHLY_QUICK, 'ranking-chest', 'shop-weekly-card-gift', 'shop-permanent-privilege-gift'} or row['status'] != 'RESERVED' or row['dispatch_state'] != 'POSSIBLE':
+        raise ValueError('Only an existing POSSIBLE qualified fixed action may be reconciled.')
     row = dict(row)
     if store.metadata(row['namespace'], row['instance_index']).protected:
         raise ValueError('Protected journal is outside the authorized reconciliation scope.')
@@ -124,9 +124,13 @@ def reconcile_saved_fixed_reward(store, claim_id):
     if (before['capture'] != outcome['before']['capture'] or not before.get('persistent_identity')
             or before['persistent_identity'] != report.get('persistent_identity')):
         raise ValueError('Original persistent identity/evidence mismatch.')
-    evidence = [before, outcome['immediate_after'], outcome['after']]
+    # A capture failure may omit the report's final field. An intermediate
+    # receipt is only a placeholder; a positive action-bound post-state below
+    # is still mandatory and must come from this original task/window.
+    missing_after = not outcome.get('after')
+    evidence = [before, outcome['immediate_after'], outcome.get('after') or outcome['immediate_after']]
     times = [datetime.fromisoformat(e['timestamp']) for e in evidence]
-    if not times[0] < times[1] < times[2] <= times[0]+timedelta(seconds=60):
+    if not (times[0] < times[1] <= times[2] <= times[0]+timedelta(seconds=60)) or (times[1] == times[2] and not missing_after):
         raise ValueError('Post-state was not captured immediately after the original action.')
     detector = FixedRewardDetector()
     frames = []
@@ -169,6 +173,10 @@ def reconcile_saved_fixed_reward(store, claim_id):
                 break
     if state != 'AVAILABLE' or detector.availability(frames[2], reward_id)[0] != 'NOT_AVAILABLE':
         raise ValueError('Independent AVAILABLE to positive received state is not proven.')
+    if reward_id == 'ranking-chest':
+        empty = frames[2].anchors['ranking-empty-slot']
+        if not empty.matched or empty.score < .98:
+            raise ValueError('Ranking reconciliation requires the positive empty chest slot.')
     geometry = claim_geometry(frames[0], reward_id, core)
     taps = [a for a in actions if a['before'] == before['capture']]
     if (len(taps) != 1 or taps[0]['action'] != 'tap' or taps[0]['outcome'] != 'DISPATCHED'
@@ -188,7 +196,8 @@ def reconcile_saved_fixed_reward(store, claim_id):
         if times[0] < at <= end and box['x'] <= x <= box['x']+box['width'] and box['y'] <= y <= box['y']+box['height']:
             raise ValueError('Another input overlapped the original claim target before verification.')
     # Confetti can obscure the immediate receipt title. Verification is supplied
-    # independently by all five completed rows, never by that popup alone.
+    # independently by positive received/empty-slot/completed-row state, never
+    # by that popup alone.
     proof = dict(method='original_one_shot_and_independent_received_state', reward_id=reward_id,
                  claim_id=claim_id, task_run_id=row['task_run_id'], claim_redispatched=False,
                  before=frames[0].evidence(), receipt=frames[1].evidence(), after=frames[2].evidence())

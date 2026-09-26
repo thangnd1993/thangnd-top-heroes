@@ -2,6 +2,17 @@
 
 ## Instance-first real acceptance and remaining repair — 2026-09-26
 
+Original BXH82 also has a late action-bound empty-slot frame095105 after its
+single095051 tap, within14 seconds/same boot. Generic fixed-reconcile-saved
+(alias shop-reconcile-saved preserved) accepts this qualified ranking post-state
+when the original report field was omitted by capture failure. It still requires
+original AVAILABLE, exactly one geometry-matching tap, same task/index/name/ADB/
+boot, <=60s, no overlapping second input and positive empty slot >=.98. No
+historical report is rewritten, no transport or current-period inference occurs.
+Five ranking saved-proof cases and nine existing Shop reconciliation cases pass;
+Ruff/diff-check pass. Apply only from fresh passing CI. This completes offline
+qualification for current uncertain65/73/74/79/82/84/103 without redispatch.
+
 Last unclaimed BXH blocker: Pooh5 original100109 frame is a rocking chest pose,
 not a different route. Reused existing strict bounded pose matcher only on a
 qualified ranking page and current attached unique attention badge. Same.96

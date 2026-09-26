@@ -536,3 +536,49 @@ def test_event_requires_three_stable_anchors_excluding_timer(detector, missing):
     assert (detected.state == 'EVENT_PROMO') == (missing is None)
     if missing is None:
         assert dismiss_overlay_bottom_left(frame, detected) == (58,1203)
+
+
+@pytest.mark.parametrize('bad',[None,'second_tap','claimable_after','wrong_boot','stale_after'])
+def test_saved_ranking_missing_report_poststate_uses_original_action_bound_empty_slot(detector,tmp_path,bad):
+    from top_heroes_auto.automation.fixed_reward_reconcile import reconcile_saved_fixed_reward
+    store=Store(tmp_path/'offline.sqlite3')
+    task=store.create_task_run('n','bxh-shop-fixed',13,'exact')
+    target=Target(13,'exact','explicit','boot')
+    def save(image,label):
+        frame=ScreenshotService(lambda _:cv2.imencode('.png',image)[1].tobytes()).take(target,tmp_path,label)
+        return detector.observe(frame)
+    raw=cv2.rotate(make_frame('ranking-chest').normalized,cv2.ROTATE_90_COUNTERCLOCKWISE)
+    before=save(raw,'before')
+    receipt=save(np.random.default_rng(83).integers(0,256,raw.shape,dtype=np.uint8),'receipt')  # Confetti/UNKNOWN is not proof.
+    if bad!='claimable_after':
+        paste(raw,'ranking-empty-slot',85,100)
+    after=save(raw,'after')
+    geometry=claim_geometry(before,'ranking-chest',before.anchors['ranking-chest'])
+    b=dict(before.evidence(),persistent_identity='disk',geometry=geometry)
+    claim=store.reserve_reward_claim(task,'ranking-chest','original',json.dumps(b),not_dispatched=True)
+    store.mark_reward_dispatch(claim,task)
+    outcome=dict(claim_id=claim,claim_dispatched=True,before=b,immediate_after=receipt.evidence())
+    path=tmp_path/'account-report.json'
+    path.write_text(json.dumps(dict(persistent_identity='disk',rewards={'ranking-chest':outcome})),encoding='utf-8')
+    actions=[dict(before=b['capture'],action='tap',values=geometry['tap'],outcome='DISPATCHED'),
+             dict(before=after.evidence()['capture'],action='tap',values=[358,1198],outcome='DISPATCHED')]
+    if bad=='second_tap':
+        actions.insert(1,dict(before=receipt.evidence()['capture'],action='tap',values=geometry['tap'],outcome='DISPATCHED'))
+    if bad in {'wrong_boot','stale_after'}:
+        meta=after.captured.source_image.with_suffix('.json')
+        value=json.loads(meta.read_text(encoding='utf-8'))
+        if bad=='wrong_boot':
+            value['boot_id']='different'
+        else:
+            value['timestamp']=(datetime.fromisoformat(before.captured.timestamp)+timedelta(minutes=3)).isoformat()
+        meta.write_text(json.dumps(value),encoding='utf-8')
+    (tmp_path/'actions.json').write_text(json.dumps(actions),encoding='utf-8')
+    store.finish_task_run(task,'PARTIAL',report_path=str(path))
+    if bad:
+        with pytest.raises(ValueError):
+            reconcile_saved_fixed_reward(store,claim)
+    else:
+        proof=reconcile_saved_fixed_reward(store,claim)
+        assert proof['result']=='VERIFIED' and not proof['claim_redispatched']
+    assert len(store.reward_claims('n',13))==1
+    assert store.reward_claims('n',13)[0]['status']==('RESERVED' if bad else 'VERIFIED')
