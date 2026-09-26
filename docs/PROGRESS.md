@@ -1,5 +1,44 @@
 # Tiến độ
 
+## Phase 6 PASS — 2026-09-27 (Vietnam time)
+
+Final report: `diagnostics/tasks/automation/20260926-172308-977271Z/fleet-report.json`.
+All8/8 non-Protected snapshot accounts COMPLETE; all56/56 required current-period
+rewards VERIFIED. The period still starts2026-09-26 09:00 Vietnam.53 new claims
+in this acceptance chain plus3 already-satisfied current-period claims59/60/61.
+No required reward remains UNKNOWN, NOT_AVAILABLE, POSSIBLE or BLOCKED.
+
+Last resume used fresh c108fe0 / CI36256685900 / artifact10911870804. Only index10
+started; all other accounts were completed by bound journals without lifecycle.
+ZERO new claim dispatches. Claim114 reconciled using its original AVAILABLE
+frame + same-task receipt (paired confidence.985274) + fresh permanent page
+positively showing “Đã nhận” (.999880). Explicit ADB emulator-5574; persistent
+identity reverified. No receipt-only verification and no second tap. Home return,
+owned cleanup and selection restoration succeeded. All12 final instances stopped
+and unselected; Protected0/1/6/7 unchanged. Names unchanged. No paid/resource input.
+
+All45 baseline journal rows are byte-for-byte unchanged. Legacy41/47 remain
+RESERVED/POSSIBLE historically; neither was replayed or relabelled. The old daily
+period and legacy monthly navigation entry do not invalidate the distinct proven
+current-period actions. All53 newly reserved actions are VERIFIED.
+
+Permanent global execution is instance-first through the extensible feature
+registry: immutable enabled/supported plan, one owned instance session, each
+feature exhausts its authorized rewards, independent blockers do not suppress
+later work, one cleanup. Feature-owned journal completion hooks run before any
+lifecycle. No phase-specific feature loop in the scheduler. Tests include future
+registered flows, per-reward skip, blocker continuation and cleanup ordering.
+
+Last repair local checks:49 receipt/overlay/Shop +21 reconciliation tests passed;
+Ruff/diff-check/self-review passed. Full CI:878 passed,26 skipped; lint, Windows
+portable build, executable smoke and artifact upload all passed.533 Desktop files
+verified after replacing only the previous app build. The final checkpoint commit
+contains documentation only; no additional gameplay acceptance is needed.
+
+STOP: Phase6 is complete for the agreed seven rewards. Do not restart this
+acceptance, repeat successful claims, include Free Recruit/Idle or start Phase7.
+Any later real run requires its own explicit authorization and live period/guards.
+
 ## Final receipt verification repair — 2026-09-26
 
 Fresh e796b48 / CI36252649801 passed lint, 871 tests +26 skips, Windows build,
