@@ -1,5 +1,32 @@
 # Tiến độ
 
+## Final receipt verification repair — 2026-09-26
+
+Fresh e796b48 / CI36252649801 passed lint, 871 tests +26 skips, Windows build,
+smoke and upload10909338506. All533 Desktop files verified. Resume report
+`automation/20260926-161732-145075Z/fleet-report.json` skipped all seven complete
+accounts without lifecycle; only10 / Nấm hương started/stopped once. Its permanent
+Shop route entered once and used one tab swipe. Exactly one new claim114 was sent.
+No same-period action was repeated. All45 baseline journals remain unchanged.
+
+The final receipt remained visible: congratulations title1.0, dim continue text
+.977361 below.98. Strict bounded raster alignment of that SAME text gives.985274.
+Added alignment only when the independent title is unique, dim seed >=.85 and
+below its threshold; raw duplicates cannot be rescued. Final threshold stays.98
+and uniqueness is checked across every offset. Receipt never verifies consumption.
+New raw game-only receipt fixture inspected; no credentials/private files.
+
+Current totals:53 new claims,52 VERIFIED, claim114 RESERVED/POSSIBLE. Current
+period55/56 VERIFIED. No remaining undispatched reward. Never tap114 again.
+After targeted checks/self-review and fresh passing CI, resume this report only
+for receipt dismissal and independent permanent received-state verification;
+production current-period lock prevents any second claim. Original same-task
+receipt + fresh unavailable state may reconcile114; popup alone must not verify.
+All targets stopped/unselected; names/Protection unchanged; cleanup succeeded.
+Local49 receipt/overlay/Shop tests and21 one-shot reconciliation cases passed;
+Ruff/diff-check passed. Self-review confirms no claim/journal/lifecycle changes,
+no threshold reduction or coordinate fallback; only paired receipt recognition.
+
 ## Unfinished-only final resume — 2026-09-26
 
 Artifact06fe757 / CI36240466603 passed all gates (862 passed,26 skipped),

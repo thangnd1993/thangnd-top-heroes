@@ -8,6 +8,7 @@ from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.models import NormalizedRect, ScreenDetection, ScreenState
 from top_heroes_auto.vision.resources import template_folder
+from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
 
 
 class RecoveryScreenDetector:
@@ -70,6 +71,13 @@ class RecoveryScreenDetector:
             default = groups.get('default', [])
             continuation = next((e for e in default if e.anchor_id == 'receipt-continue'), None)
             alternative = alternatives[0]
+            title = next((e for e in default if e.anchor_id == 'receipt-title'), None)
+            # The same dim text can land between device pixels. Align only this
+            # known paired receipt, retaining >=.98 and cross-offset uniqueness.
+            # A raw duplicate (score >= threshold but unmatched) is never rescued.
+            if (title and title.matched and .85 <= alternative.score < alternative.threshold):
+                anchor = next(a for a in self.receipt_anchors if a.id == alternative.anchor_id)
+                alternative = unique_subpixel_anchor(screen, anchor)
             # Legitimate opacity variant; never rescue duplicate/conflicting text.
             if continuation and not continuation.matched and continuation.score < continuation.threshold and alternative.matched:
                 groups['default'] = [alternative if e is continuation else e for e in default]
