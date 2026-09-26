@@ -43,3 +43,13 @@ Preserve all project safety rules:
   and the current phase checkpoint before real mutation.
 - Verify exact target identity and preserve unrelated running instances.
 - Never start the next product phase as workflow setup.
+
+## Permanent Windows app delivery
+
+Every new testable Windows version must come from a fresh CI-passing portable
+artifact. Deliver it to `C:\Users\ADMIN\Desktop\app`. Verify the artifact run,
+commit and copied files. Remove only previous Top Heroes app builds and copied
+build ZIPs inside that exact folder, then leave only the newest app version.
+Never delete unrelated Desktop files, source, journals, diagnostics or evidence.
+Inspect and resolve the destination before recursive removal; an ambiguous file
+must be preserved. Record old-build removal and latest-build verification.

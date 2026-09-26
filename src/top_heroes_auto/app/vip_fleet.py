@@ -32,7 +32,7 @@ def _protected(manager):
             raise SafetyError(f"Protected account #{index} must remain Protected and unselected.")
 
 
-def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=False):
+def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=False, include_daily=True):
     """Use production guards and visual ports; one claim call, no explorer routes."""
     row = dict(index=index, name=name, adb_target=None, recovery_result="NOT_STARTED",
                game_home_confidence=None, vip_entry=None, vip_screen_verified=False,
@@ -55,7 +55,7 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
             row["final_result"] = "SKIPPED_PROTECTED"
             return row
         prior = current_attempts(manager.store.reward_claims(manager.namespace, index), "vip-daily")
-        if prior and not include_upper_gift:
+        if prior and include_daily and not include_upper_gift:
             row["journal_state"] = prior[-1]["status"]
             row["final_result"] = "ALREADY_VERIFIED" if prior[-1]["status"] == "VERIFIED" else "ALREADY_ATTEMPTED"
             row["free_reward_state"] = "JOURNAL_LOCKED"
@@ -102,6 +102,10 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
         row["vip_screen_verified"] = before.detection.state.value == "FREE_REWARD_PAGE" and before.detection.confidence >= .9
         if not row["vip_screen_verified"]:
             raise SafetyError("Current VIP screen is not qualified.")
+        if not include_daily:
+            row.update(free_reward_state="NOT_REQUESTED", final_result="NOT_REQUESTED")
+            row["return_home"] = "SUCCESS" if port.return_home(before) else "FAILED"
+            return row
         if prior:
             row.update(journal_state=prior[-1]["status"], free_reward_state="JOURNAL_LOCKED",
                        final_result="ALREADY_VERIFIED" if prior[-1]["status"] == "VERIFIED" else "ALREADY_ATTEMPTED")

@@ -10,5 +10,5 @@
   ],
   "threshold": 0.98,
   "required": true,
-  "notes": "Reusable dimmed Home HUD only. No event artwork. Both opposite-corner HUD anchors and sharp foreground required."
+  "notes": "Stable interior of dimmed Home HUD; outer account/map background removed. Paired opposite corners and sharp foreground mandatory; threshold unchanged."
 }

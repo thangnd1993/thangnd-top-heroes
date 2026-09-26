@@ -156,6 +156,20 @@ class FixedRewardDetector:
             if page == expected:
                 for role, variant in pairs:
                     anchors[role] = self._same_target_variant(anchors[role], anchors[variant])
+        if page in {'shop-permanent', 'shop-monthly'}:
+            route = page.removeprefix('shop-')
+            core, badge = anchors[f'{route}-gift'], anchors[f'{route}-attention']
+            if not core.matched and core.score < core.threshold and badge.matched and badge.device_box:
+                # The gift rocks independently of the current attention badge.
+                # Same strict threshold, bounded pose bank, no account coordinates.
+                b = badge.device_box
+                w, h = captured.device_size or captured.original_size
+                radius = max(b.width, b.height)
+                region = portrait_region(max(0,b.center[0]-5*radius)/w,
+                    max(0,b.center[1]-2*radius)/h, min(w,b.center[0]+2*radius)/w,
+                    min(h,b.center[1]+5*radius)/h)
+                posed = unique_pose_anchor(captured, replace(self.anchors[f'{route}-gift'], expected_region=region))
+                anchors[f'{route}-gift'] = self._same_target_variant(core, posed)
         return FixedObservation(captured, page, anchors, recovery)
 
     @staticmethod
@@ -198,7 +212,26 @@ class FixedRewardDetector:
     @staticmethod
     def selected_tab(observation, route):
         active, tab = observation.box(f'{route}-active-tab'), observation.box(f'{route}-tab')
-        return bool(active and tab and active.x <= tab.center[0] <= active.x+active.width)
+        if active and tab and active.x <= tab.center[0] <= active.x+active.width:
+            return True
+        if not tab or observation.page != f'shop-{route}':
+            return False
+        # A leftmost selected tile can be clipped by the separate Back area.
+        # Its gold header is qualified above the CURRENT unique icon. The page
+        # title must agree; another selected tab cannot satisfy this local gate.
+        captured = observation.captured
+        image = cv2.rotate(captured.normalized, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        w, h = captured.device_size or captured.original_size
+        sx, sy = image.shape[1]/w, image.shape[0]/h
+        x1, x2 = round((tab.center[0]-tab.width*.7)*sx), round((tab.center[0]+tab.width*.7)*sx)
+        y1, y2 = round((tab.y-tab.height*.6)*sy), round((tab.y-tab.height*.25)*sy)
+        if tab.y < h*.92 or min(x1,y1) < 0 or x2 > image.shape[1] or y2 >= image.shape[0]:
+            return False
+        patch = image[y1:y2,x1:x2]
+        if not patch.size:
+            return False
+        gold = cv2.inRange(cv2.cvtColor(patch,cv2.COLOR_BGR2HSV), (15,100,180), (40,255,255))
+        return float(np.count_nonzero(gold))/gold.size >= .98
 
     def availability(self, observation, reward):
         if reward not in PAGES or observation.page != PAGES[reward]:

@@ -192,7 +192,8 @@ class FixedRewardPort:
             y = back.center[1]
             order = [f'{route}-tab' for route in SHOP_ROUTES.values()]
             later_visible = any(observation.box(tab) for tab in order[order.index(role)+1:])
-            start, end = ((.28, .88) if later_visible or role == 'daily-tab' else (.88, .28))
+            # Move one icon instead of overshooting and oscillating between end stops.
+            start, end = ((.40, .64) if later_visible or role == 'daily-tab' else (.76, .52))
             if (not .92*height < y < height or back.x > width*.2
                     or back.x+back.width >= width*.26):
                 raise SafetyError('Bottom tab bar geometry is not qualified.')

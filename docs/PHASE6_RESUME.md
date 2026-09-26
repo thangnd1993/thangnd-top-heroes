@@ -1,5 +1,25 @@
 # Phase 6 interruption checkpoint — 2026-09-20
 
+## Final seven-reward Phase 6 acceptance — 2026-09-26
+
+User authorized final VIP upper/daily, BXH, and four Shop routes across ALL LIVE
+non-Protected accounts sequentially, with fresh CI, random development target,
+then unfinished-only resume after concrete fixes. Free Recruit explicitly deferred;
+Idle and Phase7 excluded. Preserve all 42 baseline journals, including 41/47
+POSSIBLE and new daily57/58 VERIFIED. Latest prior acceptance is PARTIAL:
+artifacts/shop-continuous-report.md and shop-continuous-final-audit.json.
+Live preflight: 8 non-Protected, all stopped/unselected; Protected Chicken is
+externally running and must be left running. Queen/anh Ry/Happy stopped.
+
+Current repair uses smaller stable Home HUD interiors (same .98 threshold),
+shorter Shop tab swipes, selected gold header above current unique tab, and strict
+bounded gift pose matching around the current badge. No account coordinates.
+Phase6 final CLI records an immutable seven-reward snapshot and resumes only
+unfinished routes, preserving completed results and every historical journal.
+No real mutation until fresh CI passes. Desktop app delivery is now permanent;
+see AGENTS.md. Do not label recovery/period/uncertain blockers unavailable.
+
+
 ## Permanent Home-overlay and continuous Shop rules — 2026-09-25
 
 User authorized one agent, offline repair then fresh-CI random development and

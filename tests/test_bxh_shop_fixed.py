@@ -177,7 +177,7 @@ def test_one_shot_independent_postcondition_and_persistent_lock(tmp_path, detect
     second = {}
     process_reward(port, store, 'namespace', task, 'ranking-chest', 'disk', second, lambda: None)
     assert calls == ['claim']
-    assert second['result'] in {'ALREADY_VERIFIED', 'ALREADY_ATTEMPTED'}
+    assert second['result'] in {'ALREADY_VERIFIED', 'ALREADY_ATTEMPTED', 'PERIOD_UNQUALIFIED'}
 
 
 def test_three_rewards_independent_and_unavailable_does_not_reserve(tmp_path, detector):

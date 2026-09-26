@@ -51,12 +51,12 @@ def process_reward(port, store, namespace, task_id, reward, identity, report, pe
         from top_heroes_auto.automation.fixed_reward_reconcile import reconcile_fixed_reward
 
         start = period_start(reward)
-        if (reward.startswith('shop-') and start is None and state == 'AVAILABLE'
+        if (start is None and state == 'AVAILABLE'
                 and locked[-1]['status'] == 'VERIFIED'):
             report['result'] = 'PERIOD_UNQUALIFIED'
             report['period_error'] = 'A prior VERIFIED claim stays locked; a new reward period has not been proven.'
             return
-        if reward.startswith('shop-') and locked[-1]['status'] == 'VERIFIED' and state != 'NOT_AVAILABLE':
+        if locked[-1]['status'] == 'VERIFIED' and state != 'NOT_AVAILABLE':
             report['result'] = 'UNKNOWN' if state == 'UNKNOWN' else 'STATE_CONFLICT'
             report['state_error'] = 'Existing VERIFIED journal preserved; current reward state is not independently unavailable.'
             return

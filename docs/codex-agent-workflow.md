@@ -49,3 +49,13 @@ For each substantial task, the single agent follows this sequence:
 - Preserve unrelated running instances and verify exact target identity before
   any authorized mutation.
 - Never start the next product phase as a side effect of workflow setup.
+
+## Permanent Windows app delivery
+
+Every new testable Windows version must come from a fresh CI-passing portable
+artifact. Deliver it to `C:\Users\ADMIN\Desktop\app`. Verify the artifact run,
+commit and copied files. Remove only previous Top Heroes app builds and copied
+build ZIPs inside that exact folder, then leave only the newest app version.
+Never delete unrelated Desktop files, source, journals, diagnostics or evidence.
+Inspect and resolve the destination before recursive removal; an ambiguous file
+must be preserved. Record old-build removal and latest-build verification.
