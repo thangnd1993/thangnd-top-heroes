@@ -93,7 +93,9 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                 row['recovery_ok'] = False
             persist()
         # Recovery-only resume never calls reward adapters again.
-        if not started and not start_error and not row['recovery_ok'] and any(f.enabled and f.supported for f in plan):
+        if row['rewards'] and all(r['result'] in {'DISABLED', 'NOT_APPLICABLE'} for r in row['rewards'].values()):
+            row['recovery_ok'] = True
+        if prior and not started and not start_error and not row['recovery_ok'] and any(f.enabled and f.supported for f in plan):
             started = True
             session.start()
             recovery, _, _ = session.recover()

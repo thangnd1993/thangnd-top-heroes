@@ -280,3 +280,23 @@ def test_selected_adapter_keeps_exact_target_and_cleanup_failure_visible(monkeyp
     assert calls[0]['targets']==[dict(index=71,name='exact')]
     assert calls[0]['temporary_selection'] is False
     assert result[-1].status=='PARTIAL' and not result[-1].cleanup_succeeded
+
+
+def test_no_lifecycle_for_an_inapplicable_plan(rig,tmp_path):
+    calls=[]
+    _,session,feature=setup(calls)
+    registry=FlowRegistry()
+    registry.register(Flow('future',('future',),feature,applicable=lambda t:False))
+    result=fleet.run(rig[0],tmp_path,registry=registry,session_factory=session,identity_reader=lambda *a:'disk')
+    assert not calls and result['result']=='PASS'
+
+
+def test_uncertain_lifecycle_ownership_never_reports_cleanup_success(rig,tmp_path):
+    manager,process,_=rig
+    session=InstanceSession(manager,tmp_path,dict(index=7,name='Farm-007',persistent_identity='disk'),tmp_path,
+        identity_reader=lambda *a:'disk',recovery_runner=lambda *a,**kw:(
+            RecoveryResult(RecoveryStatus.SUCCESS,ownership_uncertain=True),tmp_path/'r',False))
+    session.start()
+    session.close()
+    assert session.report['cleanup']=='OWNERSHIP_UNKNOWN'
+    assert not any(c[1]=='quit' for c in process.calls)

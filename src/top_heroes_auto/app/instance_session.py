@@ -48,6 +48,9 @@ class InstanceSession:
             self.initial = self.recovery_runner(self.manager, self.data, self.index, self.name,
                 cleanup_owned=False, cancelled=self.cancelled)
             result, path, self.started = self.initial
+            if result.ownership_uncertain:
+                self.report['cleanup'] = 'OWNERSHIP_UNKNOWN'
+                self.report['ownership_uncertain'] = True
             self.report['recoveries'].append(dict(status=result.status.value, report=str(path)))
         except RecoveryFailure as exc:
             self.started, self.cleanup_attempted = exc.started_by_run, exc.cleanup_attempted
