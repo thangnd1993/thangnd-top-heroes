@@ -160,3 +160,30 @@ def test_real_scrolled_tabs_subpixel_render_still_requires_page_selection(detect
         assert found.matched and found.score>=.98 and found.device_box
         assert not detector.selected_tab(obs,route)
         assert detector.availability(obs,f'shop-{route}-privilege-gift')[0]=='UNKNOWN'
+
+
+@pytest.mark.parametrize('offset',[0,80])
+@pytest.mark.parametrize('bad',[None,'missing_badge','duplicate','occluded'])
+def test_real_rocking_ranking_chest_uses_current_badge_and_pose(detector,offset,bad):
+    from test_bxh_shop_fixed import make_frame
+    raw=cv2.rotate(make_frame('ranking-chest').normalized,cv2.ROTATE_90_COUNTERCLOCKWISE)
+    raw[75:200,90:210]=(150,120,70)
+    patch=cv2.imread(str(FIXTURES/'ranking-rocking-chest.png'))
+    raw[85:185,95+offset:195+offset]=patch
+    if bad=='duplicate':
+        raw[85:185,480:580]=patch
+    c=ScreenshotService(lambda _:cv2.imencode('.png',raw)[1].tobytes()).take(Target(23,'other','explicit','boot'))
+    obs=detector.observe(c)
+    if bad in {'missing_badge','occluded'}:
+        role='ranking-attention' if bad=='missing_badge' else 'ranking-chest'
+        box=obs.box(role)
+        assert box is not None
+        raw[box.y:box.y+box.height,box.x:box.x+box.width]=0
+        c=ScreenshotService(lambda _:cv2.imencode('.png',raw)[1].tobytes()).take(Target(23,'other','explicit','boot'))
+        obs=detector.observe(c)
+    state,core,_=detector.availability(obs,'ranking-chest')
+    if bad:
+        assert state=='UNKNOWN'
+    else:
+        assert state=='AVAILABLE' and core.score>=.96
+        assert claim_geometry(obs,'ranking-chest',core)['tap']==list(core.device_box.center)

@@ -2,6 +2,14 @@
 
 ## Instance-first real acceptance and remaining repair — 2026-09-26
 
+Last unclaimed BXH blocker: Pooh5 original100109 frame is a rocking chest pose,
+not a different route. Reused existing strict bounded pose matcher only on a
+qualified ranking page and current attached unique attention badge. Same.96
+threshold; saved core scores.976311. No account coordinates or new runtime
+seasonal template. Game-only100x100 chest crop is a regression fixture; unrelated
+UI/player data excluded. Current-frame shifts, missing badge, occlusion and
+multiple candidates stay covered by fail-closed tests.
+
 Period lock correction: canonical dated POSSIBLE rows from a strictly older,
 qualified 09:00 Vietnam period no longer block a new period. Historical rows
 remain byte-for-byte unchanged and uncertain; this NEVER verifies an old claim.

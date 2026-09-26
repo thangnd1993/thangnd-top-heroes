@@ -148,6 +148,17 @@ class FixedRewardDetector:
                         found = unique_current_anchor(captured, replace(self.anchors[variant],
                             expected_region=portrait_region(.64, top, .93, bottom)))
                         anchors[f'ads-done-{row}'] = self._same_target_variant(anchors[f'ads-done-{row}'], found)
+        if page == 'ranking':
+            core, badge = anchors['ranking-chest'], anchors['ranking-attention']
+            if not core.matched and core.score < core.threshold and badge.matched and badge.device_box:
+                b = badge.device_box
+                w, h = captured.device_size or captured.original_size
+                radius = max(b.width,b.height)
+                region = portrait_region(max(0,b.center[0]-5*radius)/w,
+                    max(0,b.center[1]-2*radius)/h,min(w,b.center[0]+2*radius)/w,
+                    min(h,b.center[1]+5*radius)/h)
+                posed = unique_pose_anchor(captured,replace(self.anchors['ranking-chest'],expected_region=region))
+                anchors['ranking-chest'] = self._same_target_variant(core,posed)
         if page == 'shop-weekly':
             anchors['weekly-received'] = self._same_target_variant(
                 anchors['weekly-received'], anchors['weekly-received-current'])
