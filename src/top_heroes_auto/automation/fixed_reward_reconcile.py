@@ -145,14 +145,48 @@ def reconcile_saved_fixed_reward(store, claim_id):
         raise ValueError('Claim index mismatch.')
     reward_id = row['reward_id']
     state, core, _ = detector.availability(frames[0], reward_id)
+    actions = json.loads((path.parent/'actions.json').read_text(encoding='utf-8'))
+    if state == 'AVAILABLE' and detector.availability(frames[2], reward_id)[0] != 'NOT_AVAILABLE':
+        # A late qualified receipt dismissal may occur at the next independent
+        # reward. Use only a capture bound to that ORIGINAL task's action log,
+        # same identity/boot, within 60s. Never use a later run/reset to verify it.
+        for action in actions:
+            candidate = Path(action['before']).resolve()
+            if candidate.parent != path.parent.resolve() or candidate.suffix != '.png':
+                continue
+            metadata = json.loads(candidate.with_suffix('.json').read_text(encoding='utf-8'))
+            timestamp = datetime.fromisoformat(metadata['timestamp'])
+            if not times[2] < timestamp <= times[0]+timedelta(seconds=60):
+                continue
+            item = dict(capture=str(candidate), timestamp=metadata['timestamp'],
+                index=metadata['instance']['index'], name=metadata['instance']['name'],
+                adb=metadata['adb_target'], boot_id=metadata['boot_id'])
+            if any(item[k] != before[k] for k in ('index','name','adb','boot_id')):
+                continue
+            observed = detector.observe(saved_frame(item,path.parent))
+            if detector.availability(observed,reward_id)[0] == 'NOT_AVAILABLE':
+                frames[2] = observed
+                break
     if state != 'AVAILABLE' or detector.availability(frames[2], reward_id)[0] != 'NOT_AVAILABLE':
         raise ValueError('Independent AVAILABLE to positive received state is not proven.')
     geometry = claim_geometry(frames[0], reward_id, core)
-    actions = json.loads((path.parent/'actions.json').read_text(encoding='utf-8'))
     taps = [a for a in actions if a['before'] == before['capture']]
     if (len(taps) != 1 or taps[0]['action'] != 'tap' or taps[0]['outcome'] != 'DISPATCHED'
             or taps[0]['values'] != geometry['tap'] or geometry != before['geometry']):
         raise ValueError('Exactly one qualified original tap is not proven.')
+    end = datetime.fromisoformat(frames[2].captured.timestamp)
+    box = geometry['bbox']
+    for action in actions:
+        if action['before'] == before['capture'] or action.get('action') != 'tap':
+            continue
+        source = Path(action['before']).resolve()
+        if source.parent != path.parent.resolve():
+            continue
+        metadata = json.loads(source.with_suffix('.json').read_text(encoding='utf-8'))
+        at = datetime.fromisoformat(metadata['timestamp'])
+        x, y = action['values']
+        if times[0] < at <= end and box['x'] <= x <= box['x']+box['width'] and box['y'] <= y <= box['y']+box['height']:
+            raise ValueError('Another input overlapped the original claim target before verification.')
     # Confetti can obscure the immediate receipt title. Verification is supplied
     # independently by all five completed rows, never by that popup alone.
     proof = dict(method='original_one_shot_and_independent_received_state', reward_id=reward_id,

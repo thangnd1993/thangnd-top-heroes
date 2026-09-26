@@ -69,6 +69,7 @@ def test_one_shot_journal_and_selection_restore_for_non_index2(rig, tmp_path, mo
         assert row["daily_result"] == expected
     retry = vip_fleet.run_vip_account(manager, tmp_path, 9, "Pooh5", tmp_path)
     assert retry["final_result"] in {"ALREADY_VERIFIED", "ALREADY_ATTEMPTED"}
+    assert retry["claim_id"] == row["claim_id"]
     assert calls == ["claim"]
 
 

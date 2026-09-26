@@ -6,8 +6,10 @@ from dataclasses import dataclass, field
 
 import cv2
 
+from top_heroes_auto.automation.fixed_reward_claims import observe_reward
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, OverlayBudget, dismiss_overlay_bottom_left
+from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.fixed_rewards import SHOP_PAGES, SHOP_ROUTES, FixedRewardDetector
 from top_heroes_auto.vision.screenshot import ScreenshotService
 
@@ -113,7 +115,7 @@ class FixedRewardPort:
         self.dispatch(observation, 'tap', anchor.device_box.center, before_input)
 
     def settle(self, observation):
-        for attempt in range(4):
+        for attempt in range(6):
             if observation.overlay.state in DISMISSIBLE:
                 self.overlay_budget.reserve(observation.overlay)
                 point = dismiss_overlay_bottom_left(observation.captured, observation.overlay)
@@ -122,7 +124,14 @@ class FixedRewardPort:
                 observation = self.observe()  # Fresh even after the last allowed dismissal.
             elif observation.page != 'UNKNOWN':
                 return observation
-            elif attempt < 3:
+            elif attempt < 5:
+                if attempt >= 3:
+                    # Real evidence: congratulations is stable while continue
+                    # text fades in. Two extra observations ONLY in this known
+                    # transition; title alone NEVER authorizes dismissal/input.
+                    title = next(a for a in self.detector.recovery.receipt_anchors if a.id == 'receipt-title')
+                    if not unique_current_anchor(observation.captured, title).matched:
+                        break
                 time.sleep(.6)
                 observation = self.observe()
         return observation
@@ -216,7 +225,7 @@ class FixedRewardPort:
             observation = self.find_tab(observation, f'{route}-tab')
             observation = self.navigate(observation, f'{route}-tab', expected)
         if route == 'monthly':
-            state, _, _ = self.detector.availability(observation, reward)
+            observation, state, _, _ = observe_reward(self, observation, reward)
             if state != 'AVAILABLE':
                 raise SafetyError('Monthly entry is not independently qualified; no navigation tap.')
             observation = self.navigate(observation, 'monthly-gift', 'shop-ad-privileges')

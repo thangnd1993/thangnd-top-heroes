@@ -61,6 +61,7 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
             return row
         prior = current_attempts(manager.store.reward_claims(manager.namespace, index), "vip-daily")
         if prior and include_daily and not include_upper_gift:
+            row["claim_id"] = prior[-1]["id"]
             row["journal_state"] = prior[-1]["status"]
             row["final_result"] = "ALREADY_VERIFIED" if prior[-1]["status"] == "VERIFIED" else "ALREADY_ATTEMPTED"
             row["free_reward_state"] = "JOURNAL_LOCKED"
@@ -125,7 +126,7 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
             row["return_home"] = "SUCCESS" if port.return_home(before) else "FAILED"
             return row
         if prior:
-            row.update(journal_state=prior[-1]["status"], free_reward_state="JOURNAL_LOCKED",
+            row.update(journal_state=prior[-1]["status"], claim_id=prior[-1]["id"], free_reward_state="JOURNAL_LOCKED",
                        final_result="ALREADY_VERIFIED" if prior[-1]["status"] == "VERIFIED" else "ALREADY_ATTEMPTED")
             row["return_home"] = "SUCCESS" if port.return_home(before) else "FAILED"
             return row

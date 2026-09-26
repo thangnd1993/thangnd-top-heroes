@@ -119,3 +119,44 @@ def test_duplicate_selected_icon_variant_fails_closed(detector,route):
     obs=detector.observe(captured(f'{route}-selected-icon',duplicate))
     assert not detector.selected_tab(obs,route)
     assert detector.availability(obs,f'shop-{route}-privilege-gift')[0]=='UNKNOWN'
+
+
+def test_subpixel_alignment_uses_strict_current_icon_and_rejects_duplicate(detector):
+    from top_heroes_auto.vision.fixed_rewards import portrait_region
+    from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
+    anchor=replace(detector.anchors['permanent-tab'],expected_region=portrait_region(0,.9,1,1))
+    c=captured('permanent-selected-icon')
+    found=unique_subpixel_anchor(c,anchor)
+    assert found.matched and found.score>=.98
+    def duplicate(image):
+        image[1201:1244,540:581]=image[1201:1244,387:428]
+        return image
+    assert not unique_subpixel_anchor(captured('permanent-selected-icon',duplicate),anchor).matched
+    assert not unique_subpixel_anchor(captured('covered-home'),anchor).matched
+
+
+def test_subpixel_does_not_supply_coordinates_without_a_match(detector):
+    from top_heroes_auto.vision.fixed_rewards import portrait_region
+    from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
+    anchor=replace(detector.anchors['monthly-tab'],expected_region=portrait_region(0,.9,1,1))
+    result=unique_subpixel_anchor(captured('covered-home'),anchor)
+    assert not result.matched and result.device_box is None
+
+
+def test_notice_overlapping_tab_edge_uses_current_unique_card_variant(detector):
+    obs=detector.observe(captured('monthly-tab-notice'))
+    assert obs.page=='shop-weekly'  # Scroll does not select the newly visible tab.
+    tab=obs.box('monthly-tab')
+    assert tab is not None and tab.x>obs.box('back').x+obs.box('back').width
+    assert obs.anchors['monthly-tab'].score>=.98
+    assert detector.availability(obs,'shop-monthly-privilege-gift')[0]=='UNKNOWN'
+
+
+def test_real_scrolled_tabs_subpixel_render_still_requires_page_selection(detector):
+    obs=detector.observe(captured('scrolled-tabs'))
+    assert obs.page=='shop-weekly'
+    for route in ('permanent','monthly'):
+        found=obs.anchors[f'{route}-tab']
+        assert found.matched and found.score>=.98 and found.device_box
+        assert not detector.selected_tab(obs,route)
+        assert detector.availability(obs,f'shop-{route}-privilege-gift')[0]=='UNKNOWN'

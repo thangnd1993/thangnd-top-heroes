@@ -1,5 +1,39 @@
 # Tiến độ
 
+## Instance-first real acceptance and remaining repair — 2026-09-26
+
+Code8449dd4 / CI36231494265 passed lint, 822 pytest +26 skips, Windows portable
+build, GUI smoke and upload10902871512. Desktop app verified against531 files.
+Random live candidate set [2,3,4,5,8,9,11], secrets.choice selected3 (excluded
+last random10). Report automation/20260926-092152-043401Z: 4 dispatches,
+3 VERIFIED, permanent65 POSSIBLE. Full immutable8-target run follows in
+`diagnostics/tasks/automation/20260926-093439-319819Z/fleet-report.json`:
+38 new dispatches,32 VERIFIED,6 POSSIBLE; Soup alone fully COMPLETE.
+Each instance had one owned start/stop and one Shop entry, all enabled registry
+flows received explicit terminals; cleanup/selection/name/protection audit passed.
+All12 instances stopped/unselected at this run's baseline and final. Chicken had
+already stopped externally before preflight; no command targeted it or attempted
+restoration. Protected0/1/6/7 remain untouched. No Idle, Recruit or Phase7.
+
+Current unresolved new locks65,73,74,79,82,84,103 remain RESERVED/POSSIBLE;
+never redispatch. Old41/47 and all45 baseline records are preserved. Random+full
+combined42 dispatches /35 VERIFIED /7 POSSIBLE. Fix only remaining routes and
+resume the original full report, preserving completed Soup and all done rewards.
+
+Offline fixes: strict>=.98 half-pixel tab render alignment, qualified monthly
+notice-overlap variant, two extra observations only for a positively known fading
+receipt title (no input from title alone), bounded fresh monthly entry observation.
+Saved reconciliation may use an original task's later action-bound capture within
+60 seconds, same target/boot, original single tap and positive received state; no
+new game input or later-period evidence. Conflicting/second input fails closed.
+VIP already-completed reports retain claim ids; removed misleading unused session
+return_home NOT_STARTED field. All three added PNGs inspected: only game UI,
+no credentials/private files. Targeted tests/Ruff/self-review and fresh passing
+CI are mandatory before deploying this repair or resuming unfinished acceptance.
+Local: 65 focused Shop tests,6 added/affected cases,27 registry/VIP tests passed;
+Ruff and diff-check passed. Self-review: no duplicate claim path, no journal
+downgrade, bounded observations only, no target fallback or ownership changes.
+
 ## Global instance-first correction — 2026-09-26
 
 User requires a permanent extensible per-instance pipeline, superseding the

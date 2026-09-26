@@ -1,0 +1,14 @@
+{
+  "id": "monthly-tab-notice",
+  "state": "FREE_REWARD_PAGE",
+  "template": "monthly-tab-notice.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": false,
+  "notes": "Clean current tab render with notice badge overlapping its edge. Stable card/star interior, no text/account/coordinates; unique bottom-bar match and destination proof required."
+}

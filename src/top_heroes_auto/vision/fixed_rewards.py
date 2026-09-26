@@ -14,6 +14,7 @@ from top_heroes_auto.vision.gift_detector import unique_pose_anchor
 from top_heroes_auto.vision.models import AnchorEvidence, BoundingBox, NormalizedRect, ScreenState
 from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
 from top_heroes_auto.vision.resources import template_folder
+from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
 
 REWARDS = ("ranking-chest", "shop-daily-gift", "shop-weekly-card-gift")
 SHOP_REWARDS = (*REWARDS[1:], "shop-permanent-privilege-gift", "shop-monthly-privilege-gift")
@@ -66,7 +67,7 @@ class FixedRewardDetector:
             # Semantic surfaces only. These regions never supply tap coordinates.
             if name.startswith('ads-'):
                 region = portrait_region(0, 0, 1, 1)
-            elif name in {'permanent-active-current', 'permanent-tab-current', 'permanent-selected-icon', 'monthly-selected-icon'}:
+            elif name in {'permanent-active-current', 'permanent-tab-current', 'permanent-selected-icon', 'monthly-selected-icon', 'monthly-tab-notice'}:
                 region = portrait_region(0, .90, 1, 1)
             elif name.startswith("avatar-"):
                 region = portrait_region(0, 0, .22, .15)
@@ -99,6 +100,12 @@ class FixedRewardDetector:
         for route in ('permanent', 'monthly'):
             role = f'{route}-tab'
             anchors[role] = self._same_target_variant(anchors[role], anchors[f'{route}-selected-icon'])
+            if not anchors[role].matched and anchors[role].score < anchors[role].threshold:
+                for variant in (role, f'{route}-selected-icon'):
+                    aligned = unique_subpixel_anchor(captured, replace(self.anchors[variant],
+                        expected_region=portrait_region(0, .90, 1, 1)))
+                    anchors[role] = self._same_target_variant(anchors[role], aligned)
+        anchors['monthly-tab'] = self._same_target_variant(anchors['monthly-tab'], anchors['monthly-tab-notice'])
         anchors['avatar-frame'] = self.avatar_frame(captured)
         known = []
         def matched(*roles):

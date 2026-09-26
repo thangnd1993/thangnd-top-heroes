@@ -19,7 +19,7 @@ class InstanceSession:
         self.initial = None
         self.used_initial = False
         self.report = dict(cleanup='NOT_REQUIRED', selection_restored=False, recoveries=[],
-                           started_by_run=False, return_home='NOT_STARTED')
+                           started_by_run=False)
 
     def check(self, *, selected=True, running=True):
         live = _instance(self.manager, self.index, self.name)

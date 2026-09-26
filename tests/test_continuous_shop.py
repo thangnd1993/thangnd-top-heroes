@@ -144,3 +144,37 @@ def test_random_shop_uses_current_live_set_even_if_previously_tested(rig,tmp_pat
                                 identity_reader=lambda *a:'disk',rewards=fleet.SHOP_REWARDS)
     assert [r['index'] for r in result['eligible_candidates']]==[7]
     assert calls==[7] and result['random_target']['index']==7
+
+
+@pytest.mark.parametrize('known_title',[True,False])
+def test_only_known_receipt_title_allows_two_more_waits(monkeypatch,known_title):
+    from types import SimpleNamespace
+
+    from top_heroes_auto.vision.models import ScreenState
+    monkeypatch.setattr('top_heroes_auto.app.fixed_reward_port.time.sleep',lambda _:None)
+    monkeypatch.setattr('top_heroes_auto.app.fixed_reward_port.unique_current_anchor',
+                        lambda *a:SimpleNamespace(matched=known_title))
+    port=object.__new__(FixedRewardPort)
+    port.detector=SimpleNamespace(recovery=SimpleNamespace(receipt_anchors=[SimpleNamespace(id='receipt-title')]))
+    frame=SimpleNamespace(page='UNKNOWN',overlay=SimpleNamespace(state=ScreenState.UNKNOWN),captured=object())
+    calls=[]
+    def observe():
+        calls.append('observe')
+        return frame
+    port.observe=observe
+    port.dispatch=lambda *a:pytest.fail('A title alone never authorizes input')
+    assert port.settle(frame) is frame
+    assert len(calls)==(5 if known_title else 3)
+
+
+def test_monthly_rocking_entry_waits_for_fresh_qualified_frame(monkeypatch):
+    monkeypatch.setattr('top_heroes_auto.automation.fixed_reward_claims.time.sleep',lambda _:None)
+    port=object.__new__(FixedRewardPort)
+    first=SimpleNamespace(page='shop-monthly',box=lambda _:False)
+    fresh=SimpleNamespace(page='shop-monthly',box=lambda _:False)
+    port.detector=SimpleNamespace(availability=lambda frame,reward:('AVAILABLE' if frame is fresh else 'UNKNOWN',None,None))
+    port.observe_settled=lambda:fresh
+    calls=[]
+    port.navigate=lambda frame,role,expected:calls.append((frame,role,expected)) or frame
+    port.open_shop_reward(first,'shop-monthly-privilege-gift')
+    assert calls==[(fresh,'monthly-gift','shop-ad-privileges')]

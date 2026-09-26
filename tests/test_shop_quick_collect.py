@@ -164,10 +164,11 @@ def test_positive_five_completed_rows_required(detector,missing):
     assert detector.availability(detector.observe(completed_menu(active=True)),MONTHLY_QUICK)[0]=='UNKNOWN'
 
 
-@pytest.mark.parametrize('bad', [None,'missing_row','wrong_tap','changed_boot','stale_after'])
+@pytest.mark.parametrize('bad', [None,'missing_row','wrong_tap','changed_boot','stale_after','late_post','late_wrong_boot','late_stale','late_second_tap'])
 def test_saved_original_poststate_reconciliation_never_redispatches(detector,tmp_path,bad):
     import json
     from datetime import datetime, timedelta
+    from pathlib import Path
 
     from top_heroes_auto.automation.fixed_reward_reconcile import reconcile_saved_fixed_reward
     from top_heroes_auto.storage.store import Store
@@ -181,6 +182,7 @@ def test_saved_original_poststate_reconciliation_never_redispatches(detector,tmp
     # The old runtime could not qualify this new post-state. Preserve its raw
     # image and reconcile using the new positive row detector, without input.
     immediate=detector.observe(save(menu(missing='ads-quick'),'immediate'))
+    delayed=replace(detector.observe(save(menu(missing='ads-quick'),'delayed')),page='UNKNOWN')
     after=detector.observe(save(completed_menu(missing='wood' if bad=='missing_row' else None),'after'))
     after=replace(after,page='UNKNOWN')
     actions=[]
@@ -192,11 +194,24 @@ def test_saved_original_poststate_reconciliation_never_redispatches(detector,tmp
         before_input()
         actions.append(dict(before=str(obs.captured.source_image),action='tap',values=list(core.device_box.center),outcome='DISPATCHED'))
     port=SimpleNamespace(detector=detector,observe_settled=lambda:before,tap=tap,
-                         observe=lambda:immediate,settle=lambda _:after,save_geometry=lambda *a:None)
+                         observe=lambda:immediate,settle=lambda _:delayed if bad and bad.startswith('late_') else after,save_geometry=lambda *a:None)
     outcome=report['rewards']['shop-monthly-privilege-gift']
     process_reward(port,store,'n',task,MONTHLY_QUICK,'disk',outcome,persist)
     store.finish_task_run(task,'PARTIAL',report_path=str(path))
     assert outcome['result']=='ACTION_DISPATCHED_UNVERIFIED'
+    if bad and bad.startswith('late_'):
+        actions.append(dict(before=str(after.captured.source_image),action='tap',values=[10,1200],outcome='DISPATCHED'))
+    if bad=='late_second_tap':
+        actions.append(dict(before=str(delayed.captured.source_image),action='tap',
+                            values=actions[0]['values'],outcome='DISPATCHED'))
+    if bad in {'late_wrong_boot','late_stale'}:
+        metadata=Path(after.captured.source_image).with_suffix('.json')
+        value=json.loads(metadata.read_text(encoding='utf-8'))
+        if bad=='late_wrong_boot':
+            value['boot_id']='another-boot'
+        else:
+            value['timestamp']=(datetime.fromisoformat(before.captured.timestamp)+timedelta(minutes=5)).isoformat()
+        metadata.write_text(json.dumps(value),encoding='utf-8')
     if bad=='wrong_tap':
         actions[0]['values']=[600,400]
     if bad=='changed_boot':
@@ -205,14 +220,14 @@ def test_saved_original_poststate_reconciliation_never_redispatches(detector,tmp
         outcome['after']['timestamp']=(datetime.fromisoformat(before.captured.timestamp)+timedelta(minutes=5)).isoformat()
     persist()
     (tmp_path/'actions.json').write_text(json.dumps(actions),encoding='utf-8')
-    if bad:
+    if bad and bad!='late_post':
         with pytest.raises(ValueError):
             reconcile_saved_fixed_reward(store,outcome['claim_id'])
     else:
         proof=reconcile_saved_fixed_reward(store,outcome['claim_id'])
         assert proof['result']=='VERIFIED' and not proof['claim_redispatched']
-    assert len(actions)==1
-    assert store.reward_claims('n',23)[0]['status']==('RESERVED' if bad else 'VERIFIED')
+    assert len(actions)==(3 if bad=='late_second_tap' else 2 if bad and bad.startswith('late_') else 1)
+    assert store.reward_claims('n',23)[0]['status']==('RESERVED' if bad and bad!='late_post' else 'VERIFIED')
 
 
 
