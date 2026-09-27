@@ -12,3 +12,7 @@ emulator or account input. Runtime templates exclude annotation strokes.
 acceptance on 2026-09-27 (`20260927-111159-869224Z-guild-mail.png`). It qualifies
 reference/live entry resampling, unrelated-icon rejection and duplicate rejection.
 It contains game UI only. The fixture is not a source of runtime coordinates.
+
+`guild-live.png` is the clean Guild screen reached through the qualified Home
+entry in the bound random acceptance (20260927-120802-242844Z). It qualifies
+outlined-text resampling, positive page pairs and dimmed/partial negatives.

@@ -89,3 +89,29 @@ Entry repair gate:56 targeted Guild/Mail tests passed; Ruff and diff whitespace
 checks passed. Self-review kept dispatch, journals, paid exclusions, Protection,
 identity and lifecycle unchanged. Home image contains game UI only; PNG has no
 ancillary/private metadata.
+
+
+## Bound resume and text-rendering repair — 2026-09-27
+
+Build fb29e04 / CI36316009950 passed lint,934pytest(26skipped), build, smoke,
+artifact upload. Artifact10931047895 and590 Desktop files were verified.
+The original random target11 was resumed from its fixed snapshot. Report:
+`diagnostics/tasks/automation/20260927-120442-167061Z/fleet-report.json`.
+The Home Guild entry correctly opened Guild. No reward inputs were dispatched;
+Phase6 journals115–121 were skipped. Guild outlined-text scores remained below
+.97 because the resized reference glyphs have softer edges than the live renderer.
+All claims stayed locked/intact. Owned cleanup and original selections succeeded;
+Protected states and names were unchanged. No full fleet yet.
+
+The repair applies a fixed5x5 sigma1.3 rendering normalization to outlined text,
+with a bounded eight-pair scale grid; icons and numerical glyphs retain their
+separate strict qualification. Confidence thresholds are unchanged. All page
+titles still participate in conflict detection; controls are searched only for
+matched page families to limit processing time. Page pairs must also be undimmed.
+Duplicate evidence in EITHER template variant cannot be rescued by another crop.
+Current Guild labels qualify at .979–.994 from the saved clean screenshot.
+
+Local:61 targeted Guild/Mail tests passed; Ruff and diff whitespace checks passed.
+Regression includes live/reference text, duplicate and unrelated regions, dimmed
+parents, missing page evidence and secondary-variant conflicts. Phase7 remains
+INCOMPLETE pending the fresh full CI artifact and bound real continuation.

@@ -92,10 +92,12 @@ def test_shifted_anchor_current_bbox_and_duplicate_rejected(detector):
     template = detector.templates['guild-gifts']
     h,w = template.shape[:2]
     image = np.zeros_like(frame.normalized)
-    image[80:80+h,180:180+w] = template
+    # Preserve the crop's surrounding color during the common antialias filter.
+    padded = cv2.copyMakeBorder(template,4,4,4,4,cv2.BORDER_REFLECT_101)
+    image[76:84+h,176:184+w] = padded
     result = detector.anchor(replace(frame,normalized=image),'guild-gifts')
     assert result.matched and (result.normalized_box.x,result.normalized_box.y) == (180,80)
-    image[400:400+h,700:700+w] = template
+    image[396:404+h,696:704+w] = padded
     assert not detector.anchor(replace(frame,normalized=image),'guild-gifts').matched
 
 
@@ -364,3 +366,34 @@ def test_live_home_entry_duplicate_and_other_icons_fail_closed(detector, role):
     image = captured.normalized.copy()
     image[box.y-5:box.y+box.height+5,box.x-5:box.x+box.width+5] = 0
     assert not detector.anchor(replace(captured, normalized=image), role).matched
+
+
+@pytest.mark.parametrize('name', ['guild', 'guild-live'])
+def test_resized_reference_and_live_guild_share_qualified_text(detector, name):
+    frame = detector.observe(capture(name))
+    assert frame.page == 'guild'
+    for role in ('guild-title','guild-declaration','guild-territory','guild-gifts','guild-technology'):
+        evidence = frame.anchors[role]
+        assert evidence.matched and evidence.score >= evidence.threshold == .97
+
+
+def test_live_guild_dimmed_or_missing_declaration_remains_unknown(detector):
+    frame = capture('guild-live')
+    dimmed = (frame.normalized.astype(float)*.55).astype(np.uint8)
+    assert detector.observe(replace(frame,normalized=dimmed)).page == 'UNKNOWN'
+    image = frame.normalized.copy()
+    box = detector.anchor(frame,'guild-declaration').normalized_box
+    image[box.y:box.y+box.height,box.x:box.x+box.width] = 0
+    assert detector.observe(replace(frame,normalized=image)).page == 'UNKNOWN'
+
+
+def test_text_filter_does_not_create_unrelated_page(frames,detector):
+    for name in ('home','mail','donation','technology','territory'):
+        assert not frames[name].anchors['guild-title'].matched
+        assert frames[name].page != 'guild'
+
+
+def test_duplicate_secondary_variant_cannot_be_rescued(frames,detector):
+    original = frames['loot'].anchors['gifts-title']
+    ambiguous = replace(original,matched=False,normalized_box=None,device_box=None)
+    assert not detector.variant(original,ambiguous).matched

@@ -14,6 +14,12 @@ from top_heroes_auto.vision.resources import template_folder
 GUILD_REWARDS = ('guild-relic', 'guild-gifts-loot', 'guild-gifts-member', 'guild-technology')
 MAIL_TABS = ('war', 'guild', 'system', 'reports', 'collection')
 MAIL_REWARDS = tuple(f'mail-{tab}' for tab in MAIL_TABS)
+# These cores are icons/counters, not the outlined text seen in the supplied
+# resized references. Keep their original strict pixel qualification.
+PIXEL_ROLES = frozenset({'home-guild','home-mail','back','relic-gift','technology-like',
+    'donation-wood','donation-diamond','modal-close','donation-count-suffix',
+    'badge-digit-3','badge-digit-6'})
+
 
 
 def portrait(captured):
@@ -82,18 +88,24 @@ class GuildMailDetector:
         if grayscale:
             search = cv2.cvtColor(search,cv2.COLOR_BGR2GRAY)
             template = cv2.cvtColor(template,cv2.COLOR_BGR2GRAY)
-        # Reference screenshots and the live renderer use slightly different
-        # resampling. A small common filter removes pixel aliasing, not icon
-        # structure. Qualify this only for the two evidenced Home entry cores.
+        # Outlined text in the supplied resized references has softer edges
+        # than the live renderer. Match the same low-frequency letter structure
+        # at a fixed scale grid, without reducing the confidence threshold.
+        text_core = role not in PIXEL_ROLES
         resampled_entry = role in {'home-guild', 'home-mail'}
-        if resampled_entry:
-            search = cv2.GaussianBlur(search, (3, 3), .5)
+        kernel, sigma = ((5, 5), 1.3) if text_core else ((3, 3), .5)
+        if text_core or resampled_entry:
+            search = cv2.GaussianBlur(search, kernel, sigma)
         candidates, best = [], 0.0
-        scales = (1, .97, 1.02, 1.03) if resampled_entry else (1, .97, 1.03)
-        for scale in scales:
-            t = cv2.resize(template, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-            if resampled_entry:
-                t = cv2.GaussianBlur(t, (3, 3), .5)
+        scales = [(1,1),(.97,.97),(1.03,1.03)]
+        if resampled_entry or text_core:
+            scales.append((1.02,1.02))
+        if text_core:
+            scales.extend([(1,1.02),(1,1.03),(1.02,1.03),(1.03,1.02)])
+        for sx, sy in scales:
+            t = cv2.resize(template, None, fx=sx, fy=sy, interpolation=cv2.INTER_AREA)
+            if text_core or resampled_entry:
+                t = cv2.GaussianBlur(t, kernel, sigma)
             h, w = t.shape[:2]
             if h > search.shape[0] or w > search.shape[1]:
                 continue
@@ -119,8 +131,9 @@ class GuildMailDetector:
     def variant(first, second):
         if first.matched and second.matched and not intersects(first.device_box, second.device_box):
             return replace(first, matched=False, device_box=None, normalized_box=None)
-        if not first.matched and first.score >= first.threshold:
-            return first  # A duplicate cannot be rescued by another crop.
+        for evidence in (first, second):
+            if not evidence.matched and evidence.score >= evidence.threshold:
+                return evidence  # A duplicate cannot be rescued by another crop.
         return first if first.matched or not second.matched else second
 
     def observe(self, captured):
@@ -129,10 +142,17 @@ class GuildMailDetector:
             'back': (0,.88,.23,1), 'technology-like': (0,.20,1,.88),
             'modal-close': (.3,.82,.7,1),
         }
-        anchors = {}
-        for role in self.templates:
-            if role.startswith('badge-digit-'):
-                continue
+        anchors = {r: AnchorEvidence(r,ScreenState.UNKNOWN,0,self.thresholds[r],False)
+                   for r in self.templates}
+        searched = set()
+        variants = dict([('gifts-quick','gifts-quick-member'),('relic-tab','relic-tab-selected'),
+                        ('gifts-title','gifts-title-member'),('territory-title','territory-title-relic'),
+                        ('mail-system','mail-system-alt'),('mail-collection','mail-collection-alt')])
+
+        def read_core(role):
+            if role in searched:
+                return
+            searched.add(role)
             if role.endswith('title') or role in {'guild-declaration','territory-fortress','relic-owned-tab',
                     'technology-contribution','mail-empty-label'}:
                 region = (0,0,1,.58)
@@ -148,11 +168,38 @@ class GuildMailDetector:
             if (role in {'gifts-quick','gifts-quick-member'} and not anchors[role].matched
                     and anchors[role].score < anchors[role].threshold):
                 anchors[role] = self.anchor(captured,role,regions.get(role,region),grayscale=True)
-        for role, other in [('gifts-quick','gifts-quick-member'),('relic-tab','relic-tab-selected'),
-                            ('gifts-title','gifts-title-member'),('territory-title','territory-title-relic'),
-                            ('mail-system','mail-system-alt'),('mail-collection','mail-collection-alt')]:
-            anchors[role] = self.variant(anchors[role], anchors[other])
+
+        def read(role):
+            read_core(role)
+            if role in variants:
+                other = variants[role]
+                read_core(other)
+                anchors[role] = self.variant(anchors[role],anchors[other])
+
+        # Search every page title for conflicts, then only the controls relevant
+        # to a positively matched title. Unsearched controls never prove absence.
+        groups = {
+            'guild-title': ('guild-declaration','guild-territory','guild-gifts','guild-technology',
+                            'guild-trial-forbidden','back'),
+            'territory-title': ('territory-fortress','relic-summary','relic-owned-tab','relic-gift','relic-tab','back'),
+            'gifts-title': ('loot-selected','member-selected','loot-inactive','member-inactive',
+                            'gifts-quick','gift-claim','loot-row-title','member-row-title','back'),
+            'technology-title': ('technology-contribution','technology-like','back'),
+            'donation-heading': ('donation-counter-label','donation-count-suffix','donation-green',
+                                'donation-paid','donation-wood','donation-diamond','modal-close'),
+            'mail-title': ('modal-close','mail-war-selected','mail-war-inactive','mail-guild-selected',
+                          'mail-guild-inactive','mail-system','mail-reports','mail-collection',
+                          'mail-empty-label','mail-read','mail-delete-forbidden'),
+        }
+        for title, roles in groups.items():
+            read(title)
+            if anchors[title].matched:
+                for role in roles:
+                    read(role)
         overlay = self.recovery.detect(captured)
+        if overlay.state == ScreenState.GAME_HOME:
+            read('home-guild')
+            read('home-mail')
         pages = []
         pairs = {
             'guild': ('guild-title','guild-declaration'),
@@ -189,6 +236,9 @@ class GuildMailDetector:
             return False
         current = captured.normalized[box.y:box.y+box.height,box.x:box.x+box.width]
         template = cv2.resize(self.templates[evidence.anchor_id],(box.width,box.height),interpolation=cv2.INTER_AREA)
+        if evidence.anchor_id not in PIXEL_ROLES:
+            current = cv2.GaussianBlur(current, (5,5), 1.3)
+            template = cv2.GaussianBlur(template, (5,5), 1.3)
         # Correlation alone can match a uniformly dimmed parent behind a modal.
         return float(np.mean(np.abs(current.astype(float)-template.astype(float)))) <= 15
 
