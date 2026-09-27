@@ -320,3 +320,16 @@ def test_dimmed_mail_under_another_modal_is_not_actionable(detector):
     frame = capture('mail')
     image = (frame.normalized.astype(float)*.55).astype(np.uint8)
     assert detector.observe(replace(frame,normalized=image)).page == 'UNKNOWN'
+
+
+def test_portable_includes_local_counter_reader():
+    import ast
+
+    root = Path(__file__).resolve().parents[1]
+    spec = ast.parse((root/'TopHeroesAutoManager.spec').read_text(encoding='utf-8'))
+    analysis = next(n.value for n in spec.body if isinstance(n,ast.Assign)
+                    and any(isinstance(t,ast.Name) and t.id == 'a' for t in n.targets))
+    data = next(k.value for k in analysis.keywords if k.arg == 'datas')
+    bindings = eval(compile(ast.Expression(data),'<portable-datas>','eval'),{'root':root})
+    assert (str(root/'assets/tools'),'assets/tools') in bindings
+    assert (root/'assets/tools/read-image-text.ps1').is_file()
