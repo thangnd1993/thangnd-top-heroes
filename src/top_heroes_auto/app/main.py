@@ -17,7 +17,7 @@ def main(argv: list[str] | None = None):
     if argv and argv[0] in {'automation-acceptance', 'phase6-acceptance'}:
         resume = Path(argv[2]) if len(argv) == 3 and argv[1] == '--resume-report' else None
         if not resume and argv[1:] not in (["--random-test"], ["--confirm-non-protected"]):
-            raise ValueError('Phase 6 requires an explicit random/fleet/resume scope.')
+            raise ValueError('Automation requires an explicit random/fleet/resume scope.')
         from top_heroes_auto.app.automation_fleet import run
         from top_heroes_auto.app.diagnostic import _manager
 

@@ -49,6 +49,10 @@ REGISTRY = FlowRegistry()
 def production_registry():
     # Feature modules register themselves; future modules use the same extension
     # point without changing automation_fleet or its instance-first lifecycle.
+    # Static imports keep the portable build complete; order is registry order.
+    # isort: off
     from top_heroes_auto.app import reward_flows  # noqa: F401
+    from top_heroes_auto.app import guild_mail_flows  # noqa: F401
+    # isort: on
 
     return REGISTRY

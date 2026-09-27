@@ -97,7 +97,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                     row['rewards'][reward] = outcomes.get(reward, blocked('Enabled reward omitted by flow.'))
                 detail['result'] = 'COMPLETE' if all(row['rewards'][r]['result'] in COMPLETE for r in flow.rewards) else 'BLOCKED'
                 row['flows'][flow.id] = detail
-                row['new_claims'] += sum(bool(outcomes.get(r, {}).get('claim_dispatched')) for r in pending)
+                row['new_claims'] += sum(outcomes.get(r, {}).get('claim_count', int(bool(outcomes.get(r, {}).get('claim_dispatched')))) for r in pending)
                 row['recovery_ok'] = detail.get('return_home') == 'SUCCESS'
                 if 'shop_traversal' in detail:
                     row['shop_traversal'] = detail['shop_traversal']

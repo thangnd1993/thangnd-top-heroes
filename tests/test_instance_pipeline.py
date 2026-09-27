@@ -248,8 +248,8 @@ def test_no_phase_specific_scheduler_and_current_registration():
     source = inspect.getsource(fleet)
     assert "run_vip" not in source and "run_bxh" not in source and "phase6" not in source.lower()
     plan = production_registry().snapshot()
-    assert [f.id for f in plan] == ["vip", "ranking", "shop"]
-    assert len([r for f in plan for r in f.rewards]) == 7
+    assert [f.id for f in plan] == ["vip", "ranking", "shop", "guild", "mail"]
+    assert len([r for f in plan for r in f.rewards]) == 16
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,11 @@
 # Tiến độ
 
+## Phase 7 — Guild + Mail — IN PROGRESS
+
+User explicitly authorized Phase 7 on 2026-09-27. See [PHASE7.md](PHASE7.md).
+Phase 6 remains completed. No Phase 8. No Phase 7 real input dispatched yet.
+
+
 ## Phase 6 PASS — 2026-09-27 (Vietnam time)
 
 Final report: `diagnostics/tasks/automation/20260926-172308-977271Z/fleet-report.json`.

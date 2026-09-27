@@ -9,6 +9,7 @@ on:
       - codex/phase4-home-recovery
       - codex/phase5-idle-reward
       - codex/phase6-vip-pack-recruit
+      - codex/phase7-guild-mail
   pull_request:
   workflow_dispatch:
 permissions:

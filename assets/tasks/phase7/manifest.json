@@ -1,0 +1,596 @@
+[
+  {
+    "id": "home-guild",
+    "source": "home",
+    "source_bbox": [
+      487,
+      620,
+      37,
+      37
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "home-mail",
+    "source": "home",
+    "source_bbox": [
+      486,
+      686,
+      39,
+      27
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "guild-title",
+    "source": "guild",
+    "source_bbox": [
+      265,
+      12,
+      55,
+      37
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "guild-territory",
+    "source": "guild",
+    "source_bbox": [
+      430,
+      497,
+      95,
+      32
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "guild-gifts",
+    "source": "guild",
+    "source_bbox": [
+      180,
+      598,
+      53,
+      29
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "guild-technology",
+    "source": "guild",
+    "source_bbox": [
+      147,
+      704,
+      126,
+      35
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "guild-trial-forbidden",
+    "source": "guild",
+    "source_bbox": [
+      429,
+      583,
+      104,
+      64
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "guild-declaration",
+    "source": "guild",
+    "source_bbox": [
+      237,
+      290,
+      112,
+      26
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "back",
+    "source": "guild",
+    "source_bbox": [
+      38,
+      943,
+      38,
+      36
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "territory-title",
+    "source": "territory",
+    "source_bbox": [
+      205,
+      18,
+      142,
+      42
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "territory-fortress",
+    "source": "territory",
+    "source_bbox": [
+      29,
+      94,
+      206,
+      38
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "relic-tab",
+    "source": "territory",
+    "source_bbox": [
+      461,
+      946,
+      60,
+      27
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "relic-summary",
+    "source": "relic",
+    "source_bbox": [
+      209,
+      790,
+      119,
+      23
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "relic-owned-tab",
+    "source": "relic",
+    "source_bbox": [
+      97,
+      104,
+      103,
+      30
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "relic-gift",
+    "source": "relic",
+    "source_bbox": [
+      479,
+      833,
+      43,
+      37
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "relic-tab-selected",
+    "source": "relic",
+    "source_bbox": [
+      460,
+      945,
+      62,
+      29
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "gifts-title",
+    "source": "loot",
+    "source_bbox": [
+      228,
+      21,
+      122,
+      33
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "loot-selected",
+    "source": "loot",
+    "source_bbox": [
+      48,
+      281,
+      210,
+      22
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "member-inactive",
+    "source": "loot",
+    "source_bbox": [
+      347,
+      279,
+      141,
+      21
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "gifts-quick",
+    "source": "loot",
+    "source_bbox": [
+      248,
+      952,
+      121,
+      24
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "loot-row-title",
+    "source": "loot",
+    "source_bbox": [
+      151,
+      437,
+      252,
+      27
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "gift-claim",
+    "source": "loot",
+    "source_bbox": [
+      446,
+      475,
+      48,
+      24
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "member-selected",
+    "source": "member",
+    "source_bbox": [
+      328,
+      282,
+      179,
+      24
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "loot-inactive",
+    "source": "member",
+    "source_bbox": [
+      41,
+      282,
+      216,
+      24
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "gifts-quick-member",
+    "source": "member",
+    "source_bbox": [
+      243,
+      954,
+      123,
+      25
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "member-row-title",
+    "source": "member",
+    "source_bbox": [
+      146,
+      442,
+      201,
+      25
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "technology-title",
+    "source": "technology",
+    "source_bbox": [
+      202,
+      22,
+      157,
+      33
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "technology-contribution",
+    "source": "technology",
+    "source_bbox": [
+      149,
+      117,
+      178,
+      33
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "technology-like",
+    "source": "technology",
+    "source_bbox": [
+      180,
+      397,
+      27,
+      29
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "donation-heading",
+    "source": "donation",
+    "source_bbox": [
+      198,
+      490,
+      182,
+      56
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "donation-counter-label",
+    "source": "donation",
+    "source_bbox": [
+      301,
+      754,
+      145,
+      27
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "donation-green",
+    "source": "donation",
+    "source_bbox": [
+      354,
+      689,
+      97,
+      26
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "donation-wood",
+    "source": "donation",
+    "source_bbox": [
+      377,
+      717,
+      19,
+      24
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "donation-paid",
+    "source": "donation",
+    "source_bbox": [
+      124,
+      688,
+      97,
+      28
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "donation-diamond",
+    "source": "donation",
+    "source_bbox": [
+      147,
+      719,
+      22,
+      21
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "modal-close",
+    "source": "donation",
+    "source_bbox": [
+      267,
+      899,
+      30,
+      31
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-title",
+    "source": "mail-empty",
+    "source_bbox": [
+      245,
+      82,
+      64,
+      36
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-war-selected",
+    "source": "mail-empty",
+    "source_bbox": [
+      54,
+      152,
+      63,
+      42
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-guild-inactive",
+    "source": "mail-empty",
+    "source_bbox": [
+      164,
+      160,
+      37,
+      28
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-system",
+    "source": "mail-empty",
+    "source_bbox": [
+      248,
+      146,
+      65,
+      49
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-reports",
+    "source": "mail-empty",
+    "source_bbox": [
+      335,
+      154,
+      75,
+      33
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-collection",
+    "source": "mail",
+    "source_bbox": [
+      425,
+      154,
+      84,
+      38
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-empty-label",
+    "source": "mail-empty",
+    "source_bbox": [
+      170,
+      519,
+      213,
+      31
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-guild-selected",
+    "source": "mail",
+    "source_bbox": [
+      161,
+      160,
+      40,
+      30
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-war-inactive",
+    "source": "mail",
+    "source_bbox": [
+      55,
+      153,
+      64,
+      45
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-read",
+    "source": "mail",
+    "source_bbox": [
+      349,
+      804,
+      92,
+      28
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-delete-forbidden",
+    "source": "mail",
+    "source_bbox": [
+      120,
+      803,
+      95,
+      29
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "gifts-title-member",
+    "source": "member",
+    "source_bbox": [
+      224,
+      24,
+      123,
+      35
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "territory-title-relic",
+    "source": "relic",
+    "source_bbox": [
+      218,
+      24,
+      129,
+      33
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-system-alt",
+    "source": "mail",
+    "source_bbox": [
+      248,
+      148,
+      70,
+      50
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-collection-alt",
+    "source": "mail",
+    "source_bbox": [
+      425,
+      153,
+      82,
+      42
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "donation-count-suffix",
+    "source": "donation",
+    "source_bbox": [
+      465,
+      759,
+      26,
+      20
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "badge-digit-3",
+    "source": "mail",
+    "source_bbox": [
+      215,
+      139,
+      16,
+      16
+    ],
+    "threshold": 0.98
+  },
+  {
+    "id": "badge-digit-6",
+    "source": "mail",
+    "source_bbox": [
+      310,
+      139,
+      16,
+      16
+    ],
+    "threshold": 0.98
+  }
+]

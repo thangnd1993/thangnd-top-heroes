@@ -1,5 +1,16 @@
 # Permanent no-rename invariant — all phases
 
+## Phase 7 explicit action scope — 2026-09-27
+
+Guild and Mail are now authorized under the same instance-first ownership.
+The ONLY resource-spending exception is the user-approved GREEN wood Cống Hiến
+control on the uniquely like-marked technology. Require the current wood icon,
+green control, independent remaining count and disjoint orange diamond control.
+One input followed by a proven count decrement; ambiguous results stay POSSIBLE.
+No diamond donations, purchases, other resources, Trial Hall or mail deletion.
+Relics reset at 09:00 Vietnam as explicitly confirmed by the user.
+
+
 ## Permanent Home-overlay and continuous Shop rules — 2026-09-25
 
 User authorized one agent, offline repair then fresh-CI random development and
