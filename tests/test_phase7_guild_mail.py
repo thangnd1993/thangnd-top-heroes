@@ -333,3 +333,10 @@ def test_portable_includes_local_counter_reader():
     bindings = eval(compile(ast.Expression(data),'<portable-datas>','eval'),{'root':root})
     assert (str(root/'assets/tools'),'assets/tools') in bindings
     assert (root/'assets/tools/read-image-text.ps1').is_file()
+
+
+def test_delayed_ui_update_waits_without_second_dispatch(rig):
+    port = Port([('AVAILABLE',1),('AVAILABLE',1),('NOT_AVAILABLE',0),('NOT_AVAILABLE',0)])
+    result = execute(rig,port)
+    assert result['result'] == 'SUCCESS' and result['journal'] == 'VERIFIED'
+    assert port.taps == 1 and len(result['actions'][0]['post_observations']) == 2

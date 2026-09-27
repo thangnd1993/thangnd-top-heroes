@@ -1,5 +1,6 @@
 """One-shot, progress-verified Guild/Mail actions on a single owned session."""
 import json
+import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -131,6 +132,16 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
             action['immediate_after'] = immediate.evidence()
             persist()
             after_frame, after = port.opportunity(reward, initial=immediate)
+            action['post_observations'] = []
+            # The first screenshot can precede the server/UI update. Poll only;
+            # no second action and no journal release, even if nothing changes.
+            for attempt in range(3):
+                action['post_observations'].append(dict(frame=after_frame.evidence(),opportunity=after.evidence()))
+                persist()
+                if qualified_progress(frame,view,after_frame,after) or attempt == 2:
+                    break
+                time.sleep(.4)
+                after_frame, after = port.opportunity(reward)
             confirmation_frame, confirmation = port.opportunity(reward)
             action['after'] = dict(frame=after_frame.evidence(),opportunity=after.evidence())
             action['confirmation'] = dict(frame=confirmation_frame.evidence(),opportunity=confirmation.evidence())
