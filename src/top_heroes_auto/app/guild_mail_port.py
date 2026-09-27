@@ -1,4 +1,5 @@
 """Guarded Guild/Mail transport; session owns lifecycle, this port owns navigation."""
+import json
 import time
 
 import cv2
@@ -30,6 +31,8 @@ class GuildMailPort(FixedRewardPort):
         captured = ScreenshotService(lambda serial: payload if serial == target.serial else b'').take(
             target,self.folder,'guild-mail')
         self.last = self.detector.observe(captured)
+        captured.source_image.with_suffix('.evidence.json').write_text(
+            json.dumps(self.last.evidence(), ensure_ascii=False, indent=2), encoding='utf-8')
         self.qualified = None
         return self.last
 

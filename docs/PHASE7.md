@@ -42,7 +42,7 @@ folder. Only then select a random live non-Protected account for the bound test,
 followed by all current non-Protected targets sequentially. Preserve prior
 selections, names, Protection, external running ownership and historical journals.
 
-No Phase 7 real actions have been dispatched yet.
+No Phase 7 reward actions have been dispatched yet.
 
 ## Offline implementation checkpoint
 
@@ -61,3 +61,31 @@ checks and twelve journal/identity/period checks passed again after self-review.
 Reference-image qualification is not real acceptance. No Phase 7 emulator
 activity yet. Next: full CI, verified Desktop artifact, random bound acceptance,
 then all non-Protected targets only after that feature acceptance is safe.
+
+
+## First live random acceptance — 2026-09-27
+
+Build `00f131f`, CI36312719887 passed: lint,930pytest tests(26skipped), portable
+build, executable smoke and artifact upload. Artifact10930191411 was verified
+against its run/commit and all590 delivered files at the fixed Desktop app path.
+
+Random selection used secrets.choice over live eligible indexes2,4,5,8,9,10,11;
+selected11/Nấm đùi gà, explicit ADB emulator-5576. Report:
+`diagnostics/tasks/automation/20260927-110519-852460Z/fleet-report.json`.
+Seven current-period Phase6 rewards were VERIFIED (journals115–121). All98 earlier
+journal rows remained identical. Guild and Mail stayed BLOCKED at Home entry,
+with ZERO Phase7 inputs/reward dispatches. Cleanup and selection restoration
+succeeded. Protected0/1/6/7 stayed stopped/unselected; external index2 stayed running.
+
+Concrete blocker: the correct Home icons score .960/.952 with the original
+three scales; reference/live raster resampling differs slightly. The repair
+adds the evidenced1.02 scale and a common3x3 sigma.5 antialias filter ONLY to the
+Home entry cores. The .97 threshold, global uniqueness and destination guards
+are retained. Per-capture anchor evidence is now persisted. Offline regression
+uses the saved live frame plus duplicate and unrelated-icon negatives.
+No fleet has run yet; Phase7 acceptance remains incomplete.
+
+Entry repair gate:56 targeted Guild/Mail tests passed; Ruff and diff whitespace
+checks passed. Self-review kept dispatch, journals, paid exclusions, Protection,
+identity and lifecycle unchanged. Home image contains game UI only; PNG has no
+ancillary/private metadata.

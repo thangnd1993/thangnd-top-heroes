@@ -3,7 +3,9 @@
 ## Phase 7 — Guild + Mail — IN PROGRESS
 
 User explicitly authorized Phase 7 on 2026-09-27. See [PHASE7.md](PHASE7.md).
-Phase 6 remains completed. No Phase 8. No Phase 7 real input dispatched yet.
+Phase 6 remains completed. No Phase 8. First random index11 acceptance is PARTIAL:
+Phase6 current rewards115–121 VERIFIED; Guild/Mail blocked before entry.
+Cleanup/restoration succeeded; no Phase7 input. See PHASE7.md for the repair.
 
 
 ## Phase 6 PASS — 2026-09-27 (Vietnam time)

@@ -340,3 +340,27 @@ def test_delayed_ui_update_waits_without_second_dispatch(rig):
     result = execute(rig,port)
     assert result['result'] == 'SUCCESS' and result['journal'] == 'VERIFIED'
     assert port.taps == 1 and len(result['actions'][0]['post_observations']) == 2
+
+
+@pytest.mark.parametrize('role', ['home-guild', 'home-mail'])
+def test_live_home_entry_resampling_keeps_strict_threshold(detector, role):
+    frame = detector.observe(capture('home-live'))
+    evidence = frame.anchors[role]
+    assert frame.page == 'home'
+    assert evidence.matched and evidence.score >= evidence.threshold == .97
+    assert evidence.device_box and evidence.device_box.width > 25
+
+
+@pytest.mark.parametrize('role', ['home-guild', 'home-mail'])
+def test_live_home_entry_duplicate_and_other_icons_fail_closed(detector, role):
+    captured = capture('home-live')
+    original = detector.anchor(captured, role)
+    assert original.matched
+    box = original.normalized_box
+    core = captured.normalized[box.y:box.y+box.height, box.x:box.x+box.width].copy()
+    image = captured.normalized.copy()
+    image[100:100+box.height,100:100+box.width] = core
+    assert not detector.anchor(replace(captured, normalized=image), role).matched
+    image = captured.normalized.copy()
+    image[box.y-5:box.y+box.height+5,box.x-5:box.x+box.width+5] = 0
+    assert not detector.anchor(replace(captured, normalized=image), role).matched

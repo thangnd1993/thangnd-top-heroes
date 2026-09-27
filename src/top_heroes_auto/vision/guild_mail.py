@@ -82,9 +82,18 @@ class GuildMailDetector:
         if grayscale:
             search = cv2.cvtColor(search,cv2.COLOR_BGR2GRAY)
             template = cv2.cvtColor(template,cv2.COLOR_BGR2GRAY)
+        # Reference screenshots and the live renderer use slightly different
+        # resampling. A small common filter removes pixel aliasing, not icon
+        # structure. Qualify this only for the two evidenced Home entry cores.
+        resampled_entry = role in {'home-guild', 'home-mail'}
+        if resampled_entry:
+            search = cv2.GaussianBlur(search, (3, 3), .5)
         candidates, best = [], 0.0
-        for scale in (1, .97, 1.03):
+        scales = (1, .97, 1.02, 1.03) if resampled_entry else (1, .97, 1.03)
+        for scale in scales:
             t = cv2.resize(template, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+            if resampled_entry:
+                t = cv2.GaussianBlur(t, (3, 3), .5)
             h, w = t.shape[:2]
             if h > search.shape[0] or w > search.shape[1]:
                 continue
