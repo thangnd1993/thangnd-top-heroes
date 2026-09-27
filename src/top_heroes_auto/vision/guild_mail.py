@@ -18,7 +18,7 @@ MAIL_REWARDS = tuple(f'mail-{tab}' for tab in MAIL_TABS)
 # resized references. Keep their original strict pixel qualification.
 PIXEL_ROLES = frozenset({'home-guild','home-mail','back','relic-gift','technology-like',
     'donation-wood','donation-diamond','modal-close','donation-count-suffix',
-    'badge-digit-3','badge-digit-6'})
+    'badge-digit-3','badge-digit-4','badge-digit-6','gift-received-check'})
 
 
 
@@ -92,7 +92,7 @@ class GuildMailDetector:
         # than the live renderer. Match the same low-frequency letter structure
         # at a fixed scale grid, without reducing the confidence threshold.
         text_core = role not in PIXEL_ROLES
-        resampled_entry = role in {'home-guild', 'home-mail'}
+        resampled_entry = role in PIXEL_ROLES and not role.startswith('badge-digit-') and role != 'gift-received-check'
         kernel, sigma = ((5, 5), 1.3) if text_core else ((3, 3), .5)
         if text_core or resampled_entry:
             search = cv2.GaussianBlur(search, kernel, sigma)
@@ -145,9 +145,10 @@ class GuildMailDetector:
         anchors = {r: AnchorEvidence(r,ScreenState.UNKNOWN,0,self.thresholds[r],False)
                    for r in self.templates}
         searched = set()
-        variants = dict([('gifts-quick','gifts-quick-member'),('relic-tab','relic-tab-selected'),
-                        ('gifts-title','gifts-title-member'),('territory-title','territory-title-relic'),
-                        ('mail-system','mail-system-alt'),('mail-collection','mail-collection-alt')])
+        variants = {'gifts-quick':('gifts-quick-member',),'relic-tab':('relic-tab-selected',),
+                    'gifts-title':('gifts-title-member',),'territory-title':('territory-title-relic',),
+                    'mail-system':('mail-system-alt','mail-system-current','mail-system-selected'),
+                    'mail-reports':('mail-reports-selected',),'mail-collection':('mail-collection-alt',)}
 
         def read_core(role):
             if role in searched:
@@ -171,8 +172,7 @@ class GuildMailDetector:
 
         def read(role):
             read_core(role)
-            if role in variants:
-                other = variants[role]
+            for other in variants.get(role,()):
                 read_core(other)
                 anchors[role] = self.variant(anchors[role],anchors[other])
 
@@ -263,18 +263,30 @@ class GuildMailDetector:
         badge = candidates[0]
         if not numbered:
             return badge
-        pad = max(2, round(badge.height*.4))
-        region = BoundingBox(badge.x-pad,badge.y-pad,badge.width+2*pad,badge.height+2*pad)
-        part = crop(image, region)
-        number = self.number_reader(part) if part is not None else None
-        if number is not None:
-            return number
+        # The badge can touch tab text or the edge of a button. Qualify
+        # bounded crops independently at both OCR scales; conflicting numbers
+        # reject the badge instead of choosing whichever crop looks convenient.
+        readings = set()
+        regions = []
+        for horizontal, top, bottom in ((.4,.4,.4),(.6,.6,.6),(.5,.45,.2)):
+            px, pt, pb = (max(2,round(badge.height*v)) for v in (horizontal,top,bottom))
+            region = BoundingBox(badge.x-px,badge.y-pt,badge.width+2*px,badge.height+pt+pb)
+            regions.append(region)
+            part = crop(image,region)
+            number = self.number_reader(part) if part is not None else None
+            if number is not None:
+                readings.add(number)
+        if len(readings) > 1:
+            return None
+        if readings:
+            return next(iter(readings))
+        region = regions[1]
         # Windows OCR can omit a single character. Only qualified real glyph
         # anchors may resolve it; no numeric substitutions or guessed counts.
         height,width = image.shape[:2]
         area = (max(0,region.x/width),max(0,region.y/height),
                 min(1,(region.x+region.width)/width),min(1,(region.y+region.height)/height))
-        matches = [(digit,self.anchor(frame.captured,f'badge-digit-{digit}',area)) for digit in (3,6)]
+        matches = [(digit,self.anchor(frame.captured,f'badge-digit-{digit}',area)) for digit in (3,4,6)]
         matches = [(digit,e) for digit,e in matches if e.matched and
                    .8*badge.height <= e.device_box.height <= 1.4*badge.height and
                    .8*badge.width <= e.device_box.width <= 1.4*badge.width]
@@ -312,9 +324,25 @@ class GuildMailDetector:
         default = AnchorEvidence('technology-node', ScreenState.UNKNOWN, 0, .97, False)
         if not marker:
             return default
-        boxes = [b for b in components(portrait(frame.captured), 'brown') if
-            2.1*marker.width < b.width < 4.5*marker.width and .8 < b.width/b.height < 1.25 and
-            abs(b.x-marker.center[0]) < marker.width and abs(b.y-marker.center[1]) < marker.height]
+        image = portrait(frame.captured)
+        contours, _ = cv2.findContours(cv2.Canny(image,60,140),cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+        candidates = components(image,'brown')+[BoundingBox(*cv2.boundingRect(c)) for c in contours]
+        boxes = []
+        for b in candidates:
+            if not (2.1*marker.width < b.width < 4.5*marker.width and .8 < b.width/b.height < 1.25 and
+                    abs(b.x-marker.center[0]) < marker.width and abs(b.y-marker.center[1]) < marker.height):
+                continue
+            hsv = cv2.cvtColor(crop(image,b),cv2.COLOR_BGR2HSV)
+            brown = cv2.inRange(hsv,(6,70,65),(24,210,205))
+            if float(np.mean(brown > 0)) < .45:
+                continue
+            near = next((p for p in boxes if abs(p.center[0]-b.center[0]) < min(p.width,b.width)*.15
+                         and abs(p.center[1]-b.center[1]) < min(p.height,b.height)*.15),None)
+            if near:
+                if b.width*b.height <= near.width*near.height:
+                    continue
+                boxes.remove(near)
+            boxes.append(b)
         if len(boxes) != 1:
             return default
         return AnchorEvidence('technology-node',ScreenState.FREE_REWARD_PAGE,
@@ -387,6 +415,26 @@ class GuildMailDetector:
             result[tab] = dict(box=box,count=number,selected=selected)
         return result
 
+    def received_rows(self, frame):
+        """Positive received-row checks, distinct from absence of a claim button."""
+        if frame.page not in {'gifts-loot','gifts-member'}:
+            return 0
+        template = self.templates['gift-received-check']
+        left,top,right,bottom = portrait_region(.68,.40,.97,.86).pixels(*frame.captured.normalized_size)
+        search = frame.captured.normalized[top:bottom,left:right]
+        h,w = template.shape[:2]
+        if h > search.shape[0] or w > search.shape[1]:
+            return 0
+        scores = cv2.matchTemplate(search,template,cv2.TM_CCOEFF_NORMED)
+        count = 0
+        for _ in range(6):
+            _,score,_,(x,y) = cv2.minMaxLoc(scores)
+            if not np.isfinite(score) or score < self.thresholds['gift-received-check']:
+                break
+            count += 1
+            scores[max(0,y-h//2):y+h//2+1,max(0,x-w//2):x+w//2+1] = -1
+        return count
+
     def availability(self, frame, reward):
         from top_heroes_auto.automation.guild_mail_claims import Opportunity
 
@@ -415,6 +463,10 @@ class GuildMailDetector:
                 count = self.local_badge(frame,quick,numbered=True)
                 if count is not None and count > 0:
                     return Opportunity(reward,'AVAILABLE','gifts-quick',quick,count,reward)
+            if quick and self.badge_absent(frame,quick) and self.received_rows(frame) >= 2:
+                row_claim = frame.anchors.get('gift-claim')
+                if row_claim is not None and row_claim.score < row_claim.threshold:
+                    return Opportunity(reward,'NOT_AVAILABLE',remaining=0,context=reward)
             inactive = self.control(frame,'gifts-quick','gray')
             row_claim = frame.anchors.get('gift-claim')
             if (inactive and self.badge_absent(frame,inactive) and

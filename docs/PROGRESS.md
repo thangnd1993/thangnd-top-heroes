@@ -3,10 +3,11 @@
 ## Phase 7 — Guild + Mail — IN PROGRESS
 
 User explicitly authorized Phase 7 on 2026-09-27. See [PHASE7.md](PHASE7.md).
-Phase 6 remains completed. No Phase 8. First random index11 acceptance is PARTIAL:
-Phase6 current rewards115–121 VERIFIED; the bound resume opened Guild safely
-but stopped at text recognition. No Phase7 reward input. Cleanup/restoration
-succeeded. See PHASE7.md for the current rendering repair.
+Phase 6 remains completed. No Phase8. Bound random index11 has reached Guild
+and Mail. Member Quick Claim122 was dispatched once and stays RESERVED/POSSIBLE;
+original saved evidence now qualifies its received state offline. Do not replay.
+Remaining UI fixes and safe saved reconciliation are in PHASE7.md. Cleanup and
+selection restoration succeeded. No full fleet yet.
 
 
 ## Phase 6 PASS — 2026-09-27 (Vietnam time)

@@ -42,7 +42,8 @@ folder. Only then select a random live non-Protected account for the bound test,
 followed by all current non-Protected targets sequentially. Preserve prior
 selections, names, Protection, external running ownership and historical journals.
 
-No Phase 7 reward actions have been dispatched yet.
+At the initial offline checkpoint, no Phase7 reward had been dispatched.
+The current action122 state is recorded in the latest section below.
 
 ## Offline implementation checkpoint
 
@@ -58,8 +59,8 @@ loops are bounded; no names/config writes or fixed-account coordinates.
 The final dimmed-parent regression also passed. Three badge/disabled-control
 checks and twelve journal/identity/period checks passed again after self-review.
 
-Reference-image qualification is not real acceptance. No Phase 7 emulator
-activity yet. Next: full CI, verified Desktop artifact, random bound acceptance,
+Reference-image qualification is not real acceptance. At that checkpoint there was no Phase7 emulator
+activity. The next gates were: full CI, verified Desktop artifact, random bound acceptance,
 then all non-Protected targets only after that feature acceptance is safe.
 
 
@@ -115,3 +116,44 @@ Local:61 targeted Guild/Mail tests passed; Ruff and diff whitespace checks passe
 Regression includes live/reference text, duplicate and unrelated regions, dimmed
 parents, missing page evidence and secondary-variant conflicts. Phase7 remains
 INCOMPLETE pending the fresh full CI artifact and bound real continuation.
+
+
+## Original member action122 and remaining concrete UI gaps
+
+Build15d6ab3 / CI36320338679:939passed,26skipped; lint/build/smoke/upload passed.
+Artifact10932860270 delivered and590 files verified. Bound resume report:
+`diagnostics/tasks/automation/20260927-144934-534222Z/fleet-report.json`.
+Guild and Mail each entered once, Home return/cleanup/restoration succeeded,
+Protected states and names unchanged. ZERO replay of Phase6 rewards115–121.
+
+One real member Quick Claim was dispatched:journal122 RESERVED/POSSIBLE.
+Before:12. Original post frames145252 and145301 show no badge, four received
+check rows, and no green individual claim; Quick Claim itself remains green.
+DO NOT redispatch122. The new offline qualifier reproduced AVAILABLE12→
+NOT_AVAILABLE0 on both ORIGINAL post frames using read-only SQLite. The live
+journal has NOT been changed yet; reconcile only through the fresh passing
+artifact. Original task, identity, timestamps, one transport input, geometry and
+two independent post frames are mandatory. No device transport in reconciliation.
+
+Additional repairs from this same evidence:
+- Territory title settled before its tab. Up to2 fresh navigation observations;
+  no replay of entry and no input if the page changes/UNKNOWN.
+- Loot badge196 and Mail4/10/60: bounded OCR crops agree or fail closed; a complete
+  local badge4 is the only new single-glyph fallback. No numeric substitutions.
+- Mail selected System/Reports variants use clean text cores, excluding badges.
+- Technology like marker is present; its brown node is connected to graph lines.
+  Associate the unique marker with a current edge rectangle and brown interior,
+  merge only nested edges of the same node; never select another tree item.
+- Received rows + absent Quick Claim badge are positive unavailable evidence;
+  a remaining green row or conflicting evidence still blocks verification.
+- Small-icon antialiasing retains strict thresholds and uniqueness; numerical
+  badge templates and receipt checks retain exact pixel qualification.
+
+Current local gates:70 targeted Guild/Mail tests plus7 reconciliation tests
+passed; mixed received/claimable regression and final review follow. Full fleet
+has NOT run. Phase7 is still PARTIAL, and Phase8 remains excluded.
+
+Final local gate:78 targeted tests passed;7 reconciliation cases rechecked after
+adding task/protection binding. Ruff/diff checks passed. Self-review preserved
+fixed routes, original one-shot journal locks, bounded waits and paid exclusions.
+All14 new game PNGs were reviewed; only PNG image chunks, no private payloads.

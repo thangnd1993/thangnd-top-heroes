@@ -16,3 +16,9 @@ UNKNOWN. Windows OCR runs locally without uploading screenshots.
 The ten annotated regression references are NOT clean real acceptance frames.
 The member-gift count in particular intersects a blue annotation and can remain
 UNKNOWN; never relax the threshold to recover that obscured number.
+
+Live rendering qualification adds clean Mail selected-label cores, an entire
+badge4 for local single-character OCR fallback, and a received-row check core.
+The check core is positive exhaustion evidence only in a paired Gifts page
+with a complete badge-free Quick Claim control and no remaining green claim.
+Runtime matching searches the current frame; these are not account routes.

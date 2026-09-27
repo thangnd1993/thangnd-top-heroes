@@ -16,3 +16,10 @@ It contains game UI only. The fixture is not a source of runtime coordinates.
 `guild-live.png` is the clean Guild screen reached through the qualified Home
 entry in the bound random acceptance (20260927-120802-242844Z). It qualifies
 outlined-text resampling, positive page pairs and dimmed/partial negatives.
+
+The remaining `*-live*.png` images come from the bound random acceptance
+`20260927-144934-534222Z`, index11. They cover territory tab settling, the196
+loot count, member12→received-check rows while Quick Claim remains green,
+connected technology graph lines, and Mail4/10/60 badges plus selected tab
+variants. No stored coordinates are used at runtime. The member before/after/
+confirmation frames belong to ONE dispatch (journal122); never replay it.

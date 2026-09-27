@@ -397,3 +397,109 @@ def test_duplicate_secondary_variant_cannot_be_rescued(frames,detector):
     original = frames['loot'].anchors['gifts-title']
     ambiguous = replace(original,matched=False,normalized_box=None,device_box=None)
     assert not detector.variant(original,ambiguous).matched
+
+
+@pytest.fixture(scope='module')
+def live_frames():
+    detector = GuildMailDetector(number_reader=lambda *a,**kw:12)
+    return detector,{n:detector.observe(capture(n)) for n in (
+        'loot-live','member-live-before','member-live-after','member-live-confirmation',
+        'technology-live','mail-system-live','mail-reports-live','mail-live')}
+
+
+def test_member_positive_received_rows_even_when_quick_stays_green(live_frames):
+    detector,frames = live_frames
+    before = detector.availability(frames['member-live-before'],'guild-gifts-member')
+    assert before.state == 'AVAILABLE' and before.remaining == 12
+    for name in ('member-live-after','member-live-confirmation'):
+        frame = frames[name]
+        assert detector.control(frame,'gifts-quick','green') is not None
+        assert detector.received_rows(frame) == 4
+        after = detector.availability(frame,'guild-gifts-member')
+        assert after.state == 'NOT_AVAILABLE' and after.remaining == 0
+
+
+def test_missing_badge_alone_cannot_prove_gifts_exhausted(live_frames,monkeypatch):
+    detector,frames = live_frames
+    monkeypatch.setattr(detector,'received_rows',lambda frame:0)
+    assert detector.availability(frames['member-live-after'],'guild-gifts-member').state == 'UNKNOWN'
+
+
+def test_live_technology_graph_lines_do_not_hide_marked_node(live_frames):
+    _,frames = live_frames
+    frame = frames['technology-live']
+    node,marker = frame.box('technology-node'),frame.box('technology-like')
+    assert node and marker and node.width > marker.width*2
+    assert node.y > marker.y and node.x < marker.x+marker.width
+
+
+@pytest.mark.parametrize('name,tab', [('mail-system-live','system'),('mail-reports-live','reports')])
+def test_live_selected_mail_variants_have_current_geometry(live_frames,name,tab):
+    detector,frames = live_frames
+    frame = frames[name]
+    tabs = detector.mail_tabs(frame)
+    assert len(tabs) == 5 and tabs[tab]['selected'] is True
+    view = detector.availability(frame,f'mail-{tab}')
+    assert view.state == 'AVAILABLE' and view.box.x > view.forbidden[0].x+view.forbidden[0].width
+
+
+def test_clean_badge_four_fallback_is_local(live_frames):
+    _,frames = live_frames
+    detector = GuildMailDetector(number_reader=lambda *a,**kw:None)
+    tabs = detector.mail_tabs(frames['mail-live'])
+    assert tabs['guild']['count'] == 4
+    assert tabs['reports']['count'] is None
+
+
+def test_conflicting_badge_crop_numbers_remain_unknown(live_frames):
+    _,frames = live_frames
+    values = iter([12,13,None])
+    detector = GuildMailDetector(number_reader=lambda *a,**kw:next(values))
+    box = detector.control(frames['member-live-before'],'gifts-quick','green')
+    assert detector.local_badge(frames['member-live-before'],box,numbered=True) is None
+
+
+def test_navigation_waits_for_tab_without_replaying_entry(monkeypatch):
+    from top_heroes_auto.app.guild_mail_port import GuildMailPort
+
+    monkeypatch.setattr('top_heroes_auto.app.guild_mail_port.time.sleep',lambda _:None)
+    missing = SimpleNamespace(page='territory',box=lambda _:None)
+    ready = SimpleNamespace(page='territory',box=lambda _:BoundingBox(20,30,40,50),anchors={'relic-tab':'qualified'})
+    after = SimpleNamespace(page='relic')
+    captures = iter([ready,after])
+    taps = []
+    port = object.__new__(GuildMailPort)
+    port.observe_settled = lambda:next(captures)
+    port.tap = lambda frame,anchor:taps.append((frame,anchor))
+    assert port.navigate(missing,'relic-tab','relic') is after
+    assert taps == [(ready,'qualified')]
+
+
+def test_navigation_wait_aborts_if_page_changes(monkeypatch):
+    from top_heroes_auto.app.guild_mail_port import GuildMailPort
+
+    monkeypatch.setattr('top_heroes_auto.app.guild_mail_port.time.sleep',lambda _:None)
+    port = object.__new__(GuildMailPort)
+    port.observe_settled = lambda:SimpleNamespace(page='UNKNOWN')
+    port.tap = lambda *a:pytest.fail('UNKNOWN must get no input')
+    with pytest.raises(Exception,match='Page changed'):
+        port.navigate(SimpleNamespace(page='territory',box=lambda _:None),'relic-tab','relic')
+
+
+
+def test_received_rows_with_remaining_green_claim_fail_closed(live_frames):
+    from top_heroes_auto.vision.guild_mail import components
+
+    detector,_ = live_frames
+    before = cv2.imdecode(np.frombuffer((FIXTURES/'member-live-before.png').read_bytes(),np.uint8),1)
+    after = cv2.imdecode(np.frombuffer((FIXTURES/'member-live-after.png').read_bytes(),np.uint8),1)
+    height,width = before.shape[:2]
+    buttons = [b for b in components(before,'green') if b.x > width*.65 and height*.4 < b.y < height*.85
+               and b.width > width*.12 and b.height > height*.02]
+    button = min(buttons,key=lambda b:b.y)
+    after[button.y:button.y+button.height,button.x:button.x+button.width] = before[
+        button.y:button.y+button.height,button.x:button.x+button.width]
+    data = cv2.imencode('.png',after)[1].tobytes()
+    frame = detector.observe(ScreenshotService(lambda _:data).take(Target(7,'Farm-007','emulator-test','boot')))
+    assert detector.received_rows(frame) >= 2
+    assert detector.availability(frame,'guild-gifts-member').state == 'UNKNOWN'

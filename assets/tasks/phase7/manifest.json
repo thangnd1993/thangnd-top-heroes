@@ -592,5 +592,60 @@
       16
     ],
     "threshold": 0.98
+  },
+  {
+    "id": "badge-digit-4",
+    "source": "mail-live",
+    "source_bbox": [
+      272,
+      176,
+      27,
+      28
+    ],
+    "threshold": 0.98
+  },
+  {
+    "id": "mail-system-current",
+    "source": "mail-reports-live",
+    "source_bbox": [
+      320,
+      229,
+      77,
+      25
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-system-selected",
+    "source": "mail-system-live",
+    "source_bbox": [
+      320,
+      229,
+      77,
+      25
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "mail-reports-selected",
+    "source": "mail-reports-live",
+    "source_bbox": [
+      435,
+      203,
+      94,
+      35
+    ],
+    "threshold": 0.97
+  },
+  {
+    "id": "gift-received-check",
+    "source": "member-live-after",
+    "source_bbox": [
+      553,
+      552,
+      95,
+      95
+    ],
+    "threshold": 0.98
   }
 ]

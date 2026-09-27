@@ -68,7 +68,19 @@ class GuildMailPort(FixedRewardPort):
             **{(p,'back'):{'guild'} for p in ('territory','relic','gifts-loot','gifts-member','technology')},
         }
         destinations = edges.get((frame.page,role),set())
-        if expected not in destinations or not frame.box(role):
+        if expected not in destinations:
+            raise SafetyError(f'No qualified navigation edge: {frame.page}/{role}.')
+        origin = frame.page
+        # Page title can settle before its tab bar. Reobserve only; never replay
+        # the preceding navigation, dismiss UNKNOWN, or switch to another route.
+        for _ in range(2):
+            if frame.box(role):
+                break
+            time.sleep(.4)
+            frame = self.observe_settled()
+            if frame.page != origin:
+                raise SafetyError('Page changed while waiting for navigation control.')
+        if not frame.box(role):
             raise SafetyError(f'No qualified navigation edge: {frame.page}/{role}.')
         if role in {'home-guild','home-mail'}:
             feature = role.removeprefix('home-')

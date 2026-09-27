@@ -24,6 +24,15 @@ def main(argv: list[str] | None = None):
         data = data_directory()
         run(_manager(data), data, random_test=argv[1] == '--random-test', resume_report=resume)
         return 0
+    if argv and argv[0] == 'guild-mail-reconcile-saved':
+        if len(argv) != 2 or not argv[1].isdigit():
+            raise ValueError('Saved Guild/Mail reconciliation requires one explicit claim ID.')
+        from top_heroes_auto.app.bxh_shop_acceptance import progress
+        from top_heroes_auto.automation.guild_mail_reconcile import reconcile_saved_guild_mail
+
+        result = reconcile_saved_guild_mail(Store(data_directory()/'config.sqlite3'),int(argv[1]))
+        progress(f"Guild/Mail saved claim {result['claim_id']}: VERIFIED; no input dispatched.")
+        return 0
     if argv and argv[0] == 'vip-gift-reconcile-saved':
         if len(argv) != 2 or not argv[1].isdigit():
             raise ValueError('Saved VIP reconciliation requires one explicit claim ID.')
