@@ -292,3 +292,47 @@ Local gate:53 targeted reconciliation/live-evidence tests passed in216.68s;
 Ruff and diff-check passed. Self-review covered one-shot preservation, unchanged
 60s evidence bound, maximum5 saved frames, input/identity/sidecar rejection,
 receipt-only rejection and paid/resource scope. No production detector changed.
+
+
+## Latest accepted bound run —14e5ad6 /2026-09-28 Vietnam
+
+CI36349076581 passed lint,1015pytest(26skipped,1487.59s), Windows portable build,
+GUI smoke and artifact upload10941694353. The artifact's repository/branch/run/
+full commit were verified, all325 runtime assets compared, and all598 Desktop
+files hash-verified after replacing only the previously verified Top Heroes build.
+Desktop EXE SHA256:
+`ff053c4a74809e12493da15901bf228b2b73a5528736810e9b64ef2306c72252`.
+The checkpoint update below is documentation only; tested app source remains14e5ad6.
+
+Resumed ONLY the original random-bound11 / Nấm đùi gà, explicit ADB emulator-5576.
+Original eligible random set[2,4,5,8,9,10,11], method secrets.choice; no new target
+selection or scope expansion. Final report:
+`diagnostics/tasks/automation/20260927-211615-066061Z/fleet-report.json`.
+
+- Prior seven Phase6 rewards115-121 stayed completed, with no navigation/replay.
+- Relic125 was skipped as current-period VERIFIED; no second gift input.
+- Guild member122 and loot123/126 remain VERIFIED; completed subflows skipped.
+- Technology still UNKNOWN/blocked,20remaining, ZERO donation input. The current
+  green control costs stone; no authorization is inferred from the pending answer.
+- System Mail124 reconciled VERIFIED from its original one-shot action, the
+  original clean receipt after animation(.996483), and two fresh independent
+  agreeing lower-count frames.124 was NOT redispatched.
+- Exactly ONE new QuickRead129 handled the separate remaining System Mail1→0;
+  independently VERIFIED by the unread count change; no reward popup appeared.
+- Mail Guild127 and Reports128 remain VERIFIED. War/Collection had no eligible
+  numbered badges. Mail SUCCESS and Home return SUCCESS.
+- Overall PARTIAL solely because Technology remains unresolved. No full fleet yet.
+
+All8 Phase7 journal rows122-129 are VERIFIED. Among112 pre-build rows only124
+changed, plus new129. All105 earlier rows(98baseline+7Phase6) remain identical.
+No VERIFIED downgrade or uncertain-action replay. Audit:
+`artifacts/phase7-14e5ad6-final-audit.json`.
+
+Owned target11 cleanup SUCCESS, selected=false restored. Pre/post full inventory
+identical: running1/2/4/5/7 stayed running;0/3/6/8/9/10/11 stopped. All12 selections
+false, Protected0/1/6/7 unchanged, no name/config changes. No Protected ADB/input/
+lifecycle command, no paid/diamond input, no resource donation, no Phase8.
+
+NEXT: wait for the user's pending resource-scope answer (ordinary stone as well
+as wood, or wood only). Do not spend stone or launch the full fleet before that
+scope is resolved and Technology is appropriately qualified. Preserve all journals.

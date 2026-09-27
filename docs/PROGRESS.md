@@ -3,14 +3,18 @@
 ## Phase 7 — Guild + Mail — IN PROGRESS
 
 User explicitly authorized Phase7 on2026-09-27. See [PHASE7.md](PHASE7.md).
-Phase6 remains completed; no Phase8. Original random target11 safely completed
-Guild member/loot, Relic, and Mail Guild/Reports.125 is now VERIFIED from its
-original gray/countdown evidence, without redispatch.124System Mail remains
-POSSIBLE; its animated first receipt requires bounded original-frame stabilization.
-The next saved frame now qualifies offline; two fresh progress states are still
-required. CI/delivery/acceptance of that focused repair is pending. Green Technology
-costs stone; resource-scope clarification remains pending, no donation sent.
-Protected/external instances, names and selections preserved. No full fleet yet.
+Phase6 remains completed; no Phase8. Original random target11 has8 VERIFIED
+Phase7 actions(122-129): Relic, both Guild gift tabs, and eligible Mail tabs.
+124/125 were reconciled without redispatch. Latest run sent exactly ONE new
+QuickRead129 for remaining System Mail1→0; Mail returned Home successfully.
+Source14e5ad6 / CI36349076581 passed1015tests(26skip), lint, build, smoke and upload.
+Artifact10941694353 is delivered to Desktop/app;598 copied files verified.
+Latest report: automation/20260927-211615-066061Z/fleet-report.json.
+All105 older baseline rows remain unchanged. Selection/Protection/names and
+external running1/2/4/5/7 preserved; target11 stopped by owned cleanup.
+Technology remains UNKNOWN/blocked because its green button costs stone;
+wood-only authorization retained pending the user's answer, ZERO donations.
+Full fleet has NOT run. Phase7 remains PARTIAL awaiting this resource decision.
 
 
 ## Phase 6 PASS — 2026-09-27 (Vietnam time)
