@@ -47,8 +47,8 @@ def _original_action(store, claim_id, *, detector=None):
         end = datetime.fromisoformat(immediate['timestamp'])
         for event in transport:
             image = Path(event['before']).resolve()
-            if image == Path(before['frame']['capture']).resolve():
-                continue
+            if image in {Path(before['frame']['capture']).resolve(),Path(immediate['capture']).resolve()}:
+                continue  # An input bound to the receipt occurs AFTER that receipt was captured.
             if image.parent != path.parent or image.suffix != '.png':
                 raise ValueError('Action capture escaped the original task.')
             metadata = json.loads(image.with_suffix('.json').read_text(encoding='utf-8'))
@@ -76,6 +76,15 @@ def _original_action(store, claim_id, *, detector=None):
     geometry = detector.action_geometry(original,available.role,available.box,available.forbidden)
     if geometry != before['geometry']:
         raise ValueError('Original tap geometry changed.')
+    receipt_inputs = [e for e in transport if immediate and Path(e['before']).resolve() == Path(immediate['capture']).resolve()]
+    if receipt_inputs:
+        popup,_ = observe(immediate)
+        if len(receipt_inputs) != 1 or popup.overlay.state != ScreenState.REWARD_RECEIPT:
+            raise ValueError('Original receipt input is ambiguous.')
+        event = receipt_inputs[0]
+        if (event.get('action') != 'tap' or event.get('outcome') != 'DISPATCHED' or
+                event.get('values') != list(dismiss_overlay_bottom_left(popup.captured,popup.overlay))):
+            raise ValueError('Original receipt input is not a qualified dismissal.')
     return row,path,before,action,detector,observe,original,available
 
 
@@ -179,11 +188,12 @@ def prepare_observed_guild_mail(store, claim_id, detector, identity):
 
 
 def reconcile_observed_guild_mail(store, claim_id, detector, frames, identity, *, prepared=None):
-    """Original one-shot + original receipt + two fresh exhausted states.
+    """Original one-shot + original receipt + two fresh agreeing progress states.
 
     Read-only observation is supplied by the existing bound instance session.
-    No reward transport exists here. A receipt alone, a lower positive count,
-    or absent/ambiguous controls cannot release an uncertain batch.
+    No reward transport exists here. Receipt alone or counter change alone cannot
+    release an uncertain batch. Positive remainder still needs its selected tab
+    and qualified free control, and is separate work after this action verifies.
     """
     prepared = prepared or prepare_observed_guild_mail(store,claim_id,detector,identity)
     row,path,original,available,receipt,original_identity = prepared
@@ -204,12 +214,18 @@ def reconcile_observed_guild_mail(store, claim_id, detector, frames, identity, *
     observations = []
     for frame in frames:
         view = detector.availability(frame,row['reward_id'])
-        if view.state != 'NOT_AVAILABLE' or view.remaining != 0 or view.context != available.context:
-            raise ValueError('Independent exhausted state is not proven.')
+        if (frame.page != original.page or view.reward != available.reward or view.context != available.context
+                or type(view.remaining) is not int or type(available.remaining) is not int
+                or not 0 <= view.remaining < available.remaining
+                or (view.remaining == 0 and view.state != 'NOT_AVAILABLE')
+                or (view.remaining > 0 and (view.state != 'AVAILABLE' or view.box is None))):
+            raise ValueError('Independent batch progress is not proven.')
         observations.append(dict(frame=frame.evidence(),opportunity=view.evidence()))
+    if observations[0]['opportunity'] != observations[1]['opportunity']:
+        raise ValueError('Fresh post-state progress is not stable.')
     if store.metadata(row['namespace'],row['instance_index']).protected:
         raise ValueError('Protection changed before reconciliation.')
-    proof = dict(method='original_one_shot_receipt_and_two_fresh_exhausted_frames',claim_id=claim_id,
+    proof = dict(method='original_one_shot_receipt_and_two_fresh_progress_frames',claim_id=claim_id,
                  persistent_identity=identity,before=original.evidence(),receipt=receipt.evidence(),
                  after=observations,claim_redispatched=False)
     store.verify_reward_claim(claim_id,row['task_run_id'],json.dumps(proof,ensure_ascii=False))

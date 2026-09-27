@@ -95,12 +95,14 @@ def test_ambiguous_saved_evidence_stays_possible(saved,corruption):
 
 @pytest.fixture
 def fresh(saved):
-    from top_heroes_auto.vision.models import ScreenState
+    from top_heroes_auto.vision.models import AnchorEvidence, ScreenState
 
     saved.action['immediate_after'] = saved.evidence[1]
     saved.frames[saved.evidence[1]['capture']].overlay = SimpleNamespace(
         state=ScreenState.REWARD_RECEIPT,confidence=.995,
-        evidence=[SimpleNamespace(anchor_id=n,matched=True) for n in ('receipt-title','receipt-continue')])
+        evidence=[AnchorEvidence(n,ScreenState.REWARD_RECEIPT,.995,.98,True,device_box=BoundingBox(20,30,40,50))
+                  for n in ('receipt-title','receipt-continue')])
+    saved.frames[saved.evidence[1]['capture']].captured.device_size = (720,1280)
     (saved.folder/'feature-report.json').write_text(json.dumps(saved.report),encoding='utf-8')
     now = datetime.now(timezone.utc)
     frames = []
@@ -123,7 +125,7 @@ def test_fresh_exhausted_batch_with_original_receipt_verifies_without_input(fres
     assert saved.store.reward_claims(saved.namespace,7)[0]['status'] == 'VERIFIED'
 
 
-@pytest.mark.parametrize('bad',['identity','stale','duplicate','one','receipt_missing','receipt_unknown','partial','boot'])
+@pytest.mark.parametrize('bad',['identity','stale','duplicate','one','receipt_missing','receipt_unknown','unchanged','boot'])
 def test_fresh_reconcile_failures_keep_original_possible(fresh,bad):
     from top_heroes_auto.automation.guild_mail_reconcile import reconcile_observed_guild_mail
     from top_heroes_auto.vision.models import ScreenState
@@ -147,7 +149,7 @@ def test_fresh_reconcile_failures_keep_original_possible(fresh,bad):
         frames[1].captured.boot_id = 'changed-during-observation'
     else:
         previous = saved.detector.availability
-        saved.detector.availability = lambda f,r: (Opportunity(r,'AVAILABLE',remaining=1,context=r)
+        saved.detector.availability = lambda f,r: (Opportunity(r,'AVAILABLE',remaining=12,context=r)
             if f in frames else previous(f,r))
     with pytest.raises(ValueError):
         reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,identity)
@@ -218,7 +220,7 @@ def test_another_input_before_original_receipt_cannot_verify_fresh_state(fresh):
     saved,frames = fresh
     saved.transport.append(dict(before=saved.evidence[1]['capture'],action='tap',values=[400,500],outcome='DISPATCHED'))
     (saved.folder/'actions.json').write_text(json.dumps(saved.transport),encoding='utf-8')
-    with pytest.raises(ValueError,match='Another input intervened'):
+    with pytest.raises(ValueError,match='not a qualified dismissal'):
         reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,'disk')
     assert saved.store.reward_claims(saved.namespace,7)[0]['status'] == 'RESERVED'
 
@@ -246,3 +248,73 @@ def test_process_resolves_original_or_keeps_lock_without_redispatch(fresh,receip
     assert report['result'] == ('ALREADY_VERIFIED' if receipt_ok else 'ALREADY_ATTEMPTED')
     assert len(saved.store.reward_claims(saved.namespace,7)) == 1
     assert len(seen) == (2 if receipt_ok else 0)
+
+
+@pytest.mark.parametrize('counts',[(1,1),(1,2),(12,12)])
+def test_receipt_and_two_equal_independent_lower_counts_are_required(fresh,counts):
+    from top_heroes_auto.automation.guild_mail_reconcile import reconcile_observed_guild_mail
+
+    saved,frames = fresh
+    previous = saved.detector.availability
+    def availability(frame,reward):
+        for n,f in enumerate(frames):
+            if frame is f:
+                return Opportunity(reward,'AVAILABLE','gifts-quick',BoundingBox(100,100,50,30),counts[n],reward)
+        return previous(frame,reward)
+    saved.detector.availability = availability
+    if counts == (1,1):
+        proof = reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,'disk')
+        assert proof['claim_redispatched'] is False
+        assert proof['after'][0]['opportunity']['remaining'] == 1
+    else:
+        with pytest.raises(ValueError):
+            reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,'disk')
+        assert saved.store.reward_claims(saved.namespace,7)[0]['status'] == 'RESERVED'
+
+
+def test_proven_old_batch_then_one_remaining_batch_is_not_a_replay(fresh):
+    from top_heroes_auto.automation.guild_mail_claims import process
+
+    saved,frames = fresh
+    first,second = frames
+    previous = saved.detector.availability
+    def available(reward,count):
+        return Opportunity(reward,'AVAILABLE' if count else 'NOT_AVAILABLE','gifts-quick',
+                           BoundingBox(100,100,50,30),count,reward)
+    saved.detector.availability = lambda f,r:(available(r,1) if f is first or f is second else previous(f,r))
+    for n in range(4):
+        item = dict(first.evidence(),capture=str(saved.folder/f'next{n}.png'),
+                    timestamp=(datetime.now(timezone.utc)-timedelta(seconds=8-n)).isoformat())
+        frames.append(SimpleNamespace(page='gifts-member',captured=SimpleNamespace(source_image=saved.folder/f'next{n}.png',
+            index=7,name='Farm-007',serial='emulator-test',boot_id='new-verified-boot',timestamp=item['timestamp']),
+            evidence=lambda e=item:e))
+    a,b,c,d = frames[2:]
+    views = iter([(first,1),(a,1),(b,0),(c,0),(d,0)])
+    captures = iter([first,second,b])
+    inputs = []
+    def opportunity(reward,initial=None):
+        f,count = next(views)
+        return f,available(reward,count)
+    def claim(frame,view,*,before_input):
+        before_input()
+        inputs.append(frame)
+    port = SimpleNamespace(detector=saved.detector,opportunity=opportunity,observe=lambda:next(captures),
+                           geometry=lambda *a:dict(tap=[125,115]),claim=claim)
+    task = saved.store.create_task_run(saved.namespace,'guild',7,'Farm-007')
+    report = {}
+    process(port,saved.store,saved.namespace,task,'guild-gifts-member','disk',report,lambda:None)
+    rows = saved.store.reward_claims(saved.namespace,7)
+    assert report['result'] == 'SUCCESS' and report['claim_count'] == len(inputs) == 1
+    assert len(rows) == 2 and all(r['status'] == 'VERIFIED' for r in rows)
+    assert rows[1]['cycle_key'] == f'progress:after-verified-{saved.claim}'
+    assert inputs[0] is a  # Original claim and its two reconciliation captures got no input.
+
+
+def test_safe_dismissal_bound_to_immediate_receipt_is_after_capture(fresh):
+    from top_heroes_auto.automation.guild_mail_reconcile import reconcile_observed_guild_mail
+
+    saved,frames = fresh
+    saved.transport.append(dict(before=saved.evidence[1]['capture'],action='tap',values=[58,1203],outcome='DISPATCHED'))
+    (saved.folder/'actions.json').write_text(json.dumps(saved.transport),encoding='utf-8')
+    proof = reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,'disk')
+    assert proof['claim_redispatched'] is False

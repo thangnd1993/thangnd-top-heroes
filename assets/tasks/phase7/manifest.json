@@ -658,5 +658,27 @@
       34
     ],
     "threshold": 0.97
+  },
+  {
+    "id": "relic-gift-unavailable",
+    "source": "relic-received-1",
+    "source_bbox": [
+      611,
+      1062,
+      54,
+      38
+    ],
+    "threshold": 0.98
+  },
+  {
+    "id": "badge-digit-1",
+    "source": "mail-system-one",
+    "source_bbox": [
+      393,
+      176,
+      27,
+      28
+    ],
+    "threshold": 0.98
   }
 ]

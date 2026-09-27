@@ -80,7 +80,10 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
             locks += [r for r in rows if r['cycle_key'] == period and r['status'] == 'VERIFIED']
         if locks:
             last = locks[-1]
-            if last['status'] != 'VERIFIED' and view.state == 'NOT_AVAILABLE':
+            previous_count = json.loads(last['before_evidence']).get('opportunity',{}).get('remaining')
+            if (last['status'] != 'VERIFIED' and view.state in {'AVAILABLE','NOT_AVAILABLE'}
+                    and type(previous_count) is int and type(view.remaining) is int
+                    and 0 <= view.remaining < previous_count):
                 from top_heroes_auto.automation.guild_mail_reconcile import (
                     FRESH_BATCH_REWARDS,
                     prepare_observed_guild_mail,
@@ -89,7 +92,7 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
 
                 if reward in FRESH_BATCH_REWARDS:
                     # Observe only. The existing POSSIBLE action remains locked
-                    # unless its original receipt and two exhausted frames prove it.
+                    # unless its original receipt and two agreeing progress frames prove it.
                     try:
                         prepared = prepare_observed_guild_mail(store,last['id'],port.detector,identity)
                         fresh,confirmation = port.observe(),port.observe()
@@ -100,7 +103,11 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
                     else:
                         report.update(result='ALREADY_VERIFIED',journal='VERIFIED',claim_id=last['id'])
                         persist()
-                        return
+                        if report['reconciliation']['after'][-1]['opportunity']['remaining'] == 0:
+                            return
+                        # The original action is now proven. Reobserve any
+                        # remaining free content through the normal batch guard.
+                        continue
             report.update(result='ALREADY_VERIFIED' if last['status'] == 'VERIFIED' else 'ALREADY_ATTEMPTED',
                           journal=last['status'],claim_id=last['id'])
             persist()

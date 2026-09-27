@@ -18,8 +18,8 @@ MAIL_REWARDS = tuple(f'mail-{tab}' for tab in MAIL_TABS)
 # These cores are icons/counters, not the outlined text seen in the supplied
 # resized references. Keep their original strict pixel qualification.
 PIXEL_ROLES = frozenset({'home-guild','home-mail','back','relic-gift','technology-like',
-    'donation-wood','donation-diamond','modal-close','donation-count-suffix',
-    'badge-digit-3','badge-digit-4','badge-digit-6','gift-received-check'})
+    'donation-wood','donation-diamond','modal-close','donation-count-suffix','relic-gift-unavailable',
+    'badge-digit-1','badge-digit-3','badge-digit-4','badge-digit-6','gift-received-check'})
 
 
 
@@ -183,7 +183,7 @@ class GuildMailDetector:
         groups = {
             'guild-title': ('guild-declaration','guild-territory','guild-gifts','guild-technology',
                             'guild-trial-forbidden','back'),
-            'territory-title': ('territory-fortress','relic-summary','relic-owned-tab','relic-gift','relic-tab','back'),
+            'territory-title': ('territory-fortress','relic-summary','relic-owned-tab','relic-gift','relic-gift-unavailable','relic-tab','back'),
             'gifts-title': ('loot-selected','member-selected','loot-inactive','member-inactive',
                             'gifts-quick','gift-claim','loot-row-title','member-row-title','back'),
             'technology-title': ('technology-contribution','technology-like','back'),
@@ -312,7 +312,7 @@ class GuildMailDetector:
         area = (max(0,region.x/width),max(0,region.y/height),
                 min(1,(region.x+region.width)/width),min(1,(region.y+region.height)/height))
         matches = []
-        for digit in (3,4,6):
+        for digit in (1,3,4,6):
             role = f'badge-digit-{digit}'
             evidence = self.anchor(frame.captured,role,area)
             if not evidence.matched and evidence.score < evidence.threshold:
@@ -481,7 +481,16 @@ class GuildMailDetector:
             return Opportunity(reward,state,'donation-green',box,remaining,reward,(paid,) if paid else ())
         if reward == 'guild-relic':
             core = frame.box('relic-gift')
-            if frame.page != 'relic' or not core:
+            if frame.page != 'relic':
+                return unknown
+            inactive = frame.anchors.get('relic-gift-unavailable')
+            if inactive and inactive.score >= inactive.threshold:
+                active = frame.anchors['relic-gift']
+                if (inactive.matched and active.score < active.threshold
+                        and self.badge_absent(frame,inactive.device_box)):
+                    return Opportunity(reward,'NOT_AVAILABLE',remaining=0,context=reward)
+                return unknown  # Conflicting/duplicate inactive evidence cannot authorize a claim.
+            if not core:
                 return unknown
             badge = self.local_badge(frame,core)
             if badge:

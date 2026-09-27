@@ -3,7 +3,8 @@ import json
 
 from top_heroes_auto.app.flow_registry import COMPLETE, REGISTRY, Flow
 from top_heroes_auto.app.guild_mail_port import GuildMailPort
-from top_heroes_auto.automation.guild_mail_claims import process
+from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.automation.guild_mail_claims import process, relic_cycle
 from top_heroes_auto.automation.recovery import RecoveryStatus
 from top_heroes_auto.vision.guild_mail import GUILD_REWARDS, MAIL_REWARDS
 
@@ -59,5 +60,23 @@ def run(session, folder, rewards, *, port_factory=GuildMailPort):
     return report
 
 
-REGISTRY.register(Flow('guild',GUILD_REWARDS,run))
+def relic_completed(session,rewards):
+    """A proven current-period Relic must not need another feature visit."""
+    store,namespace = session.manager.store,session.manager.namespace
+    if store.metadata(namespace,session.index).protected:
+        raise SafetyError('Protected journal cannot authorize a flow.')
+    if 'guild-relic' not in rewards:
+        return {}
+    rows = [r for r in store.reward_claims(namespace,session.index) if r['reward_id'] == 'guild-relic']
+    if any(r['status'] != 'VERIFIED' for r in rows):
+        return {}
+    current = [r for r in rows if r['cycle_key'] == relic_cycle()]
+    if (len(current) != 1 or current[0]['instance_name'] != session.name or
+            json.loads(current[0]['before_evidence']).get('persistent_identity') != session.target['persistent_identity']):
+        return {}
+    return {'guild-relic':dict(result='ALREADY_VERIFIED',journal='VERIFIED',claim_id=current[0]['id'],
+                              completion_source='current_period_journal',claim_dispatched=False)}
+
+
+REGISTRY.register(Flow('guild',GUILD_REWARDS,run,completed=relic_completed))
 REGISTRY.register(Flow('mail',MAIL_REWARDS,run))

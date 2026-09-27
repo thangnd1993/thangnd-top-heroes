@@ -205,3 +205,55 @@ passed. Self-review covered duplicate dispatch, original/fresh receipt ownership
 identity/Protection, bounded waiting, paid-region separation and no phase expansion.
 All five new PNGs were visually reviewed as game UI; only IHDR/IDAT/IEND chunks.
 All105 prior journal rows compare exactly unchanged (98 original +7 Phase6).
+
+
+## Bound acceptance of3c6065d — actual post-states and resource boundary
+
+CI36340020970 passed lint,986pytest(26skipped), portable build, smoke and upload.
+Artifact10939017553 matched commit3c6065d;323 runtime assets and596 Desktop files
+verified. Saved loot123 is now VERIFIED from its original67→0 evidence; zero input.
+Resume report: `diagnostics/tasks/automation/20260927-185302-499390Z/fleet-report.json`.
+Only original random target11 started. Four new inputs:125Relic(POSSIBLE),126new
+loot batch(VERIFIED),127Mail Guild(VERIFIED),128Mail Reports(VERIFIED). Original124
+System Mail was NOT redispatched and remains POSSIBLE. All105 earlier rows are
+identical; among108 pre-build rows only the justified123 verification changed.
+
+Owned cleanup and selection restoration succeeded. Protected0/1/6/7 and all
+names unchanged. Pre/post externally running1,2,4,5,7 were preserved; never stop
+or restore those instances as part of target11's cleanup. No full fleet yet.
+
+Relic125's original fresh post frames positively show a GRAY gift + countdown.
+The former active-gift core no longer matches. A clean gray icon core now gives
+strict.98 positive unavailable evidence, paired with the real Relic page; duplicate,
+missing, active/conflicting cores remain UNKNOWN. Original before→two after
+qualification succeeded OFFLINE, read-only. Reconcile125 through a fresh passing
+artifact; never send that claim again. A current-period verified Relic completion
+hook allows the generic registry to skip it before lifecycle/navigation.
+
+System Mail decreased10→1. Its one-digit badge was unreadable to OCR, so navigation
+failed closed. Added the whole local badge1 at.98, never a digit inside10. Original
+receipt plus two fresh, agreeing, lower counts on the same persistent target can
+prove the original batch's progress. Counter change alone and receipt alone cannot.
+Only after verification may the ordinary batch loop consider the remaining free
+content; every new action still needs its own reservation and changed post-state.
+
+Input timing audit: an action bound to an immediate receipt happens AFTER that
+capture, even though PNG metadata precedes CapturedScreen timestamp by milliseconds.
+Only one positively qualified bottom-left receipt dismissal is allowed there;
+other/duplicate input before the independent receipt is rejected.
+
+Technology sent ZERO donation input. Guild technology advanced from level3 to4
+externally; the current green button costs5804 STONE, not the approved wood icon.
+The guard correctly blocked it. A user clarification is pending for whether the
+resource exception includes ordinary stone as well as wood. Until answered, retain
+the wood-only rule; no stone/diamond/resource spending is authorized by this repair.
+No Phase8.
+
+Local repair gate:111 visual/flow checks passed in the combined targeted run.
+One new test imported a feature before bootstrapping the public registry; its
+setup was corrected to use production_registry. All36 final hook/reconciliation/
+registry checks then passed, including receipt-bound safe dismissal and remaining
+batch continuation. Ruff/diff-check passed. Self-review: original claim proofs,
+no same-period replay, explicit current-target geometry, no changed spending
+scope, and no lifecycle/selection changes. Six new game-only PNGs have no private
+ancillary chunks. No emulator input was used to qualify the offline125 repair.

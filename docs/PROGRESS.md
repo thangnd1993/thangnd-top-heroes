@@ -2,13 +2,14 @@
 
 ## Phase 7 — Guild + Mail — IN PROGRESS
 
-User explicitly authorized Phase 7 on 2026-09-27. See [PHASE7.md](PHASE7.md).
-Phase6 remains completed. No Phase8. Bound random index11 reached Guild/Mail.
-Member claim122 is VERIFIED through original evidence. Loot123 and System-Mail124
-are RESERVED/POSSIBLE and must never be replayed. Saved123 qualifies offline;
-124 requires original receipt plus fresh exhausted-state evidence. Receipt,
-transition and donation-control fixes await the next passing CI artifact.
-Owned cleanup/selection restoration succeeded. No full fleet yet.
+User explicitly authorized Phase7 on2026-09-27. See [PHASE7.md](PHASE7.md).
+Phase6 remains completed; no Phase8. Original random target11 safely completed
+Guild member/loot and Mail Guild/Reports.123 was reconciled VERIFIED with zero input;
+124System Mail and125Relic remain POSSIBLE, never replay.125 now qualifies from its
+original gray/countdown frames offline; System Mail needs badge1/progress handling.
+Fresh CI/delivery/acceptance of the remaining fixes is pending. Green Technology
+now costs stone; a resource-scope clarification is pending, and no donation was sent.
+Protected/external instances, names and selections preserved. No full fleet yet.
 
 
 ## Phase 6 PASS — 2026-09-27 (Vietnam time)
