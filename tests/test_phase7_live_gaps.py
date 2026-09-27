@@ -95,3 +95,12 @@ def test_navigation_waits_only_for_original_dispatch(monkeypatch,after_pages,exp
         with pytest.raises(Exception,match='Navigation expected'):
             port.navigate(origin,'guild-territory','territory')
     assert len(inputs) == 1
+
+
+def test_initial_mail_receipt_animation_does_not_lower_recognition_threshold():
+    frame = capture('mail-receipt-animation')
+    assert RecoveryScreenDetector().detect(frame).state == ScreenState.UNKNOWN
+    assert GuildMailDetector().observe(frame).page == 'UNKNOWN'
+    settled = capture('mail-receipt-current')
+    result = RecoveryScreenDetector().detect(settled)
+    assert result.state == ScreenState.REWARD_RECEIPT and result.confidence > .98

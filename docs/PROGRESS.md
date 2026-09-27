@@ -4,11 +4,12 @@
 
 User explicitly authorized Phase7 on2026-09-27. See [PHASE7.md](PHASE7.md).
 Phase6 remains completed; no Phase8. Original random target11 safely completed
-Guild member/loot and Mail Guild/Reports.123 was reconciled VERIFIED with zero input;
-124System Mail and125Relic remain POSSIBLE, never replay.125 now qualifies from its
-original gray/countdown frames offline; System Mail needs badge1/progress handling.
-Fresh CI/delivery/acceptance of the remaining fixes is pending. Green Technology
-now costs stone; a resource-scope clarification is pending, and no donation was sent.
+Guild member/loot, Relic, and Mail Guild/Reports.125 is now VERIFIED from its
+original gray/countdown evidence, without redispatch.124System Mail remains
+POSSIBLE; its animated first receipt requires bounded original-frame stabilization.
+The next saved frame now qualifies offline; two fresh progress states are still
+required. CI/delivery/acceptance of that focused repair is pending. Green Technology
+costs stone; resource-scope clarification remains pending, no donation sent.
 Protected/external instances, names and selections preserved. No full fleet yet.
 
 

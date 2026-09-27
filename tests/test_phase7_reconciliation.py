@@ -318,3 +318,77 @@ def test_safe_dismissal_bound_to_immediate_receipt_is_after_capture(fresh):
     (saved.folder/'actions.json').write_text(json.dumps(saved.transport),encoding='utf-8')
     proof = reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,'disk')
     assert proof['claim_redispatched'] is False
+
+
+@pytest.fixture
+def settling(fresh):
+    from copy import copy
+
+    from top_heroes_auto.vision.models import ScreenState
+
+    saved,frames = fresh
+    immediate = saved.frames[saved.evidence[1]['capture']]
+    receipt = copy(immediate.overlay)
+    immediate.page = 'UNKNOWN'
+    immediate.overlay = SimpleNamespace(state=ScreenState.UNKNOWN,confidence=0,evidence=[])
+    start = datetime.fromisoformat(saved.evidence[0]['timestamp'])
+    def add(seconds, *, known=False):
+        image = saved.folder/f'{seconds:02}-guild-mail.png'
+        item = dict(saved.evidence[1],capture=str(image),timestamp=(start+timedelta(seconds=seconds)).isoformat())
+        image.with_suffix('.json').write_text(json.dumps(dict(timestamp=item['timestamp'])),encoding='utf-8')
+        image.with_name(image.stem+'.evidence.json').write_text(json.dumps(item),encoding='utf-8')
+        frame = SimpleNamespace(page='mail' if known else 'UNKNOWN',overlay=copy(receipt),
+            captured=SimpleNamespace(source_image=image,index=7,name='Farm-007',serial='emulator-test',
+                boot_id='boot',timestamp=item['timestamp']),evidence=lambda e=item:e)
+        saved.frames[str(image)] = frame
+        return item,frame
+    item,frame = add(20)
+    return saved,frames,add,item,frame
+
+
+def test_original_animation_can_settle_without_input_before_fresh_progress(settling):
+    from top_heroes_auto.automation.guild_mail_reconcile import reconcile_observed_guild_mail
+
+    saved,frames,_,item,_ = settling
+    proof = reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,'disk')
+    assert proof['receipt']['capture'] == item['capture']
+    assert proof['claim_redispatched'] is False
+    assert len(saved.store.reward_claims(saved.namespace,7)) == 1
+    assert saved.store.reward_claims(saved.namespace,7)[0]['status'] == 'VERIFIED'
+
+
+@pytest.mark.parametrize('bad',['input','input_at_receipt','late','missing_anchor','wrong_boot',
+                                'wrong_owner','known_screen','too_many','no_progress'])
+def test_original_animation_chain_remains_fail_closed(settling,bad):
+    from top_heroes_auto.automation.guild_mail_reconcile import reconcile_observed_guild_mail
+    from top_heroes_auto.vision.models import ScreenState
+
+    saved,frames,add,item,frame = settling
+    sidecar = saved.folder/'20-guild-mail.evidence.json'
+    if bad in {'input','input_at_receipt'}:
+        saved.transport.append(dict(before=(saved.evidence[2]['capture'] if bad=='input' else item['capture']),
+                                    action='tap',values=[500,500],outcome='DISPATCHED'))
+        (saved.folder/'actions.json').write_text(json.dumps(saved.transport),encoding='utf-8')
+    elif bad == 'late':
+        sidecar.unlink()
+        add(61)
+    elif bad == 'missing_anchor':
+        frame.overlay.evidence = frame.overlay.evidence[:1]
+    elif bad in {'wrong_boot','wrong_owner'}:
+        changed = dict(item,**({'boot_id':'another'} if bad=='wrong_boot' else {'capture':saved.evidence[1]['capture']}))
+        sidecar.write_text(json.dumps(changed),encoding='utf-8')
+    elif bad == 'known_screen':
+        _,other = add(10,known=True)
+        other.overlay.state = ScreenState.UNKNOWN
+    elif bad == 'too_many':
+        for seconds in range(3,8):
+            _,other = add(seconds)
+            other.overlay.state = ScreenState.UNKNOWN
+    else:
+        previous = saved.detector.availability
+        saved.detector.availability = lambda f,r:(Opportunity(r,'AVAILABLE',remaining=12,context=r)
+            if f in frames else previous(f,r))
+    with pytest.raises(ValueError):
+        reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,'disk')
+    row = saved.store.reward_claims(saved.namespace,7)[0]
+    assert row['status'] == 'RESERVED' and row['dispatch_state'] == 'POSSIBLE'

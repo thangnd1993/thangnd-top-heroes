@@ -180,11 +180,57 @@ def prepare_observed_guild_mail(store, claim_id, detector, identity):
     elapsed = datetime.fromisoformat(receipt.captured.timestamp)-datetime.fromisoformat(original.captured.timestamp)
     if not timedelta(0) < elapsed <= timedelta(seconds=60):
         raise ValueError('Receipt did not immediately follow the original input.')
-    popup = receipt.overlay
-    if (popup.state != ScreenState.REWARD_RECEIPT or popup.confidence < .96
-            or len({e.anchor_id for e in popup.evidence if e.matched}) < 2):
-        raise ValueError('Original receipt is not independently qualified.')
+    if not _qualified_receipt(receipt):
+        receipt = _settled_original_receipt(path,before,evidence,observe,receipt)
     return row,path,original,available,receipt,identity
+
+
+def _qualified_receipt(frame):
+    popup = frame.overlay
+    return (popup.state == ScreenState.REWARD_RECEIPT and popup.confidence >= .96
+            and len({e.anchor_id for e in popup.evidence if e.matched}) >= 2)
+
+
+def _settled_original_receipt(path, before, immediate, observe, first):
+    """Original animation may settle; never fabricate a fresh receipt later.
+
+    Inspect at most five following original captures, within the SAME 60-second
+    original-action window. Every capture retains task/target/boot ownership.
+    Any intervening input or known different screen rejects the chain. This
+    prepares evidence only; two fresh independent progress states are still
+    required before the old claim can verify. No runtime wait/threshold changes.
+    """
+    if first.page != 'UNKNOWN' or first.overlay.state != ScreenState.UNKNOWN:
+        raise ValueError('Original receipt is not independently qualified.')
+    start = datetime.fromisoformat(before['frame']['timestamp'])
+    initial = datetime.fromisoformat(immediate['timestamp'])
+    deadline = start+timedelta(seconds=60)
+    captures = []
+    for sidecar in path.parent.glob('*-guild-mail.evidence.json'):
+        evidence = json.loads(sidecar.read_text(encoding='utf-8'))
+        stamp = datetime.fromisoformat(evidence['timestamp'])
+        if initial < stamp <= deadline:
+            image = Path(evidence['capture']).resolve()
+            if image != sidecar.with_name(sidecar.name.removesuffix('.evidence.json')+'.png').resolve():
+                raise ValueError('Original receipt sidecar ownership is ambiguous.')
+            captures.append((stamp,evidence))
+    transport = json.loads((path.parent/'actions.json').read_text(encoding='utf-8'))
+    for stamp,evidence in sorted(captures,key=lambda item:item[0])[:5]:
+        for event in transport:
+            image = Path(event['before']).resolve()
+            if image == Path(before['frame']['capture']).resolve():
+                continue  # The single original claim was already verified above.
+            if image.parent != path.parent or image.suffix != '.png':
+                raise ValueError('Action capture escaped the original task.')
+            metadata = json.loads(image.with_suffix('.json').read_text(encoding='utf-8'))
+            if start < datetime.fromisoformat(metadata['timestamp']) <= stamp:
+                raise ValueError('Input interrupted original receipt stabilization.')
+        frame,_ = observe(evidence)
+        if _qualified_receipt(frame):
+            return frame
+        if frame.page != 'UNKNOWN' or frame.overlay.state != ScreenState.UNKNOWN:
+            raise ValueError('Original receipt stabilization changed screen.')
+    raise ValueError('Original receipt is not independently qualified.')
 
 
 def reconcile_observed_guild_mail(store, claim_id, detector, frames, identity, *, prepared=None):

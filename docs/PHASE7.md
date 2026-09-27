@@ -257,3 +257,38 @@ batch continuation. Ruff/diff-check passed. Self-review: original claim proofs,
 no same-period replay, explicit current-target geometry, no changed spending
 scope, and no lifecycle/selection changes. Six new game-only PNGs have no private
 ancillary chunks. No emulator input was used to qualify the offline125 repair.
+
+
+## Original receipt animation — bound c4481fb acceptance
+
+CI36345068912 passed lint,1004pytest(26skipped), portable build, smoke and upload.
+Artifact10941261183 matched c4481fb;325 runtime assets and598 Desktop files verified.
+Saved Relic125 is VERIFIED with zero input. Bound resume report:
+`diagnostics/tasks/automation/20260927-202040-598213Z/fleet-report.json`.
+No new claim input. Technology stayed blocked on stone,20 remaining; no donation.
+System Mail124 remained POSSIBLE; independent current badge1 qualified, but the
+original immediate receipt had a star animation across its title. Recognition
+correctly stayed UNKNOWN. Cleanup/selection succeeded; pre/post inventory identical,
+including externally running1,2,4,5,7. All105 earlier rows are unchanged; only125
+changed among the112 pre-build rows. No full fleet/Phase8.
+
+The next ORIGINAL saved frame,18seconds after the original claim, has a clean
+paired receipt: title1.0, continuation.996483. No input intervened. Reconciliation
+may inspect at most5 following original capture sidecars within the SAME60-second
+original-action window, with exact task/image/index/name/ADB/boot binding and no
+intervening input. A known different screen or weak/absent receipt fails closed.
+No template/threshold/runtime wait changes. The animated frame stays UNKNOWN.
+Receipt alone still cannot verify: two fresh independent agreeing lower-count
+frames on the same persistent account remain required. Only then may ordinary
+batch processing consider the separate remaining content.124 must never replay.
+
+The new fixture is the exact game-only initial receipt animation, visually checked;
+PNG contains only IHDR/IDAT/IEND. Tests cover stabilization, input interruptions,
+late frames, missing anchors, target/sidecar ownership, intervening known screen,
+frame limit and unchanged post-state. Resource scope remains wood-only pending
+the user's answer; no stone authorization is inferred.
+
+Local gate:53 targeted reconciliation/live-evidence tests passed in216.68s;
+Ruff and diff-check passed. Self-review covered one-shot preservation, unchanged
+60s evidence bound, maximum5 saved frames, input/identity/sidecar rejection,
+receipt-only rejection and paid/resource scope. No production detector changed.
