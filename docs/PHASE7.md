@@ -157,3 +157,51 @@ Final local gate:78 targeted tests passed;7 reconciliation cases rechecked after
 adding task/protection binding. Ruff/diff checks passed. Self-review preserved
 fixed routes, original one-shot journal locks, bounded waits and paid exclusions.
 All14 new game PNGs were reviewed; only PNG image chunks, no private payloads.
+
+
+## Receipt/background repair after dd52fe7 — 2026-09-28 Vietnam
+
+CI36334422519 passed lint,956pytest(26skipped), build, smoke and upload.
+Artifact10936394421 matched dd52fe7 and all595 Desktop files. Original member
+claim122 was reconciled VERIFIED by the fresh portable without device input.
+The bound random target11 resumed from its existing snapshot; report:
+`diagnostics/tasks/automation/20260927-171830-193499Z/fleet-report.json`.
+Owned cleanup/selection restoration succeeded. Protected0/1/6/7 and names are
+unchanged. Index2 was already stopped at this run's preflight and stayed stopped;
+this run issued no command to it. The earlier externally running state is not
+restored by automation.
+
+New one-shot claims123(loot) and124(Mail System) remain RESERVED/POSSIBLE.
+Never redispatch them. Original123 evidence independently shows67→0, two received
+post frames, and exactly one known bottom-left receipt dismissal. The normal90s
+window was exceeded by slow receipt recognition. Saved reconciliation can qualify
+this specific original chain within180s ONLY with an immediate paired receipt,
+a single proven safe dismissal, and two post states within30s of that dismissal.
+No global runtime timeout changed. Read-only qualification of123 succeeded;
+the real journal must be reconciled only through the next passing artifact.
+124 needs its original receipt plus two fresh positively exhausted System-tab
+observations on the same persistent target. A receipt alone cannot verify it.
+
+Concrete repairs:
+- Same continuation text over different blurred backgrounds: fixed high-pass
+  glyph detail, strict.98 and unique match, paired with independent receipt title.
+  No dynamic artwork template, threshold reduction or receipt-only verification.
+- Territory navigation: at most2 fresh observations while the original page is
+  unchanged; never replay the navigation. UNKNOWN/unexpected pages fail closed.
+- Current green donation label excludes changing cost. Orange paid button edges
+  remain measurable when its color mask joins the modal border; require the
+  separate diamond inside that forbidden rectangle before any wood donation.
+- Selected Mail badge4 changes its surrounding background; full-badge detail at
+  .98 remains bound to the local red container. No reading6 from60 or OCR guesses.
+- Original evidence preparation precedes fresh reconciliation captures, so slow
+  offline verification cannot make a valid newly captured post-state stale.
+
+Phase7 is PARTIAL. No full fleet yet. No Phase8. Seven Phase6 claims115–121 and
+all98 baseline rows remain protected from replay or downgrade.
+
+Local gate:139 targeted Guild/Mail, receipt and overlay tests passed. The final
+reconciliation changes were rechecked separately:24 passed. Ruff and diff-check
+passed. Self-review covered duplicate dispatch, original/fresh receipt ownership,
+identity/Protection, bounded waiting, paid-region separation and no phase expansion.
+All five new PNGs were visually reviewed as game UI; only IHDR/IDAT/IEND chunks.
+All105 prior journal rows compare exactly unchanged (98 original +7 Phase6).

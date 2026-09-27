@@ -18,7 +18,7 @@ def saved(rig,tmp_path,monkeypatch):
     manager,_,store = rig
     folder = tmp_path/'guild'
     folder.mkdir()
-    base = datetime.now(timezone.utc)
+    base = datetime.now(timezone.utc)-timedelta(minutes=1)
     frames, evidence = {},[]
     for n in range(3):
         image = folder/f'{n}.png'
@@ -91,3 +91,158 @@ def test_ambiguous_saved_evidence_stays_possible(saved,corruption):
     row = saved.store.reward_claims(saved.namespace,7)[0]
     assert row['status'] == 'RESERVED' and row['dispatch_state'] == 'POSSIBLE'
     assert not (saved.folder/f'claim-{saved.claim}-reconciled.json').exists()
+
+
+@pytest.fixture
+def fresh(saved):
+    from top_heroes_auto.vision.models import ScreenState
+
+    saved.action['immediate_after'] = saved.evidence[1]
+    saved.frames[saved.evidence[1]['capture']].overlay = SimpleNamespace(
+        state=ScreenState.REWARD_RECEIPT,confidence=.995,
+        evidence=[SimpleNamespace(anchor_id=n,matched=True) for n in ('receipt-title','receipt-continue')])
+    (saved.folder/'feature-report.json').write_text(json.dumps(saved.report),encoding='utf-8')
+    now = datetime.now(timezone.utc)
+    frames = []
+    for n,seconds in enumerate((20,10)):
+        image = saved.folder/f'fresh{n}.png'
+        evidence = dict(capture=str(image),index=7,name='Farm-007',adb='emulator-test',boot_id='new-verified-boot',
+                        timestamp=(now-timedelta(seconds=seconds)).isoformat())
+        frames.append(SimpleNamespace(page='gifts-member',captured=SimpleNamespace(source_image=image,index=7,
+            name='Farm-007',serial='emulator-test',boot_id='new-verified-boot',timestamp=evidence['timestamp']),
+            evidence=lambda e=evidence:e))
+    return saved,frames
+
+
+def test_fresh_exhausted_batch_with_original_receipt_verifies_without_input(fresh):
+    from top_heroes_auto.automation.guild_mail_reconcile import reconcile_observed_guild_mail
+
+    saved,frames = fresh
+    proof = reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,'disk')
+    assert proof['claim_redispatched'] is False
+    assert saved.store.reward_claims(saved.namespace,7)[0]['status'] == 'VERIFIED'
+
+
+@pytest.mark.parametrize('bad',['identity','stale','duplicate','one','receipt_missing','receipt_unknown','partial','boot'])
+def test_fresh_reconcile_failures_keep_original_possible(fresh,bad):
+    from top_heroes_auto.automation.guild_mail_reconcile import reconcile_observed_guild_mail
+    from top_heroes_auto.vision.models import ScreenState
+
+    saved,frames = fresh
+    identity = 'disk'
+    if bad == 'identity':
+        identity = 'replacement'
+    elif bad == 'stale':
+        frames[0].captured.timestamp = (datetime.now(timezone.utc)-timedelta(minutes=3)).isoformat()
+    elif bad == 'duplicate':
+        frames[1] = frames[0]
+    elif bad == 'one':
+        frames = frames[:1]
+    elif bad == 'receipt_missing':
+        del saved.action['immediate_after']
+        (saved.folder/'feature-report.json').write_text(json.dumps(saved.report),encoding='utf-8')
+    elif bad == 'receipt_unknown':
+        saved.frames[saved.evidence[1]['capture']].overlay.state = ScreenState.UNKNOWN
+    elif bad == 'boot':
+        frames[1].captured.boot_id = 'changed-during-observation'
+    else:
+        previous = saved.detector.availability
+        saved.detector.availability = lambda f,r: (Opportunity(r,'AVAILABLE',remaining=1,context=r)
+            if f in frames else previous(f,r))
+    with pytest.raises(ValueError):
+        reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,identity)
+    row = saved.store.reward_claims(saved.namespace,7)[0]
+    assert row['status'] == 'RESERVED' and row['dispatch_state'] == 'POSSIBLE'
+
+
+@pytest.fixture
+def delayed(saved):
+    from top_heroes_auto.vision.models import AnchorEvidence, ScreenState
+
+    base = datetime.fromisoformat(saved.evidence[0]['timestamp'])
+    for n,seconds in ((1,100),(2,110)):
+        timestamp = (base+timedelta(seconds=seconds)).isoformat()
+        saved.evidence[n]['timestamp'] = timestamp
+        frame = saved.frames[saved.evidence[n]['capture']]
+        frame.captured.timestamp = timestamp
+        frame.captured.source_image.with_suffix('.json').write_text(json.dumps(dict(timestamp=timestamp)),encoding='utf-8')
+    for seconds in (10,80):
+        image = saved.folder/f'popup{seconds}.png'
+        timestamp = (base+timedelta(seconds=seconds)).isoformat()
+        item = dict(capture=str(image),timestamp=timestamp,index=7,name='Farm-007',adb='emulator-test',boot_id='boot')
+        metadata = dict(timestamp=timestamp,instance=dict(index=7,name='Farm-007'),adb_target='emulator-test',boot_id='boot')
+        image.with_suffix('.json').write_text(json.dumps(metadata),encoding='utf-8')
+        overlay = SimpleNamespace(state=ScreenState.REWARD_RECEIPT,confidence=.99,evidence=[
+            AnchorEvidence(role,ScreenState.REWARD_RECEIPT,.99,.98,True,device_box=BoundingBox(20,30,40,50))
+            for role in ('receipt-title','receipt-continue')])
+        frame = SimpleNamespace(page='UNKNOWN',overlay=overlay,captured=SimpleNamespace(source_image=image,index=7,
+            name='Farm-007',serial='emulator-test',boot_id='boot',timestamp=timestamp,device_size=(720,1280)),
+            evidence=lambda e=item:e)
+        saved.frames[str(image)] = frame
+        if seconds == 10:
+            saved.action['immediate_after'] = item
+        else:
+            saved.transport.append(dict(before=str(image),action='tap',values=[58,1203],outcome='DISPATCHED'))
+    (saved.folder/'actions.json').write_text(json.dumps(saved.transport),encoding='utf-8')
+    (saved.folder/'feature-report.json').write_text(json.dumps(saved.report),encoding='utf-8')
+    return saved
+
+
+def test_original_delayed_receipt_requires_bounded_dismissal_chain(delayed):
+    result = reconcile_saved_guild_mail(delayed.store,delayed.claim,detector=delayed.detector)
+    assert result['result'] == 'VERIFIED' and result['claim_redispatched'] is False
+
+
+@pytest.mark.parametrize('bad',['another_input','wrong_dismissal','unknown_popup','late_post'])
+def test_delayed_receipt_cannot_relax_generic_progress_guard(delayed,bad):
+    from top_heroes_auto.vision.models import ScreenState
+
+    if bad == 'another_input':
+        delayed.transport.append(delayed.transport[-1])
+    elif bad == 'wrong_dismissal':
+        delayed.transport[-1]['values'] = [500,500]
+    elif bad == 'unknown_popup':
+        delayed.frames[str(delayed.folder/'popup80.png')].overlay.state = ScreenState.UNKNOWN
+    else:
+        frame = delayed.frames[delayed.evidence[2]['capture']]
+        frame.captured.timestamp = (datetime.fromisoformat(delayed.evidence[0]['timestamp'])+timedelta(seconds=120)).isoformat()
+    (delayed.folder/'actions.json').write_text(json.dumps(delayed.transport),encoding='utf-8')
+    with pytest.raises(ValueError):
+        reconcile_saved_guild_mail(delayed.store,delayed.claim,detector=delayed.detector)
+    assert delayed.store.reward_claims(delayed.namespace,7)[0]['status'] == 'RESERVED'
+
+
+def test_another_input_before_original_receipt_cannot_verify_fresh_state(fresh):
+    from top_heroes_auto.automation.guild_mail_reconcile import reconcile_observed_guild_mail
+
+    saved,frames = fresh
+    saved.transport.append(dict(before=saved.evidence[1]['capture'],action='tap',values=[400,500],outcome='DISPATCHED'))
+    (saved.folder/'actions.json').write_text(json.dumps(saved.transport),encoding='utf-8')
+    with pytest.raises(ValueError,match='Another input intervened'):
+        reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,'disk')
+    assert saved.store.reward_claims(saved.namespace,7)[0]['status'] == 'RESERVED'
+
+
+@pytest.mark.parametrize('receipt_ok',[True,False])
+def test_process_resolves_original_or_keeps_lock_without_redispatch(fresh,receipt_ok):
+    from top_heroes_auto.automation.guild_mail_claims import process
+    from top_heroes_auto.vision.models import ScreenState
+
+    saved,frames = fresh
+    if not receipt_ok:
+        saved.frames[saved.evidence[1]['capture']].overlay.state = ScreenState.UNKNOWN
+    observations = iter(frames)
+    seen = []
+    def observe():
+        seen.append('capture')
+        return next(observations)
+    port = SimpleNamespace(detector=saved.detector,observe=observe,
+        opportunity=lambda reward:(frames[0],saved.detector.availability(frames[0],reward)),
+        claim=lambda *a,**kw:pytest.fail('Original POSSIBLE action must never redispatch'))
+    task = saved.store.create_task_run(saved.namespace,'guild',7,'Farm-007')
+    report = {}
+    process(port,saved.store,saved.namespace,task,'guild-gifts-member','disk',report,lambda:None)
+    assert report['claim_count'] == 0 and report['claim_dispatched'] is False
+    assert report['result'] == ('ALREADY_VERIFIED' if receipt_ok else 'ALREADY_ATTEMPTED')
+    assert len(saved.store.reward_claims(saved.namespace,7)) == 1
+    assert len(seen) == (2 if receipt_ok else 0)

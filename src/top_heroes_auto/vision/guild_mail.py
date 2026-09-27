@@ -5,9 +5,10 @@ from dataclasses import dataclass, field, replace
 import cv2
 import numpy as np
 
+from top_heroes_auto.vision.detail_anchor import unique_detail_anchor
 from top_heroes_auto.vision.fixed_rewards import FixedObservation, portrait_region
 from top_heroes_auto.vision.local_ocr import counter
-from top_heroes_auto.vision.models import AnchorEvidence, BoundingBox, ScreenState
+from top_heroes_auto.vision.models import AnchorEvidence, BoundingBox, ScreenState, VisualAnchor
 from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
 from top_heroes_auto.vision.resources import template_folder
 
@@ -148,6 +149,7 @@ class GuildMailDetector:
         variants = {'gifts-quick':('gifts-quick-member',),'relic-tab':('relic-tab-selected',),
                     'gifts-title':('gifts-title-member',),'territory-title':('territory-title-relic',),
                     'mail-system':('mail-system-alt','mail-system-current','mail-system-selected'),
+                    'donation-green':('donation-green-current',),
                     'mail-reports':('mail-reports-selected',),'mail-collection':('mail-collection-alt',)}
 
         def read_core(role):
@@ -249,6 +251,29 @@ class GuildMailDetector:
         boxes = [b for b in components(portrait(frame.captured), color) if contains(b, label) and
                  1.4 <= b.width/b.height <= 6 and label.width <= b.width <= label.width*3.5
                  and b.height <= label.height*4.5]
+        if not boxes and role == 'donation-paid':
+            # This orange button can join the modal border in the color mask.
+            # Bind its current closed edge rectangle to BOTH text and color;
+            # never invent a fixed exclusion rectangle from an old screenshot.
+            image = portrait(frame.captured)
+            contours,_ = cv2.findContours(cv2.Canny(image,60,140),cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+            for contour in contours:
+                b = BoundingBox(*cv2.boundingRect(contour))
+                if not (contains(b,label) and 1.4 <= b.width/b.height <= 6
+                        and label.width <= b.width <= label.width*3.5 and b.height <= label.height*4.5
+                        and cv2.contourArea(contour) > .7*b.width*b.height):
+                    continue
+                hsv = cv2.cvtColor(crop(image,b),cv2.COLOR_BGR2HSV)
+                if float(np.mean(cv2.inRange(hsv,(8,90,100),(32,255,255)) > 0)) < .6:
+                    continue
+                near = next((other for other in boxes if
+                    abs(other.center[0]-b.center[0]) < b.width*.1 and
+                    abs(other.center[1]-b.center[1]) < b.height*.1),None)
+                if near:
+                    if near.width*near.height >= b.width*b.height:
+                        continue
+                    boxes.remove(near)
+                boxes.append(b)
         return boxes[0] if len(boxes) == 1 else None
 
     def local_badge(self, frame, box, *, numbered=False):
@@ -286,7 +311,17 @@ class GuildMailDetector:
         height,width = image.shape[:2]
         area = (max(0,region.x/width),max(0,region.y/height),
                 min(1,(region.x+region.width)/width),min(1,(region.y+region.height)/height))
-        matches = [(digit,self.anchor(frame.captured,f'badge-digit-{digit}',area)) for digit in (3,4,6)]
+        matches = []
+        for digit in (3,4,6):
+            role = f'badge-digit-{digit}'
+            evidence = self.anchor(frame.captured,role,area)
+            if not evidence.matched and evidence.score < evidence.threshold:
+                # Selected/ordinary tabs change the background outside the red
+                # badge. Require the entire current badge footprint below.
+                anchor = VisualAnchor(role,ScreenState.FREE_REWARD_PAGE,self.folder/f'{role}.png',
+                                      portrait_region(*area),.98)
+                evidence = unique_detail_anchor(frame.captured,anchor)
+            matches.append((digit,evidence))
         matches = [(digit,e) for digit,e in matches if e.matched and
                    .8*badge.height <= e.device_box.height <= 1.4*badge.height and
                    .8*badge.width <= e.device_box.width <= 1.4*badge.width]
@@ -315,7 +350,8 @@ class GuildMailDetector:
         if remaining == 0:
             return 'NOT_AVAILABLE', None, 0
         if (remaining is None or green is None or paid is None or wood is None or
-                not contains(green,wood) or intersects(green,paid) or not frame.box('donation-diamond')):
+                not contains(green,wood) or intersects(green,paid) or not frame.box('donation-diamond')
+                or not contains(paid,frame.box('donation-diamond'))):
             return 'UNKNOWN', None, remaining
         return 'AVAILABLE', green, remaining
 

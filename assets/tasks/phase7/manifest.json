@@ -647,5 +647,16 @@
       95
     ],
     "threshold": 0.98
+  },
+  {
+    "id": "donation-green-current",
+    "source": "donation-live",
+    "source_bbox": [
+      447,
+      886,
+      133,
+      34
+    ],
+    "threshold": 0.97
   }
 ]

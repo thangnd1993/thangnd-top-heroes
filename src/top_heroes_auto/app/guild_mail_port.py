@@ -90,6 +90,13 @@ class GuildMailPort(FixedRewardPort):
         self.tap(frame,frame.anchors[role])
         time.sleep(.4)
         after = self.observe_settled()
+        # A dispatched navigation may precede the first visible page change.
+        # Only reobserve the unchanged origin; never send that navigation twice.
+        for _ in range(2):
+            if after.page != origin or after.page in destinations:
+                break
+            time.sleep(.4)
+            after = self.observe_settled()
         if after.page not in destinations:
             raise SafetyError(f'Navigation expected {destinations}; found {after.page}.')
         return after

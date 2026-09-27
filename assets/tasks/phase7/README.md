@@ -22,3 +22,9 @@ badge4 for local single-character OCR fallback, and a received-row check core.
 The check core is positive exhaustion evidence only in a paired Gifts page
 with a complete badge-free Quick Claim control and no remaining green claim.
 Runtime matching searches the current frame; these are not account routes.
+
+The current green donation label excludes the changing resource price and red
+badge. Its live fixture also qualifies the disjoint diamond exclusion rectangle.
+Receipt continuations and single badge digits can use fixed high-pass glyph
+matching at.98 when their surrounding background changes; paired title/local
+complete badge and global uniqueness are still mandatory. No new popup artwork.

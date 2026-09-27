@@ -33,7 +33,7 @@ def relic_cycle(now=None):
     return f'guild-relic:{start.isoformat()}'
 
 
-def qualified_progress(before_frame, before, after_frame, after):
+def qualified_progress(before_frame, before, after_frame, after, *, maximum_elapsed=90):
     """A popup, changed pixels, or successful transport is never a receipt."""
     a, b = before_frame.captured, after_frame.captured
     if (not a.source_image or not b.source_image or a.source_image == b.source_image or
@@ -46,7 +46,7 @@ def qualified_progress(before_frame, before, after_frame, after):
         elapsed = (datetime.fromisoformat(b.timestamp)-datetime.fromisoformat(a.timestamp)).total_seconds()
     except (ValueError,TypeError):
         return False
-    if not 0 < elapsed <= 90:
+    if not 0 < elapsed <= maximum_elapsed <= 180:
         return False
     if before.reward == 'guild-relic':
         return after.state == 'NOT_AVAILABLE'
@@ -80,6 +80,27 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
             locks += [r for r in rows if r['cycle_key'] == period and r['status'] == 'VERIFIED']
         if locks:
             last = locks[-1]
+            if last['status'] != 'VERIFIED' and view.state == 'NOT_AVAILABLE':
+                from top_heroes_auto.automation.guild_mail_reconcile import (
+                    FRESH_BATCH_REWARDS,
+                    prepare_observed_guild_mail,
+                    reconcile_observed_guild_mail,
+                )
+
+                if reward in FRESH_BATCH_REWARDS:
+                    # Observe only. The existing POSSIBLE action remains locked
+                    # unless its original receipt and two exhausted frames prove it.
+                    try:
+                        prepared = prepare_observed_guild_mail(store,last['id'],port.detector,identity)
+                        fresh,confirmation = port.observe(),port.observe()
+                        report['reconciliation'] = reconcile_observed_guild_mail(
+                            store,last['id'],port.detector,(fresh,confirmation),identity,prepared=prepared)
+                    except ValueError as exc:
+                        report['reconciliation_error'] = str(exc)
+                    else:
+                        report.update(result='ALREADY_VERIFIED',journal='VERIFIED',claim_id=last['id'])
+                        persist()
+                        return
             report.update(result='ALREADY_VERIFIED' if last['status'] == 'VERIFIED' else 'ALREADY_ATTEMPTED',
                           journal=last['status'],claim_id=last['id'])
             persist()

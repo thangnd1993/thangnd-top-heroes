@@ -4,6 +4,7 @@ from dataclasses import replace
 
 import cv2
 
+from top_heroes_auto.vision.detail_anchor import unique_detail_anchor
 from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.models import NormalizedRect, ScreenDetection, ScreenState
@@ -88,6 +89,18 @@ class RecoveryScreenDetector:
                 groups['default'] = []
             elif alternative.score >= alternative.threshold and not alternative.matched:
                 groups['default'] = []
+        # The continuation text is rendered over different blurred pages.
+        # Keep the same glyphs, remove only low-frequency background, and require
+        # the independent title. Never rescue any raw duplicate/conflict.
+        default = groups.get('default', [])
+        title = next((e for e in default if e.anchor_id == 'receipt-title'), None)
+        continuation = next((e for e in default if e.anchor_id.startswith('receipt-continue')), None)
+        if (title and title.matched and continuation and not continuation.matched
+                and all(e.matched or e.score < e.threshold for e in (*default,*alternatives))):
+            anchor = next(a for a in self.receipt_anchors if a.id == 'receipt-continue')
+            detail = unique_detail_anchor(screen, anchor)
+            if detail.matched:
+                groups['default'] = [detail if e is continuation else e for e in default]
         qualified_receipts = [tuple(items) for variant, items in groups.items()
                               if len(items) >= 2 and all(e.matched for e in items)
                               and self._receipt_layout(screen, variant, items)]

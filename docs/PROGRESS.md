@@ -3,11 +3,12 @@
 ## Phase 7 — Guild + Mail — IN PROGRESS
 
 User explicitly authorized Phase 7 on 2026-09-27. See [PHASE7.md](PHASE7.md).
-Phase 6 remains completed. No Phase8. Bound random index11 has reached Guild
-and Mail. Member Quick Claim122 was dispatched once and stays RESERVED/POSSIBLE;
-original saved evidence now qualifies its received state offline. Do not replay.
-Remaining UI fixes and safe saved reconciliation are in PHASE7.md. Cleanup and
-selection restoration succeeded. No full fleet yet.
+Phase6 remains completed. No Phase8. Bound random index11 reached Guild/Mail.
+Member claim122 is VERIFIED through original evidence. Loot123 and System-Mail124
+are RESERVED/POSSIBLE and must never be replayed. Saved123 qualifies offline;
+124 requires original receipt plus fresh exhausted-state evidence. Receipt,
+transition and donation-control fixes await the next passing CI artifact.
+Owned cleanup/selection restoration succeeded. No full fleet yet.
 
 
 ## Phase 6 PASS — 2026-09-27 (Vietnam time)
