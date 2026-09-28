@@ -374,3 +374,15 @@ also passed in24.83s. Self-review confirmed exact per-input wood evidence,
 positive counter, enabled button, disjoint diamonds, bounded20 inputs, no replay
 of POSSIBLE journals, no previous VERIFIED edits, and independent-flow continuation.
 No emulator was launched during this implementation pass.
+
+Final review refinement: only positively recognized forbidden costs complete
+as RESOURCE_NOT_AUTHORIZED. An unrecognized/mixed icon retains overall UNKNOWN
+with remaining_result=RESOURCE_NOT_AUTHORIZED, so it cannot falsely pass fleet
+acceptance. Independent Guild/Mail work still continues. A strict same-page
+counter decrement may verify the preceding authorized wood input even if the
+next control becomes unqualified; it never authorizes another donation.
+
+Final focused gate:25 wood/donation checks passed(65 unrelated cases deselected),
+including unknown-cost reporting and preservation of independently verified count
+progress. Ruff/diff-check passed. The superseded CI was cancelled before using any
+artifact; the latest commit must pass the full gate before real mutation.

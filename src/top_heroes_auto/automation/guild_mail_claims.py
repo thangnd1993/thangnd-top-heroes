@@ -38,7 +38,9 @@ def qualified_progress(before_frame, before, after_frame, after, *, maximum_elap
     a, b = before_frame.captured, after_frame.captured
     post_states = {'AVAILABLE','NOT_AVAILABLE'}
     if before.reward == 'guild-technology':
-        post_states.add('RESOURCE_NOT_AUTHORIZED')  # Count decrement still proves the preceding WOOD input.
+        # A qualified counter proves the preceding WOOD input even if its next
+        # cost/control is no longer actionable. UNKNOWN pages/counts still fail.
+        post_states.update(('RESOURCE_NOT_AUTHORIZED','UNKNOWN'))
     if (not a.source_image or not b.source_image or a.source_image == b.source_image or
             (a.index,a.name,a.serial,a.boot_id) != (b.index,b.name,b.serial,b.boot_id) or
             before_frame.page == 'UNKNOWN' or before_frame.page != after_frame.page or
@@ -120,7 +122,9 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
             persist()
             return
         if reward == 'guild-technology' and view.state == 'RESOURCE_NOT_AUTHORIZED':
-            report.update(result='RESOURCE_NOT_AUTHORIZED',remaining=view.remaining)
+            report.update(result=('RESOURCE_NOT_AUTHORIZED' if report['resource'].get('resource') in
+                                  {'STONE','DIAMOND'} else 'UNKNOWN'),remaining=view.remaining,
+                          remaining_result='RESOURCE_NOT_AUTHORIZED')
             persist()
             return
         if view.state == 'NOT_AVAILABLE':
@@ -196,7 +200,9 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
                     report['end_remaining'] = confirmation.remaining
                     report['resource'] = getattr(confirmation_frame,'values',{}).get('donation_resource',{})
                     if confirmation.state == 'RESOURCE_NOT_AUTHORIZED':
-                        report['result'] = 'RESOURCE_NOT_AUTHORIZED'
+                        report['remaining_result'] = 'RESOURCE_NOT_AUTHORIZED'
+                        report['result'] = ('RESOURCE_NOT_AUTHORIZED' if report['resource'].get('resource') in
+                                            {'STONE','DIAMOND'} else 'UNKNOWN')
             else:
                 action['result'] = report['result'] = 'ACTION_DISPATCHED_UNVERIFIED'
                 return
@@ -210,7 +216,7 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
                 action['journal'] = report['journal'] = 'NONE'
             persist()
         if (reward == 'guild-relic' or report.get('remaining') == 0
-                or report['result'] == 'RESOURCE_NOT_AUTHORIZED'):
+                or report.get('remaining_result') == 'RESOURCE_NOT_AUTHORIZED'):
             return
     report['result'] = 'BOUNDED_LIMIT'
     persist()

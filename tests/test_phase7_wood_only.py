@@ -100,11 +100,12 @@ def test_disabled_green_is_not_an_authorized_donation(visual):
 
 
 class WoodPort:
-    def __init__(self,states,*,fail=False):
+    def __init__(self,states,*,fail=False,blocked_resource='STONE'):
         self.states = iter(states)
         self.number = 0
         self.inputs = []
         self.fail = fail
+        self.blocked_resource = blocked_resource
         self.qualified = None
         self.base = datetime.now(timezone.utc)
 
@@ -118,7 +119,7 @@ class WoodPort:
     def opportunity(self,reward,initial=None):
         frame = self.observe()
         state,count = next(self.states)
-        frame.values['donation_resource'] = dict(resource='WOOD' if state=='AVAILABLE' else 'STONE')
+        frame.values['donation_resource'] = dict(resource='WOOD' if state=='AVAILABLE' else self.blocked_resource)
         view = Opportunity(reward,state,'donation-green',BoundingBox(100+self.number,200,80,40),count,reward)
         self.qualified = (frame,view)
         return frame,view
@@ -204,3 +205,23 @@ def test_production_port_cannot_reuse_previous_donation_geometry(stale):
     port.last = current
     with pytest.raises(Exception,match='Stale|current qualified'):
         port.claim(previous,view,before_input=lambda:pytest.fail('Stale geometry must not dispatch'))
+
+
+@pytest.mark.parametrize('already_donated',[False,True])
+def test_unknown_cost_stays_unresolved_without_erasing_verified_wood_progress(rig,already_donated):
+    states = ([('AVAILABLE',20),('RESOURCE_NOT_AUTHORIZED',19),('RESOURCE_NOT_AUTHORIZED',19)]
+              if already_donated else [('RESOURCE_NOT_AUTHORIZED',20)])
+    port = WoodPort(states,blocked_resource='UNKNOWN')
+    report = run(rig,port)
+    assert report['result'] == 'UNKNOWN' and report['result'] not in COMPLETE
+    assert report['remaining_result'] == 'RESOURCE_NOT_AUTHORIZED'
+    assert len(port.inputs) == int(already_donated)
+    if already_donated:
+        assert report['journal'] == 'VERIFIED' and report['end_remaining'] == 19
+
+
+def test_disabled_next_control_does_not_erase_independent_count_decrement(rig):
+    port = WoodPort([('AVAILABLE',20),('UNKNOWN',19),('UNKNOWN',19),('UNKNOWN',19)])
+    report = run(rig,port)
+    assert report['result'] == 'UNKNOWN' and report['journal'] == 'VERIFIED'
+    assert len(port.inputs) == 1 and report['end_remaining'] == 19
