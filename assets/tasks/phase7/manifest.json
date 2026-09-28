@@ -680,5 +680,16 @@
       28
     ],
     "threshold": 0.98
+  },
+  {
+    "id": "donation-stone",
+    "source": "donation-stone",
+    "source_bbox": [
+      479,
+      922,
+      31,
+      30
+    ],
+    "threshold": 0.98
   }
 ]

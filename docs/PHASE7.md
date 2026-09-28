@@ -336,3 +336,41 @@ lifecycle command, no paid/diamond input, no resource donation, no Phase8.
 NEXT: wait for the user's pending resource-scope answer (ordinary stone as well
 as wood, or wood only). Do not spend stone or launch the full fleet before that
 scope is resolved and Technology is appropriately qualified. Preserve all journals.
+
+
+## Confirmed wood-only boundary and final-fleet authorization —2026-09-28
+
+User explicitly resolved the resource question: WOOD ONLY, including when the
+button is green. Do not broaden SAFETY.md to stone. The original brown-log
+reference qualifies as WOOD(.998551); the prior live wood variant also qualifies
+(.982178). The saved level4 gray cost is a different stone icon(.998279), not a
+mislabelled brown log. Existing wood threshold.97 is retained; stone diagnostic
+anchor is.98 and can never authorize spending.
+
+Resource matching is local to the CURRENT qualified green button. Require one
+unique wood match, enabled green fill, positive independent remaining count and
+separate paid diamond button. Unknown/mixed/duplicate/nonwood cost is excluded.
+No absolute account coordinates, color-only permission or cached previous bbox.
+Production dispatch independently requires current wood evidence. One wood input
+must independently decrement the count by exactly one on two fresh observations.
+If the following cost changes away from wood, verify the preceding input only
+from that count change, report RESOURCE_NOT_AUTHORIZED and stop immediately.
+The typed exclusion completes the authorized portion; it is not a reward success
+and does not suppress other Guild/Mail work. Actual UNKNOWN pages or counters stay
+blocked. Reports retain start/end counts, resource evidence and verified journal.
+
+New regression evidence contains only the saved game donation page and its gray
+stone icon crop. No credentials/private files. Previous journals122-129 must not
+change. The user now authorizes final acceptance directly after targeted tests,
+Ruff, self-review, commit/push, full CI and verified fresh Desktop delivery.
+Use a fresh explicit snapshot of ALL live non-Protected targets sequentially;
+all enabled registered flows per instance, one lifecycle/feature visit, owned
+cleanup, original selection and external running preservation. No extra fixed
+account trial, no Phase8.
+
+Local gate:158 targeted Guild/Mail, reconciliation, wood-policy and instance
+pipeline tests passed in226.34s. Ruff/diff checks passed. All16 final wood/stale-frame tests
+also passed in24.83s. Self-review confirmed exact per-input wood evidence,
+positive counter, enabled button, disjoint diamonds, bounded20 inputs, no replay
+of POSSIBLE journals, no previous VERIFIED edits, and independent-flow continuation.
+No emulator was launched during this implementation pass.

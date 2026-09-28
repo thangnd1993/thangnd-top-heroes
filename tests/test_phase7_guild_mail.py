@@ -60,11 +60,13 @@ def test_wood_donation_geometry_excludes_paid_button(detector,frames):
     assert view.box.x < x < view.box.x+view.box.width and view.box.y < y < view.box.y+view.box.height
 
 
-def test_donation_requires_wood_and_diamond_exclusion(detector,frames):
+def test_donation_requires_wood_and_diamond_exclusion(detector,frames,monkeypatch):
     original = frames['donation']
-    anchors = dict(original.anchors)
-    anchors['donation-wood'] = replace(anchors['donation-wood'],matched=False,device_box=None)
-    assert detector.availability(replace(original,anchors=anchors),'guild-technology').state == 'UNKNOWN'
+    find = detector.button_anchor
+    monkeypatch.setattr(detector,'button_anchor',lambda frame,role,button:
+        replace(find(frame,role,button),matched=False,score=0,device_box=None)
+        if role == 'donation-wood' else find(frame,role,button))
+    assert detector.availability(original,'guild-technology').state == 'RESOURCE_NOT_AUTHORIZED'
 
 
 def test_technology_marker_is_associated_with_one_tree_node(frames):

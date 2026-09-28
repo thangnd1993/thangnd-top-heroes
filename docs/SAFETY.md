@@ -10,6 +10,16 @@ One input followed by a proven count decrement; ambiguous results stay POSSIBLE.
 No diamond donations, purchases, other resources, Trial Hall or mail deletion.
 Relics reset at 09:00 Vietnam as explicitly confirmed by the user.
 
+Confirmed again on 2026-09-28: WOOD ONLY. Stone, food, diamonds, tickets,
+premium/rare resources and unqualified icons are forbidden even on a green button.
+Reacquire the enabled green control and its unique wood icon from every current
+frame. Require a positive independent counter and disjoint paid diamond control.
+After one input, independently verify exactly one count decrement before continuing.
+A changed/unknown cost returns RESOURCE_NOT_AUTHORIZED for the remaining portion;
+never send another input. This safe exclusion does not stop independent Guild/Mail
+work or erase an already verified wood donation. UNKNOWN page/control/counter still
+fails closed. Previous VERIFIED journals 122-129 are immutable.
+
 
 ## Permanent Home-overlay and continuous Shop rules — 2026-09-25
 

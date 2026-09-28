@@ -12,9 +12,13 @@ Artifact10941694353 is delivered to Desktop/app;598 copied files verified.
 Latest report: automation/20260927-211615-066061Z/fleet-report.json.
 All105 older baseline rows remain unchanged. Selection/Protection/names and
 external running1/2/4/5/7 preserved; target11 stopped by owned cleanup.
-Technology remains UNKNOWN/blocked because its green button costs stone;
-wood-only authorization retained pending the user's answer, ZERO donations.
-Full fleet has NOT run. Phase7 remains PARTIAL awaiting this resource decision.
+The user confirmed WOOD ONLY on2026-09-28 and authorized the final all-current
+non-Protected instance-first fleet after the new CI artifact. Brown wood is correctly
+recognized in reference/live evidence; the saved gray icon is positively stone.
+Repair adds explicit RESOURCE_NOT_AUTHORIZED, current-button resource verification,
+per-donation count reporting and safe continuation of independent flows. No resource
+scope expansion. Targeted tests/CI/delivery precede the authorized final fleet.
+Full fleet has NOT run yet; Phase7 remains PARTIAL. Journals122-129 stay immutable.
 
 
 ## Phase 6 PASS — 2026-09-27 (Vietnam time)

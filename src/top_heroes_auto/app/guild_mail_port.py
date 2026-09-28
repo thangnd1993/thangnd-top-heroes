@@ -167,6 +167,10 @@ class GuildMailPort(FixedRewardPort):
             raise SafetyError('Claim is not bound to the current qualified opportunity.')
         if frame is not self.last or view.state != 'AVAILABLE':
             raise SafetyError('Stale or unavailable Guild/Mail opportunity.')
+        if view.reward == 'guild-technology' and (
+                frame.values.get('donation_resource',{}).get('resource') != 'WOOD'
+                or type(view.remaining) is not int or view.remaining <= 0):
+            raise SafetyError('Current donation cost is not positively authorized WOOD.')
         geometry = self.geometry(frame,view)
         image = portrait(frame.captured).copy()
         for box,color in [(view.box,(0,255,0)),*((b,(0,0,255)) for b in view.forbidden)]:

@@ -18,7 +18,7 @@ MAIL_REWARDS = tuple(f'mail-{tab}' for tab in MAIL_TABS)
 # These cores are icons/counters, not the outlined text seen in the supplied
 # resized references. Keep their original strict pixel qualification.
 PIXEL_ROLES = frozenset({'home-guild','home-mail','back','relic-gift','technology-like',
-    'donation-wood','donation-diamond','modal-close','donation-count-suffix','relic-gift-unavailable',
+    'donation-wood','donation-diamond','donation-stone','modal-close','donation-count-suffix','relic-gift-unavailable',
     'badge-digit-1','badge-digit-3','badge-digit-4','badge-digit-6','gift-received-check'})
 
 
@@ -188,7 +188,7 @@ class GuildMailDetector:
                             'gifts-quick','gift-claim','loot-row-title','member-row-title','back'),
             'technology-title': ('technology-contribution','technology-like','back'),
             'donation-heading': ('donation-counter-label','donation-count-suffix','donation-green',
-                                'donation-paid','donation-wood','donation-diamond','modal-close'),
+                                'donation-paid','donation-wood','donation-diamond','donation-stone','modal-close'),
             'mail-title': ('modal-close','mail-war-selected','mail-war-inactive','mail-guild-selected',
                           'mail-guild-inactive','mail-system','mail-reports','mail-collection',
                           'mail-empty-label','mail-read','mail-delete-forbidden'),
@@ -331,11 +331,33 @@ class GuildMailDetector:
             return digit
         return None
 
+    def button_anchor(self, frame, role, button):
+        height,width = portrait(frame.captured).shape[:2]
+        area = (button.x/width,button.y/height,
+                (button.x+button.width)/width,(button.y+button.height)/height)
+        return self.anchor(frame.captured,role,area)
+
+    def donation_resource(self, frame, green):
+        """A green button is not a spending authorization; match its current cost."""
+        roles = {'WOOD':'donation-wood','STONE':'donation-stone','DIAMOND':'donation-diamond'}
+        evidence = {name:self.button_anchor(frame,role,green) for name,role in roles.items()}
+        matches = [name for name,e in evidence.items() if e.matched and contains(green,e.device_box)]
+        duplicate = any(not e.matched and e.score >= e.threshold for e in evidence.values())
+        resource = matches[0] if len(matches) == 1 and not duplicate else 'UNKNOWN'
+        frame.values['donation_resource'] = dict(resource=resource,authorized=resource=='WOOD',
+            button=vars(green),evidence={name:e.as_dict() for name,e in evidence.items()})
+        return resource
+
+    @staticmethod
+    def green_enabled(frame, green):
+        part = crop(portrait(frame.captured),green)
+        hsv = cv2.cvtColor(part,cv2.COLOR_BGR2HSV)
+        return float(np.mean(cv2.inRange(hsv,(32,80,145),(85,255,255)) > 0)) >= .55
+
     def donation(self, frame):
         if frame.page != 'donation':
             return 'UNKNOWN', None, None
         label = frame.box('donation-counter-label')
-        wood = frame.box('donation-wood')
         green = self.control(frame, 'donation-green', 'green')
         paid = self.control(frame, 'donation-paid', 'orange')
         if label is None:
@@ -349,10 +371,14 @@ class GuildMailDetector:
         remaining = self.number_reader(part, maximum=20) if part is not None and part.size else None
         if remaining == 0:
             return 'NOT_AVAILABLE', None, 0
-        if (remaining is None or green is None or paid is None or wood is None or
-                not contains(green,wood) or intersects(green,paid) or not frame.box('donation-diamond')
-                or not contains(paid,frame.box('donation-diamond'))):
+        if (remaining is None or green is None or paid is None or intersects(green,paid)
+                or not self.green_enabled(frame,green)):
             return 'UNKNOWN', None, remaining
+        diamond = self.button_anchor(frame,'donation-diamond',paid)
+        if not diamond.matched or not contains(paid,diamond.device_box):
+            return 'UNKNOWN', None, remaining
+        if self.donation_resource(frame,green) != 'WOOD':
+            return 'RESOURCE_NOT_AUTHORIZED', None, remaining
         return 'AVAILABLE', green, remaining
 
     def tech_node(self, frame):

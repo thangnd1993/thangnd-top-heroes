@@ -4,8 +4,9 @@ from typing import Callable
 
 from top_heroes_auto.automation.guard import SafetyError
 
+# A forbidden-cost exclusion finishes only the authorized scope; it is not a claim success.
 COMPLETE = frozenset({'SUCCESS', 'NOT_AVAILABLE', 'ALREADY_VERIFIED', 'SUCCESS_WITH_RECOVERY_WARNING',
-                      'DISABLED', 'NOT_APPLICABLE'})
+                      'DISABLED', 'NOT_APPLICABLE', 'RESOURCE_NOT_AUTHORIZED'})
 
 
 @dataclass(frozen=True)

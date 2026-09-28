@@ -36,10 +36,13 @@ def relic_cycle(now=None):
 def qualified_progress(before_frame, before, after_frame, after, *, maximum_elapsed=90):
     """A popup, changed pixels, or successful transport is never a receipt."""
     a, b = before_frame.captured, after_frame.captured
+    post_states = {'AVAILABLE','NOT_AVAILABLE'}
+    if before.reward == 'guild-technology':
+        post_states.add('RESOURCE_NOT_AUTHORIZED')  # Count decrement still proves the preceding WOOD input.
     if (not a.source_image or not b.source_image or a.source_image == b.source_image or
             (a.index,a.name,a.serial,a.boot_id) != (b.index,b.name,b.serial,b.boot_id) or
             before_frame.page == 'UNKNOWN' or before_frame.page != after_frame.page or
-            before.state != 'AVAILABLE' or after.state not in {'AVAILABLE','NOT_AVAILABLE'} or
+            before.state != 'AVAILABLE' or after.state not in post_states or
             before.reward != after.reward or not before.context or before.context != after.context):
         return False
     try:
@@ -65,6 +68,10 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
     for _ in range(limit):
         frame, view = port.opportunity(reward)
         report['latest'] = dict(frame=frame.evidence(),opportunity=view.evidence())
+        if reward == 'guild-technology':
+            report.setdefault('start_remaining',view.remaining)
+            report['end_remaining'] = view.remaining
+            report['resource'] = getattr(frame,'values',{}).get('donation_resource',{})
         rows = [r for r in store.reward_claims(namespace,frame.captured.index) if r['reward_id'] == reward]
         for row in rows:
             original = json.loads(row['before_evidence'])
@@ -110,6 +117,10 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
                         continue
             report.update(result='ALREADY_VERIFIED' if last['status'] == 'VERIFIED' else 'ALREADY_ATTEMPTED',
                           journal=last['status'],claim_id=last['id'])
+            persist()
+            return
+        if reward == 'guild-technology' and view.state == 'RESOURCE_NOT_AUTHORIZED':
+            report.update(result='RESOURCE_NOT_AUTHORIZED',remaining=view.remaining)
             persist()
             return
         if view.state == 'NOT_AVAILABLE':
@@ -181,6 +192,11 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
                     dict(after=action['after'],confirmation=action['confirmation']),ensure_ascii=False))
                 action.update(journal='VERIFIED',result='SUCCESS')
                 report.update(journal='VERIFIED',result='SUCCESS',remaining=after.remaining)
+                if reward == 'guild-technology':
+                    report['end_remaining'] = confirmation.remaining
+                    report['resource'] = getattr(confirmation_frame,'values',{}).get('donation_resource',{})
+                    if confirmation.state == 'RESOURCE_NOT_AUTHORIZED':
+                        report['result'] = 'RESOURCE_NOT_AUTHORIZED'
             else:
                 action['result'] = report['result'] = 'ACTION_DISPATCHED_UNVERIFIED'
                 return
@@ -193,7 +209,8 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
                 store.release_undispatched_reward(claim_id,task_id,'Current-frame dispatch hook was never entered.')
                 action['journal'] = report['journal'] = 'NONE'
             persist()
-        if reward == 'guild-relic' or report.get('remaining') == 0:
+        if (reward == 'guild-relic' or report.get('remaining') == 0
+                or report['result'] == 'RESOURCE_NOT_AUTHORIZED'):
             return
     report['result'] = 'BOUNDED_LIMIT'
     persist()

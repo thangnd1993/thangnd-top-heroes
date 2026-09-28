@@ -403,3 +403,20 @@ def test_fixed_feature_completes_only_bound_current_verified_journal(bad):
         assert bool(result)==(bad is None)
         if result:
             assert result['shop-monthly-privilege-gift']['claim_id']==73
+
+
+def test_unauthorized_resource_does_not_fail_other_independent_flows(rig,tmp_path):
+    calls = []
+    registry,session,feature = setup(calls)
+    def unauthorized(active,folder,rewards):
+        calls.append((active.target['index'],'resource-excluded',tuple(rewards)))
+        return dict(rewards={r:dict(result='RESOURCE_NOT_AUTHORIZED',journal='NONE',claim_dispatched=False)
+                             for r in rewards},return_home='SUCCESS')
+    registry.register(Flow('resource-excluded',('wood-only',),unauthorized))
+    registry.register(Flow('later-independent',('later',),feature))
+    result = fleet.run(rig[0],tmp_path,registry=registry,session_factory=session,identity_reader=lambda *a:'disk')
+    account = result['accounts'][0]
+    assert account['result'] == 'COMPLETE' and result['result'] == 'PASS'
+    assert account['rewards']['wood-only']['result'] == 'RESOURCE_NOT_AUTHORIZED'
+    assert account['rewards']['later']['result'] == 'NOT_AVAILABLE'
+    assert calls[-2:] == [(7,'later-independent',('later',)),(7,'cleanup')]
