@@ -1,25 +1,35 @@
 # Tiến độ
 
-## Phase 7 — Guild + Mail — IN PROGRESS
+## Phase 7 — Guild + Mail — PARTIAL after full fleet
 
-User explicitly authorized Phase7 on2026-09-27. See [PHASE7.md](PHASE7.md).
-Phase6 remains completed; no Phase8. Original random target11 has8 VERIFIED
-Phase7 actions(122-129): Relic, both Guild gift tabs, and eligible Mail tabs.
-124/125 were reconciled without redispatch. Latest run sent exactly ONE new
-QuickRead129 for remaining System Mail1→0; Mail returned Home successfully.
-Source14e5ad6 / CI36349076581 passed1015tests(26skip), lint, build, smoke and upload.
-Artifact10941694353 is delivered to Desktop/app;598 copied files verified.
-Latest report: automation/20260927-211615-066061Z/fleet-report.json.
-All105 older baseline rows remain unchanged. Selection/Protection/names and
-external running1/2/4/5/7 preserved; target11 stopped by owned cleanup.
-The user confirmed WOOD ONLY on2026-09-28 and authorized the final all-current
-non-Protected instance-first fleet after the new CI artifact. Brown wood is correctly
-recognized in reference/live evidence; the saved gray icon is positively stone.
-Repair adds explicit RESOURCE_NOT_AUTHORIZED, current-button resource verification,
-per-donation count reporting and safe continuation of independent flows. No resource
-scope expansion. Targeted tests/CI/delivery precede the authorized final fleet.
-Full fleet has NOT run yet; Phase7 remains PARTIAL. Journals122-129 stay immutable.
+Latest code `99dd484` enforces current-frame WOOD ONLY on the qualified enabled
+GREEN donation control. No stone/diamond/other-resource authorization. CI
+`36393326286` passed lint,1035 tests(26 skipped), Windows build, smoke and upload.
+Artifact10958880794 delivered to Desktop/app;326 runtime assets and599 copied files
+verified. This checkpoint is documentation only; tested source remains99dd484.
 
+Authorized final instance-first fleet processed8/8 current non-Protected accounts,
+sequentially:2/3/4/5/8/9/10/11. Report:
+`diagnostics/tasks/automation/20260928-082613-687829Z/fleet-report.json`.
+Overall PARTIAL, not PASS:52 new actions VERIFIED(15 Guild/Mail+37 Phase6), one
+Queen con loot action138 remains RESERVED/POSSIBLE and MUST NOT be replayed.
+All113 prior journal rows, including VERIFIED122-129, remain byte-for-byte unchanged.
+
+WOOD donations0; diamond0; stone/other0. Every reached Technology page positively
+showed STONE:3/4/8 had19→19 and9/10/11 had17→17 remaining. Excluded safely as
+RESOURCE_NOT_AUTHORIZED. No current wood opportunity existed on these six pages;
+real repeated-wood donation remains unobserved, although offline regressions pass.
+
+Remaining blockers:2/5 Home recovery ended POPUP_GENERIC without a qualified
+handler; six reached accounts have unresolved Member Gift/number-badge detection;
+Queen con loot138 needs independent original-action reconciliation, not retry.
+Some Mail tabs remain UNKNOWN/BLOCKED, plus transient ADB and one Shop daily gap.
+See [PHASE7.md](PHASE7.md) for exact per-account results and journal counts.
+
+All8 owned cleanups succeeded and selections restored. All12 final instances
+stopped/unselected, names unchanged; Protected0/1/6/7 untouched. No Trial Hall,
+paid input, config/name edits or Phase8. Do not relabel this fleet PASS or blindly
+rerun it. Preserve all locks; use saved evidence for any further repair.
 
 ## Phase 6 PASS — 2026-09-27 (Vietnam time)
 

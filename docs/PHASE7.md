@@ -1,6 +1,6 @@
 # Phase 7 — Guild and Mail
 
-Status: implementation and offline qualification in progress. Not accepted yet.
+Status: PARTIAL after the full 2026-09-28 fleet; see the latest result below.
 Branch: `codex/phase7-guild-mail`, based on Phase 6 completion `c4309fe`.
 The user's 2026-09-27 request explicitly starts Phase 7; Phase 8 is excluded.
 
@@ -386,3 +386,72 @@ Final focused gate:25 wood/donation checks passed(65 unrelated cases deselected)
 including unknown-cost reporting and preservation of independently verified count
 progress. Ruff/diff-check passed. The superseded CI was cancelled before using any
 artifact; the latest commit must pass the full gate before real mutation.
+
+
+## Full wood-only fleet result —2026-09-28
+
+Code99dd484135197b9ca700e35e507c8b49a79ffa27, branch codex/phase7-guild-mail.
+CI36393326286 passed lint,1035pytest/26skip(1974.72s), Windows portable build,
+GUI smoke and upload. Artifact10958880794, digest
+`sha256:347a637b3411f6030691394705c29f89fa5843e1484f247d555620dfe1f9cae7`.
+All326 runtime assets matched repository source; only the previously verified
+Top Heroes build was removed from exact Desktop/app, then599 copied files were
+hash-verified. EXE SHA256:
+`4a9075389bfa29a1396f59d62542913b178cc1d08059050161a6f8b1fbfe60f5`.
+Delivery proof:artifacts/desktop-phase7-99dd484-delivery.json. Post-run files still
+match the delivered build. This checkpoint changes documentation only.
+
+Final report:diagnostics/tasks/automation/20260928-082613-687829Z/fleet-report.json.
+Fresh live snapshot2/3/4/5/8/9/10/11, max_concurrency1, all five registry flows
+VIP/BXH/Shop/Guild/Mail enabled per instance. Eight owned starts/cleanups; no
+feature-wide fleet pass. All12 instances were stopped/unselected at preflight
+and final inventory. Protection0/1/6/7, names and original selections unchanged.
+
+V=VERIFIED; U=UNKNOWN without input; B=BLOCKED without input; P=dispatched but
+unverified/locked; N=NOT_AVAILABLE. Wood column shows remaining count, zero taps.
+Verified columns count new actions, not individual reward items.
+
+| Account | Relic | Loot | Member | Wood count / cost | Mail Guild | System | Reports | Other tabs | V Phase7 / all | Cleanup/name |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+|2 / 5-Emmmmm|B|B|B|not reached|B|B|B|B|0 / 0|SUCCESS/unchanged|
+|3 / Queen con|V|P138|U|19→19 STONE|B|V|V|N|3 / 10|SUCCESS/unchanged|
+|4 / 3-Chíp|V|U|U|19→19 STONE|B|U|V|N|2 / 8|SUCCESS/unchanged|
+|5 / 4-Em Pé|B|B|B|not reached|B|B|B|B|0 / 0|SUCCESS/unchanged|
+|8 / Soup|V|V|U|19→19 STONE|B|V|B|N|3 / 10|SUCCESS/unchanged|
+|9 / Pooh5|V|V|U|17→17 STONE|B|U|B|N|2 / 7|SUCCESS/unchanged|
+|10 / Nấm hương|V|V|U|17→17 STONE|B|U|B|N|2 / 8|SUCCESS/unchanged|
+|11 / Nấm đùi gà|V|V|U|17→17 STONE|B|V|B|N|3 / 9|SUCCESS/unchanged|
+
+All six reached Technology pages were positively STONE and excluded as
+RESOURCE_NOT_AUTHORIZED. Total wood/diamond/stone/other donations=0/0/0/0.
+The fleet proves current forbidden-resource exclusion; no real WOOD sequence was
+available to verify end-to-end. Do not claim live20→0 acceptance from offline tests.
+
+Blockers retained, no thresholds lowered or production code changed mid-run:
+
+- 2/5:initial recovery ACTION_FAILED, final POPUP_GENERIC, error No verified safe
+ handler for POPUP_GENERIC. Explicit ADB emulator-5558/5564. No reward input.
+- 3:loot138 dispatched once from236; saved post-frame visibly shows1 remaining,
+ but the detector returns UNKNOWN, so RESERVED/POSSIBLE remains. Never replay138.
+- 4:loot badge489 remained UNKNOWN before input. No loot journal/input.
+- All six:Member page UNKNOWN; quick-member anchor approximately.9415-.9417
+ below.98 despite generic quick anchor approximately.9818-.9820. No member input.
+- Mail Guild badge is ambiguous on all six; System UNKNOWN on4/9/10; Reports
+ ambiguous on8/9/10/11. War/Collection had no numbered eligible badges on six.
+- Independent existing-flow gaps:Shop daily UNKNOWN on4; ADB/boot verification
+ failures blocked VIP upper/BXH on9, Shop monthly on10 and Shop permanent on11.
+ Later independent work continued only with fresh verified identity/evidence.
+
+53 new journals130-182:52 VERIFIED(15 Guild/Mail+37 Phase6), only138 remains
+RESERVED/POSSIBLE. No previous row changed:all113 baseline records, specifically
+VERIFIED122-129, are identical. Read-only audit:
+artifacts/phase7-final-fleet-audit.json.239 saved-action sources were bound to the
+exact non-Protected target; no donation-control/Trial-Hall input in the audited
+current-frame action evidence. No Protected journal, lifecycle/ADB/game action,
+paid input, instance rename or persistent config modification. All selections
+restored and8/8 cleanup SUCCESS. Fleet processed8/8 but all accounts remain
+PARTIAL due to unresolved required flows. Phase7 is PARTIAL; Phase8 not started.
+
+NEXT: diagnose the retained popup, quick-claim/button and numbered-badge evidence
+offline; retain138 lock and every VERIFIED row. Any later code/runtime acceptance
+must use its own passing artifact and bound unfinished scope. No blind fleet rerun.
