@@ -1,5 +1,15 @@
 # Tiến độ
 
+## Phase 7 unfinished-state repair — in progress, 2026-09-29
+
+The user explicitly permits PASS with journal138 remaining RESERVED/POSSIBLE as
+an immutable, named exception. Never retry/reconcile138 or mark it VERIFIED.
+All other recoverable blockers must finish. Positive STONE exclusion completes
+the authorized scope; do not require a live WOOD donation when none is available.
+Repair saved Home-overlay, Gift/Mail badge and transient identity evidence, then
+fresh CI/artifact delivery and resume only unfinished original fleet scope.
+See latest [PHASE7.md](PHASE7.md) section. Prior report below remains unchanged.
+
 ## Phase 7 — Guild + Mail — PARTIAL after full fleet
 
 Latest code `99dd484` enforces current-frame WOOD ONLY on the qualified enabled

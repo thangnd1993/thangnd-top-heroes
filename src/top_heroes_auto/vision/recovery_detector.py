@@ -174,7 +174,7 @@ class RecoveryScreenDetector:
         # Artwork-independent Home overlay: opposite Home HUD corners remain
         # dimmed/blurred while an ordinary foreground panel is sharp. This does
         # not reinterpret loading, login dialogs or an arbitrary gameplay page.
-        if detected.state in {ScreenState.UNKNOWN, ScreenState.GAME_HOME} and not (
+        if detected.state in {ScreenState.UNKNOWN, ScreenState.GAME_HOME, ScreenState.POPUP_GENERIC} and not (
                 detected.state == ScreenState.UNKNOWN and detected.evidence):
             covered = tuple(unique_current_anchor(screen, a) for a in self.home_overlay_anchors)
             if len(covered) == 2 and all(e.matched for e in covered):

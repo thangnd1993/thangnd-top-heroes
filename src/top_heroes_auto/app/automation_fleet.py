@@ -13,6 +13,7 @@ from top_heroes_auto.app.bxh_shop_acceptance import (
 )
 from top_heroes_auto.app.flow_registry import COMPLETE, production_registry
 from top_heroes_auto.app.instance_session import InstanceSession
+from top_heroes_auto.app.resume_exception import preserved_claims
 from top_heroes_auto.automation.guard import SafetyError
 
 
@@ -22,7 +23,7 @@ def blocked(error):
 
 def execute_instance(manager, data, target, folder, registry, *, prior=None, enabled=None,
                      session_factory=InstanceSession, identity_reader=persistent_identity,
-                     temporary_selection=True, cancelled=lambda: False):
+                     temporary_selection=True, cancelled=lambda: False, preserve_possible=()):
     prior = prior or {}
     plan = registry.snapshot(enabled)
     required = tuple(r for flow in plan for r in flow.rewards)
@@ -30,6 +31,16 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
         plan=[dict(flow=f.id, rewards=list(f.rewards), enabled=f.enabled, supported=f.supported) for f in plan],
         rewards={k: v for k, v in prior.get('rewards', {}).items() if k in required}, flows={},
         cleanup='NOT_REQUIRED', selection_restored=True, recovery_ok=prior.get('recovery_ok', False), new_claims=0)
+    exceptions = preserved_claims(manager, {'accounts': [prior]}, [target], preserve_possible)
+    by_reward = {proof['reward']: proof for proof in exceptions.values()}
+    if set(by_reward)-set(required):
+        raise SafetyError('Preserved reward is absent from the frozen registry plan.')
+    row['rewards'].update(by_reward)
+
+    def complete(outcome):
+        return outcome.get('result') in COMPLETE or (
+            outcome.get('reward') in by_reward and outcome == by_reward[outcome['reward']])
+
     folder.mkdir(parents=True, exist_ok=True)
     def persist():
         write(folder/'account-report.json', row)
@@ -51,7 +62,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                             or proof.get('journal') != 'VERIFIED' or not proof.get('claim_id')):
                         raise SafetyError('Invalid feature journal completion evidence.')
                     prior_reward = row['rewards'].get(reward,{})
-                    if prior_reward.get('result') not in COMPLETE:
+                    if not complete(prior_reward):
                         row['rewards'][reward] = dict(proof,claim_dispatched=False,
                             prior_result=prior_reward.get('result'))
                     elif not prior_reward.get('claim_id'):
@@ -62,7 +73,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                 row['flows'][flow.id] = dict(result='BLOCKED', error=str(exc))
                 row['error'] = str(exc)
                 for reward in flow.rewards:
-                    if row['rewards'].get(reward,{}).get('result') not in COMPLETE:
+                    if not complete(row['rewards'].get(reward,{})):
                         row['rewards'][reward] = blocked(exc)
                 persist()
                 continue
@@ -72,7 +83,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                     row['rewards'].setdefault(reward, dict(result=status, journal='NONE', claim_dispatched=False))
                 persist()
                 continue
-            pending = tuple(r for r in flow.rewards if row['rewards'].get(r, {}).get('result') not in COMPLETE-{'DISABLED', 'NOT_APPLICABLE'})
+            pending = tuple(r for r in flow.rewards if not complete(row['rewards'].get(r, {})) or row['rewards'].get(r, {}).get('result') in {'DISABLED', 'NOT_APPLICABLE'})
             if not pending:
                 row['flows'][flow.id] = dict(result='ALREADY_COMPLETED', rewards={r: row['rewards'][r] for r in flow.rewards})
                 persist()
@@ -95,7 +106,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                 # Silent omissions never become successful/exhausted features.
                 for reward in pending:
                     row['rewards'][reward] = outcomes.get(reward, blocked('Enabled reward omitted by flow.'))
-                detail['result'] = 'COMPLETE' if all(row['rewards'][r]['result'] in COMPLETE for r in flow.rewards) else 'BLOCKED'
+                detail['result'] = 'COMPLETE' if all(complete(row['rewards'][r]) for r in flow.rewards) else 'BLOCKED'
                 row['flows'][flow.id] = detail
                 row['new_claims'] += sum(outcomes.get(r, {}).get('claim_count', int(bool(outcomes.get(r, {}).get('claim_dispatched')))) for r in pending)
                 row['recovery_ok'] = detail.get('return_home') == 'SUCCESS'
@@ -108,7 +119,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                 row['recovery_ok'] = False
             persist()
         if not started and not prior and row['rewards'] and all(
-                r['result'] in COMPLETE for r in row['rewards'].values()):
+                complete(r) for r in row['rewards'].values()):
             row['recovery_ok'] = True  # Nothing required lifecycle or navigation.
         # Recovery-only resume never calls reward adapters again.
         if row['rewards'] and all(r['result'] in {'DISABLED', 'NOT_APPLICABLE'} for r in row['rewards'].values()):
@@ -130,14 +141,14 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
             row['rewards'].setdefault(reward, blocked(row.get('error', 'Plan did not finish.')))
         row['result'] = 'COMPLETE' if (not row.get('error') and row['recovery_ok']
             and row['cleanup'] in {'SUCCESS', 'NOT_REQUIRED'} and row['selection_restored']
-            and all(r['result'] in COMPLETE for r in row['rewards'].values())) else 'PARTIAL'
+            and all(complete(r) for r in row['rewards'].values())) else 'PARTIAL'
         persist()
     return row
 
 
 def run(manager, data, *, random_test=False, resume_report=None, registry=None, enabled=None,
         identity_reader=persistent_identity, session_factory=InstanceSession, targets=None,
-        temporary_selection=True, cancelled=lambda: False, exclude=()):
+        temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=()):
     registry = registry or production_registry()
     before = inventory(manager)
     previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
@@ -149,6 +160,9 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         if enabled is not None and enabled != previous.get('enabled_config', {}):
             raise SafetyError('Resume cannot change the original enabled configuration.')
         enabled = previous.get('enabled_config', {})
+    # Exceptions are opt-in on every resume, never inherited as generic completion.
+    if previous and set(previous.get('preserved_possible_claims', [])) - set(preserve_possible):
+        raise SafetyError('Resume must explicitly retain previously authorized POSSIBLE exceptions.')
     eligible = candidates(before)
     chosen = None
     if previous:
@@ -191,16 +205,23 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
             target.pop('identity_error', None)
         except (SafetyError, OSError, ValueError) as exc:
             target['identity_error'] = str(exc)
+    exceptions = preserved_claims(manager, previous, targets, preserve_possible)
+    report['preserved_possible_claims'] = list(exceptions)
+    report['acceptance_exceptions'] = list(exceptions.values())
     write(path, report)
     old = {r['index']: r for r in previous['accounts']} if previous else {}
     for target in targets:
         progress(f"INSTANCE START #{target['index']} / {target['name']}")
         row = execute_instance(manager, data, target, folder/str(target['index']), registry,
             prior=old.get(target['index']), enabled=enabled, session_factory=session_factory,
-            identity_reader=identity_reader, temporary_selection=temporary_selection, cancelled=cancelled)
+            identity_reader=identity_reader, temporary_selection=temporary_selection, cancelled=cancelled,
+            preserve_possible=tuple(cid for cid, proof in exceptions.items() if proof['index'] == target['index']))
         report['accounts'].append(row)
         write(path, report)
         progress(f"INSTANCE END #{target['index']}: {row['result']}")
+    # A preserved journal must remain byte-for-byte unchanged throughout the run.
+    final_exceptions = preserved_claims(manager, previous, targets, preserve_possible)
+    report['preserved_journals_unchanged'] = final_exceptions == exceptions
     report['after_instances'] = inventory(manager)
     report['all_selection_states_restored'] = {r['index']: r['selected'] for r in before} == {
         r['index']: r['selected'] for r in report['after_instances']}
@@ -209,7 +230,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         r['index']: r['name'] for r in report['after_instances']}
     report['result'] = 'PASS' if (targets and all(r['result'] == 'COMPLETE' for r in report['accounts'])
         and report['all_selection_states_restored'] and report['protected_state_unchanged']
-        and report['instance_names_unchanged']) else 'PARTIAL'
+        and report['instance_names_unchanged'] and report['preserved_journals_unchanged']) else 'PARTIAL'
     write(path, report)
     progress(f'AUTOMATION REPORT: {path}')
     return report

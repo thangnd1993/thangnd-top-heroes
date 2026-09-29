@@ -69,9 +69,15 @@ def parse_list2(output: str) -> tuple[Instance, ...]:
     return tuple(result)
 
 
+class IndexedSerialUnavailable(ValueError):
+    """Indexed read returned no serial. Nonempty ambiguous output is not transient."""
+
+
 def parse_indexed_adb_serial(output: str) -> str:
     """Parse only the serial explicitly named by LDPlayer's indexed ADB command."""
     lines = [line.strip() for line in output.splitlines() if line.strip()]
+    if not lines:
+        raise IndexedSerialUnavailable("Indexed ADB serial is temporarily empty.")
     serial_pattern = r"[A-Za-z0-9][A-Za-z0-9._:\-]*"
     if len(lines) == 1 and re.fullmatch(serial_pattern, lines[0]):
         return lines[0]

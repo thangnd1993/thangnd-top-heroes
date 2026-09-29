@@ -212,10 +212,16 @@ class HomeRecoveryEngine:
                     return finish(RecoveryStatus.LIMIT_REACHED, 'No capture budget remains after a dismissal.')
                 try:
                     overlays.reserve(detection)
-                    point = port.dismiss_overlay(observation)
+                    home_back = getattr(port, 'dismiss_home_overlay_back', None)
+                    if (detection.state == ScreenState.HOME_OVERLAY
+                            and overlays.counts[signature] == 2 and callable(home_back)):
+                        home_back(observation)
+                        action = 'dismiss_home_overlay_back'
+                    else:
+                        point = port.dismiss_overlay(observation)
+                        action = f"dismiss_overlay_bottom_left:{point[0]},{point[1]}"
                 except (CommandError, OSError, SafetyError, ValueError) as exc:
                     return finish(RecoveryStatus.PROMO_BLOCKING, str(exc))
-                action = f"dismiss_overlay_bottom_left:{point[0]},{point[1]}"
                 result.actions.append(action)
                 result.steps[-1] = RecoveryStep(number, detection.state, detection.confidence,
                                                observation.screenshot, action)

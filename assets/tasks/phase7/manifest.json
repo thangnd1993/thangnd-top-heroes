@@ -691,5 +691,65 @@
       30
     ],
     "threshold": 0.98
+  },
+  {
+    "id": "badge-small-digit-1",
+    "source": "saved fleet badge loot-post-one-quick",
+    "threshold": 0.98,
+    "notes": "Isolated game numbered badge; current control-relative search only.",
+    "source_bbox": [
+      489,
+      1190,
+      21,
+      21
+    ]
+  },
+  {
+    "id": "badge-small-digit-3",
+    "source": "saved fleet badge member-3-quick",
+    "threshold": 0.98,
+    "notes": "Isolated game numbered badge; current control-relative search only.",
+    "source_bbox": [
+      489,
+      1190,
+      21,
+      21
+    ]
+  },
+  {
+    "id": "badge-small-digit-4",
+    "source": "saved fleet badge member-8-quick",
+    "threshold": 0.98,
+    "notes": "Isolated game numbered badge; current control-relative search only.",
+    "source_bbox": [
+      489,
+      1190,
+      21,
+      21
+    ]
+  },
+  {
+    "id": "badge-small-digit-6",
+    "source": "saved fleet badge member-4-quick",
+    "threshold": 0.98,
+    "notes": "Isolated game numbered badge; current control-relative search only.",
+    "source_bbox": [
+      489,
+      1190,
+      21,
+      21
+    ]
+  },
+  {
+    "id": "badge-mail-digit-3",
+    "source": "saved fleet badge mail-10-guild",
+    "threshold": 0.98,
+    "notes": "Isolated game numbered badge; current control-relative search only.",
+    "source_bbox": [
+      275,
+      180,
+      21,
+      20
+    ]
   }
 ]

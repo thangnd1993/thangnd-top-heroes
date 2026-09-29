@@ -15,14 +15,23 @@ def data_directory() -> Path:
 def main(argv: list[str] | None = None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] in {'automation-acceptance', 'phase6-acceptance'}:
-        resume = Path(argv[2]) if len(argv) == 3 and argv[1] == '--resume-report' else None
-        if not resume and argv[1:] not in (["--random-test"], ["--confirm-non-protected"]):
-            raise ValueError('Automation requires an explicit random/fleet/resume scope.')
+        from argparse import ArgumentParser
+
+        parser = ArgumentParser(prog=argv[0])
+        scope = parser.add_mutually_exclusive_group(required=True)
+        scope.add_argument('--resume-report', type=Path)
+        scope.add_argument('--random-test', action='store_true')
+        scope.add_argument('--confirm-non-protected', action='store_true')
+        parser.add_argument('--preserve-possible', type=int, action='append', default=[])
+        options = parser.parse_args(argv[1:])
+        if options.preserve_possible and not options.resume_report:
+            raise ValueError('POSSIBLE exceptions require an explicit resume report.')
         from top_heroes_auto.app.automation_fleet import run
         from top_heroes_auto.app.diagnostic import _manager
 
         data = data_directory()
-        run(_manager(data), data, random_test=argv[1] == '--random-test', resume_report=resume)
+        run(_manager(data), data, random_test=options.random_test, resume_report=options.resume_report,
+            preserve_possible=tuple(options.preserve_possible))
         return 0
     if argv and argv[0] == 'guild-mail-reconcile-saved':
         if len(argv) != 2 or not argv[1].isdigit():

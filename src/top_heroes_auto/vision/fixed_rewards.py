@@ -180,6 +180,18 @@ class FixedRewardDetector:
             if page == expected:
                 for role, variant in pairs:
                     anchors[role] = self._same_target_variant(anchors[role], anchors[variant])
+        if page == 'shop-daily':
+            core, badge = anchors['shop-gift'], anchors['shop-attention']
+            if core.matched and core.device_box and not badge.matched and badge.score < badge.threshold:
+                # The attention mark rocks with the gift. Search only beside
+                # the current unique gift; preserve strict paired page proof.
+                b = core.device_box
+                w,h = captured.device_size or captured.original_size
+                region = portrait_region((b.x+b.width*.6)/w,max(0,b.y-b.height*.8)/h,
+                    min(w,b.x+b.width*1.4)/w,(b.y+b.height*.4)/h)
+                posed = unique_pose_anchor(captured,replace(self.anchors['shop-attention'],
+                    expected_region=region,threshold=max(.98,badge.threshold)))
+                anchors['shop-attention'] = self._same_target_variant(badge,posed)
         if page in {'shop-permanent', 'shop-monthly'}:
             route = page.removeprefix('shop-')
             if route == 'monthly':

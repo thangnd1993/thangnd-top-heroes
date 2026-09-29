@@ -28,6 +28,7 @@ from top_heroes_auto.automation.recovery import (
 )
 from top_heroes_auto.vision.image_normalizer import ScreenshotInvalid
 from top_heroes_auto.vision.matcher import match_anchor
+from top_heroes_auto.vision.models import ScreenState
 from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
 from top_heroes_auto.vision.screenshot import ScreenshotService
 
@@ -144,7 +145,7 @@ class DiagnosticRecoveryPort:
                     break
             raise
         detection = self.detector.detect(screen)
-        if not persist and detection.state in DISMISSIBLE:
+        if not persist and detection.state in DISMISSIBLE | {ScreenState.POPUP_GENERIC}:
             if self._overlay_samples >= 12:
                 raise SafetyError("Overlay evidence capture bound reached.")
             self._overlay_samples += 1
@@ -184,6 +185,19 @@ class DiagnosticRecoveryPort:
                              observed_target=target)
         log.info("[%s / #%s] Qualified overlay bottom-left tap %s", self.name, self.index, point)
         return point
+
+    def dismiss_home_overlay_back(self, observation):
+        if self._overlay_frame is None or self._overlay_frame[2] is not observation.detection:
+            raise SafetyError('Stale Home overlay observation.')
+        target, screen, detection = self._overlay_frame
+        if detection.state != ScreenState.HOME_OVERLAY:
+            raise SafetyError('Back requires positively proven underlying Home.')
+        dismiss_overlay_bottom_left(screen, detection)  # Same strict paired evidence gate.
+        self._overlay_frame = None
+        self._after_overlay = True
+        self.manager.execute(self.index, 'keyevent', values=(4,), snapshot=self.snapshot,
+                             observed_target=target)
+        log.info('[%s / #%s] Qualified Home overlay Back', self.name, self.index)
 
     def persist_final(self):
         self.final_sample = True

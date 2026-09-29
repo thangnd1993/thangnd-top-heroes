@@ -455,3 +455,60 @@ PARTIAL due to unresolved required flows. Phase7 is PARTIAL; Phase8 not started.
 NEXT: diagnose the retained popup, quick-claim/button and numbered-badge evidence
 offline; retain138 lock and every VERIFIED row. Any later code/runtime acceptance
 must use its own passing artifact and bound unfinished scope. No blind fleet rerun.
+
+
+## Unfinished-state repair and explicit exception — 2026-09-29
+
+Continue checkpoint8d17ddc without replaying the accepted fleet. The user accepts
+Phase7 PASS with historical journal138 preserved RESERVED/POSSIBLE as a named
+safety exception. This does NOT verify138, reconcile it or release/retry its reward.
+All other UNKNOWN/unprocessed required states still block PASS. Positive STONE
+exclusion is a completed authorized scope; no real WOOD opportunity is required
+when live pages offer none. WOOD-only code and regression coverage remain.
+
+Saved evidence diagnosis and production repairs:
+
+- Home assistance popup: POPUP_GENERIC previously bypassed paired covered-Home
+  proof. The full saved frame has opposite Home HUD anchors .981414/.991949 at
+  unchanged .98 thresholds. The popup-only crop has no Home proof and stays
+  blocked. Home recovery persists these frames; after one approved bottom-left
+  dismissal, the same positively proven Home overlay may receive one Back.
+  Existing two-per-overlay/four-total bounds and fresh-frame verification remain.
+- Gift/member and Mail failures share tiny-number reading problems. Isolate the
+  CURRENT red badge from neighboring letters, preserve split three-digit fill,
+  and require two OCR scales to agree. Strict isolated small glyph variants cover
+  OCR-omitted single digits; unrelated/duplicate/conflicting evidence stays UNKNOWN.
+  Member availability does not depend on gift row owners or changing row contents.
+  Existing continuous loot/member and all-five-Mail-tab traversal is preserved.
+- Shop daily saved frame: gift .990836 but rocking attention mark only .924312.
+  Reuse bounded pose matching beside that current unique gift at >=.98; saved
+  badge now .992284. No account coordinates, new routes or lowered thresholds.
+- Read-only ADB identity probes have at most three short attempts. Recheck exact
+  name/index, selection/Protection and PID/vbox PID before/after. Ambiguous serial,
+  valid boot mismatch, changed serial/runtime immediately fail closed. Actual
+  input is never retried; existing bounded exact-target reconnect is preserved.
+
+Explicit CLI resume exception: `--resume-report PATH --preserve-possible 138`.
+Validate original report reward/claim ID, namespace/name/index, persistent identity,
+RESERVED/POSSIBLE state and live Protection. Record PRESERVED_POSSIBLE separately;
+never treat it as VERIFIED. Require explicit retention on future resumes, skip
+only that reward before calling its adapter, hash-check the original row unchanged.
+New uncertain claims cannot inherit this exemption. No instance-number special case.
+
+Offline baseline:166 historical rows through182, all immutable (especially122-129
+and138). Ten game-only saved screenshots and five tiny numbered badge assets are
+qualified regressions, with no embedded PNG metadata, credentials or private files.
+Only targeted tests locally; full suite/build/smoke/upload belongs to fresh CI.
+After delivery, resume unfinished original snapshot2/3/4/5/8/9/10/11 sequentially,
+one owned session per instance, all enabled registered flows, same selection and
+external-running ownership. No Protected changes, rename, Trial Hall, stone/diamond
+spending or Phase8. Acceptance remains pending until actual resumed results pass.
+
+
+Local gate:367 targeted Guild/Mail/wood/reconciliation/fixed-flow/ADB/session tests
+passed in778.70s; earlier62 saved-vision/Home-overlay checks passed in259.33s.
+Additional focused Home Back checks2/2 and explicit exception/CLI checks11/11 pass.
+Ruff for affected Python files and git diff-check pass. Self-review confirms no
+claim retries, no journal writes in exception handling, bounded OCR/identity/
+overlay attempts, unchanged exact-target protection, no resource policy changes,
+and no feature-wide fleet orchestration. No emulator launched during repairs.

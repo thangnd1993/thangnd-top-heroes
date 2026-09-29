@@ -7,6 +7,10 @@ from top_heroes_auto.app.process import Process, decode
 from top_heroes_auto.automation.guard import SafetyError
 
 
+class BootIdentityUnavailable(SafetyError):
+    """A read-only boot probe returned no usable identity; never a mismatch."""
+
+
 @dataclass(frozen=True)
 class Target:
     index: int
@@ -22,7 +26,7 @@ def valid_boot_id(value: str) -> str:
             raise ValueError()
         return str(parsed)
     except (ValueError, AttributeError) as exc:
-        raise SafetyError("Không xác minh được Android boot ID.") from exc
+        raise BootIdentityUnavailable("Không xác minh được Android boot ID.") from exc
 
 
 def validate_serial(serial: str) -> str:

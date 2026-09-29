@@ -8,7 +8,14 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from top_heroes_auto.adb.client import ADB, Target, valid_boot_id, validate_package, validate_serial
+from top_heroes_auto.adb.client import (
+    ADB,
+    BootIdentityUnavailable,
+    Target,
+    valid_boot_id,
+    validate_package,
+    validate_serial,
+)
 from top_heroes_auto.app.process import CommandError, decode
 from top_heroes_auto.automation.guard import (
     RunSnapshot,
@@ -17,7 +24,7 @@ from top_heroes_auto.automation.guard import (
     require_run_member,
     require_selected,
 )
-from top_heroes_auto.ldplayer.client import Instance, LDPlayer
+from top_heroes_auto.ldplayer.client import IndexedSerialUnavailable, Instance, LDPlayer
 from top_heroes_auto.storage.store import Store
 
 log = logging.getLogger("top_heroes_auto")
@@ -90,6 +97,8 @@ class Manager:
     STOP_TIMEOUT = 60.0
     POLL_INTERVAL = 1.0
     ADB_RESOLVE_TIMEOUT = 30.0
+    IDENTITY_PROBE_ATTEMPTS = 3
+    IDENTITY_PROBE_DELAY = .2
 
     @staticmethod
     def _local_endpoint(serial: str) -> str | None:
@@ -232,6 +241,32 @@ class Manager:
             return require_run_member(self.store, self._active, current, index)
         return require_selected(self.store, self._active, current, index)
 
+    def _same_runtime(self, index, original):
+        current = self._check(index)
+        if (not current.android_started or not current.running or
+                (current.name, current.pid, current.vbox_pid) !=
+                (original.name, original.pid, original.vbox_pid)):
+            raise SafetyError('Exact instance runtime changed during ADB verification.')
+        return current
+
+    def _probe_identity(self, index, probe, *, instance=None):
+        """Retry only read-only identity probes, never an input or a mismatch."""
+        original = instance or self._check(index)
+        for attempt in range(self.IDENTITY_PROBE_ATTEMPTS):
+            self._same_runtime(index, original)
+            try:
+                value = probe()
+            except (BootIdentityUnavailable, IndexedSerialUnavailable, CommandError):
+                if attempt + 1 == self.IDENTITY_PROBE_ATTEMPTS:
+                    raise
+                log.warning('[#%s] Transient identity probe; bounded retry %s/%s',
+                            index, attempt + 1, self.IDENTITY_PROBE_ATTEMPTS)
+                time.sleep(self.IDENTITY_PROBE_DELAY)
+                continue
+            self._same_runtime(index, original)
+            return value
+        raise SafetyError('Identity probe bound exhausted.')
+
     def _resolve(self, index: int) -> Target:
         instance = self._check(index)
         if not instance.android_started:
@@ -239,25 +274,33 @@ class Manager:
         self.adb.start_server()
         deadline = time.monotonic() + self.ADB_RESOLVE_TIMEOUT
         recovered_server = False
+        original_serial = original_boot = None
         while True:
-            self._check(index)
+            self._same_runtime(index, instance)
             # This serial comes from LDPlayer's documented --index mechanism,
             # never from a port formula or the first global adb device.
             try:
-                serial = validate_serial(self.ld.adb_serial(index))
+                serial = self._probe_identity(index, lambda: validate_serial(self.ld.adb_serial(index)), instance=instance)
             except ValueError as exc:
                 raise SafetyError(
                     "LDPlayer không cung cấp đúng một ADB serial cho instance được chỉ định."
                 ) from exc
+            if original_serial is not None and serial != original_serial:
+                raise SafetyError('Indexed ADB serial changed during resolution.')
+            original_serial = serial
             devices = self.adb.devices()
             try:
                 # Strategy B is authoritative identity, even when global
                 # enumeration has not registered the transport yet.
-                expected = valid_boot_id(self.ld.adb_command(
+                expected = self._probe_identity(index, lambda: valid_boot_id(self.ld.adb_command(
                     index, "shell cat /proc/sys/kernel/random/boot_id"
-                ))
-            except (CommandError, SafetyError, ValueError):
+                )), instance=instance)
+            except (CommandError, BootIdentityUnavailable):
                 expected = None
+            if expected:
+                if original_boot is not None and expected != original_boot:
+                    raise SafetyError('Indexed Android boot identity changed during resolution.')
+                original_boot = expected
             candidates = [serial]
             endpoint = self._local_endpoint(serial)
             if endpoint and expected and devices.get(serial) != "device":
@@ -279,13 +322,13 @@ class Manager:
             target_serial = next((item for item in candidates if devices.get(item) == "device"), None)
             if target_serial and expected:
                 self._check(index)
-                if self.adb.boot_id(target_serial) != expected:
+                if self._probe_identity(index, lambda: self.adb.boot_id(target_serial), instance=instance) != expected:
                     raise SafetyError("ADB target không khớp Android boot ID của LDPlayer index.")
                 self._check(index)
                 if (
-                    valid_boot_id(
+                    self._probe_identity(index, lambda: valid_boot_id(
                         self.ld.adb_command(index, "shell cat /proc/sys/kernel/random/boot_id")
-                    )
+                    ), instance=instance)
                     != expected
                 ):
                     raise SafetyError("Android đã khởi động lại trong lúc xác minh.")
@@ -323,7 +366,7 @@ class Manager:
             try:
                 target = self._resolve(index)
                 self._check(index)
-                if self.adb.boot_id(target.serial) != target.boot_id:
+                if self._probe_identity(index, lambda: self.adb.boot_id(target.serial)) != target.boot_id:
                     raise SafetyError("ADB target đã thay đổi; hủy chụp màn hình.")
                 self._check(index)
                 return target, self.adb._capture(target.serial)
@@ -441,7 +484,7 @@ class Manager:
                         raise
                 self._check(index)
                 # Revalidate explicit transport immediately before sending the action.
-                if self.adb.boot_id(target.serial) != target.boot_id:
+                if self._probe_identity(index, lambda: self.adb.boot_id(target.serial)) != target.boot_id:
                     raise SafetyError("ADB target đã thay đổi; hủy thao tác.")
                 self._check(index)
                 if observed_target is not None:

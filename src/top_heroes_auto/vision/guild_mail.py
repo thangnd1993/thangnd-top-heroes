@@ -44,7 +44,7 @@ def intersects(a, b):
     return (a.x < b.x+b.width and b.x < a.x+a.width and a.y < b.y+b.height and b.y < a.y+a.height)
 
 
-def components(image, color):
+def components(image, color, *, closing=9):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     limits = {'green': ((32, 70, 90), (85, 255, 255)),
               'blue': ((85, 65, 100), (115, 255, 255)),
@@ -56,7 +56,7 @@ def components(image, color):
     else:
         mask = cv2.inRange(hsv, *limits[color])
     if color == 'red':
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((9,9),np.uint8))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((closing,closing),np.uint8))
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     return [BoundingBox(*cv2.boundingRect(c)) for c in contours if cv2.contourArea(c) > 8]
 
@@ -92,7 +92,7 @@ class GuildMailDetector:
         # Outlined text in the supplied resized references has softer edges
         # than the live renderer. Match the same low-frequency letter structure
         # at a fixed scale grid, without reducing the confidence threshold.
-        text_core = role not in PIXEL_ROLES
+        text_core = role not in PIXEL_ROLES and not role.startswith(('badge-small-','badge-mail-'))
         resampled_entry = role in PIXEL_ROLES and not role.startswith('badge-digit-') and role != 'gift-received-check'
         kernel, sigma = ((5, 5), 1.3) if text_core else ((3, 3), .5)
         if text_core or resampled_entry:
@@ -279,7 +279,7 @@ class GuildMailDetector:
     def local_badge(self, frame, box, *, numbered=False):
         """Badge must attach to the control's upper-right, not another red dot."""
         image = portrait(frame.captured)
-        candidates = [b for b in components(image, 'red') if
+        candidates = [b for b in components(image, 'red', closing=13) if
             box.x+box.width*.6 < b.center[0] < box.x+box.width+box.height*.4 and
             box.y-box.height*.4 < b.center[1] < box.y+box.height*.3 and
             .04*box.width < b.width < .65*box.height and .04*box.width < b.height < .65*box.height]
@@ -292,12 +292,17 @@ class GuildMailDetector:
         # bounded crops independently at both OCR scales; conflicting numbers
         # reject the badge instead of choosing whichever crop looks convenient.
         readings = set()
-        regions = []
-        for horizontal, top, bottom in ((.4,.4,.4),(.6,.6,.6),(.5,.45,.2)):
-            px, pt, pb = (max(2,round(badge.height*v)) for v in (horizontal,top,bottom))
-            region = BoundingBox(badge.x-px,badge.y-pt,badge.width+2*px,badge.height+pt+pb)
-            regions.append(region)
+        # Three white digits can split and overhang the red fill. Bound the
+        # numeral crop to the CURRENT badge height, not a stored screen point.
+        numeral_width = round(badge.height*1.4) if badge.width < badge.height*.85 else badge.width
+        numeral_x = badge.x-(numeral_width-badge.width)//2
+        for margin in (0,1,2):
+            region = BoundingBox(numeral_x-margin,badge.y-margin,numeral_width+2*margin,badge.height+2*margin)
             part = crop(image,region)
+            # Neighbouring tab letters confuse OCR on tiny red badges. Isolate
+            # only the current badge and give it neutral padding, not parent UI.
+            if part is not None:
+                part = cv2.copyMakeBorder(part,12,12,12,12,cv2.BORDER_CONSTANT,value=(255,255,255))
             number = self.number_reader(part) if part is not None else None
             if number is not None:
                 readings.add(number)
@@ -305,15 +310,17 @@ class GuildMailDetector:
             return None
         if readings:
             return next(iter(readings))
-        region = regions[1]
+        region = BoundingBox(badge.x-4,badge.y-4,badge.width+8,badge.height+8)
         # Windows OCR can omit a single character. Only qualified real glyph
         # anchors may resolve it; no numeric substitutions or guessed counts.
         height,width = image.shape[:2]
         area = (max(0,region.x/width),max(0,region.y/height),
                 min(1,(region.x+region.width)/width),min(1,(region.y+region.height)/height))
         matches = []
-        for digit in (1,3,4,6):
-            role = f'badge-digit-{digit}'
+        for role in self.templates:
+            if not role.startswith(('badge-digit-','badge-small-digit-','badge-mail-digit-')):
+                continue
+            digit = int(role.rsplit('-',1)[1])
             evidence = self.anchor(frame.captured,role,area)
             if not evidence.matched and evidence.score < evidence.threshold:
                 # Selected/ordinary tabs change the background outside the red
@@ -325,8 +332,8 @@ class GuildMailDetector:
         matches = [(digit,e) for digit,e in matches if e.matched and
                    .8*badge.height <= e.device_box.height <= 1.4*badge.height and
                    .8*badge.width <= e.device_box.width <= 1.4*badge.width]
-        if len(matches) == 1:
-            digit,evidence = matches[0]
+        if matches and len({digit for digit,_ in matches}) == 1:
+            digit,evidence = max(matches,key=lambda item:item[1].score)
             frame.anchors[f'counter-{box.x}-{box.y}'] = evidence
             return digit
         return None
