@@ -15,6 +15,7 @@ class GuildMailPort(FixedRewardPort):
     def __init__(self, session, folder):
         super().__init__(session.manager,session.snapshot,session.index,session.name,folder,
                          session.check,session.cancelled)
+        self.historical_names = tuple(session.target.get('historical_names', ()))
         self.detector = GuildMailDetector()
         self.qualified = None
         self.entries = {'guild':0,'mail':0}

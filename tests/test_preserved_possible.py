@@ -92,3 +92,31 @@ def test_cli_requires_resume_and_explicit_exception_ids(monkeypatch,tmp_path):
     assert not calls
     main.main(['automation-acceptance','--resume-report',str(tmp_path),'--preserve-possible','138'])
     assert calls == [dict(random_test=False,resume_report=tmp_path,preserve_possible=(138,))]
+
+
+def test_readonly_user_rename_rebinds_same_disk_and_preserves_lock(rig,tmp_path):
+    calls,_,path,cid,before = original(rig,tmp_path)
+    rig[1].listing = rig[1].listing.replace('Farm-007','User label')
+    calls.clear()
+    result = run(rig,tmp_path,calls,resume_report=path,preserve_possible=(cid,))
+    assert result['result'] == 'PASS'
+    assert result['targets'][0]['name'] == result['accounts'][0]['name'] == 'User label'
+    assert result['targets'][0]['historical_names'] == ['Farm-007']
+    assert result['observed_name_changes'][0]['ldplayer_name_modified'] is False
+    assert dict(rig[2].reward_claims(rig[0].namespace,7)[0]) == before
+    assert all(c[1] == 'list2' for c in rig[1].calls)
+    assert calls == [(7,'start'),(7,'feature-one',('two',)),(7,'cleanup')]
+
+
+def test_rename_with_replaced_disk_cannot_preserve_exception_or_start(rig,tmp_path):
+    from test_instance_pipeline import setup
+
+    from top_heroes_auto.app.automation_fleet import run as fleet
+    calls,_,path,cid,_ = original(rig,tmp_path)
+    rig[1].listing = rig[1].listing.replace('Farm-007','User label')
+    registry,session,_ = setup(calls)
+    calls.clear()
+    with pytest.raises(SafetyError):
+        fleet(rig[0],tmp_path,registry=registry,session_factory=session,
+            identity_reader=lambda *a:'different-disk',resume_report=path,preserve_possible=(cid,))
+    assert not calls

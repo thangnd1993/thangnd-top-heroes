@@ -512,3 +512,26 @@ Ruff for affected Python files and git diff-check pass. Self-review confirms no
 claim retries, no journal writes in exception handling, bounded OCR/identity/
 overlay attempts, unchanged exact-target protection, no resource policy changes,
 and no feature-wide fleet orchestration. No emulator launched during repairs.
+
+
+Fresh gate/delivery:00a9a0ec2c58cc619b3eb6e54a96362c133f6704 passed CI36548361084
+(lint,1074 tests/26skip in1671.10s, portable build, smoke, upload).
+Artifact11024254787 digest7cc0e187a693071becadfb91336989b640cf0e836bb5457dc17bd37b23f704a6;
+331 runtime assets verified. Desktop/app old599-file build was removed only after
+exact hash comparison;604 new files copied/verified. EXE SHA256:
+8d9c80694ed4c927471fd5f7fa14e9e90b70edc0764cc0a0c7c0e378387543b4.
+
+Before any emulator start, read-only live inventory found USER display-name edits:
+3 Queen con→Queen Queen,9 Pooh5→Mini Quin,10 Nấm hương→HiHi,11 Nấm đùi gà→Smille.
+All eight backing disk identities exactly match the original report; config names
+match current list2. All12 stopped; Protected0/1/6/7 and all selections unchanged.
+No lifecycle/gameplay input occurred. Names were never edited by automation.
+
+Targeted continuation repair: a resumed target may adopt its fresh exact name
+only after original persistent disk identity matches and live Protection passes.
+Record observed name changes/history in the report. Historical Guild journals may
+retain those verified old labels only with matching disk proof; the active snapshot
+and every transport still use the CURRENT exact name. Replacement disks, ambiguous
+inventory, Protected targets and mid-session name changes remain blocked. Historical
+journal rows are never rewritten;138 remains the explicitly preserved exception.
+This follow-up requires its own passing CI/artifact before real acceptance.

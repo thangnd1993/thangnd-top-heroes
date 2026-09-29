@@ -505,3 +505,25 @@ def test_received_rows_with_remaining_green_claim_fail_closed(live_frames):
     frame = detector.observe(ScreenshotService(lambda _:data).take(Target(7,'Farm-007','emulator-test','boot')))
     assert detector.received_rows(frame) >= 2
     assert detector.availability(frame,'guild-gifts-member').state == 'UNKNOWN'
+
+
+@pytest.mark.parametrize('bound',[False,True])
+def test_historical_user_label_requires_bound_name_and_same_disk(rig,bound):
+    execute(rig,Port([('AVAILABLE',1),('NOT_AVAILABLE',0),('NOT_AVAILABLE',0)]))
+    manager,_,store = rig
+    task = store.create_task_run(manager.namespace,'guild',7,'Current user label')
+    port = Port([('NOT_AVAILABLE',0)])
+    original_opportunity = port.opportunity
+    def renamed(*args,**kwargs):
+        frame,view = original_opportunity(*args,**kwargs)
+        frame.captured.name = 'Current user label'
+        return frame,view
+    port.opportunity = renamed
+    if bound:
+        port.historical_names = ('Farm-007',)
+    result = {}
+    # execute() above uses the same explicit persistent identity value.
+    identity = json.loads(dict(store.reward_claims(manager.namespace,7)[0])['before_evidence'])['persistent_identity']
+    process(port,store,manager.namespace,task,'guild-gifts-loot',identity,result,lambda:None)
+    assert result['result'] == ('NOT_AVAILABLE' if bound else 'IDENTITY_CONTINUITY_UNPROVEN')
+    assert port.taps == 0

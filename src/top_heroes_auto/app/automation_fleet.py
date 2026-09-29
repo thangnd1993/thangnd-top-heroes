@@ -196,11 +196,22 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
     for target in targets:
         try:
             live = [r for r in before if r['index'] == target['index']]
-            if len(live) != 1 or live[0]['name'] != target['name'] or live[0]['protected']:
-                raise SafetyError('Original target is missing, changed or Protected.')
+            if len(live) != 1 or live[0]['protected']:
+                raise SafetyError('Original target is missing or Protected.')
             identity = identity_reader(manager, target['index'])
             if previous and target.get('persistent_identity') != identity:
                 raise SafetyError('Original persistent identity changed.')
+            if live[0]['name'] != target['name']:
+                if not previous:
+                    raise SafetyError('Explicit target name changed before its snapshot.')
+                # User-owned display labels can change between sessions. Only
+                # the SAME verified backing disk permits binding the fresh name.
+                previous_name = target['name']
+                target['historical_names'] = sorted(set(target.get('historical_names', [])) | {previous_name})
+                target['name'] = live[0]['name']
+                report.setdefault('observed_name_changes', []).append(dict(index=target['index'],
+                    previous_name=previous_name,current_name=target['name'],persistent_identity=identity,
+                    ldplayer_name_modified=False))
             target['persistent_identity'] = identity
             target.pop('identity_error', None)
         except (SafetyError, OSError, ValueError) as exc:

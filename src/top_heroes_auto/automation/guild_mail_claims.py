@@ -77,7 +77,8 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
         rows = [r for r in store.reward_claims(namespace,frame.captured.index) if r['reward_id'] == reward]
         for row in rows:
             original = json.loads(row['before_evidence'])
-            if original.get('persistent_identity') != identity or row['instance_name'] != frame.captured.name:
+            allowed_names = {frame.captured.name, *getattr(port, 'historical_names', ())}
+            if original.get('persistent_identity') != identity or row['instance_name'] not in allowed_names:
                 report['result'] = 'IDENTITY_CONTINUITY_UNPROVEN'
                 persist()
                 return
