@@ -279,7 +279,7 @@ class GuildMailDetector:
     def local_badge(self, frame, box, *, numbered=False):
         """Badge must attach to the control's upper-right, not another red dot."""
         image = portrait(frame.captured)
-        candidates = [b for b in components(image, 'red', closing=13) if
+        candidates = [b for b in components(image, 'red', closing=15) if
             box.x+box.width*.6 < b.center[0] < box.x+box.width+box.height*.4 and
             box.y-box.height*.4 < b.center[1] < box.y+box.height*.3 and
             .04*box.width < b.width < .65*box.height and .04*box.width < b.height < .65*box.height]

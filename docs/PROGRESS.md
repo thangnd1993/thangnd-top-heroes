@@ -1,5 +1,17 @@
 # Tiến độ
 
+## Phase 7 second resume — PARTIAL, 2026-09-30
+
+Latest accepted eed3d4b / CI36556655255 / artifact11028774395 was delivered.
+The unfinished-state resume20260929-120233-987168Z processed8/8 with25 new
+VERIFIED actions and no new POSSIBLE. All166 old rows, including122–129 and138,
+are unchanged. User permits PASS with138 kept locked as a named exception.
+HiHi is COMPLETE; remaining evidence is Mail5/6, Member59, two Shop visuals,
+initial ADB resolution on2 and HHGames splash timeout on9. No timeout increase.
+All selections, Protection and names preserved. Index2 remains running with
+uncertain prior ownership; do not blindly stop it. Details in latest PHASE7.md.
+Continue only unfinished scope from the NEW report after the next passing build.
+
 ## Phase 7 unfinished-state repair — in progress, 2026-09-29
 
 The user explicitly permits PASS with journal138 remaining RESERVED/POSSIBLE as

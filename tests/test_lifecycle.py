@@ -504,3 +504,26 @@ def test_post_launch_boot_read_failure_is_uncertain_without_retry(rig, monkeypat
     assert manager.last_lifecycle_attempt.ownership == LIFECYCLE_UNKNOWN
     lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
     assert lifecycle == ["launch"]
+
+
+@pytest.mark.parametrize('endpoint_present', [True, False])
+def test_indexed_serial_registering_during_connect_is_still_boot_verified(rig, endpoint_present):
+    manager, process, _ = rig
+    process.listing = ONLY_TARGET_RUNNING
+    process.devices_output = "List of devices attached\n"
+
+    def hook(args):
+        if args[1] == "connect":
+            process.devices_output = "List of devices attached\nemulator-5568\tdevice\n"
+            if endpoint_present:
+                process.devices_output += "127.0.0.1:5569\tdevice\n"
+
+    process.hook = hook
+    assert "emulator-5568" in manager.execute(7, "verify")
+    assert_only_target_seven(process.calls)
+    assert any(call[1:3] == ["-s", "emulator-5568"] and call[-1] == "/proc/sys/kernel/random/boot_id"
+               for call in process.calls)
+    process.devices_output = "List of devices attached\n"
+    process.device_boot = NEW_BOOT
+    with pytest.raises(SafetyError, match="không khớp"):
+        manager.execute(7, "verify")

@@ -535,3 +535,60 @@ and every transport still use the CURRENT exact name. Replacement disks, ambiguo
 inventory, Protected targets and mid-session name changes remain blocked. Historical
 journal rows are never rewritten;138 remains the explicitly preserved exception.
 This follow-up requires its own passing CI/artifact before real acceptance.
+
+
+## Resumed acceptance and remaining evidence repair — 2026-09-30
+
+Fresh eed3d4b / CI36556655255 passed lint,1078 tests/26skips, portable build,
+smoke and artifact upload11028774395. All331 assets and604 Desktop files matched.
+Resume `automation/20260929-120233-987168Z/fleet-report.json` processed8/8 and is
+PARTIAL:25 new claims, all VERIFIED; no new POSSIBLE. All166 historical rows are
+unchanged, including122–129 and138. Journal138 remains the explicitly preserved
+RESERVED/POSSIBLE exception. No donation, Trial Hall or Protected action occurred.
+All selections and current user-owned names were preserved.
+
+| Current account | Remaining blocker | New VERIFIED | Cleanup |
+| --- | --- | ---: | --- |
+| 2 / 5-Emmmmm | Initial ADB resolution; no gameplay |0|OWNERSHIP_UNKNOWN |
+| 3 / Queen Queen | Mail Guild small badge5 |1|SUCCESS |
+| 4 / 3-Chíp | Mail Guild small badge6 |4|SUCCESS |
+| 5 / 4-Em Pé | Permanent gift pose; monthly selected-tab rendering |11|SUCCESS |
+| 8 / Soup | Member gift badge59 split red fill |1|SUCCESS |
+| 9 / Mini Quin | HHGames splash/loading timeout; no gameplay |0|SUCCESS |
+| 10 / HiHi | None; COMPLETE |5|SUCCESS |
+| 11 / Smille | Mail Guild small badge5 |3|SUCCESS |
+
+Index2 remains running after an unowned/uncertain launch. Do not infer ownership
+or quit it to restore an old state. A later authorized session must freshly bind
+it and preserve its pre-existing running state. All other instances ended stopped;
+Protected0/1/6/7 remained stopped and unselected. No name/config edits.
+
+Offline follow-up uses the saved current frames only:
+- qualify entire small Mail5/6 badges at.98 inside current control bounds;
+- a15px close reconnects red fill split by white59, still requiring two-scale
+  agreed OCR counts and rejecting duplicates/conflicts;
+- accept asynchronously registered INDEXED ADB serial during endpoint connect,
+  retaining indexed boot equality, runtime and unexpected-device guards;
+- keep Mini Quin loading timeout unchanged: evidence positively shows HHGames
+  splash, not an overlay needing input;
+- existing Shop pose/subpixel anchors use fixed3x3 sigma.5 normalization where
+  current rendering requires it. Intact permanent gift precedes its associated
+  badge; monthly navigation uses its stable video emblem plus attention, page,
+  selected tab and forbidden-area proof. No paid control or route was added;
+- coarse pose proposals recurse only once even for a large template. Retain
+  bounded candidates and reject distinct qualified matches.
+
+Next acceptance must resume the NEW report above with `--preserve-possible 138`,
+so the25 newly VERIFIED actions and all prior completed rewards are skipped.
+Only after focused checks, full CI and fresh Desktop artifact delivery. Phase8
+is excluded. Do not label this partial result PASS before remaining work finishes.
+
+
+Local gate:346 focused Guild/Mail/journal/wood/Shop/identity regressions passed;
+55 new-evidence/lifecycle checks passed, plus29 saved badge/relic checks,27 Phase6
+finalization checks and one duplicate-attention negative. Ruff and diff-check pass.
+Self-review confirms current-frame bboxes, paid exclusions, immutable journals,
+bounded matching/probes, untouched ownership rules and no new feature route.
+Five full game fixtures and two small runtime badge crops have only image PNG
+chunks (IHDR/IDAT/IEND), with no credentials or unrelated private files. No live
+input was sent during this offline repair. Await fresh full CI/portable delivery.

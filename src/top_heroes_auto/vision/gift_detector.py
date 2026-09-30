@@ -29,7 +29,7 @@ def gift_anchor_match(screen, anchor):
     return unique_pose_anchor(screen, anchor)
 
 
-def unique_pose_anchor(screen, anchor):
+def unique_pose_anchor(screen, anchor, *, antialias=False, _propose=True):
     """Bounded ±20° / ±5% pose bank; distinct qualified locations fail closed."""
     template = cv2.imdecode(np.frombuffer(anchor.template.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
     if template is None:
@@ -38,7 +38,10 @@ def unique_pose_anchor(screen, anchor):
     left, top, right, bottom = anchor.expected_region.pixels(width, height)
     region = screen.normalized[top:bottom, left:right]
     th, tw = template.shape[:2]
-    if region.shape[0]*region.shape[1] > 60_000:
+    if antialias:
+        template = cv2.GaussianBlur(template, (3, 3), .5)
+        region = cv2.GaussianBlur(region, (3, 3), .5)
+    if _propose and region.shape[0]*region.shape[1] > 60_000:
         # Coarse current-frame proposals bound the costly masked pose search.
         # They NEVER authorize input: every result still needs >=0.96, paired
         # icon/badge/page proof, and uniqueness across all bounded proposals.
@@ -56,7 +59,7 @@ def unique_pose_anchor(screen, anchor):
         radius = max(th, tw)*2
         results = [unique_pose_anchor(screen, replace(anchor, expected_region=NormalizedRect(
             max(0,x-radius)/width, max(0,y-radius)/height,
-            min(width,x+radius)/width, min(height,y+radius)/height))) for x, y in proposals]
+            min(width,x+radius)/width, min(height,y+radius)/height)), antialias=antialias, _propose=False) for x, y in proposals]
         qualified = [r for r in results if r.matched]
         if any(not r.matched and r.score >= r.threshold for r in results):
             return AnchorEvidence(anchor.id, anchor.state, 1, anchor.threshold, False)

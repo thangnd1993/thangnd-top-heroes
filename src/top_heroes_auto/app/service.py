@@ -311,7 +311,10 @@ class Manager:
                     before_connect = set(devices)
                     self.adb.connect(endpoint)
                     devices = self.adb.devices()
-                    unexpected = set(devices) - before_connect - {endpoint}
+                    # The indexed emulator serial can register asynchronously during
+                    # connect. It is already an explicit candidate, still subject
+                    # to the same indexed boot-ID verification below.
+                    unexpected = set(devices) - before_connect - {endpoint, serial}
                     if unexpected:
                         raise SafetyError("ADB connect trả về target mới không rõ nguồn gốc.")
                     candidates.append(endpoint)

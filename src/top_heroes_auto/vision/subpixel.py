@@ -7,13 +7,16 @@ import numpy as np
 from top_heroes_auto.vision.models import AnchorEvidence, BoundingBox
 
 
-def unique_subpixel_anchor(screen, anchor):
+def unique_subpixel_anchor(screen, anchor, *, antialias=False):
     """Small rasterization variants, >=.98 and unique across every render offset."""
     template = cv2.imdecode(np.frombuffer(anchor.template.read_bytes(), np.uint8), cv2.IMREAD_COLOR)
     h, w = template.shape[:2]
     height, width = screen.normalized.shape[:2]
     left, top, right, bottom = anchor.expected_region.pixels(width, height)
     region = screen.normalized[top:bottom, left:right]
+    if antialias:
+        template = cv2.GaussianBlur(template, (3, 3), .5)
+        region = cv2.GaussianBlur(region, (3, 3), .5)
     threshold = max(.98, anchor.threshold)
     candidates = []
     best = 0.0

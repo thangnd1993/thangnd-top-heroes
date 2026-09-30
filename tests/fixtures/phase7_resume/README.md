@@ -24,3 +24,18 @@ Source fleet: `automation/20260928-082613-687829Z`.
 ordinary overlay recovery; the cropped popup alone never authorizes dismissal.
 Normalized landscape diagnostic PNGs were rotated back to their original portrait
 orientation using the recorded device metadata; no pixels were retouched.
+
+
+Second resume: `automation/20260929-120233-987168Z`. New full game frames:
+
+| Fixture | Source relative to fleet | Purpose |
+| --- | --- | --- |
+| mail-five | 3/mail/20260929-120702-986870Z-guild-mail.png | Complete small5; independent tab guards |
+| mail-six | 4/mail/20260929-121231-761739Z-guild-mail.png | Complete small6 |
+| member-59 | 8/guild/20260929-123011-906573Z-guild-mail.png | White59 splits the small red fill |
+| shop-permanent-tilted | 5/shop/20260929-121827-962886Z-bxh-shop.png | Rotating free gift and paired attention |
+| shop-monthly-owned | 5/shop/20260929-121845-006196Z-bxh-shop.png | Selected icon rendering; stable gift video emblem |
+
+Two runtime badge5/6 crops contain the whole current red numbered badge. Every
+runtime search remains attached to a current detected control, never an account.
+Reviewed imagery is game UI only; no credentials or unrelated private content.

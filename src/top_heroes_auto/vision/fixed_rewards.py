@@ -106,7 +106,7 @@ class FixedRewardDetector:
             if not anchors[role].matched and anchors[role].score < anchors[role].threshold and seed >= .85:
                 for variant in (role, f'{route}-selected-icon'):
                     aligned = unique_subpixel_anchor(captured, replace(self.anchors[variant],
-                        expected_region=portrait_region(0, .90, 1, 1)))
+                        expected_region=portrait_region(0, .90, 1, 1)), antialias=True)
                     anchors[role] = self._same_target_variant(anchors[role], aligned)
         anchors['monthly-tab'] = self._same_target_variant(anchors['monthly-tab'], anchors['monthly-tab-notice'])
         anchors['avatar-frame'] = self.avatar_frame(captured)
@@ -197,6 +197,24 @@ class FixedRewardDetector:
             if route == 'monthly':
                 anchors['monthly-gift'] = self._same_target_variant(anchors['monthly-gift'], anchors['monthly-gift-tilted'])
             core, badge = anchors[f'{route}-gift'], anchors[f'{route}-attention']
+            if route == 'permanent' and not core.matched and core.score < core.threshold:
+                # Both the gift and its attached mark rock. Find the intact
+                # core first, then qualify the mark beside its current bbox.
+                core = self._same_target_variant(core, unique_pose_anchor(captured,
+                    replace(self.anchors['permanent-gift'], threshold=.98,
+                            expected_region=portrait_region(0, 0, 1, .36))))
+                anchors['permanent-gift'] = core
+            if core.matched and core.device_box and not badge.matched and badge.score < badge.threshold:
+                b = core.device_box
+                w,h = captured.device_size or captured.original_size
+                region = portrait_region((b.x+b.width*.6)/w,max(0,b.y-b.height*.8)/h,
+                    min(w,b.x+b.width*1.4)/w,(b.y+b.height*.4)/h)
+                roles = (f'{route}-attention', 'permanent-badge-current') if route == 'permanent' else (f'{route}-attention',)
+                for variant in roles:
+                    posed = unique_pose_anchor(captured,replace(self.anchors[variant],
+                        expected_region=region,threshold=.98),antialias=True)
+                    badge = self._same_target_variant(badge,posed)
+                anchors[f'{route}-attention'] = badge
             if not core.matched and core.score < core.threshold and badge.matched and badge.device_box:
                 # The gift rocks independently of the current attention badge.
                 # Same strict threshold, bounded pose bank, no account coordinates.
@@ -208,6 +226,12 @@ class FixedRewardDetector:
                     min(h,b.center[1]+5*radius)/h)
                 posed = unique_pose_anchor(captured, replace(self.anchors[f'{route}-gift'], expected_region=region))
                 anchors[f'{route}-gift'] = self._same_target_variant(core, posed)
+                if route == 'monthly' and not anchors['monthly-gift'].matched and anchors['monthly-gift'].score < anchors['monthly-gift'].threshold:
+                    # The bow/artwork animates; the video emblem is a stable
+                    # core of this navigation gift, paired with its attention.
+                    video = unique_pose_anchor(captured, replace(self.anchors['monthly-video'],
+                        expected_region=region,threshold=.98),antialias=True)
+                    anchors['monthly-gift'] = self._same_target_variant(anchors['monthly-gift'],video)
         return FixedObservation(captured, page, anchors, recovery)
 
     @staticmethod
@@ -349,8 +373,11 @@ class FixedRewardDetector:
             return "UNKNOWN", core, badge
         if badge.matched and badge.device_box:
             b = badge.device_box
-            if abs(b.center[0] - (box.x+box.width)) < box.width*.3 and (
-                box.y - box.height*.65 <= b.center[1] <= box.y + box.height*.3
+            video_core = route == 'monthly' and core.anchor_id == 'monthly-video'
+            # This smaller core lies below the gift badge, not at the bow.
+            above, lateral = (1.0, .5) if video_core else (.65, .3)
+            if abs(b.center[0] - (box.x+box.width)) < box.width*lateral and (
+                box.y - box.height*above <= b.center[1] <= box.y + box.height*.3
             ):
                 return "AVAILABLE", core, badge
         if not ranking:

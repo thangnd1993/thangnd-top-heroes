@@ -751,5 +751,27 @@
       21,
       20
     ]
+  },
+  {
+    "id": "badge-mail-digit-5",
+    "source": "phase7_resume/mail-five",
+    "source_bbox": [
+      275,
+      180,
+      21,
+      20
+    ],
+    "threshold": 0.98
+  },
+  {
+    "id": "badge-mail-digit-6",
+    "source": "phase7_resume/mail-six",
+    "source_bbox": [
+      275,
+      180,
+      21,
+      20
+    ],
+    "threshold": 0.98
   }
 ]
