@@ -207,6 +207,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
             live = [r for r in before if r['index'] == target['index']]
             if len(live) != 1 or live[0]['protected']:
                 raise SafetyError('Original target is missing or Protected.')
+            target['preflight_running'] = live[0]['status'] == 'running'
             identity = identity_reader(manager, target['index'])
             if previous and target.get('persistent_identity') != identity:
                 raise SafetyError('Original persistent identity changed.')

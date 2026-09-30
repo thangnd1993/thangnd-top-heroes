@@ -683,3 +683,12 @@ no uncertain-input retry, no UNKNOWN fallback, no session for retained accounts,
 and untouched journal/resource/ownership rules. One full game fixture and three
 small UI anchors were reviewed: game imagery only, no credentials/private data
 or ancillary PNG metadata. No real LDPlayer action during implementation.
+
+
+Ownership review: bind preflight-running status from fresh live inventory. Such
+a session requires the instance still running and passes allow_start=False to
+recovery. An external stop between preflight and attach cannot acquire launch
+ownership. This is a stop condition, never an automatic restart.
+
+Ownership follow-up gate:132 targeted navigation/continuation/journal/lifecycle
+checks passed; Ruff and diff-check passed. No real input before fresh CI.

@@ -74,3 +74,27 @@ def test_preserved_possible_on_retained_account_is_immutable(rig, tmp_path):
     assert result['result'] == 'PASS' and all(c[0] == 13 for c in calls)
     assert result['preserved_journals_unchanged']
     assert dict(rig[2].reward_claims(rig[0].namespace,7)[0]) == row
+
+
+def test_external_preflight_cannot_turn_into_owned_launch(rig, tmp_path):
+    from top_heroes_auto.app.instance_session import InstanceSession
+    from top_heroes_auto.automation.recovery import RecoveryResult, RecoveryStatus
+    manager, process, _ = rig
+    process.listing = "0,Queen,0,0,0,-1,-1\n7,Farm-007,3,4,1,201,202\n"
+    manager.refresh()
+    calls = []
+    def recovery(*a, **kw):
+        calls.append(kw)
+        return RecoveryResult(RecoveryStatus.SUCCESS), tmp_path/'r', False
+    target = dict(index=7,name='Farm-007',persistent_identity='disk',preflight_running=True)
+    session = InstanceSession(manager,tmp_path,target,tmp_path,
+        identity_reader=lambda *a:'disk',recovery_runner=recovery)
+    session.start()
+    assert calls[0]['allow_start'] is False
+    session.close()
+    assert session.report['cleanup'] == 'NOT_REQUIRED' and manager.query(7).running
+    process.listing = "0,Queen,0,0,0,-1,-1\n7,Farm-007,0,0,0,-1,-1\n"
+    stopped = InstanceSession(manager,tmp_path,target,tmp_path,identity_reader=lambda *a:'disk',recovery_runner=recovery)
+    with pytest.raises(SafetyError,match='stopped'):
+        stopped.start()
+    assert len(calls)==1 and not any(c[1] in ('launch','quit') for c in process.calls)

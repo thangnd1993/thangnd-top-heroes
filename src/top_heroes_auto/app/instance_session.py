@@ -37,7 +37,7 @@ class InstanceSession:
     def start(self):
         if self.initial is not None:
             raise SafetyError('Session start may only run once.')
-        self.check(selected=False, running=False)
+        self.check(selected=False, running=self.target.get('preflight_running', False))
         self.selected_before = self.manager.store.metadata(self.manager.namespace, self.index).selected
         if not self.selected_before:
             if not self.temporary_selection:
@@ -46,7 +46,8 @@ class InstanceSession:
             self.changed_selection = True
         try:
             self.initial = self.recovery_runner(self.manager, self.data, self.index, self.name,
-                cleanup_owned=False, cancelled=self.cancelled)
+                cleanup_owned=False, cancelled=self.cancelled,
+                allow_start=not self.target.get('preflight_running', False))
             result, path, self.started = self.initial
             if result.ownership_uncertain:
                 self.report['cleanup'] = 'OWNERSHIP_UNKNOWN'
