@@ -1,6 +1,6 @@
 # Phase 7 — Guild and Mail
 
-Status: PARTIAL after the full 2026-09-28 fleet; see the latest result below.
+Status: PARTIAL; latest2026-09-30 resume has7/8 COMPLETE. Only Mini Quin external bounty screen remains blocked. See PHASE7-CONTINUATION-20260930.md.
 Branch: `codex/phase7-guild-mail`, based on Phase 6 completion `c4309fe`.
 The user's 2026-09-27 request explicitly starts Phase 7; Phase 8 is excluded.
 
@@ -640,3 +640,16 @@ timeout; no new wait, input, retry or threshold change. Whole2/8 badge templates
 remain current-control-bound and reject partial/conflicting counts. All207 journal
 rows are untouched. The three fixtures and two runtime crops contain only game UI
 and image PNG chunks; no credentials, private metadata or unrelated diagnostics.
+
+
+## Latest acceptance checkpoint — 2026-09-30
+
+See [full per-account continuation report](PHASE7-CONTINUATION-20260930.md).
+Fresh b0e95d6 / CI36692428131 / artifact11088276400 delivered608 verified files.
+Resume20260930-093554-154579Z processed8/8;7 COMPLETE,3 new VERIFIED224–226.
+All207 previous rows unchanged;138 remains RESERVED/POSSIBLE as the explicit
+accepted exception. Current journal baseline210 rows. Only Mini Quin remains
+blocked on an externally opened non-Home bounty board; ZERO input sent.
+The user's manual-Home/qualified-Back choice is still pending. Do not rerun
+completed accounts or label Phase7 PASS. Preserve external1/9 running states,
+all names and Protection; all selections restored. No Phase8.

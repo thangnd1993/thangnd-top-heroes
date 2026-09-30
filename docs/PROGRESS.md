@@ -1,5 +1,18 @@
 # Tiến độ
 
+## Phase 7 continuation — 7/8 COMPLETE, one external-screen blocker
+
+Fresh b0e95d6 / CI36692428131 passed1114pytest(26skips), lint/build/smoke/upload.
+Artifact11088276400 delivered;608 files and335 assets verified. Latest resume:
+`automation/20260930-093554-154579Z/fleet-report.json`.8/8 processed,3 new VERIFIED
+(journals224–226), no newly unresolved claim. All207 earlier rows unchanged.
+Queen Queen, Soup and Smille now COMPLETE; only Mini Quin remains PARTIAL on its
+externally opened Treo Thuong board. No input sent there; await manual Home or
+explicit authorization for a qualified Back edge. Do not rerun completed accounts.
+138 remains locked as the accepted exception. All selections/Protection/names
+preserved; external1/9 remain running. Current210-row baseline is immutable.
+See [full continuation report](PHASE7-CONTINUATION-20260930.md). No Phase8.
+
 ## Phase 7 latest continuation — PARTIAL, 2026-09-30
 
 9d7fae5 / CI36681995562 / artifact11083756270 delivered606 verified Desktop files.
