@@ -692,3 +692,14 @@ ownership. This is a stop condition, never an automatic restart.
 
 Ownership follow-up gate:132 targeted navigation/continuation/journal/lifecycle
 checks passed; Ruff and diff-check passed. No real input before fresh CI.
+
+
+## Fresh artifact ready; stopped external target — 2026-09-30
+
+See [Mini Quin recovery checkpoint](PHASE7-MINI-QUIN-RECOVERY.md).7d68a7c /
+CI36702959789 passed1152tests+26skips and all packaging gates. Artifact11091624390
+delivered614 verified Desktop files. Before any real acceptance, two read-only
+inventories found Mini Quin stopped; anh Ry also externally stopped. No input
+or lifecycle command was sent. Do not restore external running states by guess.
+Await manual Mini Quin startup or explicit one-start/leave-running approval.
+All210 journals unchanged;138 locked. Phase7 remains7/8 COMPLETE/PARTIAL.

@@ -1,5 +1,17 @@
 # Tiến độ
 
+## Phase 7 Mini Quin — fresh build ready; live instance stopped
+
+Code7d68a7c / CI36702959789 PASS:1152tests+26skips, lint/build/smoke/upload.
+Artifact11091624390 delivered614 verified files and341 assets. Qualified
+TREO_THUONG Back and single-index continuation are implemented and tested.
+Fresh read-only preflight found Mini Quin STOPPED (and external anh Ry STOPPED).
+No acceptance, Back, ADB or lifecycle mutation was started. All210 journals
+unchanged;138 remains locked. Await user manual start or explicit exact-index
+launch/leave-running approval, consistent with the requested attach-only scope.
+Seven accounts remain COMPLETE; Phase7 PARTIAL pending Mini Quin. NoPhase8.
+See [Mini Quin recovery checkpoint](PHASE7-MINI-QUIN-RECOVERY.md).
+
 ## Phase 7 Mini Quin only — qualified recovery repair in progress
 
 User authorized a qualified Treo Thuong Back edge, bounded to two fresh-frame
