@@ -56,3 +56,11 @@ multi-digit25/12, other red dots and partial/ambiguous imagery.
 
 The final Home fixture was losslessly reencoded to retain image chunks only;
 decoded pixels were verified identical to the original raw capture.
+
+
+`hanging-reward.png` is a pixel-identical, image-chunk-only reencoding of
+`recovery/Mini Quin/20260930-094357-040688Z/final-raw.png`. The new recovery
+anchors use only stable Treo Thuong title text, the task label (without counts),
+and the Back control. They exclude level, progress, energy and animated map pixels.
+Full-frame unique matching and three-anchor layout proof are required at runtime.
+Only a current qualified Back bbox can receive navigation; no bounty reward tap.

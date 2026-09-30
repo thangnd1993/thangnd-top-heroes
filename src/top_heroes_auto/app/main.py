@@ -23,7 +23,10 @@ def main(argv: list[str] | None = None):
         scope.add_argument('--random-test', action='store_true')
         scope.add_argument('--confirm-non-protected', action='store_true')
         parser.add_argument('--preserve-possible', type=int, action='append', default=[])
+        parser.add_argument('--resume-index', type=int, action='append', default=[])
         options = parser.parse_args(argv[1:])
+        if options.resume_index and not options.resume_report:
+            raise ValueError('Targeted continuation requires an explicit resume report.')
         if options.preserve_possible and not options.resume_report:
             raise ValueError('POSSIBLE exceptions require an explicit resume report.')
         from top_heroes_auto.app.automation_fleet import run
@@ -31,7 +34,8 @@ def main(argv: list[str] | None = None):
 
         data = data_directory()
         run(_manager(data), data, random_test=options.random_test, resume_report=options.resume_report,
-            preserve_possible=tuple(options.preserve_possible))
+            preserve_possible=tuple(options.preserve_possible),
+            **(dict(resume_indexes=tuple(options.resume_index)) if options.resume_index else {}))
         return 0
     if argv and argv[0] == 'guild-mail-reconcile-saved':
         if len(argv) != 2 or not argv[1].isdigit():

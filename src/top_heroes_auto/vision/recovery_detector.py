@@ -7,6 +7,7 @@ import cv2
 from top_heroes_auto.vision.detail_anchor import unique_detail_anchor
 from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.exploration import unique_current_anchor
+from top_heroes_auto.vision.hanging_reward import hanging_evidence, qualified_hanging
 from top_heroes_auto.vision.models import NormalizedRect, ScreenDetection, ScreenState
 from top_heroes_auto.vision.resources import template_folder
 from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
@@ -53,6 +54,17 @@ class RecoveryScreenDetector:
         )
 
     def detect(self, screen):
+        detected = self._detect_existing(screen)
+        evidence = hanging_evidence(screen)
+        if qualified_hanging(screen, evidence):
+            if detected.state != ScreenState.UNKNOWN or detected.evidence:
+                return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
+                               evidence=(*detected.evidence, *evidence))
+            return replace(detected, state=ScreenState.TREO_THUONG,
+                           confidence=min(e.score for e in evidence), evidence=evidence)
+        return detected
+
+    def _detect_existing(self, screen):
         detected = self.detector.detect(screen)
         promo_title = unique_current_anchor(screen, self.promo_title)
         promo_cta = unique_current_anchor(screen, self.promo_cta)

@@ -148,7 +148,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
 
 def run(manager, data, *, random_test=False, resume_report=None, registry=None, enabled=None,
         identity_reader=persistent_identity, session_factory=InstanceSession, targets=None,
-        temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=()):
+        temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=()):
     registry = registry or production_registry()
     before = inventory(manager)
     previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
@@ -163,6 +163,15 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
     # Exceptions are opt-in on every resume, never inherited as generic completion.
     if previous and set(previous.get('preserved_possible_claims', [])) - set(preserve_possible):
         raise SafetyError('Resume must explicitly retain previously authorized POSSIBLE exceptions.')
+    if resume_indexes:
+        if (not previous or len(set(resume_indexes)) != len(resume_indexes)
+                or any(type(i) is not int for i in resume_indexes)
+                or set(resume_indexes) - {t['index'] for t in previous['targets']}):
+            raise SafetyError('Continuation indexes must be unique members of the original snapshot.')
+        old_accounts = {a['index']: a for a in previous['accounts']}
+        if any(old_accounts.get(t['index'], {}).get('result') != 'COMPLETE'
+               for t in previous['targets'] if t['index'] not in resume_indexes):
+            raise SafetyError('Only completed accounts can be retained without execution.')
     eligible = candidates(before)
     chosen = None
     if previous:
@@ -216,12 +225,25 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
             target.pop('identity_error', None)
         except (SafetyError, OSError, ValueError) as exc:
             target['identity_error'] = str(exc)
+    if resume_indexes and any(t.get('identity_error') for t in targets if t['index'] not in resume_indexes):
+        raise SafetyError('Retained account identity is no longer valid.')
+    report['execution_indexes'] = list(resume_indexes) if resume_indexes else [t['index'] for t in targets]
+    report['retained_completed_indexes'] = [t['index'] for t in targets if resume_indexes and t['index'] not in resume_indexes]
     exceptions = preserved_claims(manager, previous, targets, preserve_possible)
     report['preserved_possible_claims'] = list(exceptions)
     report['acceptance_exceptions'] = list(exceptions.values())
     write(path, report)
     old = {r['index']: r for r in previous['accounts']} if previous else {}
     for target in targets:
+        if resume_indexes and target['index'] not in resume_indexes:
+            row = dict(old[target['index']], name=target['name'], new_claims=0,
+                       cleanup='NOT_REQUIRED', selection_restored=True,
+                       retained_from=str(resume_report))
+            row.pop('session', None)
+            row['flows'] = {key: dict(result='RETAINED_COMPLETE') for key in row.get('flows', {})}
+            report['accounts'].append(row)
+            write(path, report)
+            continue  # No session, selection, recovery, feature or lifecycle for retained accounts.
         progress(f"INSTANCE START #{target['index']} / {target['name']}")
         row = execute_instance(manager, data, target, folder/str(target['index']), registry,
             prior=old.get(target['index']), enabled=enabled, session_factory=session_factory,

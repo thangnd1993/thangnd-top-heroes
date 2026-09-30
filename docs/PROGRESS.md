@@ -1,5 +1,14 @@
 # Tiến độ
 
+## Phase 7 Mini Quin only — qualified recovery repair in progress
+
+User authorized a qualified Treo Thuong Back edge, bounded to two fresh-frame
+attempts. Saved screenshot only for implementation. State TREO_THUONG requires
+three unique stable anchors at.98; no raw UNKNOWN Back or bounty reward input.
+Resume only index9 after new CI/artifact via `--resume-index 9`; retain seven COMPLETE
+accounts without sessions. Keep210 journal rows and138 unchanged. Preserve Mini
+Quin external running ownership. Full acceptance is pending. No Phase8.
+
 ## Phase 7 continuation — 7/8 COMPLETE, one external-screen blocker
 
 Fresh b0e95d6 / CI36692428131 passed1114pytest(26skips), lint/build/smoke/upload.

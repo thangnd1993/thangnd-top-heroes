@@ -653,3 +653,33 @@ blocked on an externally opened non-Home bounty board; ZERO input sent.
 The user's manual-Home/qualified-Back choice is still pending. Do not rerun
 completed accounts or label Phase7 PASS. Preserve external1/9 running states,
 all names and Protection; all selections restored. No Phase8.
+
+
+## Authorized Mini Quin continuation — 2026-09-30
+
+The user resolved the bounty-screen boundary: implement explicit TREO_THUONG
+recognition from the saved Mini Quin frame, then a qualified Back action with
+maximum two attempts. Require unique title/task-label/Back anchors at.98, current
+relative layout, frame consumption and fresh capture after every Back. No changing
+level/count/energy/map pixels are templates. Changed state ends the Back sequence;
+normal known Home popup recovery continues, unrelated UNKNOWN remains fail-closed.
+
+The acceptance CLI now supports `--resume-index 9` only with an original resume
+report. Omitted accounts must already be COMPLETE with unchanged persistent
+identity; retain their results without sessions, selection or feature execution.
+Explicitly preserve138 and all210 journal rows. Mini Quin's original external
+running state remains running; no restart/stop between Guild and Mail.
+
+After focused checks, full CI and fresh Desktop delivery, resume only Mini Quin
+from20260930-093554-154579Z with `--preserve-possible 138`. Pending rewards are Member
+Gifts and Mail Guild/System/Reports; all previous terminal rewards remain skipped.
+Do not run a new fleet or Phase8.
+
+
+Local gate:167 focused recovery/instance/journal regressions passed, followed
+by72 checks after the deadline/fresh-capture review. Affected Ruff and diff-check
+passed. Self-review confirmed unique current Back bboxes, two attempts maximum,
+no uncertain-input retry, no UNKNOWN fallback, no session for retained accounts,
+and untouched journal/resource/ownership rules. One full game fixture and three
+small UI anchors were reviewed: game imagery only, no credentials/private data
+or ancillary PNG metadata. No real LDPlayer action during implementation.

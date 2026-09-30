@@ -1,5 +1,15 @@
 # Permanent no-rename invariant — all phases
 
+## Qualified Treo Thuong recovery — 2026-09-30
+
+User explicitly authorized navigation out of the known bounty board. Require
+unique current title, task label and Back control at>=.98, with qualified layout.
+Tap only the current Back bbox, consume the frame and capture afresh. Maximum two
+attempts while that same qualified state persists; never retry uncertain transport.
+A state change ends this Back sequence. Continue normal qualified Home/overlay
+recovery; unrelated UNKNOWN still receives no input. No bounty claim is authorized.
+Mini Quin is externally running and must remain running after its scoped resume.
+
 ## Phase 7 explicit action scope — 2026-09-27
 
 Guild and Mail are now authorized under the same instance-first ownership.

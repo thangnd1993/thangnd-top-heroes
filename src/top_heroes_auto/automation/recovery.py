@@ -40,6 +40,8 @@ class RecoveryPort(Protocol):
 
     def launch_game(self) -> None: ...
 
+    def back_from_hanging(self, observation: RecoveryObservation) -> tuple[int, int]: ...
+
     def dismiss_overlay(self, observation: RecoveryObservation) -> tuple[int, int]: ...
 
 
@@ -178,6 +180,9 @@ class HomeRecoveryEngine:
         launched = False
         overlays = OverlayBudget()
         stable_overlay = None
+        hanging_backs = 0
+        hanging_departed = False
+        capture_after_back = False
 
         def finish(status: RecoveryStatus, error: str | None = None):
             result.status = status
@@ -188,8 +193,10 @@ class HomeRecoveryEngine:
         for number in range(1, self.max_steps + 1):
             if cancelled():
                 return finish(RecoveryStatus.CANCELLED)
-            if self.clock() - started >= self.max_duration:
+            if self.clock() - started >= self.max_duration and not capture_after_back:
                 return finish(RecoveryStatus.LIMIT_REACHED, "Recovery exceeded max duration.")
+            following_back = capture_after_back
+            capture_after_back = False
             try:
                 observation = port.observe(number)
             except ScreenshotInvalid as exc:
@@ -236,6 +243,29 @@ class HomeRecoveryEngine:
                 observation.screenshot,
             )
             result.steps.append(step)
+            if following_back and self.clock() - started >= self.max_duration:
+                return finish(RecoveryStatus.LIMIT_REACHED, "Post-Back capture completed after deadline; no further input.")
+            if hanging_backs and detection.state != ScreenState.TREO_THUONG:
+                hanging_departed = True
+            if detection.state == ScreenState.TREO_THUONG:
+                if (hanging_departed or hanging_backs >= 2 or number == self.max_steps
+                        or self.clock() - started >= self.max_duration):
+                    return finish(RecoveryStatus.LIMIT_REACHED, "Treo Thuong Back bound reached; no further input.")
+                if cancelled():
+                    return finish(RecoveryStatus.CANCELLED)
+                try:
+                    point = port.back_from_hanging(observation)
+                except (CommandError, OSError, SafetyError, ValueError) as exc:
+                    return finish(RecoveryStatus.ACTION_FAILED, str(exc))
+                hanging_backs += 1
+                capture_after_back = True
+                action = f"back_from_hanging:{point[0]},{point[1]}"
+                result.actions.append(action)
+                result.steps[-1] = RecoveryStep(number, detection.state, detection.confidence,
+                                               observation.screenshot, action)
+                loading_started = None
+                self.sleep(self.action_settle)
+                continue  # Fresh qualified observation required before any next input.
             if detection.state == ScreenState.GAME_HOME:
                 return finish(RecoveryStatus.SUCCESS if result.actions else RecoveryStatus.ALREADY_HOME)
             if detection.state in DISMISSIBLE:

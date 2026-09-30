@@ -1,0 +1,19 @@
+{
+  "id": "hanging-tasks",
+  "state": "TREO_THUONG",
+  "template": "hanging-tasks.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "source": "phase7_resume/hanging-reward",
+  "source_bbox": [
+    23,
+    114,
+    206,
+    31
+  ]
+}
