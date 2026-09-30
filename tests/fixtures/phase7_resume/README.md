@@ -39,3 +39,20 @@ Second resume: `automation/20260929-120233-987168Z`. New full game frames:
 Two runtime badge5/6 crops contain the whole current red numbered badge. Every
 runtime search remains attached to a current detected control, never an account.
 Reviewed imagery is game UI only; no credentials or unrelated private content.
+
+
+`home-at-loading-deadline.png` preserves the exact decoded pixels of the final raw screenshot from
+`recovery/Queen Queen/20260930-081025-721021Z/final-raw.png`, taken103.782s after
+recovery began. Paired Home confidence.975192; existing120s total bound retained.
+It diagnoses final-observation integration, not promo recognition or claim logic.
+
+`member-two.png` comes from automation/20260930-075232-614988Z/8/guild/
+20260930-082313-895298Z-guild-mail.png. The full small2 badge is isolated as a
+strict runtime glyph; mixed received/free rows must not imply unavailability.
+
+`mail-eight.png` comes from automation/20260930-075232-614988Z/11/mail/
+20260930-082614-273285Z-guild-mail.png. Whole badge8 must be distinct from
+multi-digit25/12, other red dots and partial/ambiguous imagery.
+
+The final Home fixture was losslessly reencoded to retain image chunks only;
+decoded pixels were verified identical to the original raw capture.

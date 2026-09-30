@@ -592,3 +592,51 @@ bounded matching/probes, untouched ownership rules and no new feature route.
 Five full game fixtures and two small runtime badge crops have only image PNG
 chunks (IHDR/IDAT/IEND), with no credentials or unrelated private files. No live
 input was sent during this offline repair. Await fresh full CI/portable delivery.
+
+
+## Next resumed result and final Home observation — 2026-09-30
+
+Build9d7fae5 / CI36681995562 passed lint,1089 tests/26skips, Windows build,
+smoke and upload11083756270.333 assets and606 Desktop files verified after
+removing only the previous604-file app. Resume report:
+`automation/20260930-075232-614988Z/fleet-report.json`.
+
+Processed8/8.16 new actions, all VERIFIED, no new POSSIBLE. All191 prior rows
+remain unchanged, including122–129 and138.2/4/5/10 are COMPLETE and must be skipped
+on future resumes.3/8/9/11 remain PARTIAL. All original selections, Protection and
+names were preserved; no donation/Trial-Hall/paid input occurred.
+
+New live preflight differed from the prior run through external/manual changes:
+Protected1/anh Ry and9/Mini Quin were running;2 was stopped. Final inventory
+preserved exactly those running instances; all others stopped. Index9 was attached
+without lifecycle ownership and received ZERO input because its current screen is
+an unrelated bounty board (Treo Thuong). User was asked to return it to Home or
+explicitly authorize one newly qualified Back edge; do not blind-dismiss UNKNOWN.
+
+Remaining evidence:
+-3:Loading timeout at100.703s, but the already-required final capture at103.782s
+ positively showed GAME_HOME (.975192, paired HUD/world anchors). The CLI discarded
+ this final observation. Repair consumes it once only for LOADING_TIMEOUT, matching
+ explicit serial/boot, persisted image, no cancellation, and within existing120s
+ total/30step bounds. No added wait/input, global timeout increase or promo detector
+ changes. Other failures/overlays/late/identity-changed evidence stay blocked.
+-8:Member batch now2, with two free rows and one received row. The new strict full
+ small2 glyph qualifies the original live red badge; mixed rows cannot imply empty.
+-11:Mail Guild now8. Add the entire small8 badge, kept distinct from25/12 and other
+ red/partial evidence. No account-specific coordinates or lower thresholds.
+-9:Bounty board remains outside the qualified recovery routes; preserve external
+ running ownership while awaiting the user's navigation choice.
+
+Next resume must use20260930-075232-614988Z and explicitly preserve138. Protect all
+207 current journal rows (through223), including the16 newly VERIFIED actions.
+Fresh code requires focused regressions, full CI and latest Desktop delivery first.
+
+
+Offline gate for this narrow continuation:188 recovery/Guild/Mail/resume/exception
+checks passed;34 final-capture and saved-visual checks passed after final review.
+Affected-file Ruff and diff whitespace check passed. Self-review: only a current
+positive Home observation with unchanged explicit identity can settle a loading
+timeout; no new wait, input, retry or threshold change. Whole2/8 badge templates
+remain current-control-bound and reject partial/conflicting counts. All207 journal
+rows are untouched. The three fixtures and two runtime crops contain only game UI
+and image PNG chunks; no credentials, private metadata or unrelated diagnostics.

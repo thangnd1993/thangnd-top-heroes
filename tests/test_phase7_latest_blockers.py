@@ -20,7 +20,7 @@ def capture(name):
         Target(43,'offline-random','explicit-fixture','boot'))
 
 
-@pytest.mark.parametrize('name,count', [('mail-five',5),('mail-six',6)])
+@pytest.mark.parametrize('name,count', [('mail-five',5),('mail-six',6),('mail-eight',8)])
 def test_numbered_mail_badge_is_complete_and_control_bound_without_ocr(name,count):
     detector = GuildMailDetector(number_reader=lambda *a,**kw:None)
     frame = detector.observe(capture(name))
@@ -107,3 +107,11 @@ def test_duplicate_monthly_attention_cannot_rescue_animated_gift():
     image[box.y-2:box.y+box.height+2,box.x-80:box.x-80+patch.shape[1]] = patch
     changed = detector.observe(replace(original,normalized=image))
     assert detector.availability(changed,'shop-monthly-privilege-gift')[0] == 'UNKNOWN'
+
+
+def test_member_two_remains_available_despite_other_received_rows():
+    detector = GuildMailDetector(number_reader=lambda *a,**kw:None)
+    frame = detector.observe(capture('member-two'))
+    view = detector.availability(frame,'guild-gifts-member')
+    assert view.state == 'AVAILABLE' and view.remaining == 2
+    assert detector.received_rows(frame) == 1

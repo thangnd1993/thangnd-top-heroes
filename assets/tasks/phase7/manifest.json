@@ -773,5 +773,27 @@
       20
     ],
     "threshold": 0.98
+  },
+  {
+    "id": "badge-small-digit-2",
+    "source": "phase7_resume/member-two",
+    "source_bbox": [
+      489,
+      1190,
+      21,
+      21
+    ],
+    "threshold": 0.98
+  },
+  {
+    "id": "badge-mail-digit-8",
+    "source": "phase7_resume/mail-eight",
+    "source_bbox": [
+      275,
+      180,
+      21,
+      20
+    ],
+    "threshold": 0.98
   }
 ]

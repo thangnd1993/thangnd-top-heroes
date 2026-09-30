@@ -1,5 +1,16 @@
 # Tiến độ
 
+## Phase 7 latest continuation — PARTIAL, 2026-09-30
+
+9d7fae5 / CI36681995562 / artifact11083756270 delivered606 verified Desktop files.
+Latest report20260930-075232-614988Z:8/8 processed,16 new VERIFIED, no new POSSIBLE;
+all191 earlier rows unchanged.2/4/5/10 COMPLETE.3 needs final Home observation
+integration,8/11 small-number2/8 qualification.9 is externally running on the
+unqualified bounty board; no input sent. User navigation choice is pending.
+Protected1 and external9 remained running; all other instances stopped. All names,
+Protection/selections restored/preserved.138 remains the explicit immutable PASS
+exception. Resume only unfinished scope from this NEW report after fresh CI.
+
 ## Phase 7 second resume — PARTIAL, 2026-09-30
 
 Latest accepted eed3d4b / CI36556655255 / artifact11028774395 was delivered.

@@ -25,6 +25,7 @@ from top_heroes_auto.automation.recovery import (
     RecoveryObservation,
     RecoveryResult,
     RecoveryStatus,
+    confirm_final_home,
 )
 from top_heroes_auto.vision.image_normalizer import ScreenshotInvalid
 from top_heroes_auto.vision.matcher import match_anchor
@@ -199,10 +200,10 @@ class DiagnosticRecoveryPort:
                              observed_target=target)
         log.info('[%s / #%s] Qualified Home overlay Back', self.name, self.index)
 
-    def persist_final(self):
+    def persist_final(self) -> RecoveryObservation | None:
         self.final_sample = True
         try:
-            self.observe(0)
+            return self.observe(0)
         except (OSError, RuntimeError, ValueError) as exc:
             error = {
                 'label': 'final', 'capture_error': str(exc),
@@ -254,6 +255,7 @@ def run_home_recovery(
     launch_attempt: dict | None = None
     ownership_uncertain = False
     port = None
+    recovery_engine = engine or HomeRecoveryEngine()
     try:
         if not target.running:
             if not allow_start:
@@ -292,7 +294,7 @@ def run_home_recovery(
             ).as_dict()
         if result is None:
             port = DiagnosticRecoveryPort(manager, snapshot, index, name, folder)
-            result = (engine or HomeRecoveryEngine()).ensure_game_home(port, cancelled)
+            result = recovery_engine.ensure_game_home(port, cancelled)
     except (CommandError, OSError, SafetyError, ValueError) as exc:
         result = RecoveryResult(RecoveryStatus.ADB_ERROR, error=str(exc))
 
@@ -304,7 +306,15 @@ def run_home_recovery(
         RecoveryStatus.LOADING_TIMEOUT, RecoveryStatus.LIMIT_REACHED, RecoveryStatus.UNKNOWN_SCREEN,
         RecoveryStatus.PROMO_BLOCKING,
     }:
-        port.persist_final()
+        final_observation = port.persist_final()
+        if not cancelled():
+            confirm_final_home(
+                result,
+                final_observation,
+                duration=port.clock() - port.started,
+                max_duration=getattr(recovery_engine, "max_duration", 0),
+                max_steps=getattr(recovery_engine, "max_steps", 0),
+            )
 
     report_path = folder / "report.json"
     cleanup_performed = False

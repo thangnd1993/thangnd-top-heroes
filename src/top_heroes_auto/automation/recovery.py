@@ -99,6 +99,46 @@ class RecoveryResult:
         }
 
 
+def confirm_final_home(
+    result: RecoveryResult,
+    observation: RecoveryObservation | None,
+    *,
+    duration: float,
+    max_duration: float,
+    max_steps: int,
+) -> bool:
+    """Use the already-required final capture only within the original budget.
+
+    A new positive Home frame can settle a loading timeout before owned cleanup.
+    This function performs no launch, wait, input, or additional capture.
+    """
+    if (
+        result.status != RecoveryStatus.LOADING_TIMEOUT
+        or observation is None
+        or observation.detection.state != ScreenState.GAME_HOME
+        or not observation.screenshot
+        or not result.adb_target
+        or not result.boot_id
+        or (observation.adb_target, observation.boot_id) != (result.adb_target, result.boot_id)
+        or not result.duration <= duration < max_duration
+        or not result.steps
+        or result.steps[-1].number >= max_steps
+    ):
+        return False
+    result.steps.append(
+        RecoveryStep(
+            result.steps[-1].number + 1,
+            ScreenState.GAME_HOME,
+            observation.detection.confidence,
+            observation.screenshot,
+            "verify_final_home",
+        )
+    )
+    result.actions.append("verify_final_home")
+    result.status, result.error, result.duration = RecoveryStatus.SUCCESS, None, duration
+    return True
+
+
 class HomeRecoveryEngine:
     def __init__(
         self,
