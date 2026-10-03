@@ -23,19 +23,22 @@ def blocked(error):
 
 def execute_instance(manager, data, target, folder, registry, *, prior=None, enabled=None,
                      session_factory=InstanceSession, identity_reader=persistent_identity,
-                     temporary_selection=True, cancelled=lambda: False, preserve_possible=()):
+                     temporary_selection=True, cancelled=lambda: False, preserve_possible=(), resume_flows=()):
     prior = prior or {}
-    plan = registry.snapshot(enabled)
+    full_plan = registry.snapshot(enabled)
+    plan = tuple(f for f in full_plan if not resume_flows or f.id in resume_flows)
     required = tuple(r for flow in plan for r in flow.rewards)
     row = dict(index=target['index'], name=target['name'], result='PARTIAL',
         plan=[dict(flow=f.id, rewards=list(f.rewards), enabled=f.enabled, supported=f.supported) for f in plan],
-        rewards={k: v for k, v in prior.get('rewards', {}).items() if k in required}, flows={},
+        rewards=dict(prior.get('rewards', {})), flows={},
         cleanup='NOT_REQUIRED', selection_restored=True, recovery_ok=prior.get('recovery_ok', False), new_claims=0)
     exceptions = preserved_claims(manager, {'accounts': [prior]}, [target], preserve_possible)
     by_reward = {proof['reward']: proof for proof in exceptions.values()}
     if set(by_reward)-set(required):
         raise SafetyError('Preserved reward is absent from the frozen registry plan.')
     row['rewards'].update(by_reward)
+    row['execution_flows'] = [f.id for f in plan]
+    row['out_of_scope_flows'] = [f.id for f in full_plan if f not in plan]
 
     def complete(outcome):
         return outcome.get('result') in COMPLETE or (
@@ -141,14 +144,14 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
             row['rewards'].setdefault(reward, blocked(row.get('error', 'Plan did not finish.')))
         row['result'] = 'COMPLETE' if (not row.get('error') and row['recovery_ok']
             and row['cleanup'] in {'SUCCESS', 'NOT_REQUIRED'} and row['selection_restored']
-            and all(complete(r) for r in row['rewards'].values())) else 'PARTIAL'
+            and all(complete(row['rewards'][r]) for r in required)) else 'PARTIAL'
         persist()
     return row
 
 
 def run(manager, data, *, random_test=False, resume_report=None, registry=None, enabled=None,
         identity_reader=persistent_identity, session_factory=InstanceSession, targets=None,
-        temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=()):
+        temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=(), resume_flows=()):
     registry = registry or production_registry()
     before = inventory(manager)
     previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
@@ -160,6 +163,20 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         if enabled is not None and enabled != previous.get('enabled_config', {}):
             raise SafetyError('Resume cannot change the original enabled configuration.')
         enabled = previous.get('enabled_config', {})
+    # An explicit continuation scope narrows the frozen registry without changing
+    # normal Run Selected configuration or reopening unrelated historical blockers.
+    inherited_scope = previous.get('execution_flows', []) if previous and previous.get('scope_limited') else []
+    if resume_flows:
+        known = {f.id for f in registry.snapshot(enabled)}
+        original = {p['flow'] for a in previous.get('accounts', []) for p in a.get('plan', [])} if previous else set()
+        if (not previous or len(set(resume_flows)) != len(resume_flows)
+                or any(not isinstance(f, str) for f in resume_flows)
+                or set(resume_flows) - (known & original)
+                or (inherited_scope and set(resume_flows) - set(inherited_scope))):
+            raise SafetyError('Continuation flows must narrow the original registered scope.')
+    elif inherited_scope:
+        resume_flows = tuple(inherited_scope)
+    execution_plan = tuple(f for f in registry.snapshot(enabled) if not resume_flows or f.id in resume_flows)
     # Exceptions are opt-in on every resume, never inherited as generic completion.
     if previous and set(previous.get('preserved_possible_claims', [])) - set(preserve_possible):
         raise SafetyError('Resume must explicitly retain previously authorized POSSIBLE exceptions.')
@@ -197,7 +214,9 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
     folder.mkdir(parents=True, exist_ok=False)
     report = dict(schema='instance-first-v1', mode='resume' if previous else 'random-test' if random_test else 'fleet',
         max_concurrency=1, before_instances=before, targets=targets,
-        required_rewards=[r for f in registry.snapshot(enabled) for r in f.rewards],
+        required_rewards=[r for f in execution_plan for r in f.rewards],
+        execution_flows=[f.id for f in execution_plan],
+        scope_limited=bool(resume_flows),
         enabled_config=enabled or {}, eligible_candidates=eligible, random_target=chosen,
         random_method='secrets.choice' if random_test else None,
         resumed_from=str(resume_report) if previous else None, accounts=[])
@@ -249,7 +268,8 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         row = execute_instance(manager, data, target, folder/str(target['index']), registry,
             prior=old.get(target['index']), enabled=enabled, session_factory=session_factory,
             identity_reader=identity_reader, temporary_selection=temporary_selection, cancelled=cancelled,
-            preserve_possible=tuple(cid for cid, proof in exceptions.items() if proof['index'] == target['index']))
+            preserve_possible=tuple(cid for cid, proof in exceptions.items() if proof['index'] == target['index']),
+            resume_flows=resume_flows)
         report['accounts'].append(row)
         write(path, report)
         progress(f"INSTANCE END #{target['index']}: {row['result']}")

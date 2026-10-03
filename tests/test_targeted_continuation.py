@@ -98,3 +98,53 @@ def test_external_preflight_cannot_turn_into_owned_launch(rig, tmp_path):
     with pytest.raises(SafetyError,match='stopped'):
         stopped.start()
     assert len(calls)==1 and not any(c[1] in ('launch','quit') for c in process.calls)
+
+
+def test_flow_scope_does_not_execute_historical_unrelated_blocker(rig, tmp_path):
+    path, old = prior(rig, tmp_path)
+    old['accounts'][1]['rewards']['one']['result'] = 'BLOCKED'
+    path.write_text(json.dumps(old), encoding='utf-8')
+    calls = []
+    result = run(rig, tmp_path, calls, resume_report=path, resume_indexes=(13,),
+                 resume_flows=('feature-two',))
+    assert calls == [(13, 'start'), (13, 'feature-two', ('three',)), (13, 'cleanup')]
+    assert result['result'] == 'PASS' and result['scope_limited']
+    assert result['required_rewards'] == ['three']
+    account = result['accounts'][1]
+    assert account['rewards']['one'] == old['accounts'][1]['rewards']['one']
+    assert account['out_of_scope_flows'] == ['feature-one']
+    assert result['accounts'][0]['rewards'] == old['accounts'][0]['rewards']
+    path.write_text(json.dumps(result), encoding='utf-8')
+    calls.clear()
+    resumed = run(rig, tmp_path, calls, resume_report=path, resume_indexes=(13,))
+    assert not calls and resumed['execution_flows'] == ['feature-two']
+    with pytest.raises(SafetyError, match='narrow'):
+        run(rig, tmp_path, calls, resume_report=path, resume_flows=('feature-one',))
+    assert not calls
+
+
+@pytest.mark.parametrize('scope', [('missing',), ('feature-two', 'feature-two'), (42,)])
+def test_invalid_flow_scope_rejected_before_session(rig, tmp_path, scope):
+    path, _ = prior(rig, tmp_path)
+    calls = []
+    with pytest.raises(SafetyError):
+        run(rig, tmp_path, calls, resume_report=path, resume_flows=scope)
+    assert not calls
+
+
+def test_flow_scope_requires_resume(rig, tmp_path):
+    with pytest.raises(SafetyError):
+        run(rig, tmp_path, [], resume_flows=('feature-two',))
+
+
+def test_cli_passes_explicit_flow_scope(monkeypatch, tmp_path):
+    from top_heroes_auto.app import automation_fleet, diagnostic, main
+    calls = []
+    monkeypatch.setattr(diagnostic, '_manager', lambda _: object())
+    monkeypatch.setattr(automation_fleet, 'run', lambda *a, **kw: calls.append(kw))
+    with pytest.raises(ValueError):
+        main.main(['automation-acceptance', '--random-test', '--resume-flow', 'guild'])
+    assert not calls
+    main.main(['automation-acceptance', '--resume-report', str(tmp_path),
+               '--resume-index', '9', '--resume-flow', 'guild', '--resume-flow', 'mail'])
+    assert calls[0]['resume_flows'] == ('guild', 'mail')

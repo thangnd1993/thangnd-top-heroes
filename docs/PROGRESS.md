@@ -1,5 +1,14 @@
 # Tiến độ
 
+## Phase7 Mini Quin — continuation scope repair
+
+Fresh7d68a7c attempt reached Home but exposed historical VIP/BXH pending flows.
+Two new VERIFIED journals227/228; all210 old rows unchanged. Execution halted by
+selection revocation, exact owned cleanup completed, Mini Quin stopped. Chicken
+remains externally running/Protected. Seven accepted accounts retained. Add explicit
+resume-flow scope before further real work; CI and scoped Guild/Mail pending.
+See [incident and continuation checkpoint](PHASE7-MINI-QUIN-20261003.md). NoPhase8.
+
 ## Phase 7 Mini Quin — fresh build ready; live instance stopped
 
 Code7d68a7c / CI36702959789 PASS:1152tests+26skips, lint/build/smoke/upload.

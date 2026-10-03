@@ -8,7 +8,10 @@ Tap only the current Back bbox, consume the frame and capture afresh. Maximum tw
 attempts while that same qualified state persists; never retry uncertain transport.
 A state change ends this Back sequence. Continue normal qualified Home/overlay
 recovery; unrelated UNKNOWN still receives no input. No bounty claim is authorized.
-Mini Quin is externally running and must remain running after its scoped resume.
+Historical Sep30 scope was attach-only. On Oct03 the user explicitly authorized
+starting stopped index9 once and owned stop after continuation. Preserve unrelated
+running instances (currently Protected Chicken). Continue only Guild/Mail via
+explicit resume-flow scope; no historical Phase6 pending flows.
 
 ## Phase 7 explicit action scope — 2026-09-27
 
