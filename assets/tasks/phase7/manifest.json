@@ -795,5 +795,16 @@
       20
     ],
     "threshold": 0.98
+  },
+  {
+    "id": "badge-mail-digit-2",
+    "source": "phase7_resume/mail-two",
+    "source_bbox": [
+      275,
+      180,
+      21,
+      20
+    ],
+    "threshold": 0.98
   }
 ]

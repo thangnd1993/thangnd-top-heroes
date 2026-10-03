@@ -87,6 +87,9 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                 persist()
                 continue
             pending = tuple(r for r in flow.rewards if not complete(row['rewards'].get(r, {})) or row['rewards'].get(r, {}).get('result') in {'DISABLED', 'NOT_APPLICABLE'})
+            if pending and flow.refresh_unavailable:
+                pending = tuple(r for r in flow.rewards if r in pending or
+                    row['rewards'].get(r, {}).get('result') == 'NOT_AVAILABLE')
             if not pending:
                 row['flows'][flow.id] = dict(result='ALREADY_COMPLETED', rewards={r: row['rewards'][r] for r in flow.rewards})
                 persist()

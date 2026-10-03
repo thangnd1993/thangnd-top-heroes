@@ -174,3 +174,38 @@ def test_production_back_requires_current_paired_home_and_never_reuses_frame():
     assert port._after_overlay and port._overlay_frame is None
     with pytest.raises(SafetyError):
         port.dismiss_home_overlay_back(observation)
+
+
+@pytest.mark.parametrize('tab', ['war', 'guild'])
+def test_mail_two_badge_on_selected_and_inactive_tab(tab):
+    detector = GuildMailDetector(number_reader=lambda *a, **kw: None)
+    frame = detector.observe(capture('mail-two'))
+    assert frame.page == 'mail'
+    tabs = detector.mail_tabs(frame)
+    assert tabs[tab]['count'] == 2
+    assert tabs[tab]['selected'] is (tab == 'war')
+    assert tabs['collection']['count'] == 0
+    assert tabs['system']['count'] is None and tabs['reports']['count'] is None
+
+
+def test_mail_two_conflicting_ocr_does_not_use_template():
+    readings = iter([2, 3, 2])
+    detector = GuildMailDetector(number_reader=lambda *a, **kw: None)
+    frame = detector.observe(capture('mail-two'))
+    box = detector.mail_tabs(frame)['guild']['box']
+    detector.number_reader = lambda *a, **kw: next(readings)
+    assert detector.local_badge(frame, box, numbered=True) is None
+
+
+def test_mail_two_weak_badge_remains_unknown():
+    detector = GuildMailDetector(number_reader=lambda *a, **kw: None)
+    original = detector.observe(capture('mail-two'))
+    box = detector.mail_tabs(original)['guild']['box']
+    badge = detector.local_badge(original, box)
+    image = portrait(original.captured).copy()
+    image[badge.y:badge.y+badge.height, badge.x:badge.x+badge.width] = cv2.GaussianBlur(
+        image[badge.y:badge.y+badge.height, badge.x:badge.x+badge.width], (9,9), 4)
+    changed = ScreenshotService(lambda _: cv2.imencode('.png', image)[1].tobytes()).take(
+        Target(51, 'unrelated-test-name', 'explicit-fixture', 'boot'))
+    frame = detector.observe(changed)
+    assert detector.local_badge(frame, box, numbered=True) is None

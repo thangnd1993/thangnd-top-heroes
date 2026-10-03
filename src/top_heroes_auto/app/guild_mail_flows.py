@@ -79,4 +79,4 @@ def relic_completed(session,rewards):
 
 
 REGISTRY.register(Flow('guild',GUILD_REWARDS,run,completed=relic_completed))
-REGISTRY.register(Flow('mail',MAIL_REWARDS,run))
+REGISTRY.register(Flow('mail',MAIL_REWARDS,run,refresh_unavailable=True))

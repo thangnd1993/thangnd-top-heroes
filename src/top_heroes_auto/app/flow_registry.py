@@ -19,6 +19,8 @@ class Flow:
     applicable: Callable = lambda target: True
     # Read-only feature-owned journal qualification before lifecycle/navigation.
     completed: Callable = lambda session, rewards: {}
+    # Reobserve prior empty sub-rewards only within an already-required visit.
+    refresh_unavailable: bool = False
 
 
 class FlowRegistry:

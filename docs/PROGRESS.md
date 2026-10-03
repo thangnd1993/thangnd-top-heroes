@@ -1,5 +1,14 @@
 # Tiến độ
 
+## Phase7 Mini Quin — Mail2 glyph and fresh-tab repair
+
+Scoped24b3dbb / CI37095366801 delivered and accepted only Guild/Mail on9.
+Member NOT_AVAILABLE; System13->0 journal229 and Reports60->0 journal230 VERIFIED.
+Cleanup SUCCESS, all instances stopped/selectionsfalse; all212 older rows unchanged.
+Current War2 and Guild2 remain. Qualify strict mail-font2 and reobserve old empty
+tabs only within an already-required Mail visit.214-row baseline; fresh CI pending.
+See [current checkpoint](PHASE7-MINI-QUIN-20261003.md). NoPhase8.
+
 ## Phase7 Mini Quin — continuation scope repair
 
 Fresh7d68a7c attempt reached Home but exposed historical VIP/BXH pending flows.

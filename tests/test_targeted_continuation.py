@@ -148,3 +148,34 @@ def test_cli_passes_explicit_flow_scope(monkeypatch, tmp_path):
     main.main(['automation-acceptance', '--resume-report', str(tmp_path),
                '--resume-index', '9', '--resume-flow', 'guild', '--resume-flow', 'mail'])
     assert calls[0]['resume_flows'] == ('guild', 'mail')
+
+
+@pytest.mark.parametrize('refresh,expected', [(False, ('one',)), (True, ('one', 'two'))])
+def test_required_visit_rechecks_old_unavailable_without_replaying_verified(rig, tmp_path, refresh, expected):
+    from dataclasses import replace
+
+    from test_instance_pipeline import setup
+
+    from top_heroes_auto.app.automation_fleet import execute_instance
+    calls = []
+    registry, session, _ = setup(calls)
+    registry._flows['feature-one'] = replace(registry._flows['feature-one'],
+        rewards=('one', 'two', 'verified'), refresh_unavailable=refresh)
+    old = dict(recovery_ok=True, rewards={
+        'one': dict(result='BLOCKED'), 'two': dict(result='NOT_AVAILABLE'),
+        'verified': dict(result='SUCCESS', journal='VERIFIED', claim_id=42),
+        'three': dict(result='NOT_AVAILABLE')})
+    target = dict(index=7, name='Farm-007', persistent_identity='disk')
+    result = execute_instance(rig[0], tmp_path, target, tmp_path/'account', registry,
+        prior=old, session_factory=session, identity_reader=lambda *a: 'disk')
+    assert calls == [(7, 'start'), (7, 'feature-one', expected), (7, 'cleanup')]
+    assert result['rewards']['verified'] == old['rewards']['verified']
+    calls.clear()
+    execute_instance(rig[0], tmp_path, target, tmp_path/'next', registry,
+        prior=result, session_factory=session, identity_reader=lambda *a: 'disk')
+    assert not calls  # A completed feature is never reopened just for coverage.
+
+
+def test_only_mail_opts_in_to_current_unavailable_tab_refresh():
+    from top_heroes_auto.app.flow_registry import production_registry
+    assert {f.id for f in production_registry().snapshot() if f.refresh_unavailable} == {'mail'}
