@@ -258,3 +258,59 @@ def test_actual_icons_relocated_keep_current_derived_boxes():
     assert len(a)==len(b)==6
     assert [c.fingerprint for c in a]==[c.fingerprint for c in b]
     assert [(c.icon_box.x-60,c.icon_box.y+40) for c in a]==[(c.icon_box.x,c.icon_box.y) for c in b]
+
+
+def test_tabs_share_one_continuous_visit_without_back_between_tabs():
+    event=control('e','event')
+    t1,t2=control('tab-one','tab'),control('tab-two','tab')
+    back=control('back','parent')
+    p=Port([frame('home',0,[event]),frame('event:initial',1,[t1,t2],parent=back),
+            frame('event:one',2,[t2],parent=back),frame('event:two',3,[t1],parent=back),frame('home',4)])
+    result=DynamicEventExplorer().run(p)
+    assert result.result=='SUCCESS'
+    assert [c[1] for c in p.calls]==['event','tab','tab','parent']
+
+
+def test_real_shared_event_shell_discovers_both_badged_tabs():
+    from top_heroes_auto.vision.dynamic_events import event_shell
+    image=cv2.imread('tests/fixtures/phase8/event-shell.png')
+    shell=event_shell(image,BoundingBox(34,1209,52,47),reader=lambda _: [{'text':'Event'}])
+    assert shell and len(shell['tabs'])==2 and len(shell['selected'])==1
+    assert shell['tabs'][0].icon_box.x < shell['tabs'][1].icon_box.x
+    # Body Boss/Guild 'Go' is never a tab or an authorized claim target.
+    assert all(c.icon_box.y>1170 for c in shell['tabs'])
+
+
+def test_shared_shell_needs_no_predeclared_event_name():
+    from top_heroes_auto.vision.dynamic_events import event_shell
+    image=cv2.imread('tests/fixtures/phase8/event-shell.png')
+    shell=event_shell(image,BoundingBox(34,1209,52,47),reader=lambda _: [{'text':'Future seasonal title'}])
+    assert shell['title']=='future seasonal title'
+
+
+def test_unreadable_or_conflicting_header_is_unknown():
+    from top_heroes_auto.vision.dynamic_events import event_shell
+    image=cv2.imread('tests/fixtures/phase8/event-shell.png')
+    words=iter([[{'text':'Event'}],[{'text':'Different'}]])
+    assert event_shell(image,BoundingBox(34,1209,52,47),reader=lambda _: next(words)) is None
+    assert event_shell(image,BoundingBox(34,1209,52,47),reader=lambda _: []) is None
+    assert event_shell(image,None,reader=lambda _: [{'text':'Event'}]) is None
+
+
+def test_gold_header_alone_does_not_qualify_a_page():
+    from top_heroes_auto.vision.dynamic_events import event_shell
+    image=cv2.imread('tests/fixtures/phase8/event-shell.png')
+    image[:100]=40
+    assert event_shell(image,BoundingBox(34,1209,52,47),reader=lambda _: [{'text':'Event'}]) is None
+
+
+def test_identical_tab_icons_in_nested_groups_do_not_suppress_each_other():
+    event=control('e','event')
+    tab=control('same-icon','tab')
+    child=control('submenu')
+    back=control('back','parent')
+    p=Port([frame('home',0,[event]),frame('outer',1,[tab],parent=back),
+            frame('outer:selected',2,[child],parent=back),frame('inner',3,[tab],parent=back),
+            frame('inner:selected',4,[],parent=back),frame('outer:selected',5,[child],parent=back),frame('home',6)])
+    assert DynamicEventExplorer().run(p).result=='SUCCESS'
+    assert sum(c[1]=='tab' for c in p.calls)==2

@@ -9,9 +9,10 @@ from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
 from top_heroes_auto.automation.dynamic_events import Control, EventFrame
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, dismiss_overlay_bottom_left
-from top_heroes_auto.vision.dynamic_events import discover_events
+from top_heroes_auto.vision.dynamic_events import discover_events, event_shell
 from top_heroes_auto.vision.guild_mail import portrait
-from top_heroes_auto.vision.models import BoundingBox
+from top_heroes_auto.vision.local_ocr import read_words
+from top_heroes_auto.vision.models import BoundingBox, ScreenState
 
 
 class DynamicEventPort:
@@ -31,6 +32,8 @@ class DynamicEventPort:
         controls, blocked = [], []
         page = observed.page if observed.page == 'home' else 'UNKNOWN'
         candidates = ()
+        parent = None
+        shell = None
         # The Home detector and current Shop anchor jointly qualify the sidebar.
         # The ROI is a semantic UI surface, not a list of icon/tap coordinates.
         shop = observed.box('home-shop-entry')
@@ -53,15 +56,26 @@ class DynamicEventPort:
         # Do not infer safe navigation or free rewards from arbitrary event art.
         # Event content contracts need clean real evidence, including paid controls.
         if self.entered and page != 'home':
+            shell = event_shell(image,observed.box('back'),reader=read_words)
+            if shell:
+                page = shell['page']
+                parent = Control('current-back',shell['back'],('gold-header','stable-title','back-anchor'),'parent')
+                for tab in shell['tabs']:
+                    controls.append(Control(tab.fingerprint,tab.icon_box,
+                        ('event-shell','tab-strip','unique-outlined-icon','rimmed-notification'),'tab'))
             blocked.append('EVENT_CONTENT_REQUIRES_QUALIFICATION')
+        elif page == 'home':
+            self.entered = None
         import hashlib
 
         fingerprint = hashlib.sha256(cv2.resize(image,(90,160)).tobytes()).hexdigest()
-        popup = observed.overlay.state in DISMISSIBLE
+        popup = (observed.overlay.state in DISMISSIBLE and
+                 (self.entered is None or observed.overlay.state != ScreenState.HOME_OVERLAY))
         self.current = EventFrame(str(c.source_image),identity,page,fingerprint,tuple(controls),
-                                  coverage_known=False, popup=popup, blocked=tuple(blocked))
+                                  coverage_known=False, parent=parent, popup=popup, blocked=tuple(blocked))
         payload = dict(frame=asdict(self.current), badges=[item.evidence() for item in candidates],
-                       observed=observed.evidence(), entered_event=self.entered)
+                       observed=observed.evidence(), entered_event=self.entered,
+                       shell=dict(title=shell['title'],selected=shell['selected']) if shell else None)
         c.source_image.with_suffix('.event.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding='utf-8')
         overlay = image.copy()
         for candidate in candidates:
@@ -72,7 +86,16 @@ class DynamicEventPort:
         return self.current
 
     def navigate(self, frame, control):
-        if (frame is not self.current or frame.page != 'home' or control not in frame.controls or
+        if frame is not self.current:
+            raise SafetyError('Stale event navigation frame.')
+        if control.kind in {'tab','parent'}:
+            if not frame.page.startswith('event:') or control not in (*frame.controls,frame.parent):
+                raise SafetyError('No qualified event tab/parent edge.')
+            self.transport.dispatch(self.transport.last,'tap',control.box.center)
+            self.current = None
+            time.sleep(.5)
+            return
+        if (frame.page != 'home' or control not in frame.controls or
                 control.kind != 'event' or self.entered is not None):
             raise SafetyError('Event navigation lacks a qualified current-frame edge.')
         # Two observations must agree on the icon core and notification box.

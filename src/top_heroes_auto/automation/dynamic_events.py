@@ -92,6 +92,7 @@ class DynamicEventExplorer:
         transport = None
         captures, edges, attempted, exhausted_scrolls = set(), set(), set(), set()
         scroll_counts, scroll_views = {}, {}
+        visited_tabs = set()
         stack = []
         active = None
         pending = None
@@ -208,6 +209,10 @@ class DynamicEventExplorer:
                         continue  # Claims consume the frame; never navigate on it.
                     for c in frame.controls:
                         key = active, frame.page, c.identity
+                        if c.kind == 'tab' and (active,tuple(stack),c.identity) not in visited_tabs:
+                            visited_tabs.add((active,tuple(stack),c.identity))
+                            control = c
+                            break
                         if c.kind == 'child' and key not in edges:
                             if len(stack) >= self.limits.depth:
                                 block('DEPTH_LIMIT', frame)

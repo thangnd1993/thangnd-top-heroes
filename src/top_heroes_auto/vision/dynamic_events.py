@@ -82,3 +82,66 @@ def discover_events(image, region):
         result.append(replace(badge,qualified=badge.qualified and len(matches)==1,
                               icon_box=matches[0] if len(matches)==1 else None))
     return tuple(result)
+
+
+def folded(text):
+    import unicodedata
+
+    return ' '.join(''.join(c for c in unicodedata.normalize('NFKD',text.lower())
+                           if not unicodedata.combining(c)).split())
+
+
+def event_shell(image, back, *, reader):
+    """Shared gold-header/Back/tab chrome, independent of event names/artwork.
+
+    This qualifies safe navigation only. Uninterpreted body content is never
+    classified empty or free. Header OCR must agree on two independent renders.
+    """
+    h,w=image.shape[:2]
+    if back is None or back.x > w*.18 or back.y < h*.90:
+        return None
+    hsv=cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
+    gold=cv2.inRange(hsv,(10,85,185),(38,255,255))
+    # A full-width top header is separate evidence from its readable title.
+    if np.count_nonzero(gold[:round(h*.07)])/(round(h*.07)*w) < .65:
+        return None
+    header=image[:round(h*.07),round(w*.2):round(w*.8)]
+    titles=[]
+    for scale in (1,2):
+        words=reader(cv2.resize(header,None,fx=scale,fy=scale,interpolation=cv2.INTER_CUBIC))
+        title=folded(' '.join(word['text'] for word in words))
+        if len(title)<3 or not any(c.isalpha() for c in title):
+            return None
+        titles.append(title)
+    if titles[0]!=titles[1]:
+        return None
+    # Current highlighted tab supplies a local page identity, never reward/reset identity.
+    bottom=round(h*.91)
+    bar=cv2.inRange(hsv,(10,100,220),(38,255,255))[bottom:]
+    bar[np.count_nonzero(bar,axis=1)>w*.65]=0
+    bar=cv2.morphologyEx(bar,cv2.MORPH_CLOSE,np.ones((5,5),np.uint8))
+    contours,_=cv2.findContours(bar,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    selected=[]
+    for contour in contours:
+        x,y,bw,bh=cv2.boundingRect(contour)
+        if .09*w < bw < .45*w and bh > .045*h:
+            selected.append(BoundingBox(x,bottom+y,bw,bh))
+    if len(selected)>1:
+        return None
+    signature='single-page'
+    if selected:
+        b=selected[0]
+        core=image[b.y+round(b.height*.15):b.y+round(b.height*.75),
+                   b.x+round(b.width*.25):b.x+round(b.width*.75)]
+        signature=hashlib.sha256((cv2.resize(core,(24,24))//16).tobytes()).hexdigest()
+    region=BoundingBox(round(w*.18),bottom,w-round(w*.18),h-bottom)
+    tabs=[]
+    for candidate in discover_events(image,region):
+        if not candidate.qualified or not selected:
+            continue
+        box=candidate.icon_box
+        if any(b.x <= box.center[0] <= b.x+b.width for b in selected):
+            continue  # Never re-tap the currently selected tab's badge.
+        tabs.append(candidate)
+    return dict(title=titles[0],page='event:'+titles[0]+':'+signature,
+                selected=[asdict(b) for b in selected],tabs=sorted(tabs,key=lambda c:c.icon_box.x),back=back)

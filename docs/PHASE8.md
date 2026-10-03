@@ -30,9 +30,8 @@ independent unavailable states are required for verification. Siblings remain
 independent. Existing journals are never migrated or rewritten.
 
 The production visual adapter is currently an instrumented development adapter:
-qualified Home notification entry only; unfamiliar event content remains UNKNOWN
-and receives no input. It does NOT yet claim, traverse real internal event tabs,
-or assert event exhaustion. Engine fake-port tests do not qualify real UI.
+qualified Home icon entry and shared event-shell/tab navigation; unfamiliar
+content remains blocked. It does NOT yet claim or assert event exhaustion. Engine fake-port tests do not qualify real UI.
 Clean event-page evidence is still required to build reusable content contracts
 without inferring free status from text or notification dots. No screenshot hash,
 position, run ID or arbitrary date may unlock an old reward.
@@ -55,3 +54,38 @@ Protected names/configs and externally owned running instances remain untouched.
 Offline checkpoint: 99 targeted tests pass, affected Ruff and diff checks pass.
 Saved Home evidence includes six distinct current icons and shifted-image tests.
 No real Phase 8 input or journal mutation has occurred at this checkpoint.
+
+## First real development evidence — 2026-10-03
+
+Code bb629fd / CI37113529992 passed:1215 tests,26 skips; lint, Windows build,
+smoke and upload. Artifact11271334219 delivered616 verified files/343 assets.
+EXE8b56f331f9018c9b37b2cc0dec858bae0f61062af2d0503797d474b911ba5c85.
+All previous Desktop files matched the old accepted build before replacement.
+
+Random secrets.choice selected9/Mini Quin from eligible2,3,4,5,8,9,10;
+11 was excluded by the existing previous-development-target rule. All eight
+current non-Protected instances were recorded; no default account or rename.
+Report:automation/20261003-101951-567648Z/fleet-report.json under diagnostics/tasks.
+Only events enabled. Home recovery SUCCESS; ADB emulator-5572, boot
+8021235f-27d8-4a17-83b0-1139936ac401. Three qualified current icon candidates,
+two additional unqualified notification candidates. One event navigation tap:
+current icon bbox626,99,77,69 ->664,133 after a second agreeing current capture.
+The newly opened Event screen had an event calendar and bottom badged tabs;
+it was UNKNOWN to the initial adapter. No reward/action journal was created.
+Owned cleanup SUCCESS; all12 stopped/unselected, names/Protection unchanged.
+All217 original journal rows unchanged, including138. No paid/resource action.
+
+## Shared event chrome qualification in progress
+
+Use the real clean Event screenshot only. Qualify a shared full-width gold header,
+two agreeing title OCR renderings and the existing qualified Back anchor. Titles
+are read at runtime, never enumerated event names. Detect the selected gold tab
+and notification-associated outlined tab icons from the current frame. Tabs share
+one continuous visit and cannot loop by changing the origin tab. Generic covered
+Home is not blindly dismissed after intentional event entry.
+
+This extends safe navigation only: arbitrary event-body claims remain blocked.
+The Boss/Guild Go button is not a free reward or a permitted tab action. Unhandled
+body content remains explicit BLOCKED; no exhaustion/PASS is inferred.105 targeted
+tests pass. Await fresh CI/artifact before continuing only the bound development
+account via explicit --resume-flow events and --resume-index9. No final fleet yet.
