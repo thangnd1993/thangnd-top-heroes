@@ -105,7 +105,13 @@ def event_shell(image, back, *, reader):
     # A full-width top header is separate evidence from its readable title.
     if np.count_nonzero(gold[:round(h*.07)])/(round(h*.07)*w) < .65:
         return None
-    header=image[:round(h*.07),round(w*.2):round(w*.8)]
+    # Long translated titles extend beyond the old central 60% crop. Isolate
+    # light glyph interiors from gold artwork before OCR. This is only a
+    # run-local navigation identity, never a semantic reward/journal key.
+    header=image[:round(h*.07),round(w*.08):round(w*.92)]
+    glyphs=cv2.inRange(cv2.cvtColor(header,cv2.COLOR_BGR2HSV),(0,0,205),(179,90,255))
+    header=cv2.copyMakeBorder(cv2.cvtColor(255-glyphs,cv2.COLOR_GRAY2BGR),
+                             20,20,20,20,cv2.BORDER_CONSTANT,value=(255,255,255))
     titles=[]
     for scale in (1,2):
         words=reader(cv2.resize(header,None,fx=scale,fy=scale,interpolation=cv2.INTER_CUBIC))

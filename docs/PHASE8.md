@@ -89,3 +89,37 @@ The Boss/Guild Go button is not a free reward or a permitted tab action. Unhandl
 body content remains explicit BLOCKED; no exhaustion/PASS is inferred.106 targeted
 tests pass. Await fresh CI/artifact before continuing only the bound development
 account via explicit --resume-flow events and --resume-index9. No final fleet yet.
+
+
+## Scoped event-tab evidence — 2026-10-03
+
+Code3f38de7 / CI37118005536 passed1222 tests,26 skips plus lint/build/smoke/upload.
+Artifact11273126830 delivered616 verified files/343 assets to Desktop/app.
+EXE08656a80ed6b895fdea6eae57a300dd4432d4cc7e2581c3365a56e986ea28848.
+Only the previously bound9/Mini Quin resumed, explicit events allowlist.
+Report:automation/20261003-114600-797935Z/fleet-report.json under diagnostics/tasks.
+Home recovery SUCCESS; explicit emulator-5572. Five current-frame navigation
+inputs: Event entry, two footer tabs, Back, seasonal-event entry. Zero reward
+claims; all217 original journals unchanged. Cleanup SUCCESS; all selections,
+names and Protection preserved; no external runtime change. Final result PARTIAL.
+
+Saved pages show an event calendar, a relic task list with a green claim alongside
+paid diamond refresh controls, and a seasonal tile menu with nested badges.
+The green button has NOT been acted on or qualified as a production claim.
+The seasonal page was UNKNOWN because raw title OCR failed on outlined light
+text/gold artwork and the central crop clipped long translated headings.
+
+Offline repair isolates light title glyphs with full header width and retains
+strict agreement across two renderings. Both real shell fixtures classify;
+Windows OCR text is only a run-local navigation label, never a durable reward
+identity or a guessed translated name.52 focused tests and affected Ruff pass.
+The additional clean fixture contains only the seasonal game UI, reencoded PNG.
+No new real input is authorized by this offline test result alone: fresh passing
+CI artifact is still required before the next production continuation.
+
+Remaining work: qualify nested tile navigation and bounded hidden-tab/list
+scrolling, distinguish free reward rows from paid controls with independent
+postconditions, durable semantic reward identities, stable dynamic Home event
+tracking, then actual development qualification. Final fleet has NOT started;
+Phase8 remains IN PROGRESS. Do not mark unfamiliar content exhausted or replay
+other flows when continuing events. No Phase9.

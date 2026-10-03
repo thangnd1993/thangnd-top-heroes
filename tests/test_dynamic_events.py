@@ -323,3 +323,29 @@ def test_clock_or_art_animation_is_not_navigation_progress():
     result=DynamicEventExplorer().run(p)
     assert result.blocked[-1]['reason']=='NO_PROGRESS'
     assert len(p.calls)==1
+
+
+def test_long_gold_title_uses_complete_isolated_glyphs():
+    from top_heroes_auto.vision.dynamic_events import event_shell
+    image=cv2.imread('tests/fixtures/phase8/event-long-header.png')
+    crops=[]
+
+    def reader(crop):
+        crops.append(crop)
+        return [{'text':'Trin Chien Chqng V?ng'}]
+
+    shell=event_shell(image,BoundingBox(34,1209,52,47),reader=reader)
+    assert shell and shell['title']=='trin chien chqng v?ng'
+    assert len(crops)==2 and crops[1].shape[1]==2*crops[0].shape[1]
+    assert crops[0].shape[1] > image.shape[1]*.84
+    assert set(np.unique(crops[0])) <= {0,255}
+    assert np.all(crops[0][:20]==255)
+    # This header qualifies navigation, never any body reward.
+    assert all(c.icon_box.y > 1170 for c in shell['tabs'])
+
+
+def test_long_header_still_rejects_inconsistent_readings():
+    from top_heroes_auto.vision.dynamic_events import event_shell
+    image=cv2.imread('tests/fixtures/phase8/event-long-header.png')
+    readings=iter([[{'text':'Long title'}],[{'text':'Other title'}]])
+    assert event_shell(image,BoundingBox(34,1209,52,47),reader=lambda _:next(readings)) is None

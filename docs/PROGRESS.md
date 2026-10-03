@@ -1,3 +1,11 @@
+## Phase 8 latest scoped development — 2026-10-03
+
+See docs/PHASE8.md for the latest events-only continuation on9/Mini Quin.
+CI37118005536/artifact11273126830 delivered; real result PARTIAL, zero claims,
+217 journals unchanged, cleanup/selection/isolation verified. Current offline
+repair handles long gold-header titles; content claims remain unqualified.
+Final Phase8 fleet not started. Continue from this evidence, not a fresh survey.
+
 # Phase 8 first development: safe entry, content qualification pending
 
 bb629fd CI37113529992 PASS (1215tests/26skips),616-file Desktop artifact delivered.
