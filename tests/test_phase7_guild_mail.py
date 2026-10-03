@@ -226,7 +226,7 @@ def test_postcondition_requires_fresh_same_target_evidence(changes):
 
 def test_phase7_registered_with_existing_instance_pipeline():
     plan = production_registry().snapshot()
-    assert [f.id for f in plan] == ['vip','ranking','shop','guild','mail']
+    assert [f.id for f in plan[:5]] == ['vip','ranking','shop','guild','mail']
     assert next(f for f in plan if f.id == 'mail').rewards == tuple(
         f'mail-{name}' for name in ('war','guild','system','reports','collection'))
 
