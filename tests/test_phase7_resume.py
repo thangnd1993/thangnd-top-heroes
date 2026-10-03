@@ -4,6 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import cv2
+import numpy as np
 import pytest
 
 from top_heroes_auto.adb.client import Target
@@ -209,3 +210,41 @@ def test_mail_two_weak_badge_remains_unknown():
         Target(51, 'unrelated-test-name', 'explicit-fixture', 'boot'))
     frame = detector.observe(changed)
     assert detector.local_badge(frame, box, numbered=True) is None
+
+
+@pytest.mark.parametrize('shift', [0, 12])
+def test_current_selected_mail_one_is_available_at_current_position(shift):
+    detector = GuildMailDetector(number_reader=lambda *a, **kw: None)
+    captured = capture('mail-one-selected')
+    if shift:
+        image = portrait(captured)
+        image = cv2.warpAffine(image, np.float32([[1,0,shift],[0,1,8]]),
+                               (image.shape[1],image.shape[0]))
+        captured = ScreenshotService(lambda _: cv2.imencode('.png',image)[1].tobytes()).take(
+            Target(62,'another-fixture','explicit-fixture','boot'))
+    frame = detector.observe(captured)
+    tabs = detector.mail_tabs(frame)
+    assert tabs['system']['selected'] is True and tabs['system']['count'] == 1
+    assert all(tabs[t]['count'] == 0 for t in ('war','guild','reports','collection'))
+    view = detector.availability(frame,'mail-system')
+    assert view.state == 'AVAILABLE' and view.remaining == 1
+    geometry = detector.action_geometry(frame,view.role,view.box,view.forbidden)
+    assert geometry['tap'] == list(view.box.center)
+
+
+@pytest.mark.parametrize('mode', ['weak', 'duplicate'])
+def test_mail_one_badge_uncertainty_stays_unknown(mode):
+    detector = GuildMailDetector(number_reader=lambda *a, **kw: None)
+    original = detector.observe(capture('mail-one-selected'))
+    box = detector.mail_tabs(original)['system']['box']
+    badge = detector.local_badge(original,box)
+    image = portrait(original.captured).copy()
+    patch = image[badge.y:badge.y+badge.height,badge.x:badge.x+badge.width].copy()
+    if mode == 'weak':
+        image[badge.y:badge.y+badge.height,badge.x:badge.x+badge.width] = cv2.GaussianBlur(patch,(9,9),4)
+    else:
+        x = badge.x+badge.width+8
+        image[badge.y:badge.y+badge.height,x:x+badge.width] = patch
+    changed = ScreenshotService(lambda _:cv2.imencode('.png',image)[1].tobytes()).take(
+        Target(62,'another-fixture','explicit-fixture','boot'))
+    assert detector.local_badge(detector.observe(changed),box,numbered=True) is None

@@ -126,3 +126,32 @@ Current-batch repair gates:141targeted tests passed; final21scope/audit tests pa
 affected Ruff and diff-check PASS. Self-review confirms no journal rewriting, no
 new action for zero/ambiguous unread count, existing POSSIBLE guard unchanged,
 refresh restricted to explicit resumed batch-capable flow, and one Mail visit.
+
+
+## Final audit works; selected System1 render variant remains
+
+54f325e / CI37100869871 PASS:1168tests,26skips; lint/build/smoke/upload.
+Artifact11266789144 delivered615 verified Desktop files and342 runtime assets.
+Report `automation/20261003-063716-882004Z/fleet-report.json`: only9, one Mail visit,
+Guild retained, no new action/journal. War/Guild/Reports/Collection each0;
+System has the actual new unread1 but selected-tab glyph fails strict fallback.
+Final audit correctly reports UNKNOWN/PARTIAL. No unsafe input. Owned cleanup
+SUCCESS; all12 stopped and unselected; names/Protection unchanged; all216 rows
+byte-for-byte unchanged. No other account started. No donation/TrialHall/Phase8.
+
+Inactive System1 was qualified in the previous frame, but its selected current
+render is not matched by existing templates. Qualify one reusable full21x20 mail
+badge1 core from the new clean selected frame at unchanged.98. Detector still finds
+current local badge and button geometry; no account-specific coordinates or numeric
+substitution. Tiny asset and saved regression frame contain only game UI and PNG
+IHDR/IDAT/IEND chunks, no secrets or unrelated private data. Source screenshot:
+`9/mail/20261003-063935-001685Z-guild-mail.png` in that report's folder.
+
+Next resume uses this report, same216-row baseline, exact9 and Guild/Mail scope,
+with --refresh-flow mail and --preserve-possible138 after fresh passing CI/artifact.
+Only the actual unread batch can dispatch; old journals and completed accounts stay
+immutable. Final all-five-tab audit remains mandatory before PASS.
+
+Selected-mail1 gate:26 targeted saved-image regressions PASS, Ruff/diff-check PASS.
+Current-position and translated-frame positives pass; weak and duplicate badge
+evidence stays UNKNOWN. No production Python logic or threshold change in this fix.

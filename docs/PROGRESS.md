@@ -1,5 +1,13 @@
 # Tiến độ
 
+## Phase7 Mini Quin — selected System1 glyph remains safely blocked
+
+54f325e / CI37100869871 passed1168tests+26skips, delivered615files. Final all-tab
+audit now correctly blocks: four tabs0, selected System1 unqualified. No new action
+or journal; all216 unchanged. Cleanup SUCCESS; all12 stopped/unselected. Qualify
+strict current mail-font1 crop, then fresh CI before exact9 continuation. NoPhase8.
+See [current checkpoint](PHASE7-MINI-QUIN-20261003.md).
+
 ## Phase7 Mini Quin — current new Mail batch still pending
 
 b13fe93 / CI37098042989 passed1165tests+26skips and delivered615files. War3->0

@@ -806,5 +806,16 @@
       20
     ],
     "threshold": 0.98
+  },
+  {
+    "id": "badge-mail-digit-1",
+    "source": "phase7_resume/mail-one-selected",
+    "source_bbox": [
+      397,
+      180,
+      21,
+      20
+    ],
+    "threshold": 0.98
   }
 ]
