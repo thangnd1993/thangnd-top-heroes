@@ -1,5 +1,10 @@
 # Phase 7 — Guild and Mail
 
+Latest: **PHASE7 PASS — 8/8 COMPLETE**, final110ae90 / CI37104568762.
+See [final acceptance, safety audit and recorded scope incident](PHASE7-FINAL-ACCEPTANCE-20261003.md).
+Journal138 remains locked; noPhase8 or further automatic real run. Historical notes follow.
+
+
 Status: PARTIAL; latest2026-09-30 resume has7/8 COMPLETE. Only Mini Quin external bounty screen remains blocked. See PHASE7-CONTINUATION-20260930.md.
 Branch: `codex/phase7-guild-mail`, based on Phase 6 completion `c4309fe`.
 The user's 2026-09-27 request explicitly starts Phase 7; Phase 8 is excluded.

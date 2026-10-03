@@ -1,5 +1,10 @@
 # Mini Quin qualified recovery — 2026-09-30
 
+Latest: **PHASE7 PASS — 8/8 COMPLETE**, final110ae90 / CI37104568762.
+See [final acceptance, safety audit and recorded scope incident](PHASE7-FINAL-ACCEPTANCE-20261003.md).
+Journal138 remains locked; noPhase8 or further automatic real run. Historical notes follow.
+
+
 Status: implementation/CI/delivery complete; real acceptance NOT STARTED because
 fresh preflight found Mini Quin stopped. Phase7 remains7/8 COMPLETE, PARTIAL.
 
