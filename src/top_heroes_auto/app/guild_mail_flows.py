@@ -9,6 +9,22 @@ from top_heroes_auto.automation.recovery import RecoveryStatus
 from top_heroes_auto.vision.guild_mail import GUILD_REWARDS, MAIL_REWARDS
 
 
+def audit_current_mail(port, report):
+    """A previous successful batch cannot hide unread content in the final frame."""
+    frame = port.observe_settled()
+    if frame.page != 'mail':
+        raise SafetyError('Final Mail inspection requires the current Mail page.')
+    tabs = port.detector.mail_tabs(frame)
+    counts = {reward: tabs.get(reward.removeprefix('mail-'), {}).get('count') for reward in MAIL_REWARDS}
+    report['current_tab_audit'] = dict(frame=frame.evidence(), counts=counts)
+    for reward, count in counts.items():
+        if type(count) is int and count == 0:
+            continue
+        outcome = report['rewards'].setdefault(reward, dict(result='NOT_STARTED', claim_dispatched=False))
+        if outcome['result'] in COMPLETE or outcome['result'] == 'NOT_STARTED':
+            outcome.update(prior_result=outcome['result'], result='CURRENT_BATCH_PENDING', remaining=count)
+
+
 def run(session, folder, rewards, *, port_factory=GuildMailPort):
     folder.mkdir(parents=True,exist_ok=True)
     report = dict(index=session.index,name=session.name,rewards={},return_home='NOT_STARTED',
@@ -47,6 +63,14 @@ def run(session, folder, rewards, *, port_factory=GuildMailPort):
         for reward in rewards:
             report['rewards'].setdefault(reward,dict(result='BLOCKED',journal='NONE',claim_dispatched=False))
         if port is not None:
+            if folder.name == 'mail':
+                try:
+                    audit_current_mail(port, report)
+                except Exception as exc:  # noqa: BLE001 - final unread state must not be silently omitted
+                    report['current_tab_audit_error'] = str(exc)
+                    for outcome in report['rewards'].values():
+                        if outcome['result'] in COMPLETE:
+                            outcome.update(prior_result=outcome['result'], result='CURRENT_BATCH_PENDING')
             try:
                 port.home()
                 report['return_home'] = 'SUCCESS'
@@ -54,7 +78,8 @@ def run(session, folder, rewards, *, port_factory=GuildMailPort):
                 report['return_home'] = 'FAILED'
                 report['recovery_error'] = str(exc)
             report.update(entries=port.entries,popup_dismissals=port.dismissals)
-        report['result'] = 'SUCCESS' if all(r['result'] in COMPLETE for r in report['rewards'].values()) else 'BLOCKED'
+        report['result'] = 'SUCCESS' if (not report.get('current_tab_audit_error') and
+            all(r['result'] in COMPLETE for r in report['rewards'].values())) else 'BLOCKED'
         store.finish_task_run(task,report['result'],report_path=str(path))
         persist()
     return report
@@ -79,4 +104,4 @@ def relic_completed(session,rewards):
 
 
 REGISTRY.register(Flow('guild',GUILD_REWARDS,run,completed=relic_completed))
-REGISTRY.register(Flow('mail',MAIL_REWARDS,run,refresh_unavailable=True))
+REGISTRY.register(Flow('mail',MAIL_REWARDS,run,refresh_current_batches=True))

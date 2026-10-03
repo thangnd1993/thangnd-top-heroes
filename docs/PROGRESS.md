@@ -1,5 +1,15 @@
 # Tiến độ
 
+## Phase7 Mini Quin — current new Mail batch still pending
+
+b13fe93 / CI37098042989 passed1165tests+26skips and delivered615files. War3->0
+journal231 and Guild2->0 journal232 VERIFIED; all214 earlier rows unchanged.
+Owned9stopped/selectionsrestored. Queen externally running; Chicken externally
+stopped during run without any command targeting it. Fresh System1 is a NEW batch
+after229 had cleared13->0; raw account COMPLETE is insufficient. Add explicit
+batch reinspection plus final all-tab audit.216 journals immutable; fresh CI pending.
+See [current checkpoint](PHASE7-MINI-QUIN-20261003.md). NoPhase8.
+
 ## Phase7 Mini Quin — Mail2 glyph and fresh-tab repair
 
 Scoped24b3dbb / CI37095366801 delivered and accepted only Guild/Mail on9.

@@ -25,8 +25,9 @@ def main(argv: list[str] | None = None):
         parser.add_argument('--preserve-possible', type=int, action='append', default=[])
         parser.add_argument('--resume-index', type=int, action='append', default=[])
         parser.add_argument('--resume-flow', action='append', default=[])
+        parser.add_argument('--refresh-flow', action='append', default=[])
         options = parser.parse_args(argv[1:])
-        if (options.resume_index or options.resume_flow) and not options.resume_report:
+        if (options.resume_index or options.resume_flow or options.refresh_flow) and not options.resume_report:
             raise ValueError('Targeted continuation requires an explicit resume report.')
         if options.preserve_possible and not options.resume_report:
             raise ValueError('POSSIBLE exceptions require an explicit resume report.')
@@ -37,7 +38,8 @@ def main(argv: list[str] | None = None):
         run(_manager(data), data, random_test=options.random_test, resume_report=options.resume_report,
             preserve_possible=tuple(options.preserve_possible),
             **(dict(resume_indexes=tuple(options.resume_index)) if options.resume_index else {}),
-            **(dict(resume_flows=tuple(options.resume_flow)) if options.resume_flow else {}))
+            **(dict(resume_flows=tuple(options.resume_flow)) if options.resume_flow else {}),
+            **(dict(refresh_flows=tuple(options.refresh_flow)) if options.refresh_flow else {}))
         return 0
     if argv and argv[0] == 'guild-mail-reconcile-saved':
         if len(argv) != 2 or not argv[1].isdigit():

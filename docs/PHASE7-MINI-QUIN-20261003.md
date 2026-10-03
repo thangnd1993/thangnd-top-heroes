@@ -83,3 +83,46 @@ Phase7 remains7/8 until War/Guild finish. Do not replay227-230 or any older acti
 Mail repair targeted gate:87passed; affected Ruff and diff-check PASS. Self-review:
 no VERIFIED replay, no extra feature entry, no threshold reduction, current tab/badge
 geometry only, unchanged exact-instance lifecycle and period/batch journal guards.
+
+
+## Current Mail batch after b13fe93 acceptance
+
+CI37098042989 PASS:1165tests,26skips; lint/build/smoke/upload.
+Artifact11265294007 /342 assets /615 Desktop files verified. Latest report:
+`automation/20261003-053248-075854Z/fleet-report.json`.
+Only9 started; Guild retained without entry. Initial ANDROID_HOME -> bounded
+loading/waits -> GAME_HOME; emulator-5572, bootbc077a7a-e71e-418c-83b8-9f3424f89291.
+War CURRENT3->0 journal231 and Guild2->0 journal232 VERIFIED with two independent
+postframes. All214 earlier journals unchanged. Owned cleanupSUCCESS,9stopped,
+selectionsrestored, names/Protectedflags unchanged. Queen and Chicken were externally
+running at preflight; Chicken externally stopped during the run. No command from
+this task targeted either; Queen remained running. Do not remediate external state.
+The raw fleet result is PARTIAL because its full-row Protected comparison includes
+Chicken runtime change, even though no Protected mutation was dispatched.
+
+Saved fresh Mail also shows System1, a NEW unread batch after229 previously proved
+13->0. The adapter skipped this current content because the prior reward outcome
+was terminal. Thus the account's raw COMPLETE is insufficient for final acceptance;
+Phase7 is NOT yet accepted PASS. Original journals must remain immutable.
+
+Narrow repair: batch-capable Mail reobserves all allowed tabs within a required
+visit, letting the existing current-counter/parent-journal guard decide input.
+Add explicit --refresh-flow mail for this evidence-backed new-batch inspection on
+an explicitly resumed target. It is not inherited by another resume, cannot apply
+to fixed rewards/unsupported flows, and never modifies old journal rows. Same
+POSSIBLE locks still block transport. A verified batch may only parent a NEW current
+positive unread batch under existing production rules; this is not replay of229.
+
+Before leaving Mail, save an independent final all-tab count audit. Any positive,
+unknown or missing count remains CURRENT_BATCH_PENDING; a prior VERIFIED result
+cannot hide it or cause a false PASS. No repeated whole-fleet or other account run.
+
+Next: new fresh CI artifact, latest report above, --resume-index9 --resume-flow guild
+--resume-flow mail --refresh-flow mail --preserve-possible138. Preserve216 journals.
+Current remaining evidence is System1. Technology remains accepted STONE exclusion.
+No donation, Trial Hall, Protected input, persistent config/name change or Phase8.
+
+Current-batch repair gates:141targeted tests passed; final21scope/audit tests passed;
+affected Ruff and diff-check PASS. Self-review confirms no journal rewriting, no
+new action for zero/ambiguous unread count, existing POSSIBLE guard unchanged,
+refresh restricted to explicit resumed batch-capable flow, and one Mail visit.

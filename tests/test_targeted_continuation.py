@@ -146,11 +146,12 @@ def test_cli_passes_explicit_flow_scope(monkeypatch, tmp_path):
         main.main(['automation-acceptance', '--random-test', '--resume-flow', 'guild'])
     assert not calls
     main.main(['automation-acceptance', '--resume-report', str(tmp_path),
-               '--resume-index', '9', '--resume-flow', 'guild', '--resume-flow', 'mail'])
+               '--resume-index', '9', '--resume-flow', 'guild', '--resume-flow', 'mail', '--refresh-flow', 'mail'])
     assert calls[0]['resume_flows'] == ('guild', 'mail')
+    assert calls[0]['refresh_flows'] == ('mail',)
 
 
-@pytest.mark.parametrize('refresh,expected', [(False, ('one',)), (True, ('one', 'two'))])
+@pytest.mark.parametrize('refresh,expected', [(False, ('one',)), (True, ('one', 'two', 'verified'))])
 def test_required_visit_rechecks_old_unavailable_without_replaying_verified(rig, tmp_path, refresh, expected):
     from dataclasses import replace
 
@@ -160,7 +161,7 @@ def test_required_visit_rechecks_old_unavailable_without_replaying_verified(rig,
     calls = []
     registry, session, _ = setup(calls)
     registry._flows['feature-one'] = replace(registry._flows['feature-one'],
-        rewards=('one', 'two', 'verified'), refresh_unavailable=refresh)
+        rewards=('one', 'two', 'verified'), refresh_current_batches=refresh)
     old = dict(recovery_ok=True, rewards={
         'one': dict(result='BLOCKED'), 'two': dict(result='NOT_AVAILABLE'),
         'verified': dict(result='SUCCESS', journal='VERIFIED', claim_id=42),
@@ -169,7 +170,7 @@ def test_required_visit_rechecks_old_unavailable_without_replaying_verified(rig,
     result = execute_instance(rig[0], tmp_path, target, tmp_path/'account', registry,
         prior=old, session_factory=session, identity_reader=lambda *a: 'disk')
     assert calls == [(7, 'start'), (7, 'feature-one', expected), (7, 'cleanup')]
-    assert result['rewards']['verified'] == old['rewards']['verified']
+    assert old['rewards']['verified']['claim_id'] == 42  # Historical input proof is unchanged.
     calls.clear()
     execute_instance(rig[0], tmp_path, target, tmp_path/'next', registry,
         prior=result, session_factory=session, identity_reader=lambda *a: 'disk')
@@ -178,4 +179,55 @@ def test_required_visit_rechecks_old_unavailable_without_replaying_verified(rig,
 
 def test_only_mail_opts_in_to_current_unavailable_tab_refresh():
     from top_heroes_auto.app.flow_registry import production_registry
-    assert {f.id for f in production_registry().snapshot() if f.refresh_unavailable} == {'mail'}
+    assert {f.id for f in production_registry().snapshot() if f.refresh_current_batches} == {'mail'}
+
+
+def test_explicit_fresh_batch_inspection_requires_supported_scope(rig, tmp_path):
+    from dataclasses import replace
+
+    from test_instance_pipeline import setup
+
+    from top_heroes_auto.app.automation_fleet import run as fleet_run
+    calls = []
+    registry, session, _ = setup(calls)
+    registry._flows['feature-two'] = replace(registry._flows['feature-two'], refresh_current_batches=True)
+    first = fleet_run(rig[0], tmp_path, registry=registry, session_factory=session, identity_reader=lambda *a: 'disk')
+    path = tmp_path/'refresh-prior.json'
+    path.write_text(json.dumps(first), encoding='utf-8')
+    calls.clear()
+    for args in ({'refresh_flows': ('feature-two',)},
+                 {'resume_indexes': (7,), 'refresh_flows': ('feature-one',)},
+                 {'resume_indexes': (7,), 'refresh_flows': ('feature-two','feature-two')}):
+        with pytest.raises(SafetyError):
+            fleet_run(rig[0], tmp_path, registry=registry, session_factory=session,
+                identity_reader=lambda *a: 'disk', resume_report=path, **args)
+    assert not calls
+    result = fleet_run(rig[0], tmp_path, registry=registry, session_factory=session,
+        identity_reader=lambda *a: 'disk', resume_report=path, resume_indexes=(7,),
+        resume_flows=('feature-two',), refresh_flows=('feature-two',))
+    assert calls == [(7,'start'), (7,'feature-two',('three',)), (7,'cleanup')]
+    assert result['refresh_flows'] == ['feature-two']
+    path.write_text(json.dumps(result), encoding='utf-8')
+    calls.clear()
+    fleet_run(rig[0], tmp_path, registry=registry, session_factory=session,
+        identity_reader=lambda *a: 'disk', resume_report=path, resume_indexes=(7,))
+    assert not calls  # Explicit reinspection is never inherited as an automatic replay.
+
+
+@pytest.mark.parametrize('count', [1, None])
+def test_final_mail_audit_cannot_hide_new_batch(count):
+    from types import SimpleNamespace
+
+    from top_heroes_auto.app.guild_mail_flows import audit_current_mail
+    from top_heroes_auto.vision.guild_mail import MAIL_REWARDS
+    frame = SimpleNamespace(page='mail', evidence=lambda: {'capture':'fresh'})
+    tabs = {r.removeprefix('mail-'): {'count': 0} for r in MAIL_REWARDS}
+    tabs['system']['count'] = count
+    port = SimpleNamespace(observe_settled=lambda:frame, detector=SimpleNamespace(mail_tabs=lambda _:tabs))
+    report = dict(rewards={r:dict(result='SUCCESS', journal='VERIFIED', claim_id=29) for r in MAIL_REWARDS})
+    audit_current_mail(port, report)
+    assert report['rewards']['mail-system']['result'] == 'CURRENT_BATCH_PENDING'
+    assert report['rewards']['mail-system']['journal'] == 'VERIFIED'
+    assert report['rewards']['mail-system']['claim_id'] == 29
+    assert report['rewards']['mail-war']['result'] == 'SUCCESS'
+    assert report['current_tab_audit']['counts']['mail-system'] == count

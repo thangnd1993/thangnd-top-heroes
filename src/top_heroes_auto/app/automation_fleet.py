@@ -23,7 +23,7 @@ def blocked(error):
 
 def execute_instance(manager, data, target, folder, registry, *, prior=None, enabled=None,
                      session_factory=InstanceSession, identity_reader=persistent_identity,
-                     temporary_selection=True, cancelled=lambda: False, preserve_possible=(), resume_flows=()):
+                     temporary_selection=True, cancelled=lambda: False, preserve_possible=(), resume_flows=(), refresh_flows=()):
     prior = prior or {}
     full_plan = registry.snapshot(enabled)
     plan = tuple(f for f in full_plan if not resume_flows or f.id in resume_flows)
@@ -87,9 +87,8 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                 persist()
                 continue
             pending = tuple(r for r in flow.rewards if not complete(row['rewards'].get(r, {})) or row['rewards'].get(r, {}).get('result') in {'DISABLED', 'NOT_APPLICABLE'})
-            if pending and flow.refresh_unavailable:
-                pending = tuple(r for r in flow.rewards if r in pending or
-                    row['rewards'].get(r, {}).get('result') == 'NOT_AVAILABLE')
+            if flow.refresh_current_batches and (pending or flow.id in refresh_flows):
+                pending = flow.rewards  # Current counters + batch journal guards decide input.
             if not pending:
                 row['flows'][flow.id] = dict(result='ALREADY_COMPLETED', rewards={r: row['rewards'][r] for r in flow.rewards})
                 persist()
@@ -154,7 +153,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
 
 def run(manager, data, *, random_test=False, resume_report=None, registry=None, enabled=None,
         identity_reader=persistent_identity, session_factory=InstanceSession, targets=None,
-        temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=(), resume_flows=()):
+        temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=(), resume_flows=(), refresh_flows=()):
     registry = registry or production_registry()
     before = inventory(manager)
     previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
@@ -180,6 +179,11 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
     elif inherited_scope:
         resume_flows = tuple(inherited_scope)
     execution_plan = tuple(f for f in registry.snapshot(enabled) if not resume_flows or f.id in resume_flows)
+    if refresh_flows:
+        refreshable = {f.id for f in execution_plan if f.enabled and f.supported and f.refresh_current_batches}
+        if (not previous or not resume_indexes or len(set(refresh_flows)) != len(refresh_flows)
+                or set(refresh_flows) - refreshable):
+            raise SafetyError('Fresh batch inspection requires explicit resumed targets and batch-capable flows.')
     # Exceptions are opt-in on every resume, never inherited as generic completion.
     if previous and set(previous.get('preserved_possible_claims', [])) - set(preserve_possible):
         raise SafetyError('Resume must explicitly retain previously authorized POSSIBLE exceptions.')
@@ -219,7 +223,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         max_concurrency=1, before_instances=before, targets=targets,
         required_rewards=[r for f in execution_plan for r in f.rewards],
         execution_flows=[f.id for f in execution_plan],
-        scope_limited=bool(resume_flows),
+        scope_limited=bool(resume_flows), refresh_flows=list(refresh_flows),
         enabled_config=enabled or {}, eligible_candidates=eligible, random_target=chosen,
         random_method='secrets.choice' if random_test else None,
         resumed_from=str(resume_report) if previous else None, accounts=[])
@@ -272,7 +276,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
             prior=old.get(target['index']), enabled=enabled, session_factory=session_factory,
             identity_reader=identity_reader, temporary_selection=temporary_selection, cancelled=cancelled,
             preserve_possible=tuple(cid for cid, proof in exceptions.items() if proof['index'] == target['index']),
-            resume_flows=resume_flows)
+            resume_flows=resume_flows, refresh_flows=refresh_flows)
         report['accounts'].append(row)
         write(path, report)
         progress(f"INSTANCE END #{target['index']}: {row['result']}")
