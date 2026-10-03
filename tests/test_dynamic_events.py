@@ -314,3 +314,12 @@ def test_identical_tab_icons_in_nested_groups_do_not_suppress_each_other():
             frame('inner:selected',4,[],parent=back),frame('outer:selected',5,[child],parent=back),frame('home',6)])
     assert DynamicEventExplorer().run(p).result=='SUCCESS'
     assert sum(c[1]=='tab' for c in p.calls)==2
+
+
+def test_clock_or_art_animation_is_not_navigation_progress():
+    origin=frame('home',0,[control('e','event')])
+    changed=replace(origin,capture='fresh',fingerprint='clock-ticked')
+    p=Port([origin,changed])
+    result=DynamicEventExplorer().run(p)
+    assert result.blocked[-1]['reason']=='NO_PROGRESS'
+    assert len(p.calls)==1

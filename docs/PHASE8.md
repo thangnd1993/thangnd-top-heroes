@@ -86,6 +86,6 @@ Home is not blindly dismissed after intentional event entry.
 
 This extends safe navigation only: arbitrary event-body claims remain blocked.
 The Boss/Guild Go button is not a free reward or a permitted tab action. Unhandled
-body content remains explicit BLOCKED; no exhaustion/PASS is inferred.105 targeted
+body content remains explicit BLOCKED; no exhaustion/PASS is inferred.106 targeted
 tests pass. Await fresh CI/artifact before continuing only the bound development
 account via explicit --resume-flow events and --resume-index9. No final fleet yet.

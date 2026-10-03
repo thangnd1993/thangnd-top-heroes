@@ -3,7 +3,7 @@
 bb629fd CI37113529992 PASS (1215tests/26skips),616-file Desktop artifact delivered.
 Random9/Mini Quin: Home SUCCESS, one current-icon Event navigation, no claim.
 Unknown event body saved; owned cleanup SUCCESS, all217 journals unchanged.
-Shared generic event-header/tab navigation now has105 targeted passing tests;
+Shared generic event-header/tab navigation now has106 targeted passing tests;
 requires fresh CI before scoped continuation. Phase8 is NOT PASS; no final fleet.
 See [Phase8 checkpoint](PHASE8.md).
 

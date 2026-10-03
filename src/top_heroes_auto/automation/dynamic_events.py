@@ -142,7 +142,7 @@ class DynamicEventExplorer:
                         if frame.page != origin:
                             block('PARENT_NOT_VERIFIED', frame)
                             break
-                    elif frame.page == origin and frame.fingerprint == signature:
+                    elif frame.page == origin:
                         block('NO_PROGRESS', frame)
                         break
                 if active and frame.page == 'home':
