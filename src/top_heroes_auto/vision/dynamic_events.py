@@ -1,6 +1,6 @@
 """Current-frame event notification discovery; no seasonal icon/name catalog."""
 import hashlib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 
 import cv2
 import numpy as np
@@ -14,6 +14,7 @@ class BadgeCandidate:
     fingerprint: str
     rim_confidence: float
     qualified: bool
+    icon_box: BoundingBox | None = None
 
     def evidence(self):
         return asdict(self)
@@ -54,3 +55,30 @@ def discover_badges(image, region):
         candidates.append(BadgeCandidate(BoundingBox(bx,by,bw,bh), fingerprint,
                                          confidence, confidence >= .45))
     return tuple(sorted(candidates, key=lambda c: (c.box.y, c.box.x)))
+
+
+def discover_events(image, region):
+    """Associate a notification with ONE outlined current icon, never a red pixel alone."""
+    h,w=image.shape[:2]
+    badges=discover_badges(image,region)
+    hsv=cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
+    white=cv2.inRange(hsv,(0,0,185),(179,85,255))
+    bounded=np.zeros_like(white)
+    bounded[region.y:region.y+region.height,region.x:region.x+region.width]=white[
+        region.y:region.y+region.height,region.x:region.x+region.width]
+    bounded=cv2.morphologyEx(bounded,cv2.MORPH_CLOSE,np.ones((3,3),np.uint8))
+    contours,_=cv2.findContours(bounded,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    icons=[]
+    for contour in contours:
+        x,y,bw,bh=cv2.boundingRect(contour)
+        if .045*w <= bw <= .16*w and .023*h <= bh <= .085*h:
+            icons.append(BoundingBox(x,y,bw,bh))
+    result=[]
+    for badge in badges:
+        cx,cy=badge.box.center
+        matches=[box for box in icons if box.x+box.width*.55 <= cx <= box.x+box.width
+                 and box.y <= cy <= box.y+box.height*.45
+                 and box.y+box.height > badge.box.y+badge.box.height+8]
+        result.append(replace(badge,qualified=badge.qualified and len(matches)==1,
+                              icon_box=matches[0] if len(matches)==1 else None))
+    return tuple(result)

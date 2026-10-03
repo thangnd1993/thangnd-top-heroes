@@ -237,3 +237,24 @@ def test_saved_home_badges_are_discovered_without_event_names():
     qualified=[c for c in found if c.qualified]
     assert len(qualified)==6
     assert all(c.box.x>490 and c.box.y<510 for c in qualified)
+
+
+def test_event_requires_separate_outlined_icon_not_just_badge():
+    from top_heroes_auto.vision.dynamic_events import discover_events
+    region=BoundingBox(490,65,230,445)
+    assert not any(c.qualified for c in discover_events(badge_image(),region))
+    image=cv2.imread('tests/fixtures/phase7/home-live.png')
+    events=[c for c in discover_events(image,region) if c.qualified]
+    assert len(events)==6
+    assert all(c.icon_box and c.icon_box.width>c.box.width*2 for c in events)
+
+
+def test_actual_icons_relocated_keep_current_derived_boxes():
+    from top_heroes_auto.vision.dynamic_events import discover_events
+    image=cv2.imread('tests/fixtures/phase7/home-live.png')
+    moved=cv2.warpAffine(image,np.float32([[1,0,-60],[0,1,40]]),(720,1280))
+    a=[c for c in discover_events(image,BoundingBox(490,65,230,445)) if c.qualified]
+    b=[c for c in discover_events(moved,BoundingBox(430,105,290,445)) if c.qualified]
+    assert len(a)==len(b)==6
+    assert [c.fingerprint for c in a]==[c.fingerprint for c in b]
+    assert [(c.icon_box.x-60,c.icon_box.y+40) for c in a]==[(c.icon_box.x,c.icon_box.y) for c in b]

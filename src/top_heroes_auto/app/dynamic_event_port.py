@@ -9,7 +9,7 @@ from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
 from top_heroes_auto.automation.dynamic_events import Control, EventFrame
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, dismiss_overlay_bottom_left
-from top_heroes_auto.vision.dynamic_events import discover_badges
+from top_heroes_auto.vision.dynamic_events import discover_events
 from top_heroes_auto.vision.guild_mail import portrait
 from top_heroes_auto.vision.models import BoundingBox
 
@@ -39,11 +39,11 @@ class DynamicEventPort:
             left, top = max(0, round(w*.68)), shop.y+shop.height+2
             bottom = round(h*.40)
             if top < bottom:
-                candidates = discover_badges(image, BoundingBox(left, top, w-left, bottom-top))
+                candidates = discover_events(image, BoundingBox(left, top, w-left, bottom-top))
                 for candidate in candidates:
                     if candidate.qualified:
-                        controls.append(Control(candidate.fingerprint, candidate.box,
-                                                ('GAME_HOME', 'current-shop-sidebar', 'rimmed-notification'), 'event'))
+                        controls.append(Control(candidate.fingerprint, candidate.icon_box,
+                                                ('GAME_HOME', 'current-shop-sidebar', 'rimmed-notification', 'unique-outlined-icon'), 'event'))
                     else:
                         blocked.append('UNQUALIFIED_NOTIFICATION_GEOMETRY')
             else:
@@ -65,7 +65,7 @@ class DynamicEventPort:
         c.source_image.with_suffix('.event.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding='utf-8')
         overlay = image.copy()
         for candidate in candidates:
-            b = candidate.box
+            b = candidate.icon_box or candidate.box
             cv2.rectangle(overlay,(b.x,b.y),(b.x+b.width,b.y+b.height),
                           (0,255,0) if candidate.qualified else (0,165,255),2)
         c.source_image.with_suffix('.event-overlay.png').write_bytes(cv2.imencode('.png',overlay)[1].tobytes())

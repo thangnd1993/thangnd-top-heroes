@@ -8,7 +8,9 @@ Phase 8 is IN PROGRESS, NOT PASS. Phase 9 is not authorized.
 
 Home discovery searches the current upper-right event region below the verified
 Tiệm entry. It does not use an event-name/icon catalog or persistent coordinates.
-White-rimmed notification geometry is navigation evidence only. A run-local
+White-rimmed notifications must belong to one separately detected outlined icon.
+The tap uses that current icon bbox, never the badge alone. Both observations
+must agree before input. This geometry is navigation evidence only. A run-local
 icon-core fingerprint is not a journal key or a reward-period identity.
 
 The new events feature registers in the existing instance-first registry; no
@@ -49,3 +51,7 @@ Do not begin final fleet acceptance until real production behavior is qualified.
 Final acceptance must use all current non-Protected targets sequentially and the
 full per-instance enabled registry. Do not treat a discovery scan as PASS.
 Protected names/configs and externally owned running instances remain untouched.
+
+Offline checkpoint: 99 targeted tests pass, affected Ruff and diff checks pass.
+Saved Home evidence includes six distinct current icons and shifted-image tests.
+No real Phase 8 input or journal mutation has occurred at this checkpoint.
