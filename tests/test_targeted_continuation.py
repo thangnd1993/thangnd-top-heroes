@@ -177,9 +177,9 @@ def test_required_visit_rechecks_old_unavailable_without_replaying_verified(rig,
     assert not calls  # A completed feature is never reopened just for coverage.
 
 
-def test_only_mail_opts_in_to_current_unavailable_tab_refresh():
+def test_only_batch_features_opt_in_to_current_content_refresh():
     from top_heroes_auto.app.flow_registry import production_registry
-    assert {f.id for f in production_registry().snapshot() if f.refresh_current_batches} == {'mail'}
+    assert {f.id for f in production_registry().snapshot() if f.refresh_current_batches} == {'mail', 'events'}
 
 
 def test_explicit_fresh_batch_inspection_requires_supported_scope(rig, tmp_path):

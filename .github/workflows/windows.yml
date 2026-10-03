@@ -10,6 +10,7 @@ on:
       - codex/phase5-idle-reward
       - codex/phase6-vip-pack-recruit
       - codex/phase7-guild-mail
+      - codex/phase8-dynamic-events
   pull_request:
   workflow_dispatch:
 permissions:

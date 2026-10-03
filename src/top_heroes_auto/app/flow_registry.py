@@ -56,6 +56,7 @@ def production_registry():
     # isort: off
     from top_heroes_auto.app import reward_flows  # noqa: F401
     from top_heroes_auto.app import guild_mail_flows  # noqa: F401
+    from top_heroes_auto.app import dynamic_event_flows  # noqa: F401
     # isort: on
 
     return REGISTRY

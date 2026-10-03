@@ -1,3 +1,9 @@
+# Phase 8 started — 2026-10-03
+
+User authorized dynamic event exploration after Phase 6/7 PASS. Current work is
+IN PROGRESS; no real Phase 8 action yet. See [Phase 8 checkpoint](PHASE8.md).
+Historical Phase 7 stop instructions below describe the completed previous task.
+
 # Tiến độ
 
 ## PHASE7: PASS — 8/8 COMPLETE, 2026-10-03

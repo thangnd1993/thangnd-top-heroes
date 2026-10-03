@@ -26,17 +26,29 @@ def main(argv: list[str] | None = None):
         parser.add_argument('--resume-index', type=int, action='append', default=[])
         parser.add_argument('--resume-flow', action='append', default=[])
         parser.add_argument('--refresh-flow', action='append', default=[])
+        parser.add_argument('--development-flow', action='append', default=[])
         options = parser.parse_args(argv[1:])
         if (options.resume_index or options.resume_flow or options.refresh_flow) and not options.resume_report:
             raise ValueError('Targeted continuation requires an explicit resume report.')
+        if options.development_flow and not options.random_test:
+            raise ValueError('Development flow selection requires a random development test.')
         if options.preserve_possible and not options.resume_report:
             raise ValueError('POSSIBLE exceptions require an explicit resume report.')
         from top_heroes_auto.app.automation_fleet import run
         from top_heroes_auto.app.diagnostic import _manager
 
+        enabled = None
+        if options.development_flow:
+            from top_heroes_auto.app.flow_registry import production_registry
+
+            ids = {f.id for f in production_registry().snapshot()}
+            if not set(options.development_flow) <= ids or len(set(options.development_flow)) != len(options.development_flow):
+                raise ValueError('Development flow scope must be unique and registered.')
+            enabled = {name: name in options.development_flow for name in ids}
         data = data_directory()
         run(_manager(data), data, random_test=options.random_test, resume_report=options.resume_report,
             preserve_possible=tuple(options.preserve_possible),
+            **(dict(enabled=enabled) if enabled is not None else {}),
             **(dict(resume_indexes=tuple(options.resume_index)) if options.resume_index else {}),
             **(dict(resume_flows=tuple(options.resume_flow)) if options.resume_flow else {}),
             **(dict(refresh_flows=tuple(options.refresh_flow)) if options.refresh_flow else {}))
