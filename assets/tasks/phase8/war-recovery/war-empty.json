@@ -1,0 +1,19 @@
+{
+  "id": "war-empty",
+  "state": "WAR_EMPTY",
+  "template": "war-empty.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "source": "phase8/war-empty-recovery",
+  "source_bbox": [
+    246,
+    621,
+    230,
+    41
+  ]
+}

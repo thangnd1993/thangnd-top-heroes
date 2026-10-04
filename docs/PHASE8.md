@@ -363,3 +363,45 @@ excluding timers/badge digits. A new row aligned to the same geometry is not
 silently mistaken for an exhausted viewport. No claim permission changes.
 77 affected navigation/contract tests PASS after scroll-view correction; Ruff and
 diff check PASS. These follow the195 targeted replay/identity/effect tests above.
+
+
+## Phase8 full scoped fleet: 9/9 attempted, unresolved blockers retained
+
+0c74385 / CI37226601452 PASS:1320 tests,26 skips; lint, portable build,
+smoke and upload passed. Artifact11312628534 delivered630 verified Desktop files.
+Fleet automation/20261004-195557-447292Z-0e93a703 processed all9 live non-Protected
+accounts, events-only, max1. Result PARTIAL, not PASS. Protected0/1/6/7 unchanged;
+all final selections false/global restoration true; externally running2/4/5 kept.
+Index3 changed live name Queen Queen->LDPlayer-3 during launch; guard aborted,
+ownership unknown, no rename/config restore. Its row restoration proof failed
+although global selected flags match. Cause unresolved; do not repair names.
+
+Three physical free Event claims total:234(index5),235(index11),236(index10),
+all now VERIFIED using saved evidence and the passing portable, zero additional
+input. Original217 journals preserved.235:13->8->8, three observed/two unobserved
+consumed identities.236:15->8->8, three observed/four unobserved. Unknown identities
+are not fabricated; partial batch locks remain. No proven free diamond reward.
+236 saved-only verification leaves every other219 journal unchanged.
+
+Fleet blockers:2/4/5 empty War board;8 launch splash/loading timeout;9 Android
+readiness lost (no restart);10 unexpected Home after task scroll;11 unsupported
+competitive Event page;12 unqualified interior red artwork. Do not silently call
+unsupported pages unavailable or increase global timeouts. Runtime identity and
+lifecycle discrepancies require clarification before further acceptance.
+
+Offline repair retains five settling captures, extending only for a late qualified
+receipt to reserve two fresh underlying proof captures, absolute bound seven.
+Transport identity is checked before popup input. Receipt alone is never success.
+Empty War recovery requires four unique >=.98 current anchors (title,tabs,empty
+list,Back), qualified relative layout, current-frame Back only, at most two attempts
+with fresh capture and departure lock. No battle, auto-join, reward or generic
+UNKNOWN input enabled. New images are game UI only, no credentials/private data;
+PNG chunks are IHDR,sBIT (bit depth only),IDAT,IEND. 143 event/journal/effect tests
+PASS;95 recovery tests passed in the initial run plus one fixture-placement error,
+then all32 War tests PASS after fixing that test's out-of-bounds duplicate insertion.
+Final combined targeted gate:239 tests PASS; affected Ruff and diff check PASS.
+Offline saved frames2/4/5 each qualify all four anchors at1.0. Self-review: no
+reward replay, no journal downgrade, no target/lifecycle fallback, no global input
+and no paid/battle actions. Require fresh CI/portable/Desktop delivery before
+live repair validation.
+Phase8 IN PROGRESS; no Phase9.

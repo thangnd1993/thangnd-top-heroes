@@ -11,6 +11,7 @@ from top_heroes_auto.vision.hanging_reward import hanging_evidence, qualified_ha
 from top_heroes_auto.vision.models import NormalizedRect, ScreenDetection, ScreenState
 from top_heroes_auto.vision.resources import template_folder
 from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
+from top_heroes_auto.vision.war_recovery import qualified_war, war_evidence
 
 
 class RecoveryScreenDetector:
@@ -62,6 +63,13 @@ class RecoveryScreenDetector:
                 return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
                                evidence=(*detected.evidence, *evidence))
             return replace(detected, state=ScreenState.TREO_THUONG,
+                           confidence=min(e.score for e in evidence), evidence=evidence)
+        evidence = war_evidence(screen)
+        if qualified_war(screen, evidence):
+            if detected.state != ScreenState.UNKNOWN or detected.evidence:
+                return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
+                               evidence=(*detected.evidence, *evidence))
+            return replace(detected, state=ScreenState.WAR_EMPTY,
                            confidence=min(e.score for e in evidence), evidence=evidence)
         return detected
 

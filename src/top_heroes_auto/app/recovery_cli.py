@@ -33,6 +33,7 @@ from top_heroes_auto.vision.matcher import match_anchor
 from top_heroes_auto.vision.models import ScreenState
 from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
 from top_heroes_auto.vision.screenshot import ScreenshotService
+from top_heroes_auto.vision.war_recovery import war_back_point
 
 log = logging.getLogger("top_heroes_auto")
 GAME_PACKAGE = "com.greenmushroom.boomblitz.gp.vn"
@@ -211,6 +212,18 @@ class DiagnosticRecoveryPort:
         self.manager.execute(self.index, "tap", values=point, snapshot=self.snapshot,
                              observed_target=target)
         log.info("[%s / #%s] Qualified Treo Thuong Back %s", self.name, self.index, point)
+        return point
+
+    def back_from_war(self, observation):
+        if self._overlay_frame is None or self._overlay_frame[2] is not observation.detection:
+            raise SafetyError("Stale empty War observation.")
+        target, screen, detection = self._overlay_frame
+        point = war_back_point(screen, detection)
+        self._overlay_frame = None
+        self._after_overlay = True
+        self.manager.execute(self.index, "tap", values=point, snapshot=self.snapshot,
+                             observed_target=target)
+        log.info("[%s / #%s] Qualified empty War Back %s", self.name, self.index, point)
         return point
 
     def persist_final(self) -> RecoveryObservation | None:

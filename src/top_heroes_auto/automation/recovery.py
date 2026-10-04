@@ -42,6 +42,8 @@ class RecoveryPort(Protocol):
 
     def back_from_hanging(self, observation: RecoveryObservation) -> tuple[int, int]: ...
 
+    def back_from_war(self, observation: RecoveryObservation) -> tuple[int, int]: ...
+
     def dismiss_overlay(self, observation: RecoveryObservation) -> tuple[int, int]: ...
 
 
@@ -182,6 +184,7 @@ class HomeRecoveryEngine:
         stable_overlay = None
         hanging_backs = 0
         hanging_departed = False
+        navigation_state = None
         capture_after_back = False
 
         def finish(status: RecoveryStatus, error: str | None = None):
@@ -245,21 +248,23 @@ class HomeRecoveryEngine:
             result.steps.append(step)
             if following_back and self.clock() - started >= self.max_duration:
                 return finish(RecoveryStatus.LIMIT_REACHED, "Post-Back capture completed after deadline; no further input.")
-            if hanging_backs and detection.state != ScreenState.TREO_THUONG:
+            if hanging_backs and detection.state != navigation_state:
                 hanging_departed = True
-            if detection.state == ScreenState.TREO_THUONG:
+            if detection.state in {ScreenState.TREO_THUONG, ScreenState.WAR_EMPTY}:
                 if (hanging_departed or hanging_backs >= 2 or number == self.max_steps
                         or self.clock() - started >= self.max_duration):
-                    return finish(RecoveryStatus.LIMIT_REACHED, "Treo Thuong Back bound reached; no further input.")
+                    return finish(RecoveryStatus.LIMIT_REACHED, "Qualified page Back bound reached; no further input.")
                 if cancelled():
                     return finish(RecoveryStatus.CANCELLED)
                 try:
-                    point = port.back_from_hanging(observation)
+                    navigation_state = detection.state
+                    method = "back_from_war" if navigation_state == ScreenState.WAR_EMPTY else "back_from_hanging"
+                    point = getattr(port, method)(observation)
                 except (CommandError, OSError, SafetyError, ValueError) as exc:
                     return finish(RecoveryStatus.ACTION_FAILED, str(exc))
                 hanging_backs += 1
                 capture_after_back = True
-                action = f"back_from_hanging:{point[0]},{point[1]}"
+                action = f"{method}:{point[0]},{point[1]}"
                 result.actions.append(action)
                 result.steps[-1] = RecoveryStep(number, detection.state, detection.confidence,
                                                observation.screenshot, action)

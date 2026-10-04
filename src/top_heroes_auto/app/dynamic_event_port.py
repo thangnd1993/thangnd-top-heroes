@@ -262,44 +262,7 @@ class DynamicEventPort:
             self.current = None
 
         def postcondition(before,target):
-            observations=[]
-            underlying=[]
-            receipt=None
-            for _ in range(5):
-                time.sleep(.5)
-                after=self.observe()  # First post-action capture is always retained.
-                if after.popup:
-                    if self.transport.last.overlay.state == ScreenState.REWARD_RECEIPT:
-                        receipt = after.capture
-                    self.dismiss(after)
-                    continue
-                if after.identity != before.identity:
-                    return []
-                if after.page == 'UNKNOWN':
-                    continue  # Bounded capture-only settling; never input on UNKNOWN.
-                if after.page != before.page:
-                    return []
-                same=[r for r in self.rows if r['identity']==target.identity]
-                if len(same)!=1 or same[0]['state']!='NOT_AVAILABLE':
-                    # A supported task control may remove a whole free prefix.
-                    # Verify actual body change AND exact counter decrement,
-                    # never a missing row or receipt alone.
-                    underlying.append(after.capture)
-                    if receipt and len(underlying)>=2:
-                        proof=dict(identity=before.identity,capture=before.capture,page=before.page,
-                                   reward=target.identity,event=title)
-                        effect=removal_effect(proof,[underlying[0],underlying[-1]],receipt)
-                        if effect:
-                            return effect
-                    if same and same[0]['state']=='AVAILABLE':
-                        return []
-                    continue
-                observations.append(dict(identity=list(after.identity),capture=after.capture,
-                    event=title,page=after.page,reward=target.identity,state='NOT_AVAILABLE',
-                    independent_evidence=['same-reward-card','claim-control-replaced-by-unavailable-state']))
-                if len(observations)==2:
-                    return observations
-            return []
+            return self._claim_postcondition(before,target,title)
 
         try:
             result=dispatch_once(store,task,self.session.manager.namespace,fresh,control,
@@ -310,6 +273,54 @@ class DynamicEventPort:
         except Exception as exc:
             store.finish_task_run(task,'BLOCKED',error=str(exc),report_path=str(path))
             raise
+
+    def _claim_postcondition(self,before,target,title):
+        """Five settling captures; a qualified receipt reserves two underlying captures."""
+        observations=[]
+        underlying=[]
+        receipt=None
+        capture_limit=5
+        for number in range(7):
+            if number>=capture_limit:
+                return []
+            time.sleep(.5)
+            after=self.observe()  # First post-action capture is always retained.
+            if after.identity != before.identity:
+                return []
+            if after.popup:
+                if self.transport.last.overlay.state == ScreenState.REWARD_RECEIPT:
+                    receipt = after.capture
+                    # A late qualified receipt needs two subsequent proof frames.
+                    # Unknown-only settling and early receipts keep the old budget.
+                    capture_limit=max(capture_limit,number+3)
+                self.dismiss(after)
+                continue
+            if after.page == 'UNKNOWN':
+                continue  # Bounded capture-only settling; never input on UNKNOWN.
+            if after.page != before.page:
+                return []
+            same=[r for r in self.rows if r['identity']==target.identity]
+            if len(same)!=1 or same[0]['state']!='NOT_AVAILABLE':
+                # A supported task control may remove a whole free prefix.
+                # Verify actual body change AND exact counter decrement,
+                # never a missing row or receipt alone.
+                underlying.append(after.capture)
+                if receipt and len(underlying)>=2:
+                    proof=dict(identity=before.identity,capture=before.capture,page=before.page,
+                               reward=target.identity,event=title)
+                    effect=removal_effect(proof,[underlying[0],underlying[-1]],receipt)
+                    if effect:
+                        return effect
+                if same and same[0]['state']=='AVAILABLE':
+                    return []
+                continue
+            observations.append(dict(identity=list(after.identity),capture=after.capture,
+                event=title,page=after.page,reward=target.identity,state='NOT_AVAILABLE',
+                independent_evidence=['same-reward-card','claim-control-replaced-by-unavailable-state']))
+            if len(observations)==2:
+                return observations
+        return []
+
 
     def dismiss(self, frame):
         if frame is not self.current or not frame.popup or self.dismissals >= 3:

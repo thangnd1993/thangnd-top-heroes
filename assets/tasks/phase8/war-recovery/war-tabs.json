@@ -1,0 +1,19 @@
+{
+  "id": "war-tabs",
+  "state": "WAR_EMPTY",
+  "template": "war-tabs.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "source": "phase8/war-empty-recovery",
+  "source_bbox": [
+    95,
+    140,
+    450,
+    39
+  ]
+}
