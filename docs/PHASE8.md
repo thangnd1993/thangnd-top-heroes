@@ -349,3 +349,11 @@ files; chunks IHDR/IDAT/IEND only. Self-review covers one-shot/pending locks,
 independent observations, bounded capture/navigation, fresh geometry and no
 lifecycle/identity fallback. 193 targeted tests PASS; affected Ruff and git diff --check PASS.
 Full current non-Protected Phase8-only acceptance still required; no Phase9.
+
+Additional self-review correction: VERIFIED partial aggregate effects retain a
+lock on unfamiliar AVAILABLE captions while offscreen consumed identities remain
+unresolved. Positively NOT_AVAILABLE remains valid; observed independent siblings
+remain independent. Saved receipt search is bounded to the first five post-action
+frames, preserving the immediate receipt in a longer event session. No input added.
+195 targeted tests PASS after these two replay/evidence corrections; affected Ruff
+and diff check PASS. Original journals remain untouched pending fresh CI.

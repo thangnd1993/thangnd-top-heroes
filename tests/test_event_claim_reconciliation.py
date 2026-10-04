@@ -126,3 +126,17 @@ def test_unfamiliar_but_positively_unavailable_row_stays_unavailable(tmp_path,st
     changed=dict(row,identity='new-raster',state='NOT_AVAILABLE')
     result=bind_saved_rewards(current,[changed],[claim],persistent_identity='disk',index=13)
     assert result[0]['state']=='NOT_AVAILABLE'
+
+
+def test_verified_partial_batch_cannot_reopen_unidentified_offscreen_reward(tmp_path):
+    image,row,claim=evidence(tmp_path)
+    current=image.copy()
+    b=row['row']
+    current[b.y+8:b.y+round(b.height*.30),b.x+10:b.x+round(b.width*.72)]=(210,220,230)
+    cv2.putText(current,'Unseen caption',(b.x+20,b.y+35),cv2.FONT_HERSHEY_SIMPLEX,.7,(30,65,100),2)
+    claim.update(status='VERIFIED',after_evidence=json.dumps([{'unobserved_consumed_count':2}]*2))
+    changed=dict(row,identity='new-raster',state='AVAILABLE')
+    result=bind_saved_rewards(current,[changed],[claim],persistent_identity='disk',index=13)
+    assert result[0]['state']=='UNKNOWN'
+    result=bind_saved_rewards(current,[{**changed,'state':'NOT_AVAILABLE'}],[claim],persistent_identity='disk',index=13)
+    assert result[0]['state']=='NOT_AVAILABLE'

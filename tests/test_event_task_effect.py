@@ -220,3 +220,22 @@ def test_partial_prefix_rejects_unchanged_insufficient_or_conflicting_counter(tm
                            after_fixture='task-list-after-partial-prefix.png')
     badge_counts(monkeypatch,counts)
     assert not removal_effect(proof,paths[1:],receipt,reader=role_reader,allow_new_boot=True)
+
+
+def test_saved_reconciliation_keeps_first_post_action_receipt_in_long_session(tmp_path,monkeypatch):
+    import top_heroes_auto.app.event_task_effect as module
+
+    manager,claim,original,recent=saved_rig(tmp_path,monkeypatch)
+    first=original.parent/'13/events/receipt-bxh-shop.png'
+    for n in range(7):
+        (first.parent/f'z-later-{n}-bxh-shop.png').write_bytes(first.read_bytes())
+    existing=module.removal_effect
+    inspected=[]
+
+    def effect(proof,captures,receipt,**kw):
+        inspected.append(receipt.name)
+        return existing(proof,captures,receipt,**kw) if receipt==first else []
+
+    monkeypatch.setattr(module,'removal_effect',effect)
+    assert module.reconcile_saved(manager,claim,original,recent)['result']=='VERIFIED'
+    assert inspected==['receipt-bxh-shop.png']

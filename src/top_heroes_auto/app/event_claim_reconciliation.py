@@ -40,6 +40,10 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index):
                 raise ValueError('Missing saved caption')
         except (OSError, ValueError, KeyError) as exc:
             raise SafetyError('Saved claim evidence unavailable; no new claim.') from exc
+        after=json.loads(claim.get('after_evidence') or '[]')
+        if not isinstance(after,list) or any(not isinstance(item,dict) for item in after):
+            raise SafetyError('Saved aggregate effect identity unavailable; no new claim.')
+        hidden_effects=any(item.get('unobserved_consumed_count',0)>0 for item in after)
         scored = []
         for row in rows:
             current = task_label_glyph(image, row['row'])
@@ -48,9 +52,9 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index):
             score = float(cv2.matchTemplate(current, glyph, cv2.TM_CCOEFF_NORMED)[0,0])
             scored.append((score, row))
             if (score < .75 and claim['dispatch_state'] == 'POSSIBLE'
-                    and claim.get('status') != 'VERIFIED' and row['state'] == 'AVAILABLE'):
+                    and (claim.get('status') != 'VERIFIED' or hidden_effects) and row['state'] == 'AVAILABLE'):
                 # A new raster hash must not silently become a new eligible
-                # reward while an action is unresolved. Previously seen,
+                # reward while an action or offscreen consumed identity is unresolved. Previously seen,
                 # visually distinct siblings retain their own eligibility.
                 sibling_scores = [float(cv2.matchTemplate(current, g, cv2.TM_CCOEFF_NORMED)[0,0])
                                   for g in known if g is not None]

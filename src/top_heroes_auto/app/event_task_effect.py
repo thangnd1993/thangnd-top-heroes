@@ -168,7 +168,7 @@ def reconcile_saved(manager, claim_id, original_report, after_report):
             candidates.append(path.with_suffix('').with_suffix('.png'))
     candidates=candidates[:8]
     receipts=[p for p in sorted(folder.glob('*-bxh-shop.png'))
-              if p.name > Path(proof['capture']).name][-5:]
+              if p.name > Path(proof['capture']).name][:5]
     observations=[]
     for receipt in receipts:
         for a,b in zip(candidates,candidates[1:]):
