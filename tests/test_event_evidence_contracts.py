@@ -17,6 +17,7 @@ from top_heroes_auto.vision.dynamic_events import (
     event_body_contract,
     icon_core_image,
     matching_icon_cores,
+    menu_view_key,
     task_reward_rows,
 )
 from top_heroes_auto.vision.models import BoundingBox
@@ -209,3 +210,13 @@ def test_multiple_cached_artwork_matches_are_blocked_before_input(tmp_path,monke
     assert 'AMBIGUOUS_ICON_CORE' in frame.blocked and not frame.coverage_known
     assert not any(c.box==BoundingBox(533,289,74,76) for c in frame.controls)
     assert not sent
+
+
+def test_scroll_fingerprint_distinguishes_new_artwork_from_same_grid_and_ignores_clock():
+    before=image('event-gallery-badged-corner')
+    tick=before.copy()
+    tick[940:970,55:300]=50  # Timer, outside card artwork core.
+    assert menu_view_key(before)==menu_view_key(tick)
+    new=before.copy()
+    new[825:920,440:640]=before[520:615,80:280]
+    assert menu_view_key(before)!=menu_view_key(new)

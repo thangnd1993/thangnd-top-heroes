@@ -22,6 +22,7 @@ from top_heroes_auto.vision.dynamic_events import (
     icon_core_image,
     matching_icon_cores,
     menu_card_boxes,
+    menu_view_key,
     task_context_box,
     task_reward_rows,
 )
@@ -165,8 +166,7 @@ class DynamicEventPort:
 
         fingerprint = hashlib.sha256(cv2.resize(image,(90,160)).tobytes()).hexdigest()
         if contract=='MENU_GRID':
-            fingerprint=hashlib.sha256(json.dumps([(b.x,b.y,b.width,b.height) for b in
-                sorted(menu_card_boxes(image),key=lambda b:(b.y,b.x))]).encode()).hexdigest()
+            fingerprint=menu_view_key(image)
         if self.rows:
             # Clocks/background animation cannot pretend the list made progress.
             fingerprint=hashlib.sha256(json.dumps([(r['identity'],r['state'],r['row'].y)

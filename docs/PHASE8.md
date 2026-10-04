@@ -357,3 +357,9 @@ remain independent. Saved receipt search is bounded to the first five post-actio
 frames, preserving the immediate receipt in a longer event session. No input added.
 195 targeted tests PASS after these two replay/evidence corrections; affected Ruff
 and diff check PASS. Original journals remain untouched pending fresh CI.
+
+Menu scroll progress includes current card artwork as well as grid geometry,
+excluding timers/badge digits. A new row aligned to the same geometry is not
+silently mistaken for an exhausted viewport. No claim permission changes.
+77 affected navigation/contract tests PASS after scroll-view correction; Ruff and
+diff check PASS. These follow the195 targeted replay/identity/effect tests above.

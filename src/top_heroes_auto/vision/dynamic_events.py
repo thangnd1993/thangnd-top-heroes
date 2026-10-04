@@ -231,9 +231,7 @@ def discover_menu_tiles(image):
             continue
         b=matches[0]
         # Exclude changing timer and attention digits; retrieval is run-local.
-        core=image[b.y+round(b.height*.35):b.y+round(b.height*.75),
-                   b.x+round(b.width*.2):b.x+round(b.width*.8)]
-        fingerprint=hashlib.sha256((cv2.resize(core,(24,24))//16).tobytes()).hexdigest()
+        fingerprint=menu_art_key(image,b)
         result.append(replace(badge,icon_box=b,fingerprint=fingerprint))
     return tuple(sorted(result,key=lambda c:(c.icon_box.y,c.icon_box.x)))
 
@@ -537,3 +535,17 @@ def body_label_box(image,name):
     if score<.98 or cv2.connectedComponents((scores>=.98).astype(np.uint8))[0]!=2:
         return None
     return BoundingBox(*where,template.shape[1],template.shape[0])
+
+
+def menu_art_key(image,box):
+    """Current card artwork, excluding changing timer and corner notification."""
+    core=image[box.y+round(box.height*.35):box.y+round(box.height*.75),
+               box.x+round(box.width*.20):box.x+round(box.width*.80)]
+    return hashlib.sha256((cv2.resize(core,(24,24))//16).tobytes()).hexdigest()
+
+
+def menu_view_key(image):
+    """Same geometry with new artwork is a new view; ticking clocks are not."""
+    cards=sorted(menu_card_boxes(image),key=lambda b:(b.y,b.x))
+    return hashlib.sha256(repr([(b.x,b.y,b.width,b.height,menu_art_key(image,b))
+                                for b in cards]).encode()).hexdigest()
