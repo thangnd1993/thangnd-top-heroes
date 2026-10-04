@@ -91,7 +91,8 @@ def test_dispatch_error_stays_locked(tmp_path):
 
 
 @pytest.mark.parametrize('post_state',['NOT_AVAILABLE','AVAILABLE','MISSING','POPUP_ONLY'])
-def test_production_adapter_requires_same_card_change_after_one_dispatch(tmp_path,monkeypatch,post_state):
+@pytest.mark.parametrize('initial_unknown', [False, True])
+def test_production_adapter_requires_same_card_change_after_one_dispatch(tmp_path,monkeypatch,post_state,initial_unknown):
     from types import SimpleNamespace
 
     from top_heroes_auto.app.dynamic_event_port import DynamicEventPort
@@ -103,8 +104,9 @@ def test_production_adapter_requires_same_card_change_after_one_dispatch(tmp_pat
     receipt=replace(initial,capture='receipt',page='UNKNOWN',controls=(),popup=True)
     after=[replace(initial,capture=f'after-{n}',controls=(),popup=False) for n in range(2)]
     if post_state=='POPUP_ONLY':
-        after=[replace(a,page='UNKNOWN') for a in after]
-    frames=iter([fresh,receipt,*after])
+        after=[replace(initial,capture=f'unknown-{n}',page='UNKNOWN',controls=(),popup=False) for n in range(5)]
+    settling = [replace(initial,capture='confetti',page='UNKNOWN',controls=(),popup=False)] if initial_unknown else []
+    frames=iter([fresh,*settling,receipt,*after])
     port=object.__new__(DynamicEventPort)
     port.current=initial
     port.event_title='runtime-title'

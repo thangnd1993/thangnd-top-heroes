@@ -228,7 +228,11 @@ class DynamicEventPort:
                 if after.popup:
                     self.dismiss(after)
                     continue
-                if after.identity!=before.identity or after.page!=before.page:
+                if after.identity != before.identity:
+                    return []
+                if after.page == 'UNKNOWN':
+                    continue  # Bounded capture-only settling; never input on UNKNOWN.
+                if after.page != before.page:
                     return []
                 same=[r for r in self.rows if r['identity']==target.identity]
                 if len(same)!=1 or same[0]['state']!='NOT_AVAILABLE':

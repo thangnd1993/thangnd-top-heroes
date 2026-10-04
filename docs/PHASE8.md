@@ -206,3 +206,11 @@ no second claim transport, no journal downgrade/reopening, strict ambiguous
 caption blocking, bounded popup attempts, no target/lifecycle fallback, and
 normal full-registry application behavior unchanged. New PNG assets inspected:
 related game UI only, reencoded without metadata/credentials/unrelated files.
+
+The FIRST post-action receipt frame has confetti covering title glyphs (score
+.92481), correctly UNKNOWN. Later stable title1.0/continue.961975 qualify.
+Post-action verification retains its five-observation bound but may capture again
+on UNKNOWN without input; identity changes/known wrong page still stop. Persistent
+UNKNOWN stays POSSIBLE. No threshold lowering and no claim redispatch.146 targeted
+Event/journal/pipeline/continuation tests pass after this regression; affected Ruff
+and diff check pass.
