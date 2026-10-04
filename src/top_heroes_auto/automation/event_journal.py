@@ -12,6 +12,17 @@ def reward_key(event, page, reward):
     return 'event:'+hashlib.sha256(json.dumps([event,page,reward], ensure_ascii=False).encode()).hexdigest()
 
 
+def affected_rewards(row):
+    before = json.loads(row['before_evidence'])
+    identities = {before.get('reward')}
+    if row['status'] != 'VERIFIED':
+        identities.update(before.get('possible_affected_rewards', []))
+    elif row.get('after_evidence'):
+        for after in json.loads(row['after_evidence']):
+            identities.update(after.get('consumed_reward_ids', []))
+    return identities
+
+
 def dispatch_once(store, task, namespace, frame, control, *, event_identity,
                   persistent_identity, dispatch, postcondition, persist=lambda result: None):
     """Unknown periods lock indefinitely; unresolved actions lock across periods.
@@ -26,7 +37,7 @@ def dispatch_once(store, task, namespace, frame, control, *, event_identity,
     rows = [r for r in store.reward_claims(namespace, frame.identity[0])
             if r['reward_id'] == key or (
                 r['reward_id'].startswith('event:')
-                and json.loads(r['before_evidence']).get('reward') == control.identity
+                and control.identity in affected_rewards(r)
                 and (r['status'] != 'VERIFIED' or r['cycle_key'] == 'unknown-period'))]
     for row in rows:
         if json.loads(row['before_evidence']).get('persistent_identity') != persistent_identity:
@@ -40,6 +51,11 @@ def dispatch_once(store, task, namespace, frame, control, *, event_identity,
     proof = dict(persistent_identity=persistent_identity, event=event_identity, page=frame.page,
                  reward=control.identity, period=control.period, capture=frame.capture,
                  identity=frame.identity, tap=point, evidence=control.evidence)
+    if 'selected-task-context' in control.evidence:
+        proof['possible_affected_rewards'] = [c.identity for c in frame.controls
+            if c.kind == 'reward' and c.cost == 'FREE' and c.available]
+        if control.identity not in proof['possible_affected_rewards']:
+            proof['possible_affected_rewards'].append(control.identity)
     claim = store.reserve_reward_claim(task,key,control.period,json.dumps(proof),
                                      expected_instance=frame.identity[:2],not_dispatched=True)
     result = dict(claim_id=claim, reward=key, journal='RESERVED', claim_dispatched=False,

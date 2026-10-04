@@ -267,3 +267,19 @@ def test_phase8_cli_allowlist_for_random_and_fleet(monkeypatch):
         main.main(['automation-acceptance',mode,'--only-flow','PHASE_8_DYNAMIC_EVENT_REWARDS'])
     assert all(c['only_flows']==('events',) for c in calls)
     assert calls[0]['random_test'] and not calls[1]['random_test']
+
+
+def test_phase8_random_exclusion_is_explicit_and_cannot_limit_final_fleet(monkeypatch):
+    from top_heroes_auto.app import automation_fleet, diagnostic, main
+    calls=[]
+    monkeypatch.setattr(diagnostic,'_manager',lambda _:object())
+    monkeypatch.setattr(automation_fleet,'run',lambda *a,**kw:calls.append(kw))
+    args=['automation-acceptance','--random-test','--only-flow','PHASE_8_DYNAMIC_EVENT_REWARDS',
+          '--exclude-tested-index','3','--exclude-tested-index','5']
+    main.main(args)
+    assert calls[0]['exclude']==(3,5) and calls[0]['only_flows']==('events',)
+    with pytest.raises(ValueError):
+        main.main([a if a!='--random-test' else '--confirm-non-protected' for a in args])
+    with pytest.raises(ValueError):
+        main.main(args+['--exclude-tested-index','5'])
+    assert len(calls)==1

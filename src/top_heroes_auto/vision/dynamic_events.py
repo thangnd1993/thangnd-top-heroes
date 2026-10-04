@@ -288,3 +288,48 @@ def task_reward_rows(image,context_template,*,reader):
                          evidence=('selected-task-context','complete-reward-card','inventory-reward-items',
                                    'sole-no-cost-action-label','qualified-control-color')))
     return tuple(sorted(rows,key=lambda r:r['row'].y))
+
+
+def selected_task_badge_count(image, selected, *, reader):
+    """Read a uniquely attached active-tab badge, never a claim permission.
+
+    A letter-only OCR cue prevents Windows OCR dropping isolated small digits.
+    The cue supplies no numeric value. Two renderings must agree on the sole
+    original number; dots/exclamations/partial or conflicting glyphs fail closed.
+    """
+    from top_heroes_auto.vision.local_ocr import counter
+
+    if len(selected) != 1:
+        return None
+    tab = selected[0]
+    if isinstance(tab, dict):
+        tab = BoundingBox(**tab)
+    badges = [b for b in discover_badges(image, tab)
+              if b.box.center[0] > tab.x+tab.width*.6
+              and b.box.center[1] < tab.y+tab.height*.4]
+    if len(badges) != 1 or not badges[0].qualified:
+        return None
+    box = badges[0].box
+    inset = max(2, round(box.height*.14))
+    crop = image[box.y+inset:box.y+box.height-inset,
+                 box.x+inset:box.x+box.width-inset]
+    if not crop.size:
+        return None
+    glyph = cv2.inRange(cv2.cvtColor(crop, cv2.COLOR_BGR2HSV), (0,0,185), (179,90,255))
+    n,_,stats,_ = cv2.connectedComponentsWithStats(glyph)
+    components = [a for a in stats[1:n] if a[4] > 2]
+    if not components:
+        return None
+    for a in components:
+        for b in components:
+            if a is b:
+                continue
+            overlap = min(a[0]+a[2],b[0]+b[2])-max(a[0],b[0])
+            if overlap > min(a[2],b[2])*.5 and (a[1]+a[3] <= b[1] or b[1]+b[3] <= a[1]):
+                return None
+    glyph = cv2.resize(cv2.cvtColor(255-glyph, cv2.COLOR_GRAY2BGR), None,
+                       fx=4, fy=4, interpolation=cv2.INTER_NEAREST)
+    canvas = np.full((max(160,glyph.shape[0]+100),max(460,glyph.shape[1]+370),3),255,np.uint8)
+    cv2.putText(canvas,'Count',(20,95),cv2.FONT_HERSHEY_SIMPLEX,2,(0,0,0),3)
+    canvas[50:50+glyph.shape[0],270:270+glyph.shape[1]] = glyph
+    return counter(canvas, reader=reader, maximum=999)

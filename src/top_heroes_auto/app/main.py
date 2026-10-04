@@ -27,8 +27,13 @@ def main(argv: list[str] | None = None):
         parser.add_argument('--resume-flow', action='append', default=[])
         parser.add_argument('--refresh-flow', action='append', default=[])
         parser.add_argument('--development-flow', action='append', default=[])
+        parser.add_argument('--exclude-tested-index', type=int, action='append', default=[])
         parser.add_argument('--only-flow', choices=['PHASE_8_DYNAMIC_EVENT_REWARDS'], action='append', default=[])
         options = parser.parse_args(argv[1:])
+        if options.exclude_tested_index and (not options.random_test or not options.only_flow
+                or len(set(options.exclude_tested_index)) != len(options.exclude_tested_index)
+                or any(i < 0 for i in options.exclude_tested_index)):
+            raise ValueError('Tested-account exclusions require unique indexes in a scoped random Event test.')
         if (options.resume_index or options.resume_flow or options.refresh_flow) and not options.resume_report:
             raise ValueError('Targeted continuation requires an explicit resume report.')
         if len(options.only_flow) > 1 or (options.only_flow and options.development_flow):
@@ -51,11 +56,22 @@ def main(argv: list[str] | None = None):
         data = data_directory()
         run(_manager(data), data, random_test=options.random_test, resume_report=options.resume_report,
             preserve_possible=tuple(options.preserve_possible),
+            **(dict(exclude=tuple(options.exclude_tested_index)) if options.exclude_tested_index else {}),
             **(dict(only_flows=('events',)) if options.only_flow else {}),
             **(dict(enabled=enabled) if enabled is not None else {}),
             **(dict(resume_indexes=tuple(options.resume_index)) if options.resume_index else {}),
             **(dict(resume_flows=tuple(options.resume_flow)) if options.resume_flow else {}),
             **(dict(refresh_flows=tuple(options.refresh_flow)) if options.refresh_flow else {}))
+        return 0
+    if argv and argv[0] == 'event-reconcile-saved':
+        if len(argv) != 4 or not argv[1].isdigit():
+            raise ValueError('Event saved reconciliation requires claim ID, original report and fresh report.')
+        from top_heroes_auto.app.bxh_shop_acceptance import progress
+        from top_heroes_auto.app.diagnostic import _manager
+        from top_heroes_auto.app.event_task_effect import reconcile_saved
+
+        result = reconcile_saved(_manager(data_directory()),int(argv[1]),Path(argv[2]),Path(argv[3]))
+        progress(f"Event saved claim {result['claim_id']}: {result['result']}; no input dispatched.")
         return 0
     if argv and argv[0] == 'guild-mail-reconcile-saved':
         if len(argv) != 2 or not argv[1].isdigit():

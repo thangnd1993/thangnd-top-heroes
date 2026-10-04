@@ -57,8 +57,18 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index):
                     row['state'] = 'UNKNOWN'
                     row['evidence'] = (*row['evidence'], 'unresolved-saved-reward-identity')
         matches = [r for score,r in scored if score >= .98]
-        if len(matches) > 1 or any(.75 <= score < .98 for score,_ in scored):
-            raise SafetyError('Ambiguous saved reward caption; no new claim.')
+        if len(matches) > 1:
+            for score, row in scored:
+                if score >= .75:
+                    if row['state'] == 'AVAILABLE':
+                        row['state'] = 'UNKNOWN'
+                    row['evidence'] = (*row['evidence'], 'ambiguous-saved-reward-identity')
+            continue
+        for score, row in scored:
+            if .75 <= score < .98:
+                if row['state'] == 'AVAILABLE':
+                    row['state'] = 'UNKNOWN'
+                row['evidence'] = (*row['evidence'], 'ambiguous-saved-reward-identity')
         if matches:
             matches[0]['identity'] = proof['reward']
             matches[0]['evidence'] = (*matches[0]['evidence'], 'unique-saved-caption-agreement')
@@ -79,6 +89,8 @@ def reconcile_possible(store, namespace, index, persistent_identity, observation
             or a.get('identity') != b.get('identity') or a['identity'][0] != index):
         return verified
     for row in store.reward_claims(namespace, index):
+        if not row['reward_id'].startswith('event:'):
+            continue
         if claim_ids is not None and row['id'] not in claim_ids:
             continue
         if row['status'] != 'RESERVED' or row['dispatch_state'] != 'POSSIBLE':

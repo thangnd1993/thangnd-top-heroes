@@ -6,6 +6,7 @@ from dataclasses import asdict
 import cv2
 
 from top_heroes_auto.app.event_claim_reconciliation import bind_saved_rewards, reconcile_possible
+from top_heroes_auto.app.event_task_effect import removal_effect
 from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
 from top_heroes_auto.automation.dynamic_events import Control, EventFrame
 from top_heroes_auto.automation.event_journal import dispatch_once
@@ -222,10 +223,14 @@ class DynamicEventPort:
 
         def postcondition(before,target):
             observations=[]
+            underlying=[]
+            receipt=None
             for _ in range(5):
                 time.sleep(.5)
                 after=self.observe()  # First post-action capture is always retained.
                 if after.popup:
+                    if self.transport.last.overlay.state == ScreenState.REWARD_RECEIPT:
+                        receipt = after.capture
                     self.dismiss(after)
                     continue
                 if after.identity != before.identity:
@@ -236,7 +241,19 @@ class DynamicEventPort:
                     return []
                 same=[r for r in self.rows if r['identity']==target.identity]
                 if len(same)!=1 or same[0]['state']!='NOT_AVAILABLE':
-                    return []  # Missing row/receipt alone is never success evidence.
+                    # A supported task control may remove a whole free prefix.
+                    # Verify actual body change AND exact counter decrement,
+                    # never a missing row or receipt alone.
+                    underlying.append(after.capture)
+                    if receipt and len(underlying)>=2:
+                        proof=dict(identity=before.identity,capture=before.capture,page=before.page,
+                                   reward=target.identity,event=title)
+                        effect=removal_effect(proof,[underlying[0],underlying[-1]],receipt)
+                        if effect:
+                            return effect
+                    if same and same[0]['state']=='AVAILABLE':
+                        return []
+                    continue
                 observations.append(dict(identity=list(after.identity),capture=after.capture,
                     event=title,page=after.page,reward=target.identity,state='NOT_AVAILABLE',
                     independent_evidence=['same-reward-card','claim-control-replaced-by-unavailable-state']))

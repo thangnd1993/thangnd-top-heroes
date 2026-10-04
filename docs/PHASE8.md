@@ -175,11 +175,11 @@ coverage does not become PASS merely because a scroll produced no new control.
 
 7730321 / CI37187910694 passed all gates:1248 tests,26 skips; fresh artifact
 11298309511 delivered617 files/344 runtime assets to Desktop/app.
-Random live development targets:3/Queen Queen then5/4-Em PÃ©, events ONLY.
+Random live development targets:3/Queen Queen then5/4-Em Pé, events ONLY.
 Index3 recovered Home but a known match-success notice appeared; no input/claim.
 Index5 recovered Home, entered current Event and two current badged tabs, then
 claimed one qualified free task reward at current bbox537,557,151,67 ->612,590.
-First receipt contains940 diamonds plus other free items. Journal234 remains
+First receipt toast identifies940 equipment enhancement runes plus other free items. Journal234 remains
 RESERVED/POSSIBLE: receipt alone has NOT established independent success.
 Never redispatch234. Cleanup SUCCESS; original selections, names, Protection and
 all217 original journals preserved. Final acceptance has not started; no Phase9.
@@ -214,3 +214,55 @@ on UNKNOWN without input; identity changes/known wrong page still stop. Persiste
 UNKNOWN stays POSSIBLE. No threshold lowering and no claim redispatch.146 targeted
 Event/journal/pipeline/continuation tests pass after this regression; affected Ruff
 and diff check pass.
+
+
+## Re-entry and actual removal/batch variant — October 4
+
+f57392c / CI37194762138 passed1270 tests,26 skips, lint/build/smoke/upload.
+Artifact11300678547 delivered626 verified files/353 runtime assets to Desktop/app;
+only the exact previously checked617-file7730321 app was removed. EXE SHA256:
+1fea81441618d735fdd024dc9d64a13c67d400d0527aa2b4248a83ff53f35294.
+Only5 resumed events from its original report. Fresh emulator-5564/boot
+86a084da-841c-4d91-b99b-37e2a95187d7 and unchanged9ded940b... disk identity.
+Home recovery SUCCESS; one Event entry, one current tab and three bounded list
+swipes. ZERO new claim taps. Cleanup SUCCESS and selection restored. All217 old
+journals unchanged;234 remains RESERVED/POSSIBLE. Protected Chicken was already
+running in preflight and remains running; never targeted or stopped.
+Report: automation/20261004-110415-265946Z-acaf4029/fleet-report.json.
+
+This exposed a concrete scope defect: reconciliation inspected unrelated legacy
+POSSIBLE rows and raised a persistent-identity error. It now ignores non-Event
+journals before any proof/ownership logic. Regression preserves the unrelated row.
+Ambiguous caption aliases block only that reward, retaining independent work and
+positive unavailable-control observations; they never grant a claim permission.
+
+The actual free action consumes a task prefix: before two green cards and badge9;
+new top viewport has no green claimable prefix and badge7. A second fresh frame
+also has7. Receipt resource totals agree with both prior cards. The large blue
+crystal x940 is explicitly labelled equipment enhancement rune in the first toast;
+it is NOT qualified diamond evidence. No free diamonds verified yet.
+
+Offline effect qualification pairs the independently qualified receipt with the
+same current task/outer Event, exact prefix-count decrement, fresh unavailable
+controls and top-viewport state change. Missing rows, receipt alone, wrong counts,
+wrong transport/branch, duplicated captures or an unchanged page remain unverified.
+Small badge OCR uses a letters-only cue, containing no numeric value; two renderings
+must agree on the actual unique badge digits. No fixed9-to7 rule or account route.
+A potentially aggregate action locks its known possible effects while uncertain;
+only positively consumed siblings remain locked after verification. Independent
+other rewards retain separate eligibility. Unknown reset periods remain locked.
+
+Saved reconciliation is events-only, binds the existing original owner/journal,
+checks exact live non-Protected name/index/disk twice, and sends NO lifecycle,
+selection, ADB or gameplay input. Require the next passing portable artifact before
+applying it to234. Subsequent random qualification excludes tested3 and5 explicitly;
+this exclusion cannot narrow final fleet scope. Then finish remaining production
+coverage and ALL current non-Protected Phase8-only sequential acceptance. No Phase9.
+
+Final offline gate:166 targeted tests PASS; affected Ruff and diff check PASS.
+Self-review: one dispatch, scoped original owner, two distinct independent
+observations, bounded capture/search, uncertain and consumed sibling locks, no
+identity fallback or global lifecycle. Duplicate/weak adjacent badges fail closed.
+The two added regression PNGs contain only required game UI; IHDR/IDAT/IEND only,
+no text/metadata or credentials. Journal234 remains POSSIBLE until fresh-CI
+saved-only reconciliation.

@@ -206,6 +206,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
             raise SafetyError('Only completed accounts can be retained without execution.')
     eligible = candidates(before)
     chosen = None
+    excluded_random_indexes = []
     if previous:
         targets = previous['targets']
     elif random_test:
@@ -218,6 +219,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
                 history.append((path.parent.name, old['random_target']['index']))
         if history:
             used.add(max(history)[1])
+        excluded_random_indexes = sorted(used)
         chosen, eligible = choose_random(before, exclude=used)
         targets = [chosen]
     elif targets is None:
@@ -234,6 +236,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         scope_limited=bool(resume_flows or only_flows), explicit_flow_allowlist=list(only_flows), refresh_flows=list(refresh_flows),
         enabled_config=enabled or {}, eligible_candidates=eligible, random_target=chosen,
         random_method='secrets.choice' if random_test else None,
+        excluded_random_indexes=excluded_random_indexes,
         resumed_from=str(resume_report) if previous else None, accounts=[])
     path = folder/'fleet-report.json'
     for target in targets:

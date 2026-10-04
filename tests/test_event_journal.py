@@ -6,6 +6,7 @@ from test_dynamic_events import control, frame
 
 from top_heroes_auto.automation.event_journal import dispatch_once
 from top_heroes_auto.storage.store import Store
+from top_heroes_auto.vision.models import ScreenState
 
 
 def setup(tmp_path):
@@ -106,7 +107,10 @@ def test_production_adapter_requires_same_card_change_after_one_dispatch(tmp_pat
     if post_state=='POPUP_ONLY':
         after=[replace(initial,capture=f'unknown-{n}',page='UNKNOWN',controls=(),popup=False) for n in range(5)]
     settling = [replace(initial,capture='confetti',page='UNKNOWN',controls=(),popup=False)] if initial_unknown else []
+    if post_state=='MISSING':
+        after=[replace(initial,capture=f'missing-{n}',controls=(),popup=False) for n in range(5)]
     frames=iter([fresh,*settling,receipt,*after])
+    monkeypatch.setattr('top_heroes_auto.app.dynamic_event_port.removal_effect',lambda *a,**k:[])
     port=object.__new__(DynamicEventPort)
     port.current=initial
     port.event_title='runtime-title'
@@ -127,7 +131,7 @@ def test_production_adapter_requires_same_card_change_after_one_dispatch(tmp_pat
 
     port.observe=observe
     port.dismiss=lambda frame:dismissed.append(frame.capture)
-    port.transport=SimpleNamespace(last=object(),dispatch=dispatch)
+    port.transport=SimpleNamespace(last=SimpleNamespace(overlay=SimpleNamespace(state=ScreenState.REWARD_RECEIPT)),dispatch=dispatch)
     result=port.claim(initial,r)
     assert len(sent)==1 and dismissed==['receipt']
     assert result['claim_dispatched']
@@ -148,3 +152,29 @@ def test_title_ocr_change_cannot_unlock_unknown_period_reward(tmp_path,verified)
     result=dispatch_once(store,task,'install',after,r,event_identity='different-title',
         persistent_identity='disk',dispatch=lambda *a:calls.append('must-not-send'),postcondition=success)
     assert len(calls)==1 and not result['claim_dispatched']
+
+
+def test_verified_task_batch_locks_only_positively_consumed_sibling(tmp_path):
+    store,task,f,r=setup(tmp_path)
+    calls=[]
+    def post(f,r):
+        proof=success(f,r)
+        for observation in proof:
+            observation['consumed_reward_ids']=[r.identity,'batch-sibling']
+        return proof
+    run(store,task,f,r,calls,post=post)
+    assert run(store,task,f,replace(r,identity='batch-sibling'),calls)['result']=='ALREADY_VERIFIED'
+    run(store,task,f,replace(r,identity='unrelated-free-reward'),calls)
+    assert len(calls)==2
+
+
+def test_uncertain_supported_task_action_locks_its_possible_effects(tmp_path):
+    store,task,f,r=setup(tmp_path)
+    calls=[]
+    r=replace(r,evidence=(*r.evidence,'selected-task-context'))
+    sibling=replace(r,identity='task-sibling')
+    f=replace(f,controls=(r,sibling))
+    run(store,task,f,r,calls,post=lambda *a:[])
+    assert run(store,task,f,sibling,calls)['result']=='ALREADY_ATTEMPTED'
+    run(store,task,f,replace(r,identity='independent-feature-gift'),calls)
+    assert len(calls)==2

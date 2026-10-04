@@ -37,8 +37,8 @@ def test_unique_caption_alias_keeps_original_lock_identity_without_coordinates(t
 
 def test_duplicate_saved_caption_fails_closed(tmp_path):
     image,row,claim = evidence(tmp_path)
-    with pytest.raises(SafetyError):
-        bind_saved_rewards(image, [row, dict(row)], [claim], persistent_identity='disk', index=13)
+    result = bind_saved_rewards(image, [row, dict(row)], [claim], persistent_identity='disk', index=13)
+    assert all(r['state'] == 'UNKNOWN' for r in result)
 
 
 def test_missing_saved_evidence_or_changed_disk_cannot_unlock(tmp_path):
@@ -101,3 +101,15 @@ def test_unrecognized_new_caption_cannot_reopen_unresolved_claim(tmp_path):
     changed = dict(row, identity='new-raster')
     result = bind_saved_rewards(current, [changed], [claim], persistent_identity='disk', index=13)
     assert result[0]['state'] == 'UNKNOWN'
+
+
+def test_reconciliation_does_not_read_or_modify_unrelated_possible_journals(tmp_path):
+    store,_,_,_,result,post = pending(tmp_path)
+    task = store.create_task_run('install','legacy-vip',13,'user name')
+    unrelated = store.reserve_reward_claim(task,'vip:old','unknown-period','{}',
+        expected_instance=(13,'user name'),not_dispatched=True)
+    store.mark_reward_dispatch(unrelated,task)
+    before = next(r for r in store.reward_claims('install',13) if r['id']==unrelated)
+    assert reconcile_possible(store,'install',13,'disk',post,
+        claim_ids={result['claim_id'],unrelated}) == [result['claim_id']]
+    assert next(r for r in store.reward_claims('install',13) if r['id']==unrelated) == before

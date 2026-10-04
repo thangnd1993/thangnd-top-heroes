@@ -1,3 +1,18 @@
+## Phase 8 actual free action: independent removal effect qualified offline
+
+Latest passing portable:f57392c / CI37194762138 (1270pass,26skip; all gates).
+Desktop/app has verified artifact11300678547,626 files/353 assets.
+One physical free Event claim on5 produced a receipt;940 is equipment-enhancement
+rune, not proven diamonds. Journal234 still POSSIBLE, never redispatch.
+Exact5 re-entry recovered Home and sent ZERO claims; new frames show badge9->7
+and no former green prefix. Cleanup/selection/isolation pass; Protected Chicken
+was externally running and remains running.217 old journals unchanged.
+Current offline repair handles the removed-prefix/count effect and excludes legacy
+non-Event POSSIBLE journals from reconciliation. New code needs targeted gates,
+fresh CI/artifact, then saved-only reconciliation234 (no input) and continued
+qualification/final scoped acceptance. Phase8 IN PROGRESS; no final fleet, no Phase9.
+See docs/PHASE8.md and artifacts/phase8-task-state.json for current details.
+
 ## Phase 8 October 4: scoped claim qualification in progress
 
 CI37123448706/cecdbd1 PASS and fresh artifact11274524669 delivered to Desktop/app.
