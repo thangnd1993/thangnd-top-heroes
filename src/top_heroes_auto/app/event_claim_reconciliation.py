@@ -54,7 +54,7 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index):
     return tuple(rows)
 
 
-def reconcile_possible(store, namespace, index, persistent_identity, observations):
+def reconcile_possible(store, namespace, index, persistent_identity, observations, *, claim_ids=None):
     """Verify existing POSSIBLE only from two fresh same-card unavailable proofs.
 
     A new boot is permitted only after the live session independently verifies
@@ -68,6 +68,8 @@ def reconcile_possible(store, namespace, index, persistent_identity, observation
             or a.get('identity') != b.get('identity') or a['identity'][0] != index):
         return verified
     for row in store.reward_claims(namespace, index):
+        if claim_ids is not None and row['id'] not in claim_ids:
+            continue
         if row['status'] != 'RESERVED' or row['dispatch_state'] != 'POSSIBLE':
             continue
         proof = json.loads(row['before_evidence'])

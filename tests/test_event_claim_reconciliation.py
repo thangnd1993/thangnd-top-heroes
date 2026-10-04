@@ -82,3 +82,11 @@ def test_weak_reconciliation_keeps_possible(change,tmp_path):
     assert store.reward_claims('install',13)[0]['dispatch_state'] == 'POSSIBLE'
     assert store.reward_claims('install',13)[0]['status'] == 'RESERVED'
     assert len(calls) == 1
+
+
+def test_reconciliation_excludes_current_session_claim_owned_by_dispatch_once(tmp_path):
+    store,_,_,calls,result,post = pending(tmp_path)
+    assert not reconcile_possible(store,'install',13,'disk',post,claim_ids=set())
+    assert store.reward_claims('install',13)[0]['status'] == 'RESERVED'
+    assert reconcile_possible(store,'install',13,'disk',post,claim_ids={result['claim_id']}) == [result['claim_id']]
+    assert len(calls) == 1

@@ -35,6 +35,9 @@ class DynamicEventPort:
         self.rows = ()
         self.event_title = None
         self.unavailable_observations = {}
+        self.pending_claim_ids = {r['id'] for r in session.manager.store.reward_claims(
+            session.manager.namespace, session.index)
+            if r['status'] == 'RESERVED' and r['dispatch_state'] == 'POSSIBLE'}
         self.task_context = cv2.imread(str(template_folder().parent/'tasks/phase8/personal-task-tab.png'))
 
     def observe(self):
@@ -91,7 +94,8 @@ class DynamicEventPort:
                         previous = self.unavailable_observations.get(row['identity'])
                         if previous and previous['page'] == page:
                             reconcile_possible(self.session.manager.store, self.session.manager.namespace,
-                                self.session.index, self.session.target['persistent_identity'], [previous, proof])
+                                self.session.index, self.session.target['persistent_identity'], [previous, proof],
+                                claim_ids=self.pending_claim_ids)
                         self.unavailable_observations[row['identity']] = proof
                     for row in self.rows:
                         if row['state']=='AVAILABLE':
