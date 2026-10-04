@@ -27,9 +27,12 @@ def main(argv: list[str] | None = None):
         parser.add_argument('--resume-flow', action='append', default=[])
         parser.add_argument('--refresh-flow', action='append', default=[])
         parser.add_argument('--development-flow', action='append', default=[])
+        parser.add_argument('--only-flow', choices=['PHASE_8_DYNAMIC_EVENT_REWARDS'], action='append', default=[])
         options = parser.parse_args(argv[1:])
         if (options.resume_index or options.resume_flow or options.refresh_flow) and not options.resume_report:
             raise ValueError('Targeted continuation requires an explicit resume report.')
+        if len(options.only_flow) > 1 or (options.only_flow and options.development_flow):
+            raise ValueError('Use one explicit Phase 8 allowlist, without conflicting development scope.')
         if options.development_flow and not options.random_test:
             raise ValueError('Development flow selection requires a random development test.')
         if options.preserve_possible and not options.resume_report:
@@ -48,6 +51,7 @@ def main(argv: list[str] | None = None):
         data = data_directory()
         run(_manager(data), data, random_test=options.random_test, resume_report=options.resume_report,
             preserve_possible=tuple(options.preserve_possible),
+            **(dict(only_flows=('events',)) if options.only_flow else {}),
             **(dict(enabled=enabled) if enabled is not None else {}),
             **(dict(resume_indexes=tuple(options.resume_index)) if options.resume_index else {}),
             **(dict(resume_flows=tuple(options.resume_flow)) if options.resume_flow else {}),

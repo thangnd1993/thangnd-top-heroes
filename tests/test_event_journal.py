@@ -88,3 +88,61 @@ def test_dispatch_error_stays_locked(tmp_path):
     with pytest.raises(OSError):
         run(store,task,f,r,[],dispatch=uncertain)
     assert store.reward_claims('install',13)[0]['dispatch_state']=='POSSIBLE'
+
+
+@pytest.mark.parametrize('post_state',['NOT_AVAILABLE','AVAILABLE','MISSING','POPUP_ONLY'])
+def test_production_adapter_requires_same_card_change_after_one_dispatch(tmp_path,monkeypatch,post_state):
+    from types import SimpleNamespace
+
+    from top_heroes_auto.app.dynamic_event_port import DynamicEventPort
+
+    monkeypatch.setattr('top_heroes_auto.app.dynamic_event_port.time.sleep',lambda _:None)
+    store,_,f,r=setup(tmp_path)
+    initial=replace(f,page='event:runtime-title:personal-tasks',controls=(r,))
+    fresh=replace(initial,capture='fresh-before')
+    receipt=replace(initial,capture='receipt',page='UNKNOWN',controls=(),popup=True)
+    after=[replace(initial,capture=f'after-{n}',controls=(),popup=False) for n in range(2)]
+    if post_state=='POPUP_ONLY':
+        after=[replace(a,page='UNKNOWN') for a in after]
+    frames=iter([fresh,receipt,*after])
+    port=object.__new__(DynamicEventPort)
+    port.current=initial
+    port.event_title='runtime-title'
+    port.folder=tmp_path
+    port.session=SimpleNamespace(manager=SimpleNamespace(store=store,namespace='install'),
+        index=f.identity[0],name=f.identity[1],target={'persistent_identity':'disk'})
+    sent=[]
+    dismissed=[]
+
+    def observe():
+        port.current=next(frames)
+        port.rows=[] if post_state=='MISSING' else [dict(identity=r.identity,state=post_state)]
+        return port.current
+
+    def dispatch(observed,action,point,before_input):
+        before_input()
+        sent.append((action,point))
+
+    port.observe=observe
+    port.dismiss=lambda frame:dismissed.append(frame.capture)
+    port.transport=SimpleNamespace(last=object(),dispatch=dispatch)
+    result=port.claim(initial,r)
+    assert len(sent)==1 and dismissed==['receipt']
+    assert result['claim_dispatched']
+    row=store.reward_claims('install',f.identity[0])[0]
+    if post_state=='NOT_AVAILABLE':
+        assert result['journal']=='VERIFIED' and row['status']=='VERIFIED'
+    else:
+        assert result['result']=='ACTION_DISPATCHED_UNVERIFIED'
+        assert row['status']=='RESERVED' and row['dispatch_state']=='POSSIBLE'
+
+
+@pytest.mark.parametrize('verified',[True,False])
+def test_title_ocr_change_cannot_unlock_unknown_period_reward(tmp_path,verified):
+    store,task,f,r=setup(tmp_path)
+    calls=[]
+    run(store,task,f,r,calls,post=success if verified else lambda *a:[])
+    after=replace(f,page='different-ocr-title',capture='new-frame')
+    result=dispatch_once(store,task,'install',after,r,event_identity='different-title',
+        persistent_identity='disk',dispatch=lambda *a:calls.append('must-not-send'),postcondition=success)
+    assert len(calls)==1 and not result['claim_dispatched']

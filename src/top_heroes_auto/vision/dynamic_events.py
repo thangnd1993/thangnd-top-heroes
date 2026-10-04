@@ -151,3 +151,127 @@ def event_shell(image, back, *, reader):
         tabs.append(candidate)
     return dict(title=titles[0],page='event:'+titles[0]+':'+signature,
                 selected=[asdict(b) for b in selected],tabs=sorted(tabs,key=lambda c:c.icon_box.x),back=back)
+
+
+def discover_menu_tiles(image):
+    """Qualified rectangular seasonal menu grid, never a reward permission.
+
+    Require multiple closed card outlines and one notification uniquely attached
+    to a card corner. Partial cards remain unqualified; artwork/names are unused.
+    Caller separately proves event-shell ownership before exposing these edges.
+    """
+    h,w=image.shape[:2]
+    region=BoundingBox(0,round(h*.08),w,round(h*.90)-round(h*.08))
+    edges=cv2.morphologyEx(cv2.Canny(image,40,120),cv2.MORPH_CLOSE,
+                          cv2.getStructuringElement(cv2.MORPH_RECT,(5,5)))
+    contours,_=cv2.findContours(edges,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+    cards=[]
+    for contour in contours:
+        x,y,bw,bh=cv2.boundingRect(contour)
+        if (.25*w < bw < .55*w and .12*h < bh < .35*h and
+                region.y <= y and y+bh <= region.y+region.height and
+                cv2.contourArea(contour)/(bw*bh) > .94):
+            box=BoundingBox(x,y,bw,bh)
+            if not any(abs(box.x-b.x)<8 and abs(box.y-b.y)<8 for b in cards):
+                cards.append(box)
+    if len(cards)<2:
+        return ()
+    result=[]
+    for badge in discover_badges(image,region):
+        cx,cy=badge.box.center
+        matches=[b for b in cards if b.x+b.width*.85 <= cx <= b.x+b.width+5
+                 and b.y-5 <= cy <= b.y+b.height*.12]
+        if not badge.qualified or len(matches)!=1:
+            continue
+        b=matches[0]
+        # Exclude changing timer and attention digits; retrieval is run-local.
+        core=image[b.y+round(b.height*.35):b.y+round(b.height*.75),
+                   b.x+round(b.width*.2):b.x+round(b.width*.8)]
+        fingerprint=hashlib.sha256((cv2.resize(core,(24,24))//16).tobytes()).hexdigest()
+        result.append(replace(badge,icon_box=b,fingerprint=fingerprint))
+    return tuple(sorted(result,key=lambda c:(c.icon_box.y,c.icon_box.x)))
+
+
+def task_reward_rows(image,context_template,*,reader):
+    """Supported free task-card schema, independent of seasonal name/artwork.
+
+    Exact selected task context, complete rounded row, reward inventory cells,
+    a sole claim label in its separate right column and a green control must
+    agree. Paid/other labels and attached numeric prices remain unqualified.
+    Blue Go/grey claim state is unavailable only on the same qualified card.
+    """
+    h,w=image.shape[:2]
+    if w != 720 or context_template is None:
+        return ()  # Require the qualified portrait scale, not guessed scaling.
+    scores=cv2.matchTemplate(image,context_template,cv2.TM_CCOEFF_NORMED)
+    _,score,_,where=cv2.minMaxLoc(scores)
+    if score<.98:
+        return ()
+    # Require one context, not two conflicting task panels.
+    hits=(scores>=.98).astype(np.uint8)
+    if cv2.connectedComponents(hits)[0]!=2:
+        return ()
+    below=where[1]+context_template.shape[0]
+    edges=cv2.morphologyEx(cv2.Canny(image,40,120),cv2.MORPH_CLOSE,np.ones((3,3),np.uint8))
+    contours,_=cv2.findContours(edges,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+    rows=[]
+    for contour in contours:
+        x,y,bw,bh=cv2.boundingRect(contour)
+        if not (.90*w<bw<.97*w and .10*h<bh<.15*h and
+                below<y and y+bh<h*.82 and cv2.contourArea(contour)/(bw*bh)>.97):
+            continue
+        row=BoundingBox(x,y,bw,bh)
+        label=image[y+8:y+round(bh*.30),x+10:x+round(bw*.72)]
+        # Stable text silhouette excludes reward counts, animation and position.
+        glyph=cv2.inRange(cv2.cvtColor(label,cv2.COLOR_BGR2HSV),(0,45,25),(30,255,150))
+        points=cv2.findNonZero(glyph)
+        if points is None:
+            continue
+        lx,ly,lw,lh=cv2.boundingRect(points)
+        if lw<80 or lh<10:
+            continue
+        identity=hashlib.sha256(cv2.resize(glyph[ly:ly+lh,lx:lx+lw],(160,24),
+                                         interpolation=cv2.INTER_NEAREST).tobytes()).hexdigest()
+        column=BoundingBox(x+round(bw*.76),y+round(bh*.30),round(bw*.23),round(bh*.65))
+        crop=image[column.y:column.y+column.height,column.x:column.x+column.width]
+        labels=[]
+        for scale in (1,2):
+            labels.append(folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=scale,fy=scale)))))
+        if labels[0]!=labels[1] or labels[0] not in {'nhan','nhan nhanh','mien phi','den','da nhan'}:
+            continue  # Cost text, digits, purchase requirement or noisy OCR.
+        hsv=cv2.cvtColor(crop,cv2.COLOR_BGR2HSV)
+        green=cv2.inRange(hsv,(35,60,80),(85,255,255))
+        blue=cv2.inRange(hsv,(85,60,80),(115,255,255))
+        masks=green if labels[0] not in {'den','da nhan'} else blue
+        cs,_=cv2.findContours(masks,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+        boxes=[]
+        for c in cs:
+            bx,by,bww,bhh=cv2.boundingRect(c)
+            if bww>.18*w and .035*h<bhh<.075*h and cv2.contourArea(c)/(bww*bhh)>.80:
+                boxes.append(BoundingBox(column.x+bx,column.y+by,bww,bhh))
+        if len(boxes)!=1:
+            continue
+        # Positive inventory evidence: at least three closed item tiles to the
+        # LEFT of the separate action column. Contents are rewards, not costs.
+        items=[]
+        for c in contours:
+            ix,iy,iw,ih=cv2.boundingRect(c)
+            if (x+round(bw*.13)<ix and ix+iw<column.x and y+bh*.35<iy<y+bh*.55
+                    and .08*w<iw<.14*w and .85<iw/ih<1.15
+                    and cv2.contourArea(c)/(iw*ih)>.80):
+                if not any(abs(ix-a)<8 for a in items):
+                    items.append(ix)
+        if len(items)<3:
+            continue
+        box=boxes[0]
+        # All visible chromatic content in the action is green/white lettering
+        # or its dark outline; an attached currency/item icon invalidates it.
+        area=image[box.y+5:box.y+box.height-5,box.x+5:box.x+box.width-5]
+        ah=cv2.cvtColor(area,cv2.COLOR_BGR2HSV)
+        foreign=((ah[:,:,1]>100)&(ah[:,:,2]>120)&((ah[:,:,0]<30)|(ah[:,:,0]>85)))
+        if labels[0]!='den' and np.count_nonzero(foreign)/foreign.size>.015:
+            continue
+        rows.append(dict(identity=identity,row=row,box=box,state='NOT_AVAILABLE' if labels[0] in {'den','da nhan'} else 'AVAILABLE',
+                         evidence=('selected-task-context','complete-reward-card','inventory-reward-items',
+                                   'sole-no-cost-action-label','qualified-control-color')))
+    return tuple(sorted(rows,key=lambda r:r['row'].y))

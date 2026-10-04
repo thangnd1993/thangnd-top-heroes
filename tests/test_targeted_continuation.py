@@ -231,3 +231,39 @@ def test_final_mail_audit_cannot_hide_new_batch(count):
     assert report['rewards']['mail-system']['claim_id'] == 29
     assert report['rewards']['mail-war']['result'] == 'SUCCESS'
     assert report['current_tab_audit']['counts']['mail-system'] == count
+
+
+def test_initial_explicit_allowlist_never_dispatches_sibling_flows(rig,tmp_path):
+    calls=[]
+    result=run(rig,tmp_path,calls,only_flows=('feature-two',))
+    assert calls == [(7,'start'),(7,'feature-two',('three',)),(7,'cleanup')]
+    assert result['execution_flows']==['feature-two']
+    assert result['scope_limited'] and result['explicit_flow_allowlist']==['feature-two']
+    assert result['accounts'][0]['out_of_scope_flows']==['feature-one']
+    path=tmp_path/'scoped.json'
+    path.write_text(json.dumps(result),encoding='utf-8')
+    calls.clear()
+    resumed=run(rig,tmp_path,calls,resume_report=path)
+    assert resumed['execution_flows']==['feature-two'] and not calls
+    with pytest.raises(SafetyError):
+        run(rig,tmp_path,calls,resume_report=path,only_flows=('feature-one',))
+    assert not calls
+
+
+@pytest.mark.parametrize('scope',[('missing',),('feature-one','feature-one')])
+def test_invalid_initial_allowlist_never_starts_session(rig,tmp_path,scope):
+    calls=[]
+    with pytest.raises(SafetyError):
+        run(rig,tmp_path,calls,only_flows=scope)
+    assert not calls
+
+
+def test_phase8_cli_allowlist_for_random_and_fleet(monkeypatch):
+    from top_heroes_auto.app import automation_fleet, diagnostic, main
+    calls=[]
+    monkeypatch.setattr(diagnostic,'_manager',lambda _:object())
+    monkeypatch.setattr(automation_fleet,'run',lambda *a,**kw:calls.append(kw))
+    for mode in ('--random-test','--confirm-non-protected'):
+        main.main(['automation-acceptance',mode,'--only-flow','PHASE_8_DYNAMIC_EVENT_REWARDS'])
+    assert all(c['only_flows']==('events',) for c in calls)
+    assert calls[0]['random_test'] and not calls[1]['random_test']

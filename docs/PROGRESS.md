@@ -1,3 +1,14 @@
+## Phase 8 October 4: scoped claim qualification in progress
+
+CI37123448706/cecdbd1 PASS and fresh artifact11274524669 delivered to Desktop/app.
+Current offline repair adds an events-only frozen allowlist, badge-associated
+nested card navigation, a supported free task-card contract, independent
+same-card unavailable-state postcondition and conservative visual reward locks.
+130 targeted tests and affected Ruff/diff checks PASS. No new real action yet;
+require fresh CI/artifact for changed code. New development target must be random
+from live non-Protected inventory. Final acceptance scope is Phase8 ONLY per
+latest user instruction. Remaining scrolling/content variants stay blocked.
+
 ## Phase 8 latest scoped development — 2026-10-03
 
 See docs/PHASE8.md for the latest events-only continuation on9/Mini Quin.

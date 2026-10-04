@@ -2,6 +2,7 @@
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 from top_heroes_auto.app.bxh_shop_acceptance import (
     candidates,
@@ -23,10 +24,11 @@ def blocked(error):
 
 def execute_instance(manager, data, target, folder, registry, *, prior=None, enabled=None,
                      session_factory=InstanceSession, identity_reader=persistent_identity,
-                     temporary_selection=True, cancelled=lambda: False, preserve_possible=(), resume_flows=(), refresh_flows=()):
+                     temporary_selection=True, cancelled=lambda: False, preserve_possible=(), resume_flows=(), refresh_flows=(), only_flows=()):
     prior = prior or {}
     full_plan = registry.snapshot(enabled)
-    plan = tuple(f for f in full_plan if not resume_flows or f.id in resume_flows)
+    plan = tuple(f for f in full_plan if (not resume_flows or f.id in resume_flows)
+                 and (not only_flows or f.id in only_flows))
     required = tuple(r for flow in plan for r in flow.rewards)
     row = dict(index=target['index'], name=target['name'], result='PARTIAL',
         plan=[dict(flow=f.id, rewards=list(f.rewards), enabled=f.enabled, supported=f.supported) for f in plan],
@@ -153,7 +155,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
 
 def run(manager, data, *, random_test=False, resume_report=None, registry=None, enabled=None,
         identity_reader=persistent_identity, session_factory=InstanceSession, targets=None,
-        temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=(), resume_flows=(), refresh_flows=()):
+        temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=(), resume_flows=(), refresh_flows=(), only_flows=()):
     registry = registry or production_registry()
     before = inventory(manager)
     previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
@@ -178,7 +180,13 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
             raise SafetyError('Continuation flows must narrow the original registered scope.')
     elif inherited_scope:
         resume_flows = tuple(inherited_scope)
-    execution_plan = tuple(f for f in registry.snapshot(enabled) if not resume_flows or f.id in resume_flows)
+    if only_flows:
+        known = {f.id for f in registry.snapshot(enabled)}
+        if (len(set(only_flows)) != len(only_flows) or set(only_flows)-known
+                or (inherited_scope and set(only_flows)-set(inherited_scope))):
+            raise SafetyError('Explicit flow allowlist must be unique, registered and within inherited scope.')
+    execution_plan = tuple(f for f in registry.snapshot(enabled)
+        if (not resume_flows or f.id in resume_flows) and (not only_flows or f.id in only_flows))
     if refresh_flows:
         refreshable = {f.id for f in execution_plan if f.enabled and f.supported and f.refresh_current_batches}
         if (not previous or not resume_indexes or len(set(refresh_flows)) != len(refresh_flows)
@@ -216,14 +224,14 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         targets = eligible
     if len({t['index'] for t in targets}) != len(targets):
         raise SafetyError('Ambiguous instance snapshot.')
-    stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%fZ')
+    stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%fZ')+'-'+uuid4().hex[:8]
     folder = data/'diagnostics/tasks/automation'/stamp
     folder.mkdir(parents=True, exist_ok=False)
     report = dict(schema='instance-first-v1', mode='resume' if previous else 'random-test' if random_test else 'fleet',
         max_concurrency=1, before_instances=before, targets=targets,
         required_rewards=[r for f in execution_plan for r in f.rewards],
         execution_flows=[f.id for f in execution_plan],
-        scope_limited=bool(resume_flows), refresh_flows=list(refresh_flows),
+        scope_limited=bool(resume_flows or only_flows), explicit_flow_allowlist=list(only_flows), refresh_flows=list(refresh_flows),
         enabled_config=enabled or {}, eligible_candidates=eligible, random_target=chosen,
         random_method='secrets.choice' if random_test else None,
         resumed_from=str(resume_report) if previous else None, accounts=[])
@@ -276,7 +284,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
             prior=old.get(target['index']), enabled=enabled, session_factory=session_factory,
             identity_reader=identity_reader, temporary_selection=temporary_selection, cancelled=cancelled,
             preserve_possible=tuple(cid for cid, proof in exceptions.items() if proof['index'] == target['index']),
-            resume_flows=resume_flows, refresh_flows=refresh_flows)
+            resume_flows=resume_flows, refresh_flows=refresh_flows, only_flows=only_flows)
         report['accounts'].append(row)
         write(path, report)
         progress(f"INSTANCE END #{target['index']}: {row['result']}")

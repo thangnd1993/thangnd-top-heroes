@@ -349,3 +349,77 @@ def test_long_header_still_rejects_inconsistent_readings():
     image=cv2.imread('tests/fixtures/phase8/event-long-header.png')
     readings=iter([[{'text':'Long title'}],[{'text':'Other title'}]])
     assert event_shell(image,BoundingBox(34,1209,52,47),reader=lambda _:next(readings)) is None
+
+
+def test_real_badged_tile_grid_uses_current_closed_card():
+    from top_heroes_auto.vision.dynamic_events import discover_menu_tiles
+    image=cv2.imread('tests/fixtures/phase8/event-long-header.png')
+    found=discover_menu_tiles(image)
+    assert len(found)==1 and found[0].icon_box==BoundingBox(14,714,342,290)
+    moved=cv2.warpAffine(image,np.float32([[1,0,20],[0,1,-40]]),(720,1280))
+    shifted=discover_menu_tiles(moved)
+    assert any(c.icon_box==BoundingBox(34,674,342,290) for c in shifted)
+    assert found[0].fingerprint in {c.fingerprint for c in shifted}
+
+
+def test_badge_without_closed_menu_grid_cannot_be_a_child():
+    from top_heroes_auto.vision.dynamic_events import discover_menu_tiles
+    assert not discover_menu_tiles(badge_image())
+    image=cv2.imread('tests/fixtures/phase8/event-long-header.png')
+    image[710:1010,:365]=40
+    assert not discover_menu_tiles(image)
+
+
+def task_rows(image,words='Nhan'):
+    from top_heroes_auto.vision.dynamic_events import task_reward_rows
+    return task_reward_rows(image,cv2.imread('assets/tasks/phase8/personal-task-tab.png'),
+        reader=lambda _: [{'text':words}])
+
+
+def test_real_task_claim_requires_context_items_and_separate_free_column():
+    image=cv2.imread('tests/fixtures/phase8/task-reward-list.png')
+    rows=task_rows(image)
+    assert len(rows)==1 and rows[0]['state']=='AVAILABLE'
+    assert rows[0]['box']==BoundingBox(537,557,151,67)
+    assert rows[0]['box'].center==(612,590)
+    # Paid diamond refresh and all blue Go controls are excluded.
+    assert all(r['box'].y<1000 for r in rows)
+    shifted=cv2.warpAffine(image,np.float32([[1,0,0],[0,1,20]]),(720,1280))
+    moved=task_rows(shifted)
+    assert moved[0]['identity']==rows[0]['identity']
+    assert moved[0]['box'].y==rows[0]['box'].y+20
+
+
+@pytest.mark.parametrize('words',['Nhan 100','Nhan VND','Nhan 10 diamonds','Activate','Buy','Nhan tickets','Nhan wood'])
+def test_attached_cost_or_activation_label_is_not_a_free_action(words):
+    assert not task_rows(cv2.imread('tests/fixtures/phase8/task-reward-list.png'),words)
+
+
+def test_task_claim_rejects_attached_currency_icon_and_missing_reward_context():
+    image=cv2.imread('tests/fixtures/phase8/task-reward-list.png')
+    currency=image.copy()
+    cv2.rectangle(currency,(548,570),(576,604),(255,180,20),-1)
+    assert not task_rows(currency)
+    absent=image.copy()
+    absent[410:470]=40
+    assert not task_rows(absent)
+    items=image.copy()
+    items[548:640,130:395]=40
+    assert not task_rows(items)
+
+
+def test_task_row_completion_keeps_identity_independent_of_action_label():
+    image=cv2.imread('tests/fixtures/phase8/task-reward-list.png')
+    before=task_rows(image)[0]
+    # Actual blue Go UI from the next row replaces the available control.
+    image[557:624,537:688]=image[726:793,537:688]
+    after=task_rows(image,'Den')
+    row=next(r for r in after if r['identity']==before['identity'])
+    assert row['state']=='NOT_AVAILABLE' and row['box']==before['box']
+
+
+def test_conflicting_action_ocr_does_not_authorize_claim():
+    from top_heroes_auto.vision.dynamic_events import task_reward_rows
+    calls=iter([{'text':'Nhan'},{'text':'Buy'}]*3)
+    assert not task_reward_rows(cv2.imread('tests/fixtures/phase8/task-reward-list.png'),
+        cv2.imread('assets/tasks/phase8/personal-task-tab.png'),reader=lambda _:[next(calls)])

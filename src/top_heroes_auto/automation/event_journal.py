@@ -21,11 +21,18 @@ def dispatch_once(store, task, namespace, frame, control, *, event_identity,
     """
     point = free_geometry(control)
     key = reward_key(event_identity, frame.page, control.identity)
-    rows = [r for r in store.reward_claims(namespace, frame.identity[0]) if r['reward_id'] == key]
+    # OCR title changes must not unlock a dispatched visual reward. Unknown
+    # identity/period collisions deliberately over-block rather than redispatch.
+    rows = [r for r in store.reward_claims(namespace, frame.identity[0])
+            if r['reward_id'] == key or (
+                r['reward_id'].startswith('event:')
+                and json.loads(r['before_evidence']).get('reward') == control.identity
+                and (r['status'] != 'VERIFIED' or r['cycle_key'] == 'unknown-period'))]
     for row in rows:
         if json.loads(row['before_evidence']).get('persistent_identity') != persistent_identity:
             raise SafetyError('Event journal persistent identity changed.')
-    locks = [r for r in rows if r['status'] != 'VERIFIED' or r['cycle_key'] == control.period]
+    locks = [r for r in rows if r['status'] != 'VERIFIED' or r['cycle_key'] == control.period
+             or r['cycle_key'] == 'unknown-period']
     if locks:
         row = locks[-1]
         return dict(result='ALREADY_VERIFIED' if row['status'] == 'VERIFIED' else 'ALREADY_ATTEMPTED',

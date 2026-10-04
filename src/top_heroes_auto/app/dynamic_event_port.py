@@ -7,12 +7,19 @@ import cv2
 
 from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
 from top_heroes_auto.automation.dynamic_events import Control, EventFrame
+from top_heroes_auto.automation.event_journal import dispatch_once
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, dismiss_overlay_bottom_left
-from top_heroes_auto.vision.dynamic_events import discover_events, event_shell
+from top_heroes_auto.vision.dynamic_events import (
+    discover_events,
+    discover_menu_tiles,
+    event_shell,
+    task_reward_rows,
+)
 from top_heroes_auto.vision.guild_mail import portrait
 from top_heroes_auto.vision.local_ocr import read_words
 from top_heroes_auto.vision.models import BoundingBox, ScreenState
+from top_heroes_auto.vision.resources import template_folder
 
 
 class DynamicEventPort:
@@ -23,6 +30,9 @@ class DynamicEventPort:
         self.current = None
         self.entered = None
         self.dismissals = 0
+        self.rows = ()
+        self.event_title = None
+        self.task_context = cv2.imread(str(template_folder().parent/'tasks/phase8/personal-task-tab.png'))
 
     def observe(self):
         observed = self.transport.observe()
@@ -34,6 +44,7 @@ class DynamicEventPort:
         candidates = ()
         parent = None
         shell = None
+        self.rows = ()
         # The Home detector and current Shop anchor jointly qualify the sidebar.
         # The ROI is a semantic UI surface, not a list of icon/tap coordinates.
         shop = observed.box('home-shop-entry')
@@ -59,6 +70,23 @@ class DynamicEventPort:
             shell = event_shell(image,observed.box('back'),reader=read_words)
             if shell:
                 page = shell['page']
+                self.event_title = shell['title']
+                self.rows = task_reward_rows(image,self.task_context,reader=read_words)
+                if self.rows:
+                    page = 'event:'+shell['title']+':personal-tasks'
+                    for row in self.rows:
+                        if row['state']=='AVAILABLE':
+                            b=row['row']
+                            h,w=image.shape[:2]
+                            forbidden=tuple(q for q in (
+                                BoundingBox(0,0,w,b.y),BoundingBox(0,b.y+b.height,w,h-b.y-b.height),
+                                BoundingBox(0,b.y,b.x,b.height),BoundingBox(b.x+b.width,b.y,w-b.x-b.width,b.height)
+                            ) if q.width>0 and q.height>0)
+                            controls.append(Control(row['identity'],row['box'],row['evidence'],
+                                'reward',cost='FREE',available=True,forbidden=forbidden))
+                for tile in discover_menu_tiles(image):
+                    controls.append(Control(tile.fingerprint,tile.icon_box,
+                        ('event-shell','closed-menu-grid','unique-corner-notification'),'child'))
                 parent = Control('current-back',shell['back'],('gold-header','stable-title','back-anchor'),'parent')
                 for tab in shell['tabs']:
                     controls.append(Control(tab.fingerprint,tab.icon_box,
@@ -75,9 +103,17 @@ class DynamicEventPort:
                                   coverage_known=False, parent=parent, popup=popup, blocked=tuple(blocked))
         payload = dict(frame=asdict(self.current), badges=[item.evidence() for item in candidates],
                        observed=observed.evidence(), entered_event=self.entered,
-                       shell=dict(title=shell['title'],selected=shell['selected']) if shell else None)
+                       shell=dict(title=shell['title'],selected=shell['selected']) if shell else None,
+                       reward_rows=[{**r,'row':asdict(r['row']),'box':asdict(r['box'])} for r in self.rows])
         c.source_image.with_suffix('.event.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding='utf-8')
         overlay = image.copy()
+        for control in controls:
+            b=control.box
+            cv2.rectangle(overlay,(b.x,b.y),(b.x+b.width,b.y+b.height),(255,255,0),2)
+            if control.kind=='reward':
+                cv2.circle(overlay,control.box.center,5,(0,255,0),-1)
+                for q in control.forbidden:
+                    cv2.rectangle(overlay,(q.x,q.y),(q.x+q.width,q.y+q.height),(0,0,255),1)
         for candidate in candidates:
             b = candidate.icon_box or candidate.box
             cv2.rectangle(overlay,(b.x,b.y),(b.x+b.width,b.y+b.height),
@@ -88,7 +124,7 @@ class DynamicEventPort:
     def navigate(self, frame, control):
         if frame is not self.current:
             raise SafetyError('Stale event navigation frame.')
-        if control.kind in {'tab','parent'}:
+        if control.kind in {'tab','parent','child'}:
             if not frame.page.startswith('event:') or control not in (*frame.controls,frame.parent):
                 raise SafetyError('No qualified event tab/parent edge.')
             self.transport.dispatch(self.transport.last,'tap',control.box.center)
@@ -113,7 +149,58 @@ class DynamicEventPort:
         time.sleep(.5)
 
     def claim(self, frame, control):
-        raise SafetyError('No qualified dynamic event free-action contract for this current page.')
+        if control is None or frame is not getattr(self,'current',None) or control not in frame.controls or control.kind!='reward':
+            raise SafetyError('No qualified current event free reward.')
+        title = self.event_title
+        # Reprove unchanged availability, identity and exact geometry before reservation.
+        fresh = self.observe()
+        matches = [c for c in fresh.controls if c.kind=='reward' and c.identity==control.identity]
+        if (fresh.identity!=frame.identity or fresh.page!=frame.page or fresh.popup
+                or self.event_title!=title or len(matches)!=1 or matches[0]!=control):
+            raise SafetyError('Free reward changed before dispatch; no input.')
+        store = self.session.manager.store
+        task = store.create_task_run(self.session.manager.namespace,'dynamic-event-claim',
+                                     self.session.index,self.session.name)
+        path = self.folder/f'claim-{task}.json'
+
+        def persist(result):
+            path.write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+
+        def dispatch(before,target,point,intent):
+            if before is not self.current or target not in before.controls:
+                raise SafetyError('Claim transport lost frame ownership.')
+            self.transport.dispatch(self.transport.last,'tap',point,before_input=intent)
+            self.current = None
+
+        def postcondition(before,target):
+            observations=[]
+            for _ in range(5):
+                time.sleep(.5)
+                after=self.observe()  # First post-action capture is always retained.
+                if after.popup:
+                    self.dismiss(after)
+                    continue
+                if after.identity!=before.identity or after.page!=before.page:
+                    return []
+                same=[r for r in self.rows if r['identity']==target.identity]
+                if len(same)!=1 or same[0]['state']!='NOT_AVAILABLE':
+                    return []  # Missing row/receipt alone is never success evidence.
+                observations.append(dict(identity=list(after.identity),capture=after.capture,
+                    event=title,page=after.page,reward=target.identity,state='NOT_AVAILABLE',
+                    independent_evidence=['same-reward-card','claim-control-replaced-by-unavailable-state']))
+                if len(observations)==2:
+                    return observations
+            return []
+
+        try:
+            result=dispatch_once(store,task,self.session.manager.namespace,fresh,control,
+                event_identity=title,persistent_identity=self.session.target['persistent_identity'],
+                dispatch=dispatch,postcondition=postcondition,persist=persist)
+            store.finish_task_run(task,result['result'],report_path=str(path))
+            return result
+        except Exception as exc:
+            store.finish_task_run(task,'BLOCKED',error=str(exc),report_path=str(path))
+            raise
 
     def dismiss(self, frame):
         if frame is not self.current or not frame.popup or self.dismissals >= 3:

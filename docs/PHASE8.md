@@ -123,3 +123,41 @@ postconditions, durable semantic reward identities, stable dynamic Home event
 tracking, then actual development qualification. Final fleet has NOT started;
 Phase8 remains IN PROGRESS. Do not mark unfamiliar content exhausted or replay
 other flows when continuing events. No Phase9.
+
+
+## October 4 continuation scope and free-card qualification
+
+Latest user instruction overrides the original full-pipeline acceptance scope:
+Phase8 final acceptance is events ONLY. The normal application registry is unchanged.
+Use --only-flow PHASE_8_DYNAMIC_EVENT_REWARDS for random development and final
+non-Protected acceptance. It resolves to the registered events flow; the frozen
+plan excludes every other flow. Scope is durable and inherited on resume.
+
+CI37123448706/cecdbd1 passed all gates. Artifact11274524669 was delivered to
+Desktop/app,616 files/343 assets verified. Old3f38de7 build matched exactly before
+replacement. EXE82a63093412cc9400bc70637f84c4b3f1f0f2b01779905de5b3168d1ad3ba8ff.
+No new real input has occurred during this offline continuation.
+
+Offline qualification uses saved game-only evidence: a selected personal task
+context, complete rounded reward card, multiple inventory reward tiles, separate
+right action column, sole consistent claim label, and green control without any
+attached price/currency icon. Paid refresh controls outside the card are forbidden.
+Unrelated/ambiguous layouts remain UNKNOWN. A second fresh observation must agree
+on reward identity and exact geometry before a one-shot journal-bound tap.
+
+Postcondition requires two fresh same-account/same-page observations of the SAME
+reward card with the control changed to a positively unavailable state. Receipt
+alone or a missing row remains ACTION_DISPATCHED_UNVERIFIED, RESERVED/POSSIBLE.
+Title OCR changes cannot unlock an unresolved or unknown-period visual reward.
+Unknown periods remain locked conservatively; no current date guesses.
+
+Nested grid edges require multiple complete outlined cards and one uniquely
+attached corner badge. Clipped cards and unsupported layouts remain blocked.
+There is no fixed event catalog/name/coordinate route. Generic body coverage is
+still not complete; scrolling and remaining current variants require qualification.
+
+Next: targeted gates/self-review/commit/push/fresh CI before any input with this
+code. Randomly select a new live eligible non-Protected target; Phase8 ONLY.
+Qualify actual AVAILABLE -> one dispatch -> unavailable state before final
+all-current-non-Protected Phase8-only acceptance. Do not stop at a scan-only
+checkpoint or fabricate PASS. No Phase9.
