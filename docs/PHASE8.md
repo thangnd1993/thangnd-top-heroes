@@ -161,3 +161,11 @@ code. Randomly select a new live eligible non-Protected target; Phase8 ONLY.
 Qualify actual AVAILABLE -> one dispatch -> unavailable state before final
 all-current-non-Protected Phase8-only acceptance. Do not stop at a scan-only
 checkpoint or fabricate PASS. No Phase9.
+
+
+The clipped fourth saved task card additionally qualifies a bounded vertical
+list gesture: wholly inside complete CURRENT cards, left of claim controls and
+above the paid footer. Every swipe consumes its frame and reacquires the list.
+Progress fingerprints use card identity/state/position, excluding clocks and
+animated artwork. Four-swipes/transition/observation bounds remain. Unknown list
+coverage does not become PASS merely because a scroll produced no new control.

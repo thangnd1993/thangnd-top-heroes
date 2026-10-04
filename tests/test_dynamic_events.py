@@ -423,3 +423,23 @@ def test_conflicting_action_ocr_does_not_authorize_claim():
     calls=iter([{'text':'Nhan'},{'text':'Buy'}]*3)
     assert not task_reward_rows(cv2.imread('tests/fixtures/phase8/task-reward-list.png'),
         cv2.imread('assets/tasks/phase8/personal-task-tab.png'),reader=lambda _:[next(calls)])
+
+
+def test_production_list_swipe_is_inside_current_cards_and_consumes_frame(monkeypatch):
+    from types import SimpleNamespace
+
+    from top_heroes_auto.app.dynamic_event_port import DynamicEventPort
+    monkeypatch.setattr('top_heroes_auto.app.dynamic_event_port.time.sleep',lambda _:None)
+    surface=BoundingBox(150,500,270,450)
+    scroll=Control('task-list-vertical',surface,('context','list','excluded-paid'),'scroll')
+    current=frame('event:new-season:personal-tasks',1,[scroll])
+    port=object.__new__(DynamicEventPort)
+    port.current=current
+    sent=[]
+    port.transport=SimpleNamespace(last=object(),dispatch=lambda *args:sent.append(args))
+    port.navigate(current,scroll)
+    assert sent[0][1:] == ('swipe',(285,838,285,612,450))
+    assert port.current is None
+    with pytest.raises(SafetyError):
+        port.navigate(current,scroll)
+    assert len(sent)==1

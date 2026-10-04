@@ -192,6 +192,16 @@ def discover_menu_tiles(image):
     return tuple(sorted(result,key=lambda c:(c.icon_box.y,c.icon_box.x)))
 
 
+def task_context_box(image,template):
+    if image.shape[1]!=720 or template is None:
+        return None
+    scores=cv2.matchTemplate(image,template,cv2.TM_CCOEFF_NORMED)
+    _,score,_,where=cv2.minMaxLoc(scores)
+    if score<.98 or cv2.connectedComponents((scores>=.98).astype(np.uint8))[0]!=2:
+        return None
+    return BoundingBox(*where,template.shape[1],template.shape[0])
+
+
 def task_reward_rows(image,context_template,*,reader):
     """Supported free task-card schema, independent of seasonal name/artwork.
 
@@ -201,17 +211,10 @@ def task_reward_rows(image,context_template,*,reader):
     Blue Go/grey claim state is unavailable only on the same qualified card.
     """
     h,w=image.shape[:2]
-    if w != 720 or context_template is None:
-        return ()  # Require the qualified portrait scale, not guessed scaling.
-    scores=cv2.matchTemplate(image,context_template,cv2.TM_CCOEFF_NORMED)
-    _,score,_,where=cv2.minMaxLoc(scores)
-    if score<.98:
+    context=task_context_box(image,context_template)
+    if context is None:
         return ()
-    # Require one context, not two conflicting task panels.
-    hits=(scores>=.98).astype(np.uint8)
-    if cv2.connectedComponents(hits)[0]!=2:
-        return ()
-    below=where[1]+context_template.shape[0]
+    below=context.y+context.height
     edges=cv2.morphologyEx(cv2.Canny(image,40,120),cv2.MORPH_CLOSE,np.ones((3,3),np.uint8))
     contours,_=cv2.findContours(edges,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
     rows=[]

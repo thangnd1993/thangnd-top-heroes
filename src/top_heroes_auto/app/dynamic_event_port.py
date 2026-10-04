@@ -14,6 +14,7 @@ from top_heroes_auto.vision.dynamic_events import (
     discover_events,
     discover_menu_tiles,
     event_shell,
+    task_context_box,
     task_reward_rows,
 )
 from top_heroes_auto.vision.guild_mail import portrait
@@ -72,7 +73,8 @@ class DynamicEventPort:
                 page = shell['page']
                 self.event_title = shell['title']
                 self.rows = task_reward_rows(image,self.task_context,reader=read_words)
-                if self.rows:
+                context=task_context_box(image,self.task_context)
+                if context is not None:
                     page = 'event:'+shell['title']+':personal-tasks'
                     for row in self.rows:
                         if row['state']=='AVAILABLE':
@@ -84,6 +86,14 @@ class DynamicEventPort:
                             ) if q.width>0 and q.height>0)
                             controls.append(Control(row['identity'],row['box'],row['evidence'],
                                 'reward',cost='FREE',available=True,forbidden=forbidden))
+                    if len(self.rows)>=2:
+                        first,last=self.rows[0]['row'],self.rows[-1]['row']
+                        # Gesture stays wholly within CURRENT complete reward cards,
+                        # left of their action column and above the paid refresh bar.
+                        surface=BoundingBox(first.x+round(first.width*.20),first.y+20,
+                            round(first.width*.40),last.y+last.height-first.y-40)
+                        controls.append(Control('task-list-vertical',surface,
+                            ('selected-task-context','complete-card-list','outside-action-column'),'scroll'))
                 for tile in discover_menu_tiles(image):
                     controls.append(Control(tile.fingerprint,tile.icon_box,
                         ('event-shell','closed-menu-grid','unique-corner-notification'),'child'))
@@ -97,6 +107,10 @@ class DynamicEventPort:
         import hashlib
 
         fingerprint = hashlib.sha256(cv2.resize(image,(90,160)).tobytes()).hexdigest()
+        if self.rows:
+            # Clocks/background animation cannot pretend the list made progress.
+            fingerprint=hashlib.sha256(json.dumps([(r['identity'],r['state'],r['row'].y)
+                for r in self.rows]).encode()).hexdigest()
         popup = (observed.overlay.state in DISMISSIBLE and
                  (self.entered is None or observed.overlay.state != ScreenState.HOME_OVERLAY))
         self.current = EventFrame(str(c.source_image),identity,page,fingerprint,tuple(controls),
@@ -124,6 +138,17 @@ class DynamicEventPort:
     def navigate(self, frame, control):
         if frame is not self.current:
             raise SafetyError('Stale event navigation frame.')
+        if control.kind=='scroll':
+            if not frame.page.endswith(':personal-tasks') or control not in frame.controls:
+                raise SafetyError('No qualified current task-list scroll surface.')
+            b=control.box
+            x=b.x+b.width//2
+            start=b.y+round(b.height*.75)
+            end=b.y+round(b.height*.25)
+            self.transport.dispatch(self.transport.last,'swipe',(x,start,x,end,450))
+            self.current=None
+            time.sleep(.6)
+            return
         if control.kind in {'tab','parent','child'}:
             if not frame.page.startswith('event:') or control not in (*frame.controls,frame.parent):
                 raise SafetyError('No qualified event tab/parent edge.')
