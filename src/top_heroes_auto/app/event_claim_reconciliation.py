@@ -33,6 +33,8 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index):
                 raise ValueError('Missing unique saved reward')
             if reference.shape[1] > reference.shape[0]:
                 reference = cv2.rotate(reference, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            known = [task_label_glyph(reference, BoundingBox(**r['row']))
+                     for r in saved['reward_rows']]
             glyph = task_label_glyph(reference, BoundingBox(**old[0]['row']))
             if glyph is None:
                 raise ValueError('Missing saved caption')
@@ -45,6 +47,15 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index):
                 raise SafetyError('Current reward caption unavailable.')
             score = float(cv2.matchTemplate(current, glyph, cv2.TM_CCOEFF_NORMED)[0,0])
             scored.append((score, row))
+            if score < .75 and claim['dispatch_state'] == 'POSSIBLE':
+                # A new raster hash must not silently become a new eligible
+                # reward while an action is unresolved. Previously seen,
+                # visually distinct siblings retain their own eligibility.
+                sibling_scores = [float(cv2.matchTemplate(current, g, cv2.TM_CCOEFF_NORMED)[0,0])
+                                  for g in known if g is not None]
+                if sum(v >= .98 for v in sibling_scores) != 1:
+                    row['state'] = 'UNKNOWN'
+                    row['evidence'] = (*row['evidence'], 'unresolved-saved-reward-identity')
         matches = [r for score,r in scored if score >= .98]
         if len(matches) > 1 or any(.75 <= score < .98 for score,_ in scored):
             raise SafetyError('Ambiguous saved reward caption; no new claim.')

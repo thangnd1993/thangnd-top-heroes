@@ -84,6 +84,8 @@ class DynamicEventPort:
                     self.rows = bind_saved_rewards(image, self.rows,
                         self.session.manager.store.reward_claims(self.session.manager.namespace, self.session.index),
                         persistent_identity=self.session.target['persistent_identity'], index=self.session.index)
+                    if any(r['state'] == 'UNKNOWN' for r in self.rows):
+                        blocked.append('UNRESOLVED_SAVED_REWARD_IDENTITY')
                     for row in self.rows:
                         if row['state'] != 'NOT_AVAILABLE':
                             self.unavailable_observations.pop(row['identity'], None)

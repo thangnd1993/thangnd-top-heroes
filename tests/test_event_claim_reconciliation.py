@@ -18,7 +18,7 @@ def evidence(tmp_path):
     source.write_bytes(cv2.imencode('.png', cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE))[1].tobytes())
     saved = {**row, 'row': vars(row['row']), 'box': vars(row['box'])}
     source.with_suffix('.event.json').write_text(json.dumps({'reward_rows': [saved]}))
-    claim = dict(reward_id='event:key', before_evidence=json.dumps(dict(
+    claim = dict(reward_id='event:key', dispatch_state='POSSIBLE', before_evidence=json.dumps(dict(
         page='event:title:personal-tasks', reward=row['identity'], capture=str(source),
         identity=[13,'user name','explicit','old-boot'], persistent_identity='disk')))
     return image, row, claim
@@ -90,3 +90,14 @@ def test_reconciliation_excludes_current_session_claim_owned_by_dispatch_once(tm
     assert store.reward_claims('install',13)[0]['status'] == 'RESERVED'
     assert reconcile_possible(store,'install',13,'disk',post,claim_ids={result['claim_id']}) == [result['claim_id']]
     assert len(calls) == 1
+
+
+def test_unrecognized_new_caption_cannot_reopen_unresolved_claim(tmp_path):
+    image,row,claim = evidence(tmp_path)
+    current = image.copy()
+    b = row['row']
+    current[b.y+8:b.y+round(b.height*.30), b.x+10:b.x+round(b.width*.72)] = (210,220,230)
+    cv2.putText(current, 'Different raster', (b.x+20,b.y+35), cv2.FONT_HERSHEY_SIMPLEX, .7, (30,65,100), 2)
+    changed = dict(row, identity='new-raster')
+    result = bind_saved_rewards(current, [changed], [claim], persistent_identity='disk', index=13)
+    assert result[0]['state'] == 'UNKNOWN'
