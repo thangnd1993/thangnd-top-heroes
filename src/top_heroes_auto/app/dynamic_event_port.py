@@ -14,9 +14,14 @@ from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, dismiss_overlay_bottom_left
 from top_heroes_auto.vision.dynamic_events import (
     blank_event_render,
+    contained_signal_on_known_icon,
     discover_events,
     discover_menu_tiles,
+    event_body_contract,
     event_shell,
+    icon_core_image,
+    matching_icon_cores,
+    menu_card_boxes,
     task_context_box,
     task_reward_rows,
 )
@@ -35,6 +40,7 @@ class DynamicEventPort:
         self.entered = None
         self.dismissals = 0
         self.rows = ()
+        self.home_icon_cores = {}
         self.event_title = None
         self.unavailable_observations = {}
         self.pending_claim_ids = {r['id'] for r in session.manager.store.reward_claims(
@@ -54,6 +60,9 @@ class DynamicEventPort:
         candidates = ()
         parent = None
         shell = None
+        contract = None
+        ignored_signals = []
+        coverage_known = False
         self.rows = ()
         # The Home detector and current Shop anchor jointly qualify the sidebar.
         # The ROI is a semantic UI surface, not a list of icon/tap coordinates.
@@ -66,10 +75,20 @@ class DynamicEventPort:
                 candidates = discover_events(image, BoundingBox(left, top, w-left, bottom-top))
                 for candidate in candidates:
                     if candidate.qualified:
-                        controls.append(Control(candidate.fingerprint, candidate.icon_box,
+                        core=icon_core_image(image,candidate.icon_box)
+                        keys=matching_icon_cores(core,self.home_icon_cores)
+                        if len(keys)>1:
+                            blocked.append('AMBIGUOUS_ICON_CORE')
+                            continue
+                        key=keys[0] if keys else candidate.fingerprint
+                        self.home_icon_cores.setdefault(key,core)
+                        controls.append(Control(key, candidate.icon_box,
                                                 ('GAME_HOME', 'current-shop-sidebar', 'rimmed-notification', 'unique-outlined-icon'), 'event'))
+                    elif contained_signal_on_known_icon(candidate,candidates):
+                        ignored_signals.append(candidate.evidence())
                     else:
                         blocked.append('UNQUALIFIED_NOTIFICATION_GEOMETRY')
+                coverage_known = not blocked
             else:
                 blocked.append('EVENT_REGION_UNQUALIFIED')
         elif page == 'home':
@@ -121,19 +140,33 @@ class DynamicEventPort:
                             round(first.width*.40),last.y+last.height-first.y-40)
                         controls.append(Control('task-list-vertical',surface,
                             ('selected-task-context','complete-card-list','outside-action-column'),'scroll'))
-                for tile in discover_menu_tiles(image):
-                    controls.append(Control(tile.fingerprint,tile.icon_box,
-                        ('event-shell','closed-menu-grid','unique-corner-notification'),'child'))
+                contract=event_body_contract(image,self.rows,self.task_context,reader=read_words)
+                coverage_known=contract!='UNSUPPORTED'
+                if contract=='MENU_GRID':
+                    for tile in discover_menu_tiles(image):
+                        controls.append(Control(tile.fingerprint,tile.icon_box,
+                            ('event-shell','closed-menu-grid','unique-corner-notification'),'child'))
+                    cards=menu_card_boxes(image)
+                    first=min(cards,key=lambda b:b.y)
+                    bottom=max(b.y+b.height for b in cards)
+                    surface=BoundingBox(first.x+round(first.width*.20),first.y+20,
+                        round(first.width*.40),bottom-first.y-40)
+                    controls.append(Control('menu-list-vertical',surface,
+                        ('event-shell','qualified-menu-grid','current-card-list'),'scroll'))
                 parent = Control('current-back',shell['back'],('gold-header','stable-title','back-anchor'),'parent')
                 for tab in shell['tabs']:
                     controls.append(Control(tab.fingerprint,tab.icon_box,
                         ('event-shell','tab-strip','unique-outlined-icon','rimmed-notification'),'tab'))
-            blocked.append('EVENT_CONTENT_REQUIRES_QUALIFICATION')
+            if not coverage_known:
+                blocked.append('EVENT_CONTENT_REQUIRES_QUALIFICATION')
         elif page == 'home':
             self.entered = None
         import hashlib
 
         fingerprint = hashlib.sha256(cv2.resize(image,(90,160)).tobytes()).hexdigest()
+        if contract=='MENU_GRID':
+            fingerprint=hashlib.sha256(json.dumps([(b.x,b.y,b.width,b.height) for b in
+                sorted(menu_card_boxes(image),key=lambda b:(b.y,b.x))]).encode()).hexdigest()
         if self.rows:
             # Clocks/background animation cannot pretend the list made progress.
             fingerprint=hashlib.sha256(json.dumps([(r['identity'],r['state'],r['row'].y)
@@ -141,12 +174,13 @@ class DynamicEventPort:
         popup = (observed.overlay.state in DISMISSIBLE and
                  (self.entered is None or observed.overlay.state != ScreenState.HOME_OVERLAY))
         self.current = EventFrame(str(c.source_image),identity,page,fingerprint,tuple(controls),
-                                  coverage_known=False, parent=parent, popup=popup, blocked=tuple(blocked),
+                                  coverage_known=coverage_known, parent=parent, popup=popup, blocked=tuple(blocked),
                                   render_pending=bool(self.entered and page=='UNKNOWN' and
                                                       not popup and blank_event_render(image)))
         payload = dict(frame=asdict(self.current), badges=[item.evidence() for item in candidates],
                        observed=observed.evidence(), entered_event=self.entered,
                        shell=dict(title=shell['title'],selected=shell['selected']) if shell else None,
+                       body_contract=contract,ignored_contained_signals=ignored_signals,
                        reward_rows=[{**r,'row':asdict(r['row']),'box':asdict(r['box'])} for r in self.rows])
         c.source_image.with_suffix('.event.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding='utf-8')
         overlay = image.copy()
@@ -168,7 +202,8 @@ class DynamicEventPort:
         if frame is not self.current:
             raise SafetyError('Stale event navigation frame.')
         if control.kind=='scroll':
-            if not frame.page.endswith(':personal-tasks') or control not in frame.controls:
+            if (not frame.page.startswith('event:') or control not in frame.controls
+                    or not (frame.page.endswith(':personal-tasks') or 'qualified-menu-grid' in control.evidence)):
                 raise SafetyError('No qualified current task-list scroll surface.')
             b=control.box
             x=b.x+b.width//2

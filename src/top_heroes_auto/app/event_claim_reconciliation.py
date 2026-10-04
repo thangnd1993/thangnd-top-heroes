@@ -47,7 +47,8 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index):
                 raise SafetyError('Current reward caption unavailable.')
             score = float(cv2.matchTemplate(current, glyph, cv2.TM_CCOEFF_NORMED)[0,0])
             scored.append((score, row))
-            if score < .75 and claim['dispatch_state'] == 'POSSIBLE':
+            if (score < .75 and claim['dispatch_state'] == 'POSSIBLE'
+                    and claim.get('status') != 'VERIFIED' and row['state'] == 'AVAILABLE'):
                 # A new raster hash must not silently become a new eligible
                 # reward while an action is unresolved. Previously seen,
                 # visually distinct siblings retain their own eligibility.

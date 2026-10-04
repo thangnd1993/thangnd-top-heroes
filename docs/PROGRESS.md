@@ -1,3 +1,16 @@
+## Phase8 Smille one-shot proof and dynamic coverage repair
+
+0a6dd16 / CI37216279893 PASS (1294+26), fresh626-file Desktop build verified.
+Random11/Smille: explicit emulator-5576, Home SUCCESS, ONE real free task action.
+235 still RESERVED/POSSIBLE; NEVER retry. Qualified receipt plus two fresh13->8
+counters and removed green prefix qualified offline; three known consumed reward
+IDs, two unobserved. Require next passing portable for saved-only reconciliation.
+234 VERIFIED and217 earlier journals unchanged. Cleanup/selection/protection PASS
+for this run; earlier Chicken lifecycle discrepancy remains separately unresolved.
+Current offline geometry/body-contract repair keeps unsupported content blocked;
+final all-current non-Protected Phase8-only acceptance remains unfinished. No Phase9.
+See docs/PHASE8.md for actual evidence and safeguards.
+
 ## Phase8 actual Event claim VERIFIED; render qualification continues
 
 3e7a014 / CI37212069124 PASS (1290+26); fresh626-file Desktop app verified.

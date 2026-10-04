@@ -301,3 +301,51 @@ Require fresh passing CI/artifact before further real qualification. Continue
 remaining random candidates without repeating successful claims, then finish
 all-current non-Protected Phase8-only acceptance; coverage is still unfinished.
 No Phase9.
+
+
+## Smille aggregate action and current Event geometry — October 5
+
+0a6dd16 / CI37216279893 PASS:1294 tests,26 skips; all five required gates.
+Fresh artifact11309675121 delivered626 verified Desktop/app files. Random
+qualification used secrets.choice on current eligible2,4,9,10,11, excluding
+already tested3,5,8; selected11/Smille. Explicit emulator-5576, Home SUCCESS.
+Report: automation/20261004-165808-156331Z-7bc7cd72/fleet-report.json.
+One physical claim created235 RESERVED/POSSIBLE; NEVER redispatch. Qualified
+receipt dismissed bottom-left, two fresh underlying frames show13->8->8 and
+all prior green task cards gone. Three complete AVAILABLE cards were visible
+before dispatch; the free prefix continued below the viewport. Five counter
+units consumed, three known reward identities, two unobserved identities; do
+not fabricate those two identities or count receipt blue runes as diamonds.
+Owned cleanup SUCCESS, selection restored; Protected states unchanged in this
+run.217 old journals and VERIFIED234 unchanged. Chicken's earlier Soup-run
+powerDown preceded Soup cleanup by115 seconds; request sender still unknown.
+
+Offline effect repair requires exact decrement when a complete visible free
+prefix ends in a non-AVAILABLE row; an incomplete prefix requires at least its
+visible count removed. Both fresh counters must agree, top-prefix removal,
+qualified receipt/context/transport and unavailable controls remain mandatory.
+Journal235 remains POSSIBLE until fresh passing artifact saved-only reconciliation.
+Positive unavailable controls remain unavailable despite an unresolved prior
+caption, while unmatched AVAILABLE candidates remain blocked.
+
+Current-frame geometry repair supports a corner badge covering a gallery border
+only with three complete neighbor cards and four independently observed sides.
+Menu scrolling stays inside qualified current cards and bounded explorer limits.
+Home outline bridging preserves unique strong notifications; contained weak red
+paint on the already-qualified same icon adds no second edge. Opposite-corner
+icon cores exclude badge/animated edges, with unique .995 current-pixel comparison
+for run-local retrieval; this is never a durable journal/reset identity.
+
+Positive body contracts distinguish fully qualified task lists, timed menu grids,
+countdown/world-list information and seven-column schedules. Strict paired
+functional text anchors and current geometry qualify informational pages; no
+seasonal title catalog. Uninterpreted content, possible free/paid controls,
+conflicting OCR, missing card sides or incomplete task qualification stay blocked.
+Only the existing separately qualified free task-card schema enables reward input.
+No generic green-button claim or unknown-popup dismissal is added.
+
+Required new PNGs were visually inspected: game UI only, no credentials or private
+files; chunks IHDR/IDAT/IEND only. Self-review covers one-shot/pending locks,
+independent observations, bounded capture/navigation, fresh geometry and no
+lifecycle/identity fallback. 193 targeted tests PASS; affected Ruff and git diff --check PASS.
+Full current non-Protected Phase8-only acceptance still required; no Phase9.

@@ -355,7 +355,7 @@ def test_real_badged_tile_grid_uses_current_closed_card():
     from top_heroes_auto.vision.dynamic_events import discover_menu_tiles
     image=cv2.imread('tests/fixtures/phase8/event-long-header.png')
     found=discover_menu_tiles(image)
-    assert len(found)==1 and found[0].icon_box==BoundingBox(14,714,342,290)
+    assert {c.icon_box for c in found}=={BoundingBox(14,714,342,290),BoundingBox(364,714,342,290)}
     moved=cv2.warpAffine(image,np.float32([[1,0,20],[0,1,-40]]),(720,1280))
     shifted=discover_menu_tiles(moved)
     assert any(c.icon_box==BoundingBox(34,674,342,290) for c in shifted)

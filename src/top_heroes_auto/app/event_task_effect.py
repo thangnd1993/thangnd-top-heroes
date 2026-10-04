@@ -38,7 +38,8 @@ def removal_effect(proof, captures, receipt, *, reader=read_words, allow_new_boo
     """Two fresh counter observations plus actual removal of the claimable prefix.
 
     Some task controls consume several AVAILABLE cards in one tap. Require the
-    exact decrement equal to that visible free prefix, zero remaining claimable
+    exact decrement for a completely visible prefix, or a qualified lower
+    bound when every complete visible row is AVAILABLE, zero remaining claimable
     controls in the fresh top viewport, the same selected task context/outer
     Event and a receipt bound to the original transport. Receipt alone, missing
     rows alone, scrolling alone or arbitrary badge changes cannot verify anything.
@@ -99,7 +100,11 @@ def removal_effect(proof, captures, receipt, *, reader=read_words, allow_new_boo
         after_context = task_context_box(after, template)
         after_rows = task_reward_rows(after, template, reader=reader)
         after_count = selected_task_badge_count(after,after_meta['shell']['selected'],reader=reader)
-        if (after_context is None or not after_rows or after_count != count-len(available)
+        prefix_complete = len(available) < len(rows)
+        if (after_context is None or not after_rows or after_count is None
+                or (prefix_complete and after_count != count-len(available))
+                or (not prefix_complete and count-after_count < len(available))
+                or (observations and after_count != observations[0]['after_count'])
                 or any(r['state'] != 'NOT_AVAILABLE' for r in after_rows)):
             return []
         if number == 0 and after_rows[0]['row'].y-after_context.y-after_context.height > after.shape[0]*.04:
@@ -108,9 +113,13 @@ def removal_effect(proof, captures, receipt, *, reader=read_words, allow_new_boo
             event=proof['event'],page=proof['page'],reward=proof['reward'],state='NOT_AVAILABLE',
             receipt=str(receipt),before_count=count,after_count=after_count,
             consumed_reward_ids=[r['identity'] for r in available],
+            visible_prefix_complete=prefix_complete,
+            observed_count_decrement=count-after_count,
+            unobserved_consumed_count=count-after_count-len(available),
             prefix_removal_capture=str(captures[0]),independent_evidence=[
                 'same-qualified-task-context','unique-selected-tab-counter',
-                'exact-free-prefix-count-decrement','claimable-prefix-gone',
+                ('exact-free-prefix-count-decrement' if prefix_complete else
+                 'incomplete-visible-prefix-count-lower-bound'),'claimable-prefix-gone',
                 'fresh-unavailable-controls','independent-receipt-pair']))
     return observations
 

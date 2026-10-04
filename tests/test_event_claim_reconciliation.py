@@ -113,3 +113,16 @@ def test_reconciliation_does_not_read_or_modify_unrelated_possible_journals(tmp_
     assert reconcile_possible(store,'install',13,'disk',post,
         claim_ids={result['claim_id'],unrelated}) == [result['claim_id']]
     assert next(r for r in store.reward_claims('install',13) if r['id']==unrelated) == before
+
+
+@pytest.mark.parametrize('status',['RESERVED','VERIFIED'])
+def test_unfamiliar_but_positively_unavailable_row_stays_unavailable(tmp_path,status):
+    image,row,claim=evidence(tmp_path)
+    current=image.copy()
+    b=row['row']
+    current[b.y+8:b.y+round(b.height*.30), b.x+10:b.x+round(b.width*.72)]=(210,220,230)
+    cv2.putText(current,'Different raster',(b.x+20,b.y+35),cv2.FONT_HERSHEY_SIMPLEX,.7,(30,65,100),2)
+    claim['status']=status
+    changed=dict(row,identity='new-raster',state='NOT_AVAILABLE')
+    result=bind_saved_rewards(current,[changed],[claim],persistent_identity='disk',index=13)
+    assert result[0]['state']=='NOT_AVAILABLE'

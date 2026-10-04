@@ -19,13 +19,14 @@ def role_reader(image):
     return [{'text':'Nhan' if cv2.countNonZero(green) > green.size*.10 else 'Den'}]
 
 
-def rig(tmp_path):
+def rig(tmp_path, *, before_fixture='task-list-before-batch.png',
+        after_fixture='task-list-after-batch.png'):
     template = cv2.imread('assets/tasks/phase8/personal-task-tab.png')
     paths = []
     before_rows = None
-    for name,fixture,stamp,boot in [('before','task-list-before-batch.png',1,'old'),
-            ('after1','task-list-after-batch.png',3,'new'),
-            ('after2','task-list-after-batch.png',4,'new')]:
+    for name,fixture,stamp,boot in [('before',before_fixture,1,'old'),
+            ('after1',after_fixture,3,'new'),
+            ('after2',after_fixture,4,'new')]:
         image = cv2.imread(str(FIXTURES/fixture))
         rows = task_reward_rows(image,template,reader=role_reader)
         path = tmp_path/(name+'.png')
@@ -199,3 +200,23 @@ def test_plain_dot_and_duplicate_active_tab_badges_are_not_numeric_evidence():
     duplicate=image.copy()
     duplicate[b.y:b.y+b.height,b.x-23:b.x-23+b.width]=image[b.y:b.y+b.height,b.x:b.x+b.width]
     assert selected_task_badge_count(duplicate,shell['selected'],reader=lambda _:pytest.fail('Duplicate badges are ambiguous')) is None
+
+
+def test_partial_visible_prefix_models_observed_batch_without_fabricating_hidden_ids(tmp_path,monkeypatch):
+    proof,paths,receipt=rig(tmp_path,before_fixture='task-list-before-partial-prefix.png',
+                           after_fixture='task-list-after-partial-prefix.png')
+    badge_counts(monkeypatch,[13,8,8])
+    result=removal_effect(proof,paths[1:],receipt,reader=role_reader,allow_new_boot=True)
+    assert len(result)==2
+    assert result[0]['visible_prefix_complete'] is False
+    assert result[0]['observed_count_decrement']==5
+    assert result[0]['unobserved_consumed_count']==2
+    assert len(result[0]['consumed_reward_ids'])==3
+
+
+@pytest.mark.parametrize('counts',[[13,13],[13,11],[13,8,7]])
+def test_partial_prefix_rejects_unchanged_insufficient_or_conflicting_counter(tmp_path,monkeypatch,counts):
+    proof,paths,receipt=rig(tmp_path,before_fixture='task-list-before-partial-prefix.png',
+                           after_fixture='task-list-after-partial-prefix.png')
+    badge_counts(monkeypatch,counts)
+    assert not removal_effect(proof,paths[1:],receipt,reader=role_reader,allow_new_boot=True)
