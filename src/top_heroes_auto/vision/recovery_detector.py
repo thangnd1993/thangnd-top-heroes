@@ -23,6 +23,7 @@ class RecoveryScreenDetector:
         self.anchors = load_anchors(templates)
         self.detector = ScreenDetector(self.anchors)
         self.receipt_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "overlays")
+        self.notice_anchors = load_anchors(templates.parent / 'tasks/phase8/notice-overlays')
         self.event_anchors = load_anchors(templates.parent / 'tasks/phase6/event-overlays')
         self.home_overlay_anchors = load_anchors(templates.parent / 'tasks/phase6/home-overlays')
         promo_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "promo")
@@ -76,6 +77,8 @@ class RecoveryScreenDetector:
             title, started, close = (boxes[k] for k in ('blood-night-title', 'blood-night-started', 'blood-night-close'))
             layout = title.y+title.height < started.y < close.y and abs(started.center[0]-close.center[0]) < started.width*.3
             event_qualified = layout
+        notice = tuple(unique_current_anchor(screen, a) for a in self.notice_anchors)
+        notice_visible = len(notice) == 3 and all(e.matched for e in notice)
         groups = {}
         for anchor in self.receipt_anchors:
             groups.setdefault(anchor.variant, []).append(unique_current_anchor(screen, anchor))
@@ -121,11 +124,25 @@ class RecoveryScreenDetector:
                            evidence=tuple(e for items in qualified_receipts for e in items))
         if qualified_receipts:
             receipt = qualified_receipts[0]
-            if detected.state != ScreenState.UNKNOWN or detected.evidence or event_visible or (promo_title.matched and promo_cta.matched):
+            if detected.state != ScreenState.UNKNOWN or detected.evidence or event_visible or notice_visible or (promo_title.matched and promo_cta.matched):
                 return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
                                evidence=(*detected.evidence, *receipt))
             return replace(detected, state=ScreenState.REWARD_RECEIPT,
                            confidence=min(e.score for e in receipt), evidence=receipt)
+        if notice_visible:
+            boxes = {e.anchor_id: e.device_box for e in notice}
+            title, preparing, close = (boxes[k] for k in
+                ('match-notice-title', 'match-notice-preparing', 'match-notice-close'))
+            width, height = screen.device_size or screen.original_size
+            layout = (title.y+title.height < preparing.y < close.y and title.y < height*.15
+                      and close.y > height*.85 and all(abs(b.center[0]-width*.5) < width*.12
+                      for b in (title, preparing, close)))
+            if (layout and detected.state == ScreenState.UNKNOWN and not detected.evidence
+                    and not event_visible and not (promo_title.matched and promo_cta.matched)):
+                return replace(detected, state=ScreenState.EVENT_PROMO,
+                               confidence=min(e.score for e in notice), evidence=notice)
+            return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
+                           evidence=(*detected.evidence, *notice))
         if event_visible:
             if event_qualified and detected.state == ScreenState.UNKNOWN and not detected.evidence and not (promo_title.matched and promo_cta.matched):
                 return replace(detected, state=ScreenState.EVENT_PROMO, confidence=min(e.score for e in event), evidence=event)
@@ -204,6 +221,16 @@ class RecoveryScreenDetector:
 
     @staticmethod
     def _receipt_layout(screen, variant, items):
+        if variant == 'large-receipt':
+            boxes = {e.anchor_id: e.device_box for e in items}
+            title = boxes['large-receipt-title']
+            continuation = boxes['large-receipt-continue']
+            width, height = screen.device_size or screen.original_size
+            return (title.y + title.height < height*.12
+                    and continuation.y > height*.85
+                    and continuation.y-title.y > height*.70
+                    and all(abs(b.center[0]-width*.5) < width*.10
+                            for b in (title, continuation)))
         if variant != 'ranking-receipt':
             return True
         boxes = {e.anchor_id: e.device_box for e in items}

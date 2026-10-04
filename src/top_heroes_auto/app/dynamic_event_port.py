@@ -5,6 +5,7 @@ from dataclasses import asdict
 
 import cv2
 
+from top_heroes_auto.app.event_claim_reconciliation import bind_saved_rewards, reconcile_possible
 from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
 from top_heroes_auto.automation.dynamic_events import Control, EventFrame
 from top_heroes_auto.automation.event_journal import dispatch_once
@@ -33,6 +34,7 @@ class DynamicEventPort:
         self.dismissals = 0
         self.rows = ()
         self.event_title = None
+        self.unavailable_observations = {}
         self.task_context = cv2.imread(str(template_folder().parent/'tasks/phase8/personal-task-tab.png'))
 
     def observe(self):
@@ -76,6 +78,21 @@ class DynamicEventPort:
                 context=task_context_box(image,self.task_context)
                 if context is not None:
                     page = 'event:'+shell['title']+':personal-tasks'
+                    self.rows = bind_saved_rewards(image, self.rows,
+                        self.session.manager.store.reward_claims(self.session.manager.namespace, self.session.index),
+                        persistent_identity=self.session.target['persistent_identity'], index=self.session.index)
+                    for row in self.rows:
+                        if row['state'] != 'NOT_AVAILABLE':
+                            self.unavailable_observations.pop(row['identity'], None)
+                            continue
+                        proof = dict(identity=list(identity), capture=str(c.source_image),
+                            page=page, reward=row['identity'], state='NOT_AVAILABLE',
+                            independent_evidence=list(row['evidence']))
+                        previous = self.unavailable_observations.get(row['identity'])
+                        if previous and previous['page'] == page:
+                            reconcile_possible(self.session.manager.store, self.session.manager.namespace,
+                                self.session.index, self.session.target['persistent_identity'], [previous, proof])
+                        self.unavailable_observations[row['identity']] = proof
                     for row in self.rows:
                         if row['state']=='AVAILABLE':
                             b=row['row']

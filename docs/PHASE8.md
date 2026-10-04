@@ -1,4 +1,4 @@
-# Phase 8 — Dynamic Seasonal / Event Free Reward Explorer
+# Phase 8 â€” Dynamic Seasonal / Event Free Reward Explorer
 
 ## Scope and current checkpoint
 
@@ -7,7 +7,7 @@ Branch codex/phase8-dynamic-events, based on clean 5823c30.
 Phase 8 is IN PROGRESS, NOT PASS. Phase 9 is not authorized.
 
 Home discovery searches the current upper-right event region below the verified
-Tiệm entry. It does not use an event-name/icon catalog or persistent coordinates.
+Tiá»‡m entry. It does not use an event-name/icon catalog or persistent coordinates.
 White-rimmed notifications must belong to one separately detected outlined icon.
 The tap uses that current icon bbox, never the badge alone. Both observations
 must agree before input. This geometry is navigation evidence only. A run-local
@@ -55,7 +55,7 @@ Offline checkpoint: 99 targeted tests pass, affected Ruff and diff checks pass.
 Saved Home evidence includes six distinct current icons and shifted-image tests.
 No real Phase 8 input or journal mutation has occurred at this checkpoint.
 
-## First real development evidence — 2026-10-03
+## First real development evidence â€” 2026-10-03
 
 Code bb629fd / CI37113529992 passed:1215 tests,26 skips; lint, Windows build,
 smoke and upload. Artifact11271334219 delivered616 verified files/343 assets.
@@ -91,7 +91,7 @@ tests pass. Await fresh CI/artifact before continuing only the bound development
 account via explicit --resume-flow events and --resume-index9. No final fleet yet.
 
 
-## Scoped event-tab evidence — 2026-10-03
+## Scoped event-tab evidence â€” 2026-10-03
 
 Code3f38de7 / CI37118005536 passed1222 tests,26 skips plus lint/build/smoke/upload.
 Artifact11273126830 delivered616 verified files/343 assets to Desktop/app.
@@ -169,3 +169,40 @@ above the paid footer. Every swipe consumes its frame and reacquires the list.
 Progress fingerprints use card identity/state/position, excluding clocks and
 animated artwork. Four-swipes/transition/observation bounds remain. Unknown list
 coverage does not become PASS merely because a scroll produced no new control.
+
+
+## October 4 real claim and receipt repair
+
+7730321 / CI37187910694 passed all gates:1248 tests,26 skips; fresh artifact
+11298309511 delivered617 files/344 runtime assets to Desktop/app.
+Random live development targets:3/Queen Queen then5/4-Em PÃ©, events ONLY.
+Index3 recovered Home but a known match-success notice appeared; no input/claim.
+Index5 recovered Home, entered current Event and two current badged tabs, then
+claimed one qualified free task reward at current bbox537,557,151,67 ->612,590.
+First receipt contains940 diamonds plus other free items. Journal234 remains
+RESERVED/POSSIBLE: receipt alone has NOT established independent success.
+Never redispatch234. Cleanup SUCCESS; original selections, names, Protection and
+all217 original journals preserved. Final acceptance has not started; no Phase9.
+Reports under diagnostics/tasks/automation:
+20261004-085636-895630Z-1844363d and20261004-090431-918627Z-66bb6fa0.
+
+Offline demonstrated repairs: the large receipt has a smaller top title, paired
+with the existing uniquely matched bottom continuation. Strict title>=.98,
+continuation>=.96 and opposite-end centered layout are required. Known match
+notice requires unique title/preparation/close anchors>=.98; Go is never enabled.
+Receipt/promo conflicts, partial/duplicate anchors and wrong layouts fail closed.
+Saved glyph comparisons preserve original reward locks across raster changes;
+ambiguous/missing reference evidence blocks new claims. Two fresh same-card
+positively unavailable observations may reconcile an existing POSSIBLE claim
+only with exact account/disk identity, preserving its original reserving task.
+A restarted boot must be independently verified by the live session. No replay.
+Next require targeted gates, fresh CI artifact, then exact scoped continuation of
+index5 to prove the original unavailable state. Continue remaining Phase8 work
+and all-current-non-Protected scoped acceptance; do not stop at another scan.
+
+Targeted regression gates:140 Event/journal/pipeline/continuation tests and52
+popup/recovery tests passed; affected Ruff and diff check passed. Self-review:
+no second claim transport, no journal downgrade/reopening, strict ambiguous
+caption blocking, bounded popup attempts, no target/lifecycle fallback, and
+normal full-registry application behavior unchanged. New PNG assets inspected:
+related game UI only, reencoded without metadata/credentials/unrelated files.

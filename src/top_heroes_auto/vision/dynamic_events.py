@@ -202,6 +202,23 @@ def task_context_box(image,template):
     return BoundingBox(*where,template.shape[1],template.shape[0])
 
 
+def task_label_glyph(image, row):
+    """Normalized caption glyphs, excluding action, amounts and background."""
+    label = image[row.y+8:row.y+round(row.height*.30),
+                  row.x+10:row.x+round(row.width*.72)]
+    if not label.size:
+        return None
+    glyph = cv2.inRange(cv2.cvtColor(label, cv2.COLOR_BGR2HSV),
+                        (0,45,25), (30,255,150))
+    points = cv2.findNonZero(glyph)
+    if points is None:
+        return None
+    x,y,w,h = cv2.boundingRect(points)
+    if w < 80 or h < 10:
+        return None
+    return cv2.resize(glyph[y:y+h,x:x+w], (160,24), interpolation=cv2.INTER_NEAREST)
+
+
 def task_reward_rows(image,context_template,*,reader):
     """Supported free task-card schema, independent of seasonal name/artwork.
 
@@ -224,17 +241,10 @@ def task_reward_rows(image,context_template,*,reader):
                 below<y and y+bh<h*.82 and cv2.contourArea(contour)/(bw*bh)>.97):
             continue
         row=BoundingBox(x,y,bw,bh)
-        label=image[y+8:y+round(bh*.30),x+10:x+round(bw*.72)]
-        # Stable text silhouette excludes reward counts, animation and position.
-        glyph=cv2.inRange(cv2.cvtColor(label,cv2.COLOR_BGR2HSV),(0,45,25),(30,255,150))
-        points=cv2.findNonZero(glyph)
-        if points is None:
+        glyph = task_label_glyph(image, row)
+        if glyph is None:
             continue
-        lx,ly,lw,lh=cv2.boundingRect(points)
-        if lw<80 or lh<10:
-            continue
-        identity=hashlib.sha256(cv2.resize(glyph[ly:ly+lh,lx:lx+lw],(160,24),
-                                         interpolation=cv2.INTER_NEAREST).tobytes()).hexdigest()
+        identity = hashlib.sha256(glyph.tobytes()).hexdigest()
         column=BoundingBox(x+round(bw*.76),y+round(bh*.30),round(bw*.23),round(bh*.65))
         crop=image[column.y:column.y+column.height,column.x:column.x+column.width]
         labels=[]
