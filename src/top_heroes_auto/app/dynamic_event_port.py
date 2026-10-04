@@ -13,6 +13,7 @@ from top_heroes_auto.automation.event_journal import dispatch_once
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, dismiss_overlay_bottom_left
 from top_heroes_auto.vision.dynamic_events import (
+    blank_event_render,
     discover_events,
     discover_menu_tiles,
     event_shell,
@@ -42,6 +43,8 @@ class DynamicEventPort:
         self.task_context = cv2.imread(str(template_folder().parent/'tasks/phase8/personal-task-tab.png'))
 
     def observe(self):
+        if self.current is not None and self.current.render_pending:
+            time.sleep(.75)  # Only the explorer's bounded capture-only settling path.
         observed = self.transport.observe()
         c = observed.captured
         identity = (c.index, c.name, c.serial, c.boot_id)
@@ -138,7 +141,9 @@ class DynamicEventPort:
         popup = (observed.overlay.state in DISMISSIBLE and
                  (self.entered is None or observed.overlay.state != ScreenState.HOME_OVERLAY))
         self.current = EventFrame(str(c.source_image),identity,page,fingerprint,tuple(controls),
-                                  coverage_known=False, parent=parent, popup=popup, blocked=tuple(blocked))
+                                  coverage_known=False, parent=parent, popup=popup, blocked=tuple(blocked),
+                                  render_pending=bool(self.entered and page=='UNKNOWN' and
+                                                      not popup and blank_event_render(image)))
         payload = dict(frame=asdict(self.current), badges=[item.evidence() for item in candidates],
                        observed=observed.evidence(), entered_event=self.entered,
                        shell=dict(title=shell['title'],selected=shell['selected']) if shell else None,

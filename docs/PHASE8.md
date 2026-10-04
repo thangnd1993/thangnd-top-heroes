@@ -266,3 +266,38 @@ identity fallback or global lifecycle. Duplicate/weak adjacent badges fail close
 The two added regression PNGs contain only required game UI; IHDR/IDAT/IEND only,
 no text/metadata or credentials. Journal234 remains POSSIBLE until fresh-CI
 saved-only reconciliation.
+
+
+## Independent saved reconciliation and Soup render evidence — October 4
+
+3e7a014 / CI37212069124 PASS:1290 tests,26 skips; lint/build/smoke/upload.
+Artifact11307129529 delivered626 verified files. Saved-only CLI reconciled234
+as VERIFIED using its original task owner, qualified receipt, removed AVAILABLE
+prefix and two independently observed9->7 counters. ZERO input/lifecycle/selection
+operations were dispatched. All217 earlier journals unchanged. Both consumed
+reward identities remain locked; one physical claim, not two dispatches. Rune940
+is still not diamond evidence.
+
+Random development from eligible2,4,8,9,10,11 (secrets.choice; excludes tested3/5)
+selected8/Soup. Explicit emulator-5570, Home SUCCESS. One indicated Event entry
+then a blank white Android render surface; no claim. UNKNOWN failed closed,
+owned cleanup SUCCESS and selection restored. Report:
+automation/20261004-155934-356614Z-66862907/fleet-report.json.
+
+Protected names/flags/selections remained intact. Chicken was running before
+and stopped afterward. The session owns only8 and its indexed cleanup targets8;
+no system-level command log establishes why6 stopped. Record the discrepancy,
+never restart/restore/target Protected6. Do not claim full running-state preservation.
+
+The blank render gap now permits at most three capture-only settling retries,
+only on the exact pending Event/tab/child navigation edge. Fresh identity is
+checked on each capture. Nonblank UNKNOWN, identity changes and persistent blank
+remain blocked; no Back, dismiss or reward input is enabled by blank detection.
+170 targeted tests and affected Ruff/diff check PASS. The actual Soup blank frame
+qualifies this strict empty-white surface predicate. Self-review: no reward replay,
+no journal mutation in this change, no target fallback, no new lifecycle behavior,
+no generic UNKNOWN navigation permission and bounded observations/transitions.
+Require fresh passing CI/artifact before further real qualification. Continue
+remaining random candidates without repeating successful claims, then finish
+all-current non-Protected Phase8-only acceptance; coverage is still unfinished.
+No Phase9.

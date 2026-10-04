@@ -34,6 +34,7 @@ class EventFrame:
     parent: Control | None = None
     popup: bool = False
     blocked: tuple[str, ...] = ()
+    render_pending: bool = False
 
 
 @dataclass(frozen=True)
@@ -98,6 +99,7 @@ class DynamicEventExplorer:
         pending = None
         transitions = 0
         empty_home_passes = 0
+        render_waits = 0
 
         def block(reason, frame):
             report.blocked.append(dict(reason=reason, event=active, page=frame.page, capture=frame.capture))
@@ -125,8 +127,13 @@ class DynamicEventExplorer:
                     port.dismiss(frame)
                     continue  # Preserve event/parent stack through qualified receipts.
                 if frame.page == 'UNKNOWN':
+                    if (frame.render_pending and pending and pending[0] in {'event','tab','child'}
+                            and render_waits < 3):
+                        render_waits += 1
+                        continue  # Capture only; retain the exact pending navigation edge.
                     block('UNKNOWN_SCREEN', frame)
                     break
+                render_waits = 0
                 if pending:
                     kind, origin, signature, key = pending
                     pending = None

@@ -1,3 +1,14 @@
+## Phase8 actual Event claim VERIFIED; render qualification continues
+
+3e7a014 / CI37212069124 PASS (1290+26); fresh626-file Desktop app verified.
+Saved-only reconciliation234 VERIFIED, zero input; both consumed targets locked;
+217 older journals unchanged. One physical free claim, zero proven diamonds.
+Random8/Soup Home SUCCESS, then blank Event frame; zero claim, ownedcleanup and
+selection restored. Protected Chicken running->stopped discrepancy recorded,
+no restore/target command authorized. Current bounded capture-only render repair
+has170 targeted tests PASS; require fresh CI/artifact. Coverage/final acceptance
+still IN PROGRESS; no Phase9. See docs/PHASE8.md for exact evidence.
+
 ## Phase 8 actual free action: independent removal effect qualified offline
 
 Latest passing portable:f57392c / CI37194762138 (1270pass,26skip; all gates).

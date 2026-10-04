@@ -443,3 +443,43 @@ def test_production_list_swipe_is_inside_current_cards_and_consumes_frame(monkey
     with pytest.raises(SafetyError):
         port.navigate(current,scroll)
     assert len(sent)==1
+
+
+def test_blank_render_after_entry_waits_without_input_then_uses_fresh_page():
+    e,b=control('event','event'),control('back','parent')
+    p=Port([frame('home',0,[e]),frame('UNKNOWN',1,render_pending=True),
+            frame('UNKNOWN',2,render_pending=True),frame('event',3,parent=b),frame('home',4)])
+    result=DynamicEventExplorer().run(p)
+    assert result.result=='SUCCESS'
+    assert [c[1] for c in p.calls]==['event','parent']
+    assert len(result.observations)==6
+
+
+def test_persistent_blank_render_has_three_capture_only_retries():
+    e=control('event','event')
+    p=Port([frame('home',0,[e]),*[frame('UNKNOWN',n,render_pending=True) for n in range(1,6)]])
+    result=DynamicEventExplorer().run(p)
+    assert result.blocked[-1]['reason']=='UNKNOWN_SCREEN'
+    assert len(result.observations)==5
+    assert [c[1] for c in p.calls]==['event']
+
+
+def test_unrelated_unknown_and_changed_identity_never_gain_render_input():
+    e=control('event','event')
+    p=Port([frame('home',0,[e]),frame('UNKNOWN',1)])
+    assert DynamicEventExplorer().run(p).blocked[-1]['reason']=='UNKNOWN_SCREEN'
+    assert len(p.calls)==1
+    p=Port([frame('home',0,[e]),replace(frame('UNKNOWN',1,render_pending=True),identity=(99,'other','other','other'))])
+    result=DynamicEventExplorer().run(p)
+    assert result.blocked[-1]['reason']=='ERROR'
+    assert len(p.calls)==1
+
+
+def test_blank_render_detection_is_not_a_white_popup_or_content_page():
+    from top_heroes_auto.vision.dynamic_events import blank_event_render
+    image=np.full((1280,720,3),255,np.uint8)
+    image[:,:36]=0  # Android strip on the rotated real render evidence.
+    assert blank_event_render(image)
+    image[200:260,300:400]=(0,180,0)
+    assert not blank_event_render(image)
+    assert not blank_event_render(None)

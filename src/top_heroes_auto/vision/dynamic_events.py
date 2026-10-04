@@ -333,3 +333,14 @@ def selected_task_badge_count(image, selected, *, reader):
     cv2.putText(canvas,'Count',(20,95),cv2.FONT_HERSHEY_SIMPLEX,2,(0,0,0),3)
     canvas[50:50+glyph.shape[0],270:270+glyph.shape[1]] = glyph
     return counter(canvas, reader=reader, maximum=999)
+
+
+def blank_event_render(image):
+    """A blank render surface permits only bounded fresh captures, never input."""
+    if image is None or image.ndim != 3:
+        return False
+    h,w=image.shape[:2]
+    canvas=image[round(h*.02):round(h*.98),round(w*.08):round(w*.98)]
+    if not canvas.size:
+        return False
+    return bool(np.mean(np.all(canvas >= 250,axis=2)) >= .999)
