@@ -1,3 +1,13 @@
+## Phase 8 — invalid frame breaks World stability (2026-10-06)
+
+849cddd pushed; CI37366182220 queued with no Windows runner assigned. Self-review
+found that a decode-invalid frame could leave the first World confirmation cached.
+Reset only that confirmation on ScreenshotInvalid; two consecutive valid current
+World frames are still required. New targeted regression checks World→blank→World
+cannot dispatch using the earlier frame.20 focused stability/blank tests PASS,
+Ruff/diff-check PASS. No claim/lock/lifecycle/timeout changes. Superseding repair
+requires its own full passing CI artifact before real use.
+
 ## Phase 8 — qualified World return and paid-modal close (2026-10-06)
 
 ff5cbe8 CI37351546363 fully PASS:1469 passed+26 skipped in3064.41s.

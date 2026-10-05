@@ -718,3 +718,13 @@ no fallback/restart/global lifecycle/timeout increase/claim retry; frame consume
 before navigation dispatch. Requires fresh CI/portable before real use.
 Remaining unsupported resource-directory/store/wheel/pass/gift families and
 attack confirmation are still blockers; Phase8 PARTIAL, no Phase9.
+
+## Phase 8 — invalid frame breaks World stability (2026-10-06)
+
+849cddd pushed; CI37366182220 queued with no Windows runner assigned. Self-review
+found that a decode-invalid frame could leave the first World confirmation cached.
+Reset only that confirmation on ScreenshotInvalid; two consecutive valid current
+World frames are still required. New targeted regression checks World→blank→World
+cannot dispatch using the earlier frame.20 focused stability/blank tests PASS,
+Ruff/diff-check PASS. No claim/lock/lifecycle/timeout changes. Superseding repair
+requires its own full passing CI artifact before real use.

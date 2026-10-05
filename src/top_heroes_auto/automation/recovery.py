@@ -210,6 +210,7 @@ class HomeRecoveryEngine:
             try:
                 observation = port.observe(number)
             except ScreenshotInvalid as exc:
+                stable_world = None  # An invalid frame breaks consecutive World confirmation.
                 if loading_started is None:
                     if exc.blank_frame and initial_blank_count < self.initial_blank_retries:
                         initial_blank_count += 1

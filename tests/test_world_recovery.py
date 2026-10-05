@@ -244,3 +244,20 @@ def test_external_instance_recovery_preserves_lifecycle_selection_and_prior_rewa
     assert manager.store.metadata(manager.namespace,7).selected == before and manager.query(7).running
     assert port.inputs == [2]
     assert not any(c[1] in ('launch','quit') for c in process.calls)
+
+
+
+def test_invalid_frame_breaks_consecutive_world_confirmation():
+    from top_heroes_auto.vision.image_normalizer import ScreenshotInvalid
+
+    class BlankWorldPort(WorldPort):
+        def observe(self,step):
+            if step==2:
+                self.observations+=1
+                raise ScreenshotInvalid('Transient blank',blank_frame=True)
+            return super().observe(step)
+    port=BlankWorldPort(ScreenState.GAME_WORLD)
+    result=engine(max_steps=4).ensure_game_home(port)
+    assert result.status==RecoveryStatus.LIMIT_REACHED
+    assert port.inputs==[] and port.observations==4
+    assert result.actions==['wait_world_stable','wait','wait_world_stable']
