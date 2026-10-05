@@ -1,0 +1,13 @@
+{
+  "id": "world-search",
+  "state": "GAME_WORLD",
+  "template": "world-search.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.99,
+  "required": true
+}

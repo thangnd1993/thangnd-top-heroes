@@ -37,6 +37,7 @@ from top_heroes_auto.vision.dynamic_events import (
     task_reward_rows,
 )
 from top_heroes_auto.vision.event_competitive import competitive_indicator_contract
+from top_heroes_auto.vision.event_paid_modal import paid_modal_navigation
 from top_heroes_auto.vision.event_task_grid import task_grid_rows, task_grid_shell, unresolved_grid_actions
 from top_heroes_auto.vision.guild_mail import portrait
 from top_heroes_auto.vision.local_ocr import read_words
@@ -221,6 +222,15 @@ class DynamicEventPort:
                 for tab in shell['tabs']:
                     controls.append(Control(tab.fingerprint,tab.icon_box,
                         ('event-shell','tab-strip','unique-outlined-icon','rimmed-notification'),'tab'))
+            if shell is None and (paid := paid_modal_navigation(image)):
+                # Only positively qualified dismissal. An unqualified gift may
+                # still be present: do not turn this content into paid-only PASS.
+                page = 'event:'+self.entered+':paid-modal'
+                contract = 'PAID_MODAL_NAVIGATION_ONLY'
+                parent = Control('current-paid-modal-close',paid['close'],
+                    ('paid-modal-navigation-only','unique-red-close','purchase-remaining','explicit-vnd'),
+                    'parent',forbidden=(paid['paid_region'],))
+                blocked.append('UNQUALIFIED_PAID_MODAL_CONTENT')
             if not coverage_known:
                 blocked.append('EVENT_CONTENT_REQUIRES_QUALIFICATION')
         elif page == 'home':
@@ -294,6 +304,19 @@ class DynamicEventPort:
             self.transport.dispatch(self.transport.last,'swipe',(x,start,x,end,450))
             self.current=None
             time.sleep(.6)
+            return
+        if 'paid-modal-navigation-only' in control.evidence:
+            if control.kind!='parent' or control is not frame.parent or not frame.page.endswith(':paid-modal'):
+                raise SafetyError('Purchase modal permits only its qualified close.')
+            self.current = None
+            fresh = self.observe()
+            if (fresh.identity!=frame.identity or fresh.page!=frame.page or fresh.popup
+                    or fresh.parent!=control or fresh.coverage_known
+                    or fresh.controls or 'UNQUALIFIED_PAID_MODAL_CONTENT' not in fresh.blocked):
+                raise SafetyError('Purchase modal changed on fresh capture; no input.')
+            self.current = None  # Consume before dispatch; never retry uncertain input.
+            self.transport.dispatch(self.transport.last,'tap',fresh.parent.box.center)
+            time.sleep(.5)
             return
         if control.kind in {'tab','parent','child'}:
             if not frame.page.startswith('event:') or control not in (*frame.controls,frame.parent):

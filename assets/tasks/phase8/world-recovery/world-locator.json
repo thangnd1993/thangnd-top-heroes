@@ -1,0 +1,13 @@
+{
+  "id": "world-locator",
+  "state": "GAME_WORLD",
+  "template": "world-locator.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.995,
+  "required": true
+}

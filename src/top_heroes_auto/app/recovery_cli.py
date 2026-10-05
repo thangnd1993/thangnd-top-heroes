@@ -36,6 +36,7 @@ from top_heroes_auto.vision.models import ScreenState
 from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
 from top_heroes_auto.vision.screenshot import ScreenshotService
 from top_heroes_auto.vision.war_recovery import war_back_point
+from top_heroes_auto.vision.world_recovery import world_return_point
 
 log = logging.getLogger("top_heroes_auto")
 GAME_PACKAGE = "com.greenmushroom.boomblitz.gp.vn"
@@ -150,7 +151,7 @@ class DiagnosticRecoveryPort:
                     break
             raise
         detection = self.detector.detect(screen)
-        if not persist and detection.state in DISMISSIBLE | {ScreenState.POPUP_GENERIC, ScreenState.TREO_THUONG}:
+        if not persist and detection.state in DISMISSIBLE | {ScreenState.POPUP_GENERIC, ScreenState.TREO_THUONG, ScreenState.GAME_WORLD}:
             if self._overlay_samples >= 12:
                 raise SafetyError("Overlay evidence capture bound reached.")
             self._overlay_samples += 1
@@ -226,6 +227,18 @@ class DiagnosticRecoveryPort:
         self.manager.execute(self.index, "tap", values=point, snapshot=self.snapshot,
                              observed_target=target)
         log.info("[%s / #%s] Qualified empty War Back %s", self.name, self.index, point)
+        return point
+
+    def return_from_world(self, observation):
+        if self._overlay_frame is None or self._overlay_frame[2] is not observation.detection:
+            raise SafetyError('Stale World observation.')
+        target, screen, detection = self._overlay_frame
+        point = world_return_point(screen, detection)
+        self._overlay_frame = None
+        self._after_overlay = True
+        self.manager.execute(self.index, 'tap', values=point, snapshot=self.snapshot,
+                             observed_target=target)
+        log.info('[%s / #%s] Qualified Return City view tap %s', self.name, self.index, point)
         return point
 
     def persist_final(self) -> RecoveryObservation | None:

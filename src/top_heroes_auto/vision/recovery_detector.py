@@ -13,6 +13,7 @@ from top_heroes_auto.vision.models import NormalizedRect, ScreenDetection, Scree
 from top_heroes_auto.vision.resources import template_folder
 from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
 from top_heroes_auto.vision.war_recovery import qualified_war, war_evidence
+from top_heroes_auto.vision.world_recovery import qualified_world, world_evidence
 
 
 class RecoveryScreenDetector:
@@ -71,6 +72,13 @@ class RecoveryScreenDetector:
                 return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
                                evidence=(*detected.evidence, *evidence))
             return replace(detected, state=ScreenState.WAR_EMPTY,
+                           confidence=min(e.score for e in evidence), evidence=evidence)
+        evidence = world_evidence(screen)
+        if qualified_world(screen, evidence):
+            if detected.state != ScreenState.UNKNOWN or detected.evidence:
+                return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
+                               evidence=(*detected.evidence, *evidence))
+            return replace(detected, state=ScreenState.GAME_WORLD,
                            confidence=min(e.score for e in evidence), evidence=evidence)
         evidence = loading_progress_evidence(screen)
         if evidence:

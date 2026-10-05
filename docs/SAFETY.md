@@ -1,5 +1,17 @@
 # Permanent no-rename invariant — all phases
 
+## Qualified World view navigation and purchase-modal closure — 2026-10-06
+
+World return permits only the current Về Thành castle control, with four unique
+HUD anchors and two consecutive fresh same-transport/boot frames. One input only,
+fresh reclassification afterward; no troop recall, attack, relocation, spending,
+restart or claim. An attack-confirmation popup remains fail-closed/no input.
+Known VND purchase modal permits only a paired, current, unique red close after
+fresh confirmation. Its content/upper gift remains unqualified/BLOCKED; closing
+never proves paid-only or exhausted coverage. No paid control/gift is authorized.
+All old VERIFIED/POSSIBLE locks, external lifecycle ownership and exact identity
+checks remain in force; no global timeout or coordinate fallback changes.
+
 ## Qualified Treo Thuong recovery — 2026-09-30
 
 User explicitly authorized navigation out of the known bounty board. Require

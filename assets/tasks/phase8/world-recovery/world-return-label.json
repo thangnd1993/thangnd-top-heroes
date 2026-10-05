@@ -1,0 +1,13 @@
+{
+  "id": "world-return-label",
+  "state": "GAME_WORLD",
+  "template": "world-return-label.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.995,
+  "required": true
+}

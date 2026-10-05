@@ -1,3 +1,48 @@
+## Phase 8 — qualified World return and paid-modal close (2026-10-06)
+
+ff5cbe8 CI37351546363 fully PASS:1469 passed+26 skipped in3064.41s.
+Artifact11365935875 verified395 assets/668 Desktop files. Scoped continuation
+20261005-185250-910465Z-1fecd8fb retained HiHi/Momo COMPLETE; seven unfinished
+accounts attempted, Phase8-only, concurrency1. New journals238(Soup) and239(Smille)
+VERIFIED from one FREE Nhận tap and two fresh same-card explicit claimed/control-
+removed states. All221 prior journals unchanged; global selection equality and
+Protected isolation preserved; mutex RELEASED. No spending or Phase6/7 dispatch.
+
+Index2/4/5 were already externally running at actual run preflight and left running.
+Index2/5 saved frames show World map; index4 shows an attack-confirmation popup,
+which remains UNKNOWN/no input. Index3 explicit emulator-5560 unavailable/no boot
+proof, cleanup OWNERSHIP_UNKNOWN. Index9 name changed live Mini Quin→LDPlayer-9,
+ADB/ownership revoked, no quit/rename/config write. Its session did NOT restore
+selection because exact-name authority was lost; final unselected metadata equals
+its prior state. Do not describe this as successful session-owned restoration.
+Read-only inventory19:28UTC independently shows all instances stopped, disks all
+unchanged, config hashes2/4/5/9 changed. Preserve current names and require fresh
+runtime identity; do not attribute user-owned configuration changes to automation.
+
+Offline World recognition requires four unique current anchors: Return City label,
+castle icon, search and locator HUD. Label/castle>=.995; fixed bright icon strokes
+>=.99/search and>=.995/locator exclude dynamic map backgrounds. Paired layout,
+no account coordinates or boss/seasonal art; competing known state rejects.
+Recovery needs two consecutive fresh frames with same explicit transport/boot and
+current bboxes; then at most ONE Return City view tap and fresh capture. Persistent
+World/uncertain input never retries. UNKNOWN/attack popup receives no input.
+
+Known purchase modal now qualifies only its current red close from>=.995 paired
+purchase-remaining/VND glyphs and enclosing panel/price geometry. Reconfirm on a
+fresh same-identity frame before one consumed tap. No reward controls exposed,
+coverage remains unqualified/BLOCKED, upper gift remains unqualified; no paid-only
+or exhausted inference. Safe closing can continue independent Event roots without
+removing the blocker. No price/gift/spin/resource inputs added.
+
+174 targeted recovery/pipeline/journal tests PASS;200 targeted Event/navigation/
+journal tests PASS (overlap, not additive). Ruff/diff-check PASS. Twelve new game-
+only PNGs reencoded/inspected, IHDR/IDAT/IEND only; World chat area masked. No private
+files/config/DB/diagnostics added. Self-review: no reward identity/period/lock changes,
+no fallback/restart/global lifecycle/timeout increase/claim retry; frame consumed
+before navigation dispatch. Requires fresh CI/portable before real use.
+Remaining unsupported resource-directory/store/wheel/pass/gift families and
+attack confirmation are still blockers; Phase8 PARTIAL, no Phase9.
+
 ## Phase 8 — saved verification and tall progress repair (2026-10-06)
 
 42774e6 CI37338882555 fully PASS:1463 passed+26 skipped in2502.20s.

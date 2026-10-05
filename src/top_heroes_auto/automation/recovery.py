@@ -45,6 +45,8 @@ class RecoveryPort(Protocol):
 
     def back_from_war(self, observation: RecoveryObservation) -> tuple[int, int]: ...
 
+    def return_from_world(self, observation: RecoveryObservation) -> tuple[int, int]: ...
+
     def dismiss_overlay(self, observation: RecoveryObservation) -> tuple[int, int]: ...
 
 
@@ -186,6 +188,8 @@ class HomeRecoveryEngine:
         hanging_backs = 0
         hanging_departed = False
         navigation_state = None
+        stable_world = None
+        world_sent = False
         capture_after_back = False
         progress_seen = False
         duration_limit = self.max_duration
@@ -263,6 +267,37 @@ class HomeRecoveryEngine:
                 return finish(RecoveryStatus.LIMIT_REACHED, "Post-Back capture completed after deadline; no further input.")
             if hanging_backs and detection.state != navigation_state:
                 hanging_departed = True
+            if detection.state == ScreenState.GAME_WORLD:
+                if (world_sent or number == self.max_steps
+                        or self.clock() - started >= self.max_duration):
+                    return finish(RecoveryStatus.LIMIT_REACHED, 'Return City bound reached; no retry.')
+                if not observation.boot_id or not observation.adb_target or detection.confidence < .99:
+                    return finish(RecoveryStatus.UNKNOWN_SCREEN, 'World identity/confidence unqualified.')
+                signature = (observation.adb_target, observation.boot_id,
+                             tuple((e.anchor_id, e.device_box) for e in detection.evidence))
+                if stable_world is None or stable_world[0] != signature:
+                    stable_world = signature, detection.timestamp
+                    result.actions.append('wait_world_stable')
+                    self.sleep(self.action_settle)
+                    continue
+                if stable_world[1] == detection.timestamp:
+                    return finish(RecoveryStatus.UNKNOWN_SCREEN, 'World confirmation reused a stale frame.')
+                if cancelled():
+                    return finish(RecoveryStatus.CANCELLED)
+                try:
+                    point = port.return_from_world(observation)
+                except (CommandError, OSError, SafetyError, ValueError) as exc:
+                    return finish(RecoveryStatus.ACTION_FAILED, str(exc))
+                world_sent = True
+                capture_after_back = True
+                action = f'return_from_world:{point[0]},{point[1]}'
+                result.actions.append(action)
+                result.steps[-1] = RecoveryStep(number, detection.state, detection.confidence,
+                                               observation.screenshot, action)
+                loading_started = None
+                self.sleep(self.action_settle)
+                continue
+            stable_world = None  # Confirmations must be consecutive current World frames.
             if detection.state in {ScreenState.TREO_THUONG, ScreenState.WAR_EMPTY}:
                 if (hanging_departed or hanging_backs >= 2 or number == self.max_steps
                         or self.clock() - started >= self.max_duration):
