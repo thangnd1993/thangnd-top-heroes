@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Mapping
 
+from top_heroes_auto.app.automation_ownership import exclusive_automation
 from top_heroes_auto.app.diagnostic import _instance, _only_target_changed, _state
 from top_heroes_auto.app.phase6_runtime import entry_navigator_factory, reward_port_factory
 from top_heroes_auto.app.recovery_cli import run_home_recovery
@@ -181,6 +182,7 @@ def _report_folder(data: Path, task: str, name: str) -> Path:
     return folder
 
 
+@exclusive_automation
 def run_free_reward_task(
     manager: Manager,
     data: Path,
@@ -588,6 +590,7 @@ def _persist_sequence_result(
     return updated
 
 
+@exclusive_automation
 def run_free_reward_sequence(
     manager: Manager,
     data: Path,

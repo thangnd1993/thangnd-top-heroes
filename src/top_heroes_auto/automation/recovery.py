@@ -11,6 +11,7 @@ from top_heroes_auto.app.process import CommandError
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, OverlayBudget, overlay_signature
 from top_heroes_auto.vision.image_normalizer import ScreenshotInvalid
+from top_heroes_auto.vision.loading_progress import progressing_stage
 from top_heroes_auto.vision.models import ScreenDetection, ScreenState
 
 
@@ -186,6 +187,8 @@ class HomeRecoveryEngine:
         hanging_departed = False
         navigation_state = None
         capture_after_back = False
+        progress_seen = False
+        duration_limit = self.max_duration
 
         def finish(status: RecoveryStatus, error: str | None = None):
             result.status = status
@@ -196,7 +199,7 @@ class HomeRecoveryEngine:
         for number in range(1, self.max_steps + 1):
             if cancelled():
                 return finish(RecoveryStatus.CANCELLED)
-            if self.clock() - started >= self.max_duration and not capture_after_back:
+            if self.clock() - started >= duration_limit and not capture_after_back:
                 return finish(RecoveryStatus.LIMIT_REACHED, "Recovery exceeded max duration.")
             following_back = capture_after_back
             capture_after_back = False
@@ -239,6 +242,16 @@ class HomeRecoveryEngine:
             detection = observation.detection
             result.adb_target = observation.adb_target
             result.boot_id = observation.boot_id
+            # A newly qualified functional loading stage is independent evidence
+            # of progress. Grant one bounded wait window, never for UNKNOWN/art.
+            if progressing_stage(detection) and not progress_seen:
+                progress_seen = True
+                if loading_started is not None:
+                    loading_started = self.clock()
+                    duration_limit = self.max_duration + min(60.0, self.loading_timeout)
+                    result.actions.append('qualified_loading_progress')
+                else:
+                    result.actions.append('qualified_loading_stage')
             step = RecoveryStep(
                 number,
                 detection.state,
@@ -385,3 +398,50 @@ class HomeRecoveryEngine:
                 f"No verified safe handler for {detection.state.value}.",
             )
         return finish(RecoveryStatus.LIMIT_REACHED, "Recovery exceeded max steps.")
+
+
+def wait_for_final_loading_progress(result, observation, port, engine, cancelled=lambda: False):
+    """One capture-only grace when final evidence proves a NEW loading phase.
+
+    Absolute original-start and original-step budgets remain bounded. No launch,
+    Back, dismiss, claim or other input is available on this path.
+    """
+    if (result.status != RecoveryStatus.LOADING_TIMEOUT or observation is None
+            or not progressing_stage(observation.detection)
+            or any(a in result.actions for a in ('qualified_loading_progress','qualified_loading_stage'))
+            or not any(step.state == ScreenState.GAME_LOADING for step in result.steps)
+            or not result.boot_id or not result.adb_target
+            or (observation.adb_target,observation.boot_id)!=(result.adb_target,result.boot_id)):
+        return False
+    absolute=port.started+engine.max_duration+min(60.0,engine.loading_timeout)
+    deadline=min(absolute,port.clock()+30.0)
+    result.actions.append('qualified_loading_progress')
+    number=result.steps[-1].number if result.steps else 0
+    while number < engine.max_steps and not cancelled() and port.clock() < deadline:
+        engine.sleep(min(engine.loading_interval,deadline-port.clock()))
+        if cancelled() or port.clock() >= deadline:
+            break
+        number+=1
+        try:
+            fresh=port.observe(number)
+        except (CommandError,OSError,SafetyError,ValueError,ScreenshotInvalid) as exc:
+            result.error=f'Loading progress capture failed closed: {exc}'
+            break
+        if port.clock() >= deadline:
+            result.error='Loading grace capture crossed deadline; no input.'
+            break
+        if (fresh.adb_target,fresh.boot_id)!=(result.adb_target,result.boot_id):
+            result.error='Loading progress identity changed; no input.'
+            break
+        state=fresh.detection.state
+        result.steps.append(RecoveryStep(number,state,fresh.detection.confidence,fresh.screenshot,'wait'))
+        result.actions.append('wait')
+        if state==ScreenState.GAME_HOME:
+            result.status,result.error=RecoveryStatus.SUCCESS,None
+            result.duration=port.clock()-port.started
+            return True
+        if not progressing_stage(fresh.detection):
+            result.error='Loading progress left qualified state; no input.'
+            break
+    result.duration=port.clock()-port.started
+    return False

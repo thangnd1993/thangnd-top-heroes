@@ -169,7 +169,7 @@ def test_shop_fleet_cannot_pass_when_one_required_route_missing(rig,tmp_path):
 
 
 @pytest.mark.parametrize('configured', [None, 'wrong'])
-def test_missing_or_changed_persistent_name_blocks_before_lifecycle(tmp_path, configured):
+def test_optional_config_name_does_not_replace_required_disk_identity(tmp_path, configured):
     import json
 
     from top_heroes_auto.app.bxh_shop_acceptance import persistent_identity
@@ -178,8 +178,8 @@ def test_missing_or_changed_persistent_name_blocks_before_lifecycle(tmp_path, co
     folder.mkdir(parents=True)
     (folder/'leidian23.config').write_text(json.dumps({'statusSettings.playerName':configured}),encoding='utf-8')
     manager=SimpleNamespace(ld=SimpleNamespace(installation=SimpleNamespace(console=tmp_path/'ldconsole.exe')),
-                            query=lambda _:SimpleNamespace(name='authorized'))
-    with pytest.raises(SafetyError,match='Persistent instance name'):
+                            query=lambda _:SimpleNamespace(index=23,name='authorized'))
+    with pytest.raises(OSError):
         persistent_identity(manager,23)
 
 

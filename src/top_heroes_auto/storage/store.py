@@ -40,7 +40,7 @@ def _stamp() -> str:
 class Store:
     """Open short-lived connections so UI and worker threads never share a connection."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, recover_running=True):
         self.path = path
         path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as db:
@@ -89,14 +89,21 @@ class Store:
             db.execute('''CREATE TABLE IF NOT EXISTS reward_release_audit (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, claim_id INTEGER NOT NULL UNIQUE,
                 released_at TEXT NOT NULL, original_row TEXT NOT NULL, evidence TEXT NOT NULL)''')
+        if recover_running:
+            self.recover_interrupted()
+
+    def recover_interrupted(self, namespace=None):
+        """Production calls this only after acquiring exclusive automation ownership."""
+        with self.connect() as db:
+            suffix = ' AND namespace=?' if namespace is not None else ''
+            extra = (namespace,) if namespace is not None else ()
             db.execute(
-                "UPDATE runs SET status=?, finished_at=COALESCE(finished_at, ?) WHERE status IN (?, ?)",
-                (RunStatus.INTERRUPTED, _stamp(), RunStatus.QUEUED, RunStatus.RUNNING),
+                "UPDATE runs SET status=?, finished_at=COALESCE(finished_at, ?) WHERE status IN (?, ?)" + suffix,
+                (RunStatus.INTERRUPTED, _stamp(), RunStatus.QUEUED, RunStatus.RUNNING, *extra),
             )
             db.execute(
-                """UPDATE task_runs SET status='INTERRUPTED',finished_at=COALESCE(finished_at,?)
-                   WHERE status='RUNNING'""",
-                (_stamp(),),
+                "UPDATE task_runs SET status='INTERRUPTED',finished_at=COALESCE(finished_at,?) WHERE status='RUNNING'" + suffix,
+                (_stamp(), *extra),
             )
 
     @contextmanager

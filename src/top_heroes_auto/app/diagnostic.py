@@ -63,7 +63,7 @@ def _write_report(data: Path, report: dict):
 
 
 def _manager(data: Path) -> Manager:
-    store = Store(data / "config.sqlite3")
+    store = Store(data / "config.sqlite3", recover_running=False)
     installation = discover(store.get("ldplayer_folder"))
     if installation is None:
         raise SafetyError("Không phát hiện LDPlayer an toàn.")

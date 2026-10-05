@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
+from top_heroes_auto.app.automation_ownership import exclusive_automation
 from top_heroes_auto.app.diagnostic import _instance, _only_target_changed, _state
 from top_heroes_auto.app.phase6_runtime import pending_promo_anchor as load_pending_promo_anchor
 from top_heroes_auto.app.phase6_runtime import shop_survey_factory
@@ -104,6 +105,7 @@ def _status_value(value) -> str:
     return getattr(value, "value", str(value))
 
 
+@exclusive_automation
 def run_phase6_shop_survey(
     manager: Manager,
     data: Path,

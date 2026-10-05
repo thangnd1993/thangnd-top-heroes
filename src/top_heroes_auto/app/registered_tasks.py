@@ -1,8 +1,10 @@
 """UI/legacy CLI result adapter; scheduling remains in the global pipeline."""
 from top_heroes_auto.app.automation_fleet import run
+from top_heroes_auto.app.automation_ownership import exclusive_automation
 from top_heroes_auto.app.flow_registry import production_registry
 
 
+@exclusive_automation
 def run_registered_selected(manager, data, index, name, *, tasks=None, cancelled=lambda: False):
     """UI adapter for one already-selected target; no fleet/selection expansion."""
     from top_heroes_auto.app.free_reward_tasks import Phase6TaskResult

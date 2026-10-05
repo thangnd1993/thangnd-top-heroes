@@ -6,6 +6,7 @@ from pathlib import Path
 import cv2
 
 from top_heroes_auto.adb.client import Target
+from top_heroes_auto.app.automation_ownership import exclusive_automation
 from top_heroes_auto.vision.dynamic_events import (
     selected_task_badge_count,
     task_context_box,
@@ -124,6 +125,7 @@ def removal_effect(proof, captures, receipt, *, reader=read_words, allow_new_boo
     return observations
 
 
+@exclusive_automation
 def reconcile_saved(manager, claim_id, original_report, after_report):
     """Only an Event claim, only its existing owner, no selection/ADB/game input."""
     from top_heroes_auto.app.bxh_shop_acceptance import persistent_identity

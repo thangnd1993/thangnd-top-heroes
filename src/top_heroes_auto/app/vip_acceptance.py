@@ -2,11 +2,13 @@
 
 from datetime import datetime, timezone
 
+from top_heroes_auto.app.automation_ownership import exclusive_automation
 from top_heroes_auto.app.diagnostic import _manager, _view
 from top_heroes_auto.app.main import data_directory
 from top_heroes_auto.app.vip_fleet import _protected, _write, run_vip_account
 
 
+@exclusive_automation
 def run(manager, data):
     _protected(manager)
     before = _view(manager, manager.list_readonly())

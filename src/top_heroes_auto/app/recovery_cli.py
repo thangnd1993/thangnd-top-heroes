@@ -9,6 +9,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from top_heroes_auto.app.automation_ownership import exclusive_automation
 from top_heroes_auto.app.diagnostic import _instance, _manager
 from top_heroes_auto.app.process import CommandError
 from top_heroes_auto.app.service import (
@@ -26,6 +27,7 @@ from top_heroes_auto.automation.recovery import (
     RecoveryResult,
     RecoveryStatus,
     confirm_final_home,
+    wait_for_final_loading_progress,
 )
 from top_heroes_auto.vision.hanging_reward import hanging_back_point
 from top_heroes_auto.vision.image_normalizer import ScreenshotInvalid
@@ -253,6 +255,7 @@ class DiagnosticRecoveryPort:
         )
 
 
+@exclusive_automation
 def run_home_recovery(
     manager: Manager,
     data: Path,
@@ -334,6 +337,7 @@ def run_home_recovery(
     }:
         final_observation = port.persist_final()
         if not cancelled():
+            wait_for_final_loading_progress(result, final_observation, port, recovery_engine, cancelled)
             confirm_final_home(
                 result,
                 final_observation,

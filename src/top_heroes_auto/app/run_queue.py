@@ -3,9 +3,11 @@
 import logging
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 from dataclasses import dataclass
 from typing import Callable
 
+from top_heroes_auto.app.automation_ownership import mutation_ownership
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError, create_snapshot
 from top_heroes_auto.storage.store import AccountStatus, RunStatus, Store
@@ -109,6 +111,11 @@ class RunController:
                     logging.getLogger("top_heroes_auto").exception("Run target cleanup failed")
 
     def execute(self, run: QueueRun):
+        manager = self.manager_factory()
+        with mutation_ownership(manager):
+            return self._execute(run)
+
+    def _execute(self, run: QueueRun):
         self.store.set_run_status(run.id, RunStatus.RUNNING)
         futures: dict[Future, tuple[int, str]] = {}
         iterator = iter(run.snapshot.members)
@@ -118,14 +125,14 @@ class RunController:
                     index, name = next(iterator)
                 except StopIteration:
                     break
-                futures[pool.submit(self._account, run, index, name)] = (index, name)
+                futures[pool.submit(copy_context().run, self._account, run, index, name)] = (index, name)
             while futures:
                 done = next(as_completed(futures))
                 futures.pop(done)
                 if not self.cancelled.is_set() and self._wait_unpaused():
                     try:
                         index, name = next(iterator)
-                        futures[pool.submit(self._account, run, index, name)] = (index, name)
+                        futures[pool.submit(copy_context().run, self._account, run, index, name)] = (index, name)
                     except StopIteration:
                         pass
         # Entries that were never dispatched become cancelled, never silently skipped.

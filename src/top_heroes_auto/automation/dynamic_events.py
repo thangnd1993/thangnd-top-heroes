@@ -59,6 +59,7 @@ class Exploration:
     rewards: list = field(default_factory=list)
     blocked: list = field(default_factory=list)
     paid_rejected: list = field(default_factory=list)
+    recoveries: list = field(default_factory=list)
     return_home: str = 'NOT_STARTED'
 
 
@@ -96,10 +97,15 @@ class DynamicEventExplorer:
         visited_tabs = set()
         stack = []
         active = None
+        active_seen = False
         pending = None
         transitions = 0
         empty_home_passes = 0
         render_waits = 0
+        path = []
+        resume = []
+        seek = None
+        reentries = set()
 
         def block(reason, frame):
             report.blocked.append(dict(reason=reason, event=active, page=frame.page, capture=frame.capture))
@@ -134,6 +140,33 @@ class DynamicEventExplorer:
                     block('UNKNOWN_SCREEN', frame)
                     break
                 render_waits = 0
+                if active and frame.page == 'home':
+                    if not active_seen:
+                        block('NO_PROGRESS',frame)
+                        break
+                    report.recoveries.append(dict(reason='UNEXPECTED_EVENT_EXIT',event=active,
+                                                  capture=frame.capture,pending=pending))
+                    candidates=[c for c in frame.controls if c.kind=='event' and c.identity==active]
+                    if (active in reentries or not frame.coverage_known or frame.blocked
+                            or len(candidates)!=1):
+                        block('UNEXPECTED_EVENT_EXIT_UNRESOLVED',frame)
+                        break
+                    # Restore only the unfinished navigation route using freshly
+                    # rediscovered controls. Reward attempts/journals stay intact.
+                    reentries.add(active)
+                    resume=[(kind,key) for _,kind,key in path]
+                    seek=pending[1:] if pending and pending[0]=='scroll' else None
+                    stack=['home']
+                    pending=('event','home',frame.fingerprint,None)
+                    control=candidates[0]
+                    report.events[active]['visits']+=1
+                    report.actions.append(dict(kind='event',capture=frame.capture,
+                                               identity=control.identity,box=asdict(control.box),
+                                               recovery='UNEXPECTED_EVENT_EXIT'))
+                    persist(asdict(report))
+                    port.navigate(frame,control)
+                    transitions+=1
+                    continue
                 if pending:
                     kind, origin, signature, key = pending
                     pending = None
@@ -142,7 +175,7 @@ class DynamicEventExplorer:
                             block('SCROLL_LEFT_PAGE', frame)
                             break
                         seen = scroll_views.setdefault(key, {signature})
-                        if frame.fingerprint in seen:
+                        if frame.fingerprint in seen and seek is None:
                             exhausted_scrolls.add(key)
                         seen.add(frame.fingerprint)
                     elif kind == 'parent':
@@ -152,10 +185,44 @@ class DynamicEventExplorer:
                     elif frame.page == origin:
                         block('NO_PROGRESS', frame)
                         break
-                if active and frame.page == 'home':
-                    # A forced exit must not silently exhaust an unfinished event.
-                    block('UNEXPECTED_HOME', frame)
-                    break
+                if resume:
+                    kind,key=resume.pop(0)
+                    matches=[c for c in frame.controls if c.kind==kind and c.identity==key]
+                    if not frame.coverage_known or frame.blocked or len(matches)!=1:
+                        block('EVENT_RESUME_ROUTE_UNQUALIFIED',frame)
+                        break
+                    control=matches[0]
+                    if kind=='child':
+                        stack.append(frame.page)
+                    pending=(kind,frame.page,frame.fingerprint,(active,frame.page,key))
+                    report.actions.append(dict(kind=kind,capture=frame.capture,identity=key,
+                                               box=asdict(control.box),recovery='UNEXPECTED_EVENT_EXIT'))
+                    persist(asdict(report))
+                    port.navigate(frame,control)
+                    transitions+=1
+                    continue
+                if seek:
+                    origin,signature,key=seek
+                    if frame.page!=origin:
+                        block('EVENT_RESUME_PAGE_CHANGED',frame)
+                        break
+                    if frame.fingerprint==signature:
+                        seek=None
+                    else:
+                        matches=[c for c in frame.controls if c.kind=='scroll' and c.identity==key[2]]
+                        if (not frame.coverage_known or frame.blocked or len(matches)!=1
+                                or scroll_counts.get(key,0)>=self.limits.scrolls):
+                            block('EVENT_RESUME_VIEW_UNQUALIFIED',frame)
+                            break
+                        scroll_counts[key]=scroll_counts.get(key,0)+1
+                        control=matches[0]
+                        pending=('scroll',origin,frame.fingerprint,key)
+                        report.actions.append(dict(kind='scroll',capture=frame.capture,identity=control.identity,
+                                                   box=asdict(control.box),recovery='UNEXPECTED_EVENT_EXIT'))
+                        persist(asdict(report))
+                        port.navigate(frame,control)
+                        transitions+=1
+                        continue
                 for reason in frame.blocked:
                     block(reason, frame)
                 if frame.page == 'home':
@@ -177,11 +244,14 @@ class DynamicEventExplorer:
                         report.result = 'SUCCESS' if frame.coverage_known and not report.blocked else 'BLOCKED'
                         break
                     empty_home_passes = 0
+                    path=[]
                     active = candidate.identity
+                    active_seen = False
                     report.events[active].update(result='ENTERED', visits=1)
                     stack = ['home']
                     control = candidate
                 else:
+                    active_seen = True
                     report.return_home = 'NOT_STARTED'
                     if not active:
                         block('EVENT_WITHOUT_ENTRY', frame)
@@ -218,6 +288,8 @@ class DynamicEventExplorer:
                         key = active, frame.page, c.identity
                         if c.kind == 'tab' and (active,tuple(stack),c.identity) not in visited_tabs:
                             visited_tabs.add((active,tuple(stack),c.identity))
+                            path=[edge for edge in path if not (edge[0]==len(stack) and edge[1]=='tab')]
+                            path.append((len(stack),'tab',c.identity))
                             control = c
                             break
                         if c.kind == 'child' and key not in edges:
@@ -226,6 +298,7 @@ class DynamicEventExplorer:
                                 edges.add(key)
                                 continue
                             edges.add(key)
+                            path.append((len(stack),'child',c.identity))
                             stack.append(frame.page)
                             control = c
                             break
@@ -244,6 +317,8 @@ class DynamicEventExplorer:
                             break
                         control = frame.parent
                         destination = stack.pop()
+                        children=[i for i,edge in enumerate(path) if edge[1]=='child']
+                        path=path[:children[-1]] if children else []
                         if destination == 'home':
                             if report.events[active]['result'] != 'BLOCKED':
                                 report.events[active]['result'] = 'EXHAUSTED'

@@ -97,6 +97,84 @@ def discover_events(image, region):
     return tuple(result)
 
 
+def decorative_signal_on_new_icon(image, region, candidate):
+    """Exclude interior paint with one current owner and strict New-label proof.
+
+    Missing/weak/duplicate New evidence and weak corner signals remain unknown.
+    This grants no input permission.
+    """
+    from top_heroes_auto.vision.resources import template_folder
+
+    if candidate.qualified or candidate.rim_confidence >= .2:
+        return None
+    h,w=image.shape[:2]
+    white=cv2.inRange(cv2.cvtColor(image,cv2.COLOR_BGR2HSV),(0,0,185),(179,85,255))
+    bounded=np.zeros_like(white)
+    bounded[region.y:region.y+region.height,region.x:region.x+region.width]=white[
+        region.y:region.y+region.height,region.x:region.x+region.width]
+    contours,_=cv2.findContours(cv2.morphologyEx(bounded,cv2.MORPH_CLOSE,np.ones((3,3),np.uint8)),
+                              cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    badge=candidate.box
+    owners=[]
+    for contour in contours:
+        x,y,bw,bh=cv2.boundingRect(contour)
+        if (.045*w <= bw <= .16*w and .023*h <= bh <= .085*h
+                and x+2 <= badge.x and badge.x+badge.width <= x+bw-2
+                and y+2 <= badge.y and badge.y+badge.height <= y+bh-2
+                and badge.center[0] < x+bw*.75 and badge.center[1] > y+bh*.20):
+            owners.append(BoundingBox(x,y,bw,bh))
+    if len(owners)!=1:
+        return _interior_paint(image, region, candidate)
+    owner=owners[0]
+    left=max(region.x,round(owner.x+owner.width*.35))
+    top=max(region.y,round(owner.y-owner.height*.25))
+    right=min(region.x+region.width,round(owner.x+owner.width*1.25))
+    bottom=min(region.y+region.height,round(owner.y+owner.height*.50))
+    crop=image[top:bottom,left:right]
+    template=cv2.imread(str(template_folder().parent/'tasks/phase8/new-ribbon-core.png'))
+    th,tw=template.shape[:2]
+    if crop.shape[0]<th or crop.shape[1]<tw:
+        return None
+    scores=cv2.matchTemplate(crop,template,cv2.TM_CCOEFF_NORMED)
+    _,score,_,(x,y)=cv2.minMaxLoc(scores)
+    if not np.isfinite(score) or score<.98:
+        return _interior_paint(image, region, candidate)
+    scores[max(0,y-th//2):y+th//2+1,max(0,x-tw//2):x+tw//2+1]=-1
+    label=BoundingBox(left+x,top+y,tw,th)
+    if (scores.max()>=.98 or badge.center[0]>=label.center[0]-.2*tw
+            or badge.center[1]<=label.y+.65*th):
+        return None
+    return dict(reason='DECORATIVE_RED_ON_NEW_ICON',owner=asdict(owner),
+                new_label=asdict(label),new_confidence=float(score),badge=candidate.evidence())
+
+
+def _interior_paint(image, region, candidate):
+    """Complete outline plus deeply interior weak red facet; no input permission."""
+    if candidate.qualified or candidate.rim_confidence >= .15:
+        return None
+    h,w=image.shape[:2]
+    badge=candidate.box
+    white=cv2.inRange(cv2.cvtColor(image,cv2.COLOR_BGR2HSV),(0,0,185),(179,85,255))
+    bounded=np.zeros_like(white)
+    bounded[region.y:region.y+region.height,region.x:region.x+region.width]=white[
+        region.y:region.y+region.height,region.x:region.x+region.width]
+    contours,_=cv2.findContours(cv2.morphologyEx(bounded,cv2.MORPH_CLOSE,np.ones((5,5),np.uint8)),
+                               cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    owners=[]
+    for contour in contours:
+        x,y,bw,bh=cv2.boundingRect(contour)
+        if (.045*w <= bw <= .16*w and .023*h <= bh <= .085*h
+                and cv2.contourArea(contour)/(bw*bh) >= .70
+                and x+bw*.15 <= badge.x and badge.x+badge.width <= x+bw*.80
+                and y+bh*.20 <= badge.y and badge.y+badge.height <= y+bh*.80
+                and badge.width <= bw*.20 and badge.height <= bh*.25):
+            owners.append(BoundingBox(x,y,bw,bh))
+    if len(owners)!=1:
+        return None
+    return dict(reason='DECORATIVE_RED_INSIDE_COMPLETE_ICON',
+                owner=asdict(owners[0]),badge=candidate.evidence())
+
+
 def folded(text):
     import unicodedata
 
@@ -549,3 +627,42 @@ def menu_view_key(image):
     cards=sorted(menu_card_boxes(image),key=lambda b:(b.y,b.x))
     return hashlib.sha256(repr([(b.x,b.y,b.width,b.height,menu_art_key(image,b))
                                 for b in cards]).encode()).hexdigest()
+
+
+def competitive_navigation_shell(image, back):
+    """Functional competition chrome qualifies Back only, never a free reward.
+
+    No title/artwork catalog. The challenge and reward menus do not constitute
+    free-claim proof; unknown chest/counter semantics remain unsupported content.
+    """
+    from top_heroes_auto.vision.resources import template_folder
+
+    h,w=image.shape[:2]
+    if back is None or back.y<h*.90 or back.center[0]>w*.20:
+        return None
+    view=cv2.resize(image,(720,1280))
+    boxes={}
+    for role in ('reward-menu','personal-record','challenge'):
+        template=cv2.imread(str(template_folder().parent/'tasks/phase8/competitive-navigation'/f'{role}.png'))
+        if template is None:
+            return None
+        th,tw=template.shape[:2]
+        # Match glyphs only so dynamic background/season art is irrelevant.
+        def glyph(im):
+            return cv2.inRange(cv2.cvtColor(im,cv2.COLOR_BGR2HSV),(0,0,185),(179,100,255))
+        scores=cv2.matchTemplate(glyph(view),glyph(template),cv2.TM_CCOEFF_NORMED)
+        _,score,_,(x,y)=cv2.minMaxLoc(scores)
+        if not np.isfinite(score) or score<.98:
+            return None
+        scores[max(0,y-th//2):y+th//2+1,max(0,x-tw//2):x+tw//2+1]=-1
+        if scores.max()>=.98:
+            return None
+        boxes[role]=BoundingBox(round(x*w/720),round(y*h/1280),round(tw*w/720),round(th*h/1280))
+    reward,record,challenge=(boxes[k] for k in ('reward-menu','personal-record','challenge'))
+    if (not h*.08 < reward.y < h*.25 or abs(reward.y-record.y)>h*.025
+            or reward.x+reward.width>record.x or record.x+record.width>w*.6
+            or not h*.75 < challenge.y < h*.9 or not w*.35 < challenge.center[0] < w*.7):
+        return None
+    return dict(title='competitive-structure',page='event:competitive:unqualified-rewards',
+                selected=[],tabs=[],back=back,permission='BACK_ONLY',
+                functional_anchors={k:asdict(v) for k,v in boxes.items()})

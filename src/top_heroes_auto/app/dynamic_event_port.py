@@ -8,13 +8,15 @@ import cv2
 from top_heroes_auto.app.event_claim_reconciliation import bind_saved_rewards, reconcile_possible
 from top_heroes_auto.app.event_task_effect import removal_effect
 from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
-from top_heroes_auto.automation.dynamic_events import Control, EventFrame
+from top_heroes_auto.automation.dynamic_events import Control, EventFrame, overlaps
 from top_heroes_auto.automation.event_journal import dispatch_once
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, dismiss_overlay_bottom_left
 from top_heroes_auto.vision.dynamic_events import (
     blank_event_render,
+    competitive_navigation_shell,
     contained_signal_on_known_icon,
+    decorative_signal_on_new_icon,
     discover_events,
     discover_menu_tiles,
     event_body_contract,
@@ -87,6 +89,9 @@ class DynamicEventPort:
                                                 ('GAME_HOME', 'current-shop-sidebar', 'rimmed-notification', 'unique-outlined-icon'), 'event'))
                     elif contained_signal_on_known_icon(candidate,candidates):
                         ignored_signals.append(candidate.evidence())
+                    elif (decorative := decorative_signal_on_new_icon(image,
+                              BoundingBox(left,top,w-left,bottom-top),candidate)):
+                        ignored_signals.append(decorative)
                     else:
                         blocked.append('UNQUALIFIED_NOTIFICATION_GEOMETRY')
                 coverage_known = not blocked
@@ -98,11 +103,15 @@ class DynamicEventPort:
         # Event content contracts need clean real evidence, including paid controls.
         if self.entered and page != 'home':
             shell = event_shell(image,observed.box('back'),reader=read_words)
+            if shell is None:
+                shell=competitive_navigation_shell(image,observed.box('back'))
             if shell:
                 page = shell['page']
                 self.event_title = shell['title']
-                self.rows = task_reward_rows(image,self.task_context,reader=read_words)
-                context=task_context_box(image,self.task_context)
+                self.rows = (() if shell.get('permission')=='BACK_ONLY' else
+                             task_reward_rows(image,self.task_context,reader=read_words))
+                context=(None if shell.get('permission')=='BACK_ONLY' else
+                         task_context_box(image,self.task_context))
                 if context is not None:
                     page = 'event:'+shell['title']+':personal-tasks'
                     self.rows = bind_saved_rewards(image, self.rows,
@@ -141,7 +150,8 @@ class DynamicEventPort:
                             round(first.width*.40),last.y+last.height-first.y-40)
                         controls.append(Control('task-list-vertical',surface,
                             ('selected-task-context','complete-card-list','outside-action-column'),'scroll'))
-                contract=event_body_contract(image,self.rows,self.task_context,reader=read_words)
+                contract=('UNSUPPORTED' if shell.get('permission')=='BACK_ONLY' else
+                          event_body_contract(image,self.rows,self.task_context,reader=read_words))
                 coverage_known=contract!='UNSUPPORTED'
                 if contract=='MENU_GRID':
                     for tile in discover_menu_tiles(image):
@@ -154,7 +164,9 @@ class DynamicEventPort:
                         round(first.width*.40),bottom-first.y-40)
                     controls.append(Control('menu-list-vertical',surface,
                         ('event-shell','qualified-menu-grid','current-card-list'),'scroll'))
-                parent = Control('current-back',shell['back'],('gold-header','stable-title','back-anchor'),'parent')
+                parent = Control('current-back',shell['back'],
+                    ('functional-competition-chrome','paired-glyph-anchors','back-anchor')
+                    if shell.get('permission')=='BACK_ONLY' else ('gold-header','stable-title','back-anchor'),'parent')
                 for tab in shell['tabs']:
                     controls.append(Control(tab.fingerprint,tab.icon_box,
                         ('event-shell','tab-strip','unique-outlined-icon','rimmed-notification'),'tab'))
@@ -202,10 +214,27 @@ class DynamicEventPort:
         if frame is not self.current:
             raise SafetyError('Stale event navigation frame.')
         if control.kind=='scroll':
-            if (not frame.page.startswith('event:') or control not in frame.controls
-                    or not (frame.page.endswith(':personal-tasks') or 'qualified-menu-grid' in control.evidence)):
-                raise SafetyError('No qualified current task-list scroll surface.')
+            if (not frame.page.startswith('event:') or not frame.coverage_known or frame.popup
+                    or control not in frame.controls or not (frame.page.endswith(':personal-tasks')
+                    or 'qualified-menu-grid' in control.evidence)):
+                raise SafetyError('No qualified current Event scroll surface.')
+            self.current=None
+            fresh=self.observe()
+            matches=[c for c in fresh.controls if c.kind=='scroll' and c.identity==control.identity]
+            if (fresh.identity!=frame.identity or fresh.page!=frame.page or fresh.popup
+                    or not fresh.coverage_known or fresh.blocked or len(matches)!=1):
+                raise SafetyError('Event scroll changed on fresh capture; no input.')
+            control=matches[0]
             b=control.box
+            from top_heroes_auto.vision.guild_mail import portrait
+
+            h,w=portrait(self.transport.last.captured).shape[:2]
+            navigation=[c.box for c in fresh.controls if c.kind in {'tab','parent','event'}]
+            if fresh.parent:
+                navigation.append(fresh.parent.box)
+            if (b.x<0 or b.y<h*.08 or b.x+b.width>w or b.y+b.height>h*.90
+                    or min(b.width,b.height)<20 or any(overlaps(b,q) for q in navigation)):
+                raise SafetyError('Event swipe ROI crosses navigation or image boundary.')
             x=b.x+b.width//2
             start=b.y+round(b.height*.75)
             end=b.y+round(b.height*.25)

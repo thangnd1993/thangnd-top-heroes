@@ -436,7 +436,10 @@ def test_production_list_swipe_is_inside_current_cards_and_consumes_frame(monkey
     port=object.__new__(DynamicEventPort)
     port.current=current
     sent=[]
-    port.transport=SimpleNamespace(last=object(),dispatch=lambda *args:sent.append(args))
+    image=np.zeros((1280,720,3),np.uint8)
+    port.transport=SimpleNamespace(last=SimpleNamespace(captured=SimpleNamespace(
+        original=image,rotated_from_portrait=False)),dispatch=lambda *args:sent.append(args))
+    port.observe=lambda: current
     port.navigate(current,scroll)
     assert sent[0][1:] == ('swipe',(285,838,285,612,450))
     assert port.current is None
@@ -483,3 +486,101 @@ def test_blank_render_detection_is_not_a_white_popup_or_content_page():
     image[200:260,300:400]=(0,180,0)
     assert not blank_event_render(image)
     assert not blank_event_render(None)
+
+
+def test_unexpected_home_rediscovery_preserves_one_shot_reward_attempts():
+    e=control('event','event')
+    reward=control('free','reward',cost='FREE',available=True)
+    back=control('back','parent')
+    p=Port([frame('home',0,[e]),frame('event',1,[reward],parent=back),
+            frame('home',2,[e]),frame('event',3,[reward],parent=back),frame('home',4)])
+    result=DynamicEventExplorer().run(p)
+    assert result.result=='SUCCESS'
+    assert len(result.recoveries)==1 and result.recoveries[0]['reason']=='UNEXPECTED_EVENT_EXIT'
+    assert sum(c[1]=='reward' for c in p.calls)==1
+    assert sum(c[1]=='event' for c in p.calls)==2
+
+
+def test_unexpected_home_reentry_uses_fresh_box_and_is_bounded():
+    e=control('event','event')
+    moved=replace(e,box=BoundingBox(450,230,40,40))
+    p=Port([frame('home',0,[e]),frame('event',1,[control('s','scroll')]),
+            frame('home',2,[moved]),frame('home',3,[moved])])
+    result=DynamicEventExplorer().run(p)
+    assert result.blocked[-1]['reason']=='UNEXPECTED_EVENT_EXIT_UNRESOLVED'
+    assert p.calls[-1][3]==moved.box.center
+    assert len(p.calls)==3
+
+
+def test_unexpected_home_missing_event_never_uses_old_coordinates():
+    e=control('event','event')
+    p=Port([frame('home',0,[e]),frame('event',1,[control('s','scroll')]),frame('home',2)])
+    result=DynamicEventExplorer().run(p)
+    assert result.blocked[-1]['reason']=='UNEXPECTED_EVENT_EXIT_UNRESOLVED'
+    assert len(p.calls)==2
+
+
+def test_momo_weak_red_artwork_requires_structural_evidence():
+    from top_heroes_auto.vision.dynamic_events import decorative_signal_on_new_icon, discover_events
+    image=cv2.imread('tests/fixtures/phase8/home-new-ribbon-artwork.png')
+    region=BoundingBox(500,65,220,475)
+    weak=[c for c in discover_events(image,region) if not c.qualified]
+    assert len(weak)==2
+    assert all(decorative_signal_on_new_icon(image,region,c) for c in weak)
+    for c in discover_events(image,region):
+        if c.qualified:
+            assert decorative_signal_on_new_icon(image,region,c) is None
+    broken=image.copy()
+    broken[99:119,574:607]=0
+    assert decorative_signal_on_new_icon(broken,region,weak[0]) is None
+    assert decorative_signal_on_new_icon(image,region,replace(weak[1],rim_confidence=.6)) is None
+
+
+def test_generic_competitive_chrome_grants_back_only_not_claim():
+    from top_heroes_auto.vision.dynamic_events import competitive_navigation_shell
+    image=cv2.imread('tests/fixtures/phase8/competitive-event.png')
+    back=BoundingBox(32,1200,56,60)
+    result=competitive_navigation_shell(image,back)
+    assert result and result['permission']=='BACK_ONLY'
+    assert not result['tabs']
+    image[:110]=0  # changing the seasonal title does not affect the contract
+    assert competitive_navigation_shell(image,back)
+    image[1058:1092,308:447]=0
+    assert competitive_navigation_shell(image,back) is None
+
+
+def test_reentry_restores_nested_route_with_fresh_controls():
+    e=control('event','event')
+    child=control('child')
+    scroll=control('list','scroll')
+    back=control('back','parent')
+    origin=frame('tasks',2,[scroll],parent=back)
+    p=Port([frame('home',0,[e]),frame('event',1,[child],parent=back),origin,
+            frame('home',3,[e]),frame('event',4,[child],parent=back),
+            replace(origin,capture='5'),replace(origin,capture='6'),
+            frame('event',7,[],parent=back),frame('home',8)])
+    result=DynamicEventExplorer().run(p)
+    assert result.result=='SUCCESS'
+    assert sum(c[1]=='event' for c in p.calls)==2
+    assert sum(c[1]=='child' for c in p.calls)==2
+    assert len(result.recoveries)==1
+
+
+@pytest.mark.parametrize('surface',[BoundingBox(0,1170,200,80),BoundingBox(50,10,200,200)])
+def test_swipe_rejects_navigation_and_header_regions(monkeypatch,surface):
+    from types import SimpleNamespace
+
+    from top_heroes_auto.app.dynamic_event_port import DynamicEventPort
+    monkeypatch.setattr('top_heroes_auto.app.dynamic_event_port.time.sleep',lambda _:None)
+    scroll=Control('list',surface,('event-shell','qualified-menu-grid','current-card-list'),'scroll')
+    current=frame('event:test:current',1,[scroll])
+    port=object.__new__(DynamicEventPort)
+    port.current=current
+    port.observe=lambda:current
+    sent=[]
+    port.transport=SimpleNamespace(last=SimpleNamespace(captured=SimpleNamespace(
+        original=np.zeros((1280,720,3),np.uint8),rotated_from_portrait=False)),
+        dispatch=lambda *args:sent.append(args))
+    with pytest.raises(SafetyError):
+        port.navigate(current,scroll)
+    assert not sent

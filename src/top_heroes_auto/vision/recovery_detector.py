@@ -8,6 +8,7 @@ from top_heroes_auto.vision.detail_anchor import unique_detail_anchor
 from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.hanging_reward import hanging_evidence, qualified_hanging
+from top_heroes_auto.vision.loading_progress import loading_progress_evidence
 from top_heroes_auto.vision.models import NormalizedRect, ScreenDetection, ScreenState
 from top_heroes_auto.vision.resources import template_folder
 from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
@@ -71,6 +72,13 @@ class RecoveryScreenDetector:
                                evidence=(*detected.evidence, *evidence))
             return replace(detected, state=ScreenState.WAR_EMPTY,
                            confidence=min(e.score for e in evidence), evidence=evidence)
+        evidence = loading_progress_evidence(screen)
+        if evidence:
+            if detected.state not in {ScreenState.UNKNOWN, ScreenState.GAME_LOADING}:
+                return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
+                               evidence=(*detected.evidence,*evidence))
+            return replace(detected, state=ScreenState.GAME_LOADING,
+                           confidence=min(e.score for e in evidence),evidence=evidence)
         return detected
 
     def _detect_existing(self, screen):

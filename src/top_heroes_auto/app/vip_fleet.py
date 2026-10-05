@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from top_heroes_auto.app.automation_ownership import exclusive_automation
 from top_heroes_auto.app.diagnostic import _instance, _manager, _view
 from top_heroes_auto.app.free_reward_tasks import _load_profile_details
 from top_heroes_auto.app.main import data_directory
@@ -219,6 +220,7 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
                                           report_path=str(folder / "account-report.json"))
 
 
+@exclusive_automation
 def run_vip_fleet(manager, data: Path, *, account_runner=run_vip_account):
     _protected(manager)
     inventory = manager.list_readonly()

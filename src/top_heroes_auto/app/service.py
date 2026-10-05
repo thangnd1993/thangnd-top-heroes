@@ -16,6 +16,7 @@ from top_heroes_auto.adb.client import (
     validate_package,
     validate_serial,
 )
+from top_heroes_auto.app.automation_ownership import exclusive_command
 from top_heroes_auto.app.process import CommandError, decode
 from top_heroes_auto.automation.guard import (
     RunSnapshot,
@@ -355,6 +356,24 @@ class Manager:
                 )
             time.sleep(self.POLL_INTERVAL)
 
+    def _capture_ready(self, index: int) -> Instance:
+        """Retry readiness read-only on the same running process, never restart."""
+        original = self._check(index)
+        if not original.running:
+            raise SafetyError('Capture target stopped; no readiness restart allowed.')
+        identity = (original.index, original.name, original.pid, original.vbox_pid)
+        current = original
+        for attempt in range(3):
+            if (not current.running or
+                    (current.index, current.name, current.pid, current.vbox_pid) != identity):
+                raise SafetyError('Capture runtime changed during readiness; fail closed.')
+            if current.android_started:
+                return current
+            if attempt < 2:
+                time.sleep(self.IDENTITY_PROBE_DELAY)
+                current = self._check(index)
+        raise SafetyError('Android readiness remained unavailable on the exact running target.')
+
     def capture_verified(self, index: int, snapshot: RunSnapshot | None = None) -> tuple[Target, bytes]:
         """Capture exactly one PNG through a freshly verified explicit target."""
         with self._lock:
@@ -367,9 +386,11 @@ class Manager:
                 immutable_snapshot,
             )
             try:
+                capture_runtime = self._capture_ready(index)
                 target = self._resolve(index)
-                self._check(index)
-                if self._probe_identity(index, lambda: self.adb.boot_id(target.serial)) != target.boot_id:
+                self._same_runtime(index, capture_runtime)
+                if self._probe_identity(index, lambda: self.adb.boot_id(target.serial),
+                                        instance=capture_runtime) != target.boot_id:
                     raise SafetyError("ADB target đã thay đổi; hủy chụp màn hình.")
                 self._check(index)
                 return target, self.adb._capture(target.serial)
@@ -379,6 +400,7 @@ class Manager:
             finally:
                 self._active = None
 
+    @exclusive_command
     def execute(
         self, index: int, action: str, package: str = "", values: tuple = (), snapshot: RunSnapshot | None = None,
         *, observed_target: Target | None = None, before_input=None,

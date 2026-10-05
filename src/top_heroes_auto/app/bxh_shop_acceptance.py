@@ -6,6 +6,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from top_heroes_auto.app.automation_ownership import exclusive_automation
 from top_heroes_auto.app.diagnostic import _instance, _view
 from top_heroes_auto.app.fixed_reward_port import FixedRewardPort, TabNotFound
 from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
@@ -47,17 +48,23 @@ def persistent_identity(manager, index):
     if type(index) is not int or index < 0:
         raise SafetyError('Invalid target index.')
     root = manager.ld.installation.console.parent / 'vms'
-    # A default console label after a damaged/missing instance config must not
-    # silently become a new authorized identity on the next fleet snapshot.
-    config = json.loads((root / 'config' / f'leidian{index}.config').read_text(encoding='utf-8-sig'))
-    configured_name = config.get('statusSettings.playerName')
-    if not configured_name or configured_name != manager.query(index).name:
-        raise SafetyError('Persistent instance name unavailable or mismatched; no lifecycle/input permitted.')
+    # Current indexed inventory is authoritative for the read-only display name.
+    # Optional config display metadata is neither authorization nor disk identity.
+    original = manager.query(index)
+    if original.index != index or not original.name:
+        raise SafetyError('IDENTITY_UNVERIFIED: indexed inventory identity unavailable.')
     path = root / f'leidian{index}' / 'data.vmdk'
     stat = path.stat()
     created = getattr(stat, 'st_birthtime_ns', None)
     if created is None or not stat.st_ino:
         raise SafetyError('Persistent disk identity unavailable; index reuse cannot be ruled out.')
+    current = manager.query(index)
+    fields = ('index', 'name', 'pid', 'vbox_pid', 'running', 'android_started')
+    latest = path.stat()
+    latest_disk = (latest.st_dev, latest.st_ino, getattr(latest, 'st_birthtime_ns', None))
+    if (any(getattr(current, key) != getattr(original, key) for key in fields)
+            or latest_disk != (stat.st_dev, stat.st_ino, created)):
+        raise SafetyError('IDENTITY_UNVERIFIED: inventory/runtime or backing disk changed during verification.')
     return hashlib.sha256(f'{path.resolve()}:{stat.st_dev}:{stat.st_ino}:{created}'.encode()).hexdigest()
 
 
@@ -265,6 +272,7 @@ def resume_plan(previous, live, rewards=REWARDS):
     return plan
 
 
+@exclusive_automation
 def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run_account,
                    identity_reader=persistent_identity, exclude=(), resume_report=None, rewards=REWARDS):
     if random_test and resume_report:
@@ -360,6 +368,7 @@ def run_acceptance(manager, data: Path, *, random_test=False, account_runner=run
     return report
 
 
+@exclusive_automation
 def run_selected_task(manager, data, index, name, task, *, cancelled=lambda: False):
     """Normal UI entry: one explicitly selected target, no random/fleet expansion."""
     from top_heroes_auto.app.free_reward_tasks import Phase6TaskResult

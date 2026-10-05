@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None):
         from top_heroes_auto.app.bxh_shop_acceptance import progress
         from top_heroes_auto.automation.guild_mail_reconcile import reconcile_saved_guild_mail
 
-        result = reconcile_saved_guild_mail(Store(data_directory()/'config.sqlite3'),int(argv[1]))
+        result = reconcile_saved_guild_mail(Store(data_directory()/'config.sqlite3', recover_running=False),int(argv[1]))
         progress(f"Guild/Mail saved claim {result['claim_id']}: VERIFIED; no input dispatched.")
         return 0
     if argv and argv[0] == 'vip-gift-reconcile-saved':
@@ -88,7 +88,7 @@ def main(argv: list[str] | None = None):
         from top_heroes_auto.app.bxh_shop_acceptance import progress
         from top_heroes_auto.app.vip_gift_reconcile import reconcile_saved_vip_gift
 
-        result = reconcile_saved_vip_gift(Store(data_directory()/'config.sqlite3'), int(argv[1]))
+        result = reconcile_saved_vip_gift(Store(data_directory()/'config.sqlite3', recover_running=False), int(argv[1]))
         progress(f"VIP saved claim {result['claim_id']}: {result['result']}; no input dispatched.")
         return 0
     if argv and argv[0] in {'shop-reconcile-saved','fixed-reconcile-saved'}:
@@ -97,7 +97,7 @@ def main(argv: list[str] | None = None):
         from top_heroes_auto.app.bxh_shop_acceptance import progress
         from top_heroes_auto.automation.fixed_reward_reconcile import reconcile_saved_fixed_reward
 
-        result = reconcile_saved_fixed_reward(Store(data_directory()/'config.sqlite3'), int(argv[1]))
+        result = reconcile_saved_fixed_reward(Store(data_directory()/'config.sqlite3', recover_running=False), int(argv[1]))
         progress(f"Fixed saved claim {result['claim_id']}: {result['result']}; no input dispatched.")
         return 0
     if argv and argv[0] in {"bxh-shop-acceptance", "shop-acceptance"}:
@@ -164,7 +164,7 @@ def main(argv: list[str] | None = None):
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     logging.getLogger("top_heroes_auto").setLevel(logging.DEBUG)
     logging.getLogger("top_heroes_auto").addHandler(handler)
-    window = Window(Store(data / "config.sqlite3"), data)
+    window = Window(Store(data / "config.sqlite3", recover_running=False), data)
     window.show()
     if "--smoke-test" in argv:
         # Exercise the packaged GUI event loop and exit cleanly; a crash dialog must

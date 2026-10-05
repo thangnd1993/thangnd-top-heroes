@@ -405,3 +405,48 @@ reward replay, no journal downgrade, no target/lifecycle fallback, no global inp
 and no paid/battle actions. Require fresh CI/portable/Desktop delivery before
 live repair validation.
 Phase8 IN PROGRESS; no Phase9.
+
+
+## Authorized continuation: read-only identity and exclusive fleet ownership
+
+Baseline68a1208 / CI37234725473 passed lint/full pytest/Windows portable/smoke/
+upload; artifact11316166219 delivered638 verified Desktop files,365 runtime assets.
+The current user authorization supersedes the prior metadata clarification gate:
+missing optional playerName must not cause a config/name write or permanent
+exclusion. Current exact indexed inventory/runtime and unchanged backing disk
+identity qualify continuity; indexed ADB and boot checks remain independently
+mandatory. Existing disk hash format and historical journal locks are retained.
+
+A kernel fleet mutex covers mutating roots, their nested commands, and cleanup.
+The OS lock is authoritative; saved PID/nonce/UUID metadata cannot steal it.
+Second owners fail AUTOMATION_BUSY. Normal exit and crash release ownership;
+metadata recovery occurs only after kernel acquisition. Viewer startup no longer
+interrupts another live owner's task records. No process kill is added.
+
+Saved Soup evidence progresses from startup logo/orientation transition to a
+proper loading screen at92% after125.906 seconds. Paired static help/network
+glyphs plus current bar geometry qualify waiting only. A newly proven loading
+phase gets one bounded grace, within original-step and absolute180-second bounds
+(default policy), never a global UNKNOWN timeout increase or automatic restart.
+Same running process readiness gets three read-only checks, followed by exact
+indexed serial/boot/runtime verification. Stopped/replaced targets fail closed.
+
+Event swipes require a fresh matching Event, current body ROI, and exclusion of
+navigation/header/tab surfaces. Unexpected Home is recorded UNEXPECTED_EVENT_EXIT;
+one qualified fresh icon reentry restores only the unfinished navigation path.
+Visited/attempted rewards and journal locks survive. Missing/ambiguous edges or
+repeated exits fail closed. Competitive functional chrome qualifies Back only;
+unknown chest/counter semantics do not authorize claims or fabricated exhaustion.
+Momo's two weak red gift/gem facets require interior/outline or paired New-label
+proof to be excluded; strong/weak corner notifications remain unchanged/unknown.
+New re-encoded fixtures/runtime cores are game UI only with no external metadata,
+credentials or unrelated files. No seasonal title or account coordinate route.
+
+Offline checks:276 focused identity/ownership/recovery/event/journal tests PASS;
+384 additional affected integration tests PASS (overlapping suites, not additive).
+Ruff and diff-check PASS. Self-review preserves VERIFIED/POSSIBLE, forbids duplicate
+claim/reset, bounds every retry, keeps exact-target lifecycle/ADB and Phase8-only
+execution. No real emulator input or claim in the implementation pass. Require
+fresh passing CI/Desktop artifact, then resume the existing scoped report rather
+than restarting history. Phase8 remains PARTIAL pending real continuation;
+Phase9 has not started.

@@ -276,7 +276,11 @@ def test_selected_adapter_keeps_exact_target_and_cleanup_failure_visible(monkeyp
         calls.append(kw)
         return dict(accounts=[dict(result='PARTIAL',cleanup='FAILED',flows={'one':dict(result='COMPLETE',rewards={})})])
     monkeypatch.setattr(registered_tasks,'run',run)
-    result=registered_tasks.run_registered_selected(None,tmp_path,71,'exact')
+    from types import SimpleNamespace
+
+    from top_heroes_auto.storage.store import Store
+    fixture_manager=SimpleNamespace(namespace='fixture-lease',data_dir=tmp_path,store=Store(tmp_path/'lease.sqlite3'))
+    result=registered_tasks.run_registered_selected(fixture_manager,tmp_path,71,'exact')
     assert calls[0]['targets']==[dict(index=71,name='exact')]
     assert calls[0]['temporary_selection'] is False
     assert result[-1].status=='PARTIAL' and not result[-1].cleanup_succeeded

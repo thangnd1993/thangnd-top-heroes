@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
+from top_heroes_auto.app.automation_ownership import exclusive_automation
 from top_heroes_auto.app.diagnostic import _instance, _only_target_changed, _state
 from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
 from top_heroes_auto.app.service import Manager
@@ -155,6 +156,7 @@ def vip_survey_factory(
     ).run(cancelled)
 
 
+@exclusive_automation
 def run_phase6_vip_survey(
     manager: Manager,
     data: Path,

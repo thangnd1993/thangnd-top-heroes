@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+from top_heroes_auto.app.automation_ownership import exclusive_automation, ownership_evidence
 from top_heroes_auto.app.bxh_shop_acceptance import (
     candidates,
     choose_random,
@@ -153,6 +154,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
     return row
 
 
+@exclusive_automation
 def run(manager, data, *, random_test=False, resume_report=None, registry=None, enabled=None,
         identity_reader=persistent_identity, session_factory=InstanceSession, targets=None,
         temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=(), resume_flows=(), refresh_flows=(), only_flows=()):
@@ -231,6 +233,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
     folder.mkdir(parents=True, exist_ok=False)
     report = dict(schema='instance-first-v1', mode='resume' if previous else 'random-test' if random_test else 'fleet',
         max_concurrency=1, before_instances=before, targets=targets,
+        automation_ownership=ownership_evidence(),
         required_rewards=[r for f in execution_plan for r in f.rewards],
         execution_flows=[f.id for f in execution_plan],
         scope_limited=bool(resume_flows or only_flows), explicit_flow_allowlist=list(only_flows), refresh_flows=list(refresh_flows),

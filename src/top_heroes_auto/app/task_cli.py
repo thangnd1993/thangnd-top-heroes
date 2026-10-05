@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
+from top_heroes_auto.app.automation_ownership import exclusive_automation
 from top_heroes_auto.app.diagnostic import _instance, _manager, _only_target_changed, _state
 from top_heroes_auto.app.free_reward_tasks import (
     PHASE6_TASKS,
@@ -152,6 +153,7 @@ def _stamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%fZ")
 
 
+@exclusive_automation
 def run_idle_reward_diagnostic(
     manager: Manager,
     data: Path,

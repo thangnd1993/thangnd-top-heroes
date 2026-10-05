@@ -147,11 +147,14 @@ def test_qualified_menu_scroll_uses_current_box_once(monkeypatch):
     monkeypatch.setattr('top_heroes_auto.app.dynamic_event_port.time.sleep',lambda _:None)
     box=BoundingBox(390,734,137,230)
     scroll=Control('menu-list-vertical',box,('event-shell','qualified-menu-grid','current-card-list'),'scroll')
-    frame=EventFrame('fresh',(13,'test','explicit','boot'),'event:unknown-season:current','view',(scroll,))
+    frame=EventFrame('fresh',(13,'test','explicit','boot'),'event:unknown-season:current','view',(scroll,),coverage_known=True)
     port=object.__new__(DynamicEventPort)
     port.current=frame
     sent=[]
-    port.transport=SimpleNamespace(last=object(),dispatch=lambda *args:sent.append(args))
+    port.transport=SimpleNamespace(last=SimpleNamespace(captured=SimpleNamespace(
+        original=np.zeros((1280,720,3),np.uint8),rotated_from_portrait=False)),
+        dispatch=lambda *args:sent.append(args))
+    port.observe=lambda: frame
     port.navigate(frame,scroll)
     assert sent[0][1:]==('swipe',(458,906,458,792,450))
     assert port.current is None

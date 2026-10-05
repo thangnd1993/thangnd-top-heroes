@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
+from top_heroes_auto.app.automation_ownership import exclusive_automation
 from top_heroes_auto.app.diagnostic import _instance, _only_target_changed, _state
 from top_heroes_auto.app.phase6_runtime import shop_navigation_factory, shop_navigation_profile
 from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
@@ -111,6 +112,7 @@ def _navigation_report(navigation: ShopNavigationResult | None) -> dict | None:
     return navigation.as_dict() if navigation else None
 
 
+@exclusive_automation
 def run_phase6_shop_navigation(
     manager: Manager,
     data: Path,

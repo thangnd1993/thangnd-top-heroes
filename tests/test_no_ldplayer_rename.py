@@ -83,7 +83,7 @@ def test_stable_disk_identity_does_not_depend_on_display_name(tmp_path):
     (root/'leidian7').mkdir()
     (root/'leidian7/data.vmdk').write_bytes(b'fixture only')
     config=root/'config/leidian7.config'
-    current=SimpleNamespace(name='Old')
+    current=SimpleNamespace(index=7,name='Old',pid=0,vbox_pid=0,running=False,android_started=False)
     manager=SimpleNamespace(ld=SimpleNamespace(installation=SimpleNamespace(console=tmp_path/'ldconsole.exe')),
                             query=lambda _:current)
     config.write_text(json.dumps({'statusSettings.playerName':current.name}),encoding='utf-8')
