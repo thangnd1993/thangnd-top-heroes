@@ -51,7 +51,7 @@ def dispatch_once(store, task, namespace, frame, control, *, event_identity,
     proof = dict(persistent_identity=persistent_identity, event=event_identity, page=frame.page,
                  reward=control.identity, period=control.period, capture=frame.capture,
                  identity=frame.identity, tap=point, evidence=control.evidence)
-    if 'selected-task-context' in control.evidence:
+    if {'selected-task-context','qualified-task-grid'} & set(control.evidence):
         proof['possible_affected_rewards'] = [c.identity for c in frame.controls
             if c.kind == 'reward' and c.cost == 'FREE' and c.available]
         if control.identity not in proof['possible_affected_rewards']:

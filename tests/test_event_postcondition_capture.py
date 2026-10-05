@@ -1,4 +1,5 @@
 """Late qualified receipts retain two fresh proof frames, never another claim."""
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
@@ -85,3 +86,13 @@ def test_changed_page_is_not_success(monkeypatch):
     port, target, _, dismissals = harness(monkeypatch, [frame(0, 'home')])
     assert port._claim_postcondition(frame('before'), target, 'current') == []
     assert dismissals == []
+
+
+@pytest.mark.parametrize('receipt',[True,False])
+def test_grid_needs_receipt_and_two_independent_unavailable_frames(monkeypatch,receipt):
+    frames=([frame(0,popup=True)] if receipt else [])+[frame(n) for n in range(1,7)]
+    port,target,_,dismissals=harness(monkeypatch,frames,[{'identity':'reward','state':'NOT_AVAILABLE'}])
+    target=replace(target,evidence=('qualified-task-grid',))
+    result=port._claim_postcondition(frame('before'),target,'current')
+    assert len(result)==(2 if receipt else 0)
+    assert dismissals==(['0'] if receipt else [])

@@ -427,8 +427,6 @@ def selected_task_badge_count(image, selected, *, reader):
     The cue supplies no numeric value. Two renderings must agree on the sole
     original number; dots/exclamations/partial or conflicting glyphs fail closed.
     """
-    from top_heroes_auto.vision.local_ocr import counter
-
     if len(selected) != 1:
         return None
     tab = selected[0]
@@ -439,7 +437,13 @@ def selected_task_badge_count(image, selected, *, reader):
               and b.box.center[1] < tab.y+tab.height*.4]
     if len(badges) != 1 or not badges[0].qualified:
         return None
-    box = badges[0].box
+    return badge_counter(image,badges[0].box,reader=reader)
+
+
+def badge_counter(image,box,*,reader):
+    """Digits in one independently owned current badge; no action permission."""
+    from top_heroes_auto.vision.local_ocr import counter
+
     inset = max(2, round(box.height*.14))
     crop = image[box.y+inset:box.y+box.height-inset,
                  box.x+inset:box.x+box.width-inset]
@@ -834,11 +838,15 @@ def body_label_box(image,name):
     return BoundingBox(*where,template.shape[1],template.shape[0])
 
 
-def menu_art_key(image,box):
-    """Current card artwork, excluding changing timer and corner notification."""
+def menu_art_image(image,box):
+    """Current card core, excluding changing timer and corner notification."""
     core=image[box.y+round(box.height*.35):box.y+round(box.height*.75),
                box.x+round(box.width*.20):box.x+round(box.width*.80)]
-    return hashlib.sha256((cv2.resize(core,(24,24))//16).tobytes()).hexdigest()
+    return cv2.resize(core,(24,24))
+
+
+def menu_art_key(image,box):
+    return hashlib.sha256((menu_art_image(image,box)//16).tobytes()).hexdigest()
 
 
 def menu_view_key(image):

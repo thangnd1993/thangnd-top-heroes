@@ -106,6 +106,7 @@ class DynamicEventExplorer:
         resume = []
         seek = None
         reentries = set()
+        parent_returns=set()
 
         def block(reason, frame):
             report.blocked.append(dict(reason=reason, event=active, page=frame.page, capture=frame.capture))
@@ -144,13 +145,48 @@ class DynamicEventExplorer:
                     if not active_seen:
                         block('NO_PROGRESS',frame)
                         break
+                    # A qualified child Back may return to Home instead of its
+                    # selector. This is observed current UI topology, not a stale
+                    # coordinate route. Resume once per completed child edge.
+                    parent_edge=pending[3] if pending and pending[0]=='parent' else None
+                    candidates=[c for c in frame.controls if c.kind=='event' and c.identity==active]
+                    if (parent_edge and parent_edge not in parent_returns and frame.coverage_known
+                            and not frame.blocked and len(candidates)==1):
+                        parent_returns.add(parent_edge)
+                        resume=[(kind,key) for _,kind,key in path]
+                        seek=None
+                        stack=['home']
+                        pending=('event','home',frame.fingerprint,None)
+                        control=candidates[0]
+                        report.events[active]['visits']+=1
+                        report.recoveries.append(dict(reason='QUALIFIED_CHILD_RETURN_HOME',event=active,
+                                                      capture=frame.capture,child=parent_edge))
+                        report.actions.append(dict(kind='event',capture=frame.capture,
+                            identity=control.identity,box=asdict(control.box),recovery='QUALIFIED_CHILD_RETURN_HOME'))
+                        persist(asdict(report))
+                        port.navigate(frame,control)
+                        transitions+=1
+                        continue
                     report.recoveries.append(dict(reason='UNEXPECTED_EVENT_EXIT',event=active,
                                                   capture=frame.capture,pending=pending))
                     candidates=[c for c in frame.controls if c.kind=='event' and c.identity==active]
                     if (active in reentries or not frame.coverage_known or frame.blocked
                             or len(candidates)!=1):
                         block('UNEXPECTED_EVENT_EXIT_UNRESOLVED',frame)
-                        break
+                        if not frame.coverage_known or frame.blocked:
+                            break
+                        # A proven Home abandons only this blocked branch. Clear
+                        # its navigation route; keep visited edges and claim locks.
+                        # Other current roots may proceed from a NEW Home capture.
+                        active=None
+                        active_seen=False
+                        stack=[]
+                        path=[]
+                        resume=[]
+                        seek=None
+                        pending=None
+                        report.return_home='SUCCESS'
+                        continue
                     # Restore only the unfinished navigation route using freshly
                     # rediscovered controls. Reward attempts/journals stay intact.
                     reentries.add(active)
@@ -318,12 +354,13 @@ class DynamicEventExplorer:
                         control = frame.parent
                         destination = stack.pop()
                         children=[i for i,edge in enumerate(path) if edge[1]=='child']
+                        completed_child=(active,path[children[-1]][2]) if children else None
                         path=path[:children[-1]] if children else []
                         if destination == 'home':
                             if report.events[active]['result'] != 'BLOCKED':
                                 report.events[active]['result'] = 'EXHAUSTED'
                             active = None
-                        pending = ('parent', destination, frame.fingerprint, None)
+                        pending = ('parent', destination, frame.fingerprint, completed_child)
                 if control.kind != 'parent':
                     key = active, frame.page, control.identity
                     pending = (control.kind, frame.page, frame.fingerprint, key)

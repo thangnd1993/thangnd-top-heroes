@@ -9,21 +9,34 @@ from top_heroes_auto.vision.dynamic_events import task_label_glyph
 from top_heroes_auto.vision.models import BoundingBox
 
 
-def bind_saved_rewards(image, rows, claims, *, persistent_identity, index):
+def bind_saved_rewards(image, rows, claims, *, persistent_identity, index, family="personal-tasks"):
     """Alias only unique, strict caption agreement; uncertain aliases block input.
 
     This never opens eligibility or changes a journal. Coordinates in saved
     evidence extract reference glyphs only, never provide a runtime tap point.
     """
     rows = [dict(row) for row in rows]
+    if family=='race-task-grid' and any('qualified-race-task-grid' not in r.get('evidence',()) for r in rows):
+        raise SafetyError('Current task category is unproven; no new claim.')
     for claim in claims:
         if not claim['reward_id'].startswith('event:'):
             continue
         proof = json.loads(claim['before_evidence'])
-        if not proof.get('page', '').endswith(':personal-tasks'):
+        page=proof.get('page','')
+        saved_family=('personal-tasks' if page.endswith(':personal-tasks') else
+                      ('race-task-grid' if page.endswith(':race-task-grid') else None))
+        if saved_family is None or family not in {'personal-tasks','race-task-grid'}:
             raise SafetyError('Unsupported saved Event claim identity; no new claim.')
         if proof.get('persistent_identity') != persistent_identity or proof['identity'][0] != index:
             raise SafetyError('Saved Event claim target identity changed.')
+        if saved_family!=family:
+            marker=('selected-task-context' if saved_family=='personal-tasks' else 'qualified-race-task-grid')
+            if marker not in proof.get('evidence',()):
+                raise SafetyError('Saved task category is unproven; no new claim.')
+            continue  # Two positively qualified UI schemas have independent rewards.
+        from top_heroes_auto.vision.event_task_grid import grid_label_glyph
+
+        label_glyph=grid_label_glyph if family=='race-task-grid' else task_label_glyph
         source = Path(proof['capture'])
         try:
             saved = json.loads(source.with_suffix('.event.json').read_text(encoding='utf-8'))
@@ -33,9 +46,9 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index):
                 raise ValueError('Missing unique saved reward')
             if reference.shape[1] > reference.shape[0]:
                 reference = cv2.rotate(reference, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            known = [task_label_glyph(reference, BoundingBox(**r['row']))
+            known = [label_glyph(reference, BoundingBox(**r['row']))
                      for r in saved['reward_rows']]
-            glyph = task_label_glyph(reference, BoundingBox(**old[0]['row']))
+            glyph = label_glyph(reference, BoundingBox(**old[0]['row']))
             if glyph is None:
                 raise ValueError('Missing saved caption')
         except (OSError, ValueError, KeyError) as exc:
@@ -46,7 +59,7 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index):
         hidden_effects=any(item.get('unobserved_consumed_count',0)>0 for item in after)
         scored = []
         for row in rows:
-            current = task_label_glyph(image, row['row'])
+            current = label_glyph(image, row['row'])
             if current is None:
                 raise SafetyError('Current reward caption unavailable.')
             score = float(cv2.matchTemplate(current, glyph, cv2.TM_CCOEFF_NORMED)[0,0])

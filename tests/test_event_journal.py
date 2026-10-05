@@ -178,3 +178,15 @@ def test_uncertain_supported_task_action_locks_its_possible_effects(tmp_path):
     assert run(store,task,f,sibling,calls)['result']=='ALREADY_ATTEMPTED'
     run(store,task,f,replace(r,identity='independent-feature-gift'),calls)
     assert len(calls)==2
+
+
+def test_uncertain_grid_action_locks_visible_possible_siblings(tmp_path):
+    store,task,f,r=setup(tmp_path)
+    r=replace(r,evidence=('qualified-task-grid','completed-fraction','full-progress','free-label'))
+    sibling=replace(r,identity='visible-sibling')
+    f=replace(f,controls=(r,sibling))
+    calls=[]
+    first=run(store,task,f,r,calls,post=lambda *a:[])
+    second=run(store,task,replace(f,capture='fresh'),sibling,calls)
+    assert first['journal']=='RESERVED' and second['result']=='ALREADY_ATTEMPTED'
+    assert len(calls)==1

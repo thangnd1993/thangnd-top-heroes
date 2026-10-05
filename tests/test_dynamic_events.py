@@ -507,7 +507,7 @@ def test_unexpected_home_reentry_uses_fresh_box_and_is_bounded():
     p=Port([frame('home',0,[e]),frame('event',1,[control('s','scroll')]),
             frame('home',2,[moved]),frame('home',3,[moved])])
     result=DynamicEventExplorer().run(p)
-    assert result.blocked[-1]['reason']=='UNEXPECTED_EVENT_EXIT_UNRESOLVED'
+    assert any(b['reason']=='UNEXPECTED_EVENT_EXIT_UNRESOLVED' for b in result.blocked)
     assert p.calls[-1][3]==moved.box.center
     assert len(p.calls)==3
 
@@ -516,7 +516,7 @@ def test_unexpected_home_missing_event_never_uses_old_coordinates():
     e=control('event','event')
     p=Port([frame('home',0,[e]),frame('event',1,[control('s','scroll')]),frame('home',2)])
     result=DynamicEventExplorer().run(p)
-    assert result.blocked[-1]['reason']=='UNEXPECTED_EVENT_EXIT_UNRESOLVED'
+    assert any(b['reason']=='UNEXPECTED_EVENT_EXIT_UNRESOLVED' for b in result.blocked)
     assert len(p.calls)==2
 
 
@@ -613,3 +613,34 @@ def test_known_rank_transition_wait_is_bounded_and_never_dismissed(persistent):
         assert len(result.observations)==5
     else:
         assert result.result=='SUCCESS'
+
+
+def test_completed_child_home_returns_resume_distinct_children_once():
+    e=control('event','event')
+    a,b=control('one'),control('two')
+    back=control('back','parent')
+    p=Port([frame('home',0,[e]),frame('gallery',1,[a,b],parent=back),
+            frame('first',2,parent=back),frame('home',3,[e]),
+            frame('gallery',4,[a,b],parent=back),frame('second',5,parent=back),
+            frame('home',6,[e]),frame('gallery',7,[a,b],parent=back),frame('home',8)])
+    result=DynamicEventExplorer().run(p)
+    assert result.result=='SUCCESS'
+    assert [c[2] for c in p.calls if c[1]=='child']==['one','two']
+    assert len(result.recoveries)==2
+    assert all(r['reason']=='QUALIFIED_CHILD_RETURN_HOME' for r in result.recoveries)
+    assert result.events['event']['result']=='EXHAUSTED'
+
+
+def test_blocked_root_is_retired_only_on_fresh_safe_home_then_sibling_runs():
+    a,b=control('bad','event'),control('good','event')
+    scroll=control('scroll','scroll')
+    back=control('back','parent')
+    p=Port([frame('home',0,[a,b]),frame('bad-page',1,[scroll]),
+            frame('home',2,[a,b]),frame('bad-page',3,[scroll]),frame('home',4,[a,b]),
+            frame('home',5,[a,b]),frame('good-page',6,parent=back),frame('home',7,[a,b])])
+    result=DynamicEventExplorer().run(p)
+    assert result.events['bad']['result']=='BLOCKED'
+    assert result.events['good']['result']=='EXHAUSTED'
+    assert sum(c[1]=='event' and c[2]=='bad' for c in p.calls)==2
+    assert sum(c[1]=='event' and c[2]=='good' for c in p.calls)==1
+    assert not result.rewards

@@ -531,3 +531,36 @@ scoped flows and owned cleanup; no global input, timeout increase, spending or
 config/name writes. New9 PNGs are re-encoded game UI only (IHDR/IDAT/IEND), with
 no credentials or unrelated files. Fresh full CI and latest Desktop artifact
 required before scoped continuation. Phase8 PARTIAL; no Phase9.
+
+
+## Phase 8 — current gallery and task-grid continuation repair (2026-10-05)
+
+Accepted baseline 6737f3e, CI37280100567: lint/full pytest1427 passed+26
+skipped/Windows portable/smoke/upload PASS. Latest659 Desktop files verified.
+Real scoped run20261005-085132-406303Z-8ffc824c attempted9/9; Momo COMPLETE,
+eight PARTIAL. No new claim dispatched, all220 prior journals unchanged,
+Protected untouched, selections restored. HiHi was already running and preserved;
+index3 lacks independent indexed ADB/boot evidence, config stays read-only.
+
+New offline repair uses run-local strict gallery-core matching across compression
+and scroll, bounded re-entry after qualified child Back returns directly Home,
+and retires only an unresolved root on proven fresh Home. Existing traversal and
+claim limits remain. Competitive0/N paired battle/selected-tab counters are
+BACK_ONLY out-of-scope indicators: no fight, gift or resource input.
+
+The functional race task modal uses separate tasks/race/close anchors and current
+complete card geometry; only a clear lane outside controls can scroll. A green
+free action requires independently agreeing caption, complete fraction, full
+progress bar and no price/resource signature. Partial cards never expose claims;
+unreadable complete green controls remain blocked rather than exhausted. Blue
+Go is never input. Race and personal categories require distinct positive proof;
+cosmetic changes cannot reopen prior claims. Grid post-condition requires an owned
+receipt AND two fresh same-card unavailable observations; popup alone fails.
+
+209 targeted tests PASS;30 focused final-review tests PASS (overlap, not additive).
+Ruff and diff-check PASS. Eleven new re-encoded game-only PNGs visually inspected,
+IHDR/IDAT/IEND only; no credential or private-file content. Self-review confirms
+current-frame input, strict ambiguity rejection, bounded retries, immutable prior
+VERIFIED/POSSIBLE and no config/name changes. Fresh CI/artifact required before
+real continuation. These offline tests are not real claim acceptance. Phase8
+remains PARTIAL; Phase9 not started.

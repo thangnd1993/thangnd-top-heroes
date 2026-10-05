@@ -30,12 +30,14 @@ from top_heroes_auto.vision.dynamic_events import (
     event_shell,
     icon_core_image,
     matching_icon_cores,
+    menu_art_image,
     menu_card_boxes,
-    menu_view_key,
     side_task_navigation,
     task_context_box,
     task_reward_rows,
 )
+from top_heroes_auto.vision.event_competitive import competitive_indicator_contract
+from top_heroes_auto.vision.event_task_grid import task_grid_rows, task_grid_shell, unresolved_grid_actions
 from top_heroes_auto.vision.guild_mail import portrait
 from top_heroes_auto.vision.local_ocr import read_words
 from top_heroes_auto.vision.models import BoundingBox, ScreenState
@@ -52,6 +54,7 @@ class DynamicEventPort:
         self.overlay_budget = OverlayBudget()
         self.rows = ()
         self.home_icon_cores = {}
+        self.menu_icon_cores = {}
         self.event_title = None
         self.unavailable_observations = {}
         self.pending_claim_ids = {r['id'] for r in session.manager.store.reward_claims(
@@ -73,6 +76,7 @@ class DynamicEventPort:
         shell = None
         contract = None
         ignored_signals = []
+        competitive_evidence=None
         coverage_known = False
         self.rows = ()
         # The Home detector and current Shop anchor jointly qualify the sidebar.
@@ -115,18 +119,24 @@ class DynamicEventPort:
             shell = event_shell(image,observed.box('back'),reader=read_words)
             if shell is None:
                 shell=competitive_navigation_shell(image,observed.box('back'))
+            if shell is None:
+                shell=task_grid_shell(image)
             if shell:
                 page = shell['page']
                 self.event_title = shell['title']
-                self.rows = (() if shell.get('permission')=='BACK_ONLY' else
-                             task_reward_rows(image,self.task_context,reader=read_words))
-                context=(None if shell.get('permission')=='BACK_ONLY' else
+                grid=shell.get('permission')=='TASK_GRID'
+                self.rows = (task_grid_rows(image,shell,reader=read_words) if grid else
+                             (() if shell.get('permission')=='BACK_ONLY' else
+                              task_reward_rows(image,self.task_context,reader=read_words)))
+                context=(None if grid or shell.get('permission')=='BACK_ONLY' else
                          task_context_box(image,self.task_context))
-                if context is not None:
-                    page = 'event:'+shell['title']+':personal-tasks'
+                if context is not None or grid:
+                    if not grid:
+                        page = 'event:'+shell['title']+':personal-tasks'
                     self.rows = bind_saved_rewards(image, self.rows,
                         self.session.manager.store.reward_claims(self.session.manager.namespace, self.session.index),
-                        persistent_identity=self.session.target['persistent_identity'], index=self.session.index)
+                        persistent_identity=self.session.target['persistent_identity'], index=self.session.index,
+                        family='race-task-grid' if grid else 'personal-tasks')
                     if any(r['state'] == 'UNKNOWN' for r in self.rows):
                         blocked.append('UNRESOLVED_SAVED_REWARD_IDENTITY')
                     for row in self.rows:
@@ -152,7 +162,12 @@ class DynamicEventPort:
                             ) if q.width>0 and q.height>0)
                             controls.append(Control(row['identity'],row['box'],row['evidence'],
                                 'reward',cost='FREE',available=True,forbidden=forbidden))
-                    if len(self.rows)>=2:
+                    if grid:
+                        if unresolved_grid_actions(image,shell,self.rows):
+                            blocked.append('UNQUALIFIED_TASK_GRID_ACTION')
+                        controls.append(Control('task-grid-vertical',shell['scroll'],
+                            ('functional-tasks-word','qualified-task-grid','outside-task-actions'),'scroll'))
+                    elif len(self.rows)>=2:
                         first,last=self.rows[0]['row'],self.rows[-1]['row']
                         # Gesture stays wholly within CURRENT complete reward cards,
                         # left of their action column and above the paid refresh bar.
@@ -160,16 +175,37 @@ class DynamicEventPort:
                             round(first.width*.40),last.y+last.height-first.y-40)
                         controls.append(Control('task-list-vertical',surface,
                             ('selected-task-context','complete-card-list','outside-action-column'),'scroll'))
-                contract=('UNSUPPORTED' if shell.get('permission')=='BACK_ONLY' else
-                          event_body_contract(image,self.rows,self.task_context,reader=read_words))
+                if shell.get('permission')=='BACK_ONLY':
+                    competitive_evidence=competitive_indicator_contract(image,shell,reader=read_words)
+                contract=('TASK_GRID' if grid else (
+                    'COMPETITIVE_OUT_OF_SCOPE_INDICATORS' if competitive_evidence else
+                    ('UNSUPPORTED' if shell.get('permission')=='BACK_ONLY' else
+                     event_body_contract(image,self.rows,self.task_context,reader=read_words))))
                 coverage_known=contract!='UNSUPPORTED'
                 if contract=='REPUTATION_INFORMATION':
                     nav=side_task_navigation(image)
                     if nav:
                         controls.append(Control('functional-side-tasks',nav['box'],nav['evidence'],'child'))
                 if contract=='MENU_GRID':
+                    known=self.menu_icon_cores.setdefault((self.entered,page),{})
+                    menu_keys={}
+                    for card in menu_card_boxes(image):
+                        core=menu_art_image(image,card)
+                        matches=matching_icon_cores(core,known)
+                        if len(matches)>1:
+                            blocked.append('AMBIGUOUS_MENU_CORE')
+                            continue
+                        from top_heroes_auto.vision.dynamic_events import menu_art_key
+
+                        key=matches[0] if matches else menu_art_key(image,card)
+                        known.setdefault(key,core)
+                        menu_keys[card]=key
                     for tile in discover_menu_tiles(image):
-                        controls.append(Control(tile.fingerprint,tile.icon_box,
+                        key=menu_keys.get(tile.icon_box)
+                        if key is None:
+                            blocked.append('AMBIGUOUS_MENU_CORE')
+                            continue
+                        controls.append(Control(key,tile.icon_box,
                             ('event-shell','closed-menu-grid','unique-corner-notification'),'child'))
                     cards=menu_card_boxes(image)
                     first=min(cards,key=lambda b:b.y)
@@ -179,8 +215,9 @@ class DynamicEventPort:
                     controls.append(Control('menu-list-vertical',surface,
                         ('event-shell','qualified-menu-grid','current-card-list'),'scroll'))
                 parent = Control('current-back',shell['back'],
-                    ('functional-competition-chrome','paired-glyph-anchors','back-anchor')
-                    if shell.get('permission')=='BACK_ONLY' else ('gold-header','stable-title','back-anchor'),'parent')
+                    ('functional-tasks-word','qualified-grid','current-modal-close') if grid else
+                    (('functional-competition-chrome','paired-glyph-anchors','back-anchor')
+                    if shell.get('permission')=='BACK_ONLY' else ('gold-header','stable-title','back-anchor')),'parent')
                 for tab in shell['tabs']:
                     controls.append(Control(tab.fingerprint,tab.icon_box,
                         ('event-shell','tab-strip','unique-outlined-icon','rimmed-notification'),'tab'))
@@ -192,7 +229,8 @@ class DynamicEventPort:
 
         fingerprint = hashlib.sha256(cv2.resize(image,(90,160)).tobytes()).hexdigest()
         if contract=='MENU_GRID':
-            fingerprint=menu_view_key(image)
+            fingerprint=hashlib.sha256(repr(sorted((b.x,b.y,b.width,b.height,key)
+                for b,key in menu_keys.items())).encode()).hexdigest()
         if self.rows:
             # Clocks/background animation cannot pretend the list made progress.
             fingerprint=hashlib.sha256(json.dumps([(r['identity'],r['state'],r['row'].y)
@@ -207,7 +245,7 @@ class DynamicEventPort:
         payload = dict(frame=asdict(self.current), badges=[item.evidence() for item in candidates],
                        observed=observed.evidence(), entered_event=self.entered,
                        shell=dict(title=shell['title'],selected=shell['selected']) if shell else None,
-                       body_contract=contract,known_transition=transition,ignored_contained_signals=ignored_signals,
+                       body_contract=contract,competitive_evidence=competitive_evidence,known_transition=transition,ignored_contained_signals=ignored_signals,
                        reward_rows=[{**r,'row':asdict(r['row']),'box':asdict(r['box'])} for r in self.rows])
         c.source_image.with_suffix('.event.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding='utf-8')
         overlay = image.copy()
@@ -231,7 +269,7 @@ class DynamicEventPort:
         if control.kind=='scroll':
             if (not frame.page.startswith('event:') or not frame.coverage_known or frame.popup
                     or control not in frame.controls or not (frame.page.endswith(':personal-tasks')
-                    or 'qualified-menu-grid' in control.evidence)):
+                    or 'qualified-menu-grid' in control.evidence or 'qualified-task-grid' in control.evidence)):
                 raise SafetyError('No qualified current Event scroll surface.')
             self.current=None
             fresh=self.observe()
@@ -358,6 +396,8 @@ class DynamicEventPort:
                 if same and same[0]['state']=='AVAILABLE':
                     return []
                 continue
+            if 'qualified-task-grid' in target.evidence and not receipt:
+                continue  # Grid qualification additionally requires the owned receipt.
             observations.append(dict(identity=list(after.identity),capture=after.capture,
                 event=title,page=after.page,reward=target.identity,state='NOT_AVAILABLE',
                 independent_evidence=['same-reward-card','claim-control-replaced-by-unavailable-state']))
