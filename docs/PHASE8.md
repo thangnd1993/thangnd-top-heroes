@@ -494,3 +494,40 @@ no unbounded wait, no paid/control authorization from information contracts.
 New15 PNGs contain game UI only, re-encoded without external metadata. Require
 fresh CI/Desktop artifact before another scoped continuation. Phase8 remains
 PARTIAL; no Phase9.
+
+
+## Oct05 current-frame gallery/ribbon/rank continuation
+
+2d6e922 / CI37269881368 passed all gates (1415 passed,26 skipped), artifact
+11328833458 delivered656 byte-verified Desktop files /383 runtime assets.
+Scoped resume20261005-064615-209801Z-9cfefa0e completed9/9, max1, Events only,
+PARTIAL. Zero new claims and all220 baseline journals unchanged; original217
+and VERIFIED234/235/236 retained. Names/Protection/selections restored, kernel
+lease released. Protected states unchanged.3 lacks independent ADB/boot proof;
+10 returned malformed indexed serial after empty startup probes, with no saved
+raw output to infer why. Both fail closed;10 remains running OWNERSHIP_UNKNOWN,
+never stop it by historical restoration. Others stopped; Soup recovered Home.
+
+Header OCR uses two legitimate glyph raster styles; each needs two agreeing
+renders. Conflicting positive titles fail closed; no seasonal title list or
+journal-key migration. Two current closed-card timers may qualify gallery
+navigation through independently agreeing isolated glyph readings when full-body
+OCR misses text; free/paid words and extra actions still reject coverage. Neither
+gallery nor timer recognition grants reward permission.
+
+A forked red ribbon requires concave tail geometry and current owner evidence;
+unbadged owners additionally require exact paint core >=.995 and deep interior
+placement. Strong/partial circles, missing owners and changed cores stay unknown.
+Notification threshold unchanged. Paired dimmed functional labels and one bright
+rank-word glyph qualify COMPETITIVE_RANK_TRANSITION / WAIT_ONLY. Two animation
+sizes are visual variants, not account routes. Existing three capture-only
+retries remain bounded; no Back/dismiss/challenge/reward input while visible.
+Competitive reward semantics remain unsupported pending independent current proof.
+
+190 targeted event/effect/journal/ownership tests PASS; affected Ruff/diff-check
+PASS. Initial temp permission errors resolved with fresh workspace-local temp.
+Self-review retains one-shot claims, VERIFIED/POSSIBLE locks, explicit transport,
+scoped flows and owned cleanup; no global input, timeout increase, spending or
+config/name writes. New9 PNGs are re-encoded game UI only (IHDR/IDAT/IEND), with
+no credentials or unrelated files. Fresh full CI and latest Desktop artifact
+required before scoped continuation. Phase8 PARTIAL; no Phase9.

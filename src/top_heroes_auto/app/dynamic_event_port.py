@@ -20,7 +20,9 @@ from top_heroes_auto.automation.overlays import (
 from top_heroes_auto.vision.dynamic_events import (
     blank_event_render,
     competitive_navigation_shell,
+    competitive_rank_transition,
     contained_signal_on_known_icon,
+    decorative_ribbon_on_icon,
     decorative_signal_on_new_icon,
     discover_events,
     discover_menu_tiles,
@@ -93,8 +95,10 @@ class DynamicEventPort:
                         self.home_icon_cores.setdefault(key,core)
                         controls.append(Control(key, candidate.icon_box,
                                                 ('GAME_HOME', 'current-shop-sidebar', 'rimmed-notification', 'unique-outlined-icon'), 'event'))
-                    elif contained_signal_on_known_icon(candidate,candidates):
+                    elif contained_signal_on_known_icon(candidate,candidates,image=image):
                         ignored_signals.append(candidate.evidence())
+                    elif (ribbon := decorative_ribbon_on_icon(image,candidate)):
+                        ignored_signals.append(ribbon)
                     elif (decorative := decorative_signal_on_new_icon(image,
                               BoundingBox(left,top,w-left,bottom-top),candidate)):
                         ignored_signals.append(decorative)
@@ -195,14 +199,15 @@ class DynamicEventPort:
                 for r in self.rows]).encode()).hexdigest()
         popup = (observed.overlay.state in DISMISSIBLE and
                  (self.entered is None or observed.overlay.state != ScreenState.HOME_OVERLAY))
+        transition=(competitive_rank_transition(image) if self.entered and page=='UNKNOWN' and not popup else None)
         self.current = EventFrame(str(c.source_image),identity,page,fingerprint,tuple(controls),
                                   coverage_known=coverage_known, parent=parent, popup=popup, blocked=tuple(blocked),
                                   render_pending=bool(self.entered and page=='UNKNOWN' and
-                                                      not popup and blank_event_render(image)))
+                                                      not popup and (blank_event_render(image) or transition is not None)))
         payload = dict(frame=asdict(self.current), badges=[item.evidence() for item in candidates],
                        observed=observed.evidence(), entered_event=self.entered,
                        shell=dict(title=shell['title'],selected=shell['selected']) if shell else None,
-                       body_contract=contract,ignored_contained_signals=ignored_signals,
+                       body_contract=contract,known_transition=transition,ignored_contained_signals=ignored_signals,
                        reward_rows=[{**r,'row':asdict(r['row']),'box':asdict(r['box'])} for r in self.rows])
         c.source_image.with_suffix('.event.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding='utf-8')
         overlay = image.copy()

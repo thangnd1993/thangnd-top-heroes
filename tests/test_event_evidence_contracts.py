@@ -250,6 +250,8 @@ def test_current_antialiased_header_and_calendar_with_independent_real_ocr():
     shell=event_shell(im,BoundingBox(34,1209,52,47),reader=read_words)
     assert shell and shell['page'].startswith('event:')
     assert not shell['tabs']  # Navigation shell creates no reward permission.
+    gallery=image('event-current-gallery')
+    assert event_shell(gallery,BoundingBox(34,1209,52,47),reader=read_words)
     im=image('event-current-calendar')
     template=cv2.imread('assets/tasks/phase8/personal-task-tab.png')
     assert event_body_contract(im,[],template,reader=read_words)=='SCHEDULE'
@@ -366,3 +368,86 @@ def test_generic_known_receipt_never_gets_home_back_fallback(monkeypatch):
     p.current=SimpleNamespace(popup=False)
     with pytest.raises(SafetyError):
         p.dismiss(p.current)
+
+
+def test_real_interior_ribbon_requires_unique_current_owner_and_forked_shape():
+    from top_heroes_auto.vision.dynamic_events import interior_ribbon_shape
+
+    im=image('home-current-owned-ribbon')
+    candidates=discover_events(im,BoundingBox(490,70,230,442))
+    ribbons=[c for c in candidates if interior_ribbon_shape(im,c)]
+    assert len(ribbons)==1
+    ribbon=ribbons[0]
+    owner=[c for c in candidates if c.qualified and c.icon_box==ribbon.icon_box]
+    assert len(owner)==1 and .2<=ribbon.rim_confidence<.3
+    assert contained_signal_on_known_icon(ribbon,candidates,image=im)
+    assert not contained_signal_on_known_icon(ribbon,(),image=im)
+    assert not contained_signal_on_known_icon(ribbon,(*candidates,owner[0]),image=im)
+    assert not contained_signal_on_known_icon(replace(ribbon,rim_confidence=.4),candidates,image=im)
+    assert not contained_signal_on_known_icon(replace(ribbon,qualified=True),candidates,image=im)
+    assert not contained_signal_on_known_icon(owner[0],candidates,image=im)
+    damaged=im.copy()
+    b=ribbon.box
+    damaged[b.y:b.y+b.height,b.x:b.x+b.width]=40
+    assert not contained_signal_on_known_icon(ribbon,candidates,image=damaged)
+
+
+@pytest.mark.parametrize('variant',['large','small'])
+def test_rank_announcement_is_strict_paired_capture_only_transition(variant):
+    from top_heroes_auto.vision.dynamic_events import competitive_rank_transition
+
+    im=image('competitive-rank-transition-'+variant)
+    found=competitive_rank_transition(im)
+    assert found and found['permission']=='WAIT_ONLY'
+    assert found['state']=='COMPETITIVE_RANK_TRANSITION'
+    assert found['confidence']==min(found['anchor_confidences'].values())>=.98
+    assert set(found['anchors'])=={'rank-word','personal-record','challenge'}
+    for role in found['anchors']:
+        damaged=im.copy()
+        b=found['anchors'][role]
+        damaged[b['y']:b['y']+b['height'],b['x']:b['x']+b['width']]=40
+        assert competitive_rank_transition(damaged) is None
+    b=found['anchors']['rank-word']
+    duplicate=im.copy()
+    duplicate[400:400+b['height'],b['x']:b['x']+b['width']]=im[b['y']:b['y']+b['height'],b['x']:b['x']+b['width']]
+    assert competitive_rank_transition(duplicate) is None
+
+
+@pytest.mark.parametrize('name',['competitive-event','event-current-gallery','home-current-owned-ribbon','event-current-calendar'])
+def test_unrelated_body_cannot_gain_rank_wait_permission(name):
+    from top_heroes_auto.vision.dynamic_events import competitive_rank_transition
+
+    assert competitive_rank_transition(image(name)) is None
+
+
+def test_real_unbadged_ribbon_does_not_hide_missing_or_weak_notification():
+    from top_heroes_auto.vision.dynamic_events import decorative_ribbon_on_icon
+
+    im=image('home-current-new-icons')
+    candidates=discover_events(im,REGION)
+    ribbon=[c for c in candidates if decorative_ribbon_on_icon(im,c)]
+    assert len(ribbon)==1
+    c=ribbon[0]
+    assert not c.qualified
+    assert not decorative_ribbon_on_icon(im,replace(c,icon_box=None))
+    assert not decorative_ribbon_on_icon(im,replace(c,rim_confidence=.4))
+    assert not decorative_ribbon_on_icon(im,replace(c,qualified=True))
+    damaged=im.copy()
+    b=c.box
+    damaged[b.y:b.y+b.height,b.x:b.x+b.width]=40
+    assert not decorative_ribbon_on_icon(damaged,c)
+
+
+@pytest.mark.skipif(__import__('sys').platform!='win32',reason='Windows local OCR evidence')
+def test_current_gallery_timer_ocr_is_independent_of_full_body_artwork():
+    from top_heroes_auto.vision.dynamic_events import gallery_timer_evidence, menu_card_boxes
+    from top_heroes_auto.vision.local_ocr import read_words
+
+    im=image('event-current-gallery-timer')
+    cards=menu_card_boxes(im)
+    assert gallery_timer_evidence(im,cards,reader=read_words)
+    template=cv2.imread('assets/tasks/phase8/personal-task-tab.png')
+    assert event_body_contract(im,[],template,reader=read_words)=='MENU_GRID'
+    assert not gallery_timer_evidence(im,cards,reader=lambda _: [{'text':'Unrelated text'}])
+    readings=__import__('itertools').cycle([{'text':'27Ngay'},{'text':'28Ngay'}])
+    assert not gallery_timer_evidence(im,cards,reader=lambda _: [next(readings)])

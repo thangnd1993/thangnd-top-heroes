@@ -200,18 +200,26 @@ def event_shell(image, back, *, reader):
     # light glyph interiors from gold artwork before OCR. This is only a
     # run-local navigation identity, never a semantic reward/journal key.
     header=image[:round(h*.07),round(w*.08):round(w*.92)]
-    glyphs=cv2.inRange(cv2.cvtColor(header,cv2.COLOR_BGR2HSV),(0,0,180),(179,110,255))
-    header=cv2.copyMakeBorder(cv2.cvtColor(255-glyphs,cv2.COLOR_GRAY2BGR),
-                             5,5,5,5,cv2.BORDER_CONSTANT,value=(255,255,255))
-    titles=[]
-    for scale in (1,2):
-        words=reader(cv2.resize(header,None,fx=scale,fy=scale,interpolation=cv2.INTER_CUBIC))
-        title=folded(' '.join(word['text'] for word in words))
-        if len(title)<3 or not any(c.isalpha() for c in title):
-            return None
-        titles.append(title)
-    if titles[0]!=titles[1]:
+    # Two qualified glyph styles preserve both clean and antialiased fonts.
+    # Each style needs two agreeing renders; competing positive titles fail
+    # closed. A failed rendering is not repaired or guessed into another word.
+    titles=set()
+    for value,saturation,padding in ((205,90,20),(180,110,5)):
+        glyphs=cv2.inRange(cv2.cvtColor(header,cv2.COLOR_BGR2HSV),
+                          (0,0,value),(179,saturation,255))
+        rendered=cv2.copyMakeBorder(cv2.cvtColor(255-glyphs,cv2.COLOR_GRAY2BGR),
+            padding,padding,padding,padding,cv2.BORDER_CONSTANT,value=(255,255,255))
+        readings=[]
+        for scale in (1,2):
+            words=reader(cv2.resize(rendered,None,fx=scale,fy=scale,interpolation=cv2.INTER_CUBIC))
+            title=folded(' '.join(word['text'] for word in words))
+            readings.append(title)
+        if (readings[0]==readings[1] and len(readings[0])>=3
+                and any(c.isalpha() for c in readings[0])):
+            titles.add(readings[0])
+    if len(titles)!=1:
         return None
+    title=next(iter(titles))
     # Current highlighted tab supplies a local page identity, never reward/reset identity.
     bottom=round(h*.91)
     bar=cv2.inRange(hsv,(10,100,220),(38,255,255))[bottom:]
@@ -238,7 +246,7 @@ def event_shell(image, back, *, reader):
         if any(b.x <= box.center[0] <= b.x+b.width for b in selected):
             continue  # Never re-tap the currently selected tab's badge.
         tabs.append(candidate)
-    return dict(title=titles[0],page='event:'+titles[0]+':'+signature,
+    return dict(title=title,page='event:'+title+':'+signature,
                 selected=[asdict(b) for b in selected],tabs=sorted(tabs,key=lambda c:c.icon_box.x),back=back)
 
 
@@ -488,15 +496,46 @@ def matching_icon_cores(core,known):
                  and float(cv2.matchTemplate(core,reference,cv2.TM_CCOEFF_NORMED)[0,0])>=.995)
 
 
-def contained_signal_on_known_icon(candidate,candidates):
+def contained_signal_on_known_icon(candidate,candidates,*,image=None):
     """An interior weak red patch adds no separate edge to its known owner."""
     box=candidate.icon_box
-    if candidate.qualified or box is None or candidate.rim_confidence>=.2:
+    if candidate.qualified or box is None:
+        return False
+    if candidate.rim_confidence>=.2 and not interior_ribbon_shape(image,candidate):
         return False
     b=candidate.box
     return (box.x<=b.x and b.x+b.width<=box.x+box.width*.8
             and box.y+box.height*.15<=b.y and b.y+b.height<=box.y+box.height
-            and any(c.qualified and c.icon_box==box for c in candidates))
+            and sum(c.qualified and c.icon_box==box for c in candidates)==1)
+
+
+def interior_ribbon_shape(image,candidate):
+    """Positive forked ribbon tail; partial/near-qualified circles stay unknown."""
+    if image is None or candidate.rim_confidence>=.3:
+        return False
+    b=candidate.box
+    crop=image[b.y:b.y+b.height,b.x:b.x+b.width]
+    if crop.shape[:2]!=(b.height,b.width):
+        return False
+    hsv=cv2.cvtColor(crop,cv2.COLOR_BGR2HSV)
+    red=cv2.inRange(hsv,(0,130,160),(9,255,255)) | cv2.inRange(hsv,(170,130,160),(179,255,255))
+    contours,_=cv2.findContours(red,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    if len(contours)!=1:
+        return False
+    c=contours[0]
+    polygon=cv2.approxPolyDP(c,cv2.arcLength(c,True)*.04,True).reshape(-1,2)
+    if len(polygon)!=6 or cv2.isContourConvex(polygon):
+        return False
+    for i,(x,y) in enumerate(polygon):
+        left,right=polygon[(i-1)%6],polygon[(i+1)%6]
+        if left[0]>right[0]:
+            left,right=right,left
+        if (b.width*.25<x<b.width*.75 and y>b.height*.6
+                and min(left[1],right[1])-y>=b.height*.15
+                and abs(left[1]-right[1])<b.height*.15
+                and left[0]<b.width*.25 and right[0]>b.width*.75):
+            return True
+    return False
 
 
 def task_card_boxes(image,template):
@@ -554,7 +593,8 @@ def event_body_contract(image,rows,template,*,reader):
     import re
 
     if len(gallery)>=3 and not any(any(overlap_boxes(b,c) for c in gallery) for b in buttons):
-        if (all(len(re.findall(r'\d+\s*(?:ngay|days?)',t))>=2 for t in texts)
+        if ((all(len(re.findall(r'\d+\s*(?:ngay|days?)',t))>=2 for t in texts)
+                or gallery_timer_evidence(image,gallery,reader=reader))
                 and not any(re.search(r'\b(?:vnd|nhan|mien phi|mua ngay|purchase|buy|kich hoat)\b',t)
                             for t in texts)):
             return 'MENU_GRID'
@@ -602,6 +642,45 @@ def event_body_contract(image,rows,template,*,reader):
             return 'SCHEDULE'
     return 'UNSUPPORTED'
 
+
+
+def gallery_timer_evidence(image,cards,*,reader):
+    """Paired timer readings inside current closed cards, independent of artwork."""
+    import re
+
+    timers=0
+    for b in cards:
+        crop=image[b.y+round(b.height*.70):b.y+round(b.height*.86),b.x:b.x+b.width]
+        mask=cv2.inRange(cv2.cvtColor(crop,cv2.COLOR_BGR2HSV),(0,0,180),(179,100,255))
+        rendered=cv2.copyMakeBorder(cv2.cvtColor(255-mask,cv2.COLOR_GRAY2BGR),
+            10,10,10,10,cv2.BORDER_CONSTANT,value=(255,255,255))
+        readings=[re.findall(r'(\d+)\s*(?:ngay|days?)',folded(' '.join(q['text']
+            for q in reader(cv2.resize(rendered,None,fx=scale,fy=scale))))) for scale in (1,2)]
+        if len(readings[0])==1 and readings[0]==readings[1]:
+            timers+=1
+    return timers>=2
+
+
+def decorative_ribbon_on_icon(image,candidate):
+    """Exact forked paint core plus current unique outline; never exposes a control."""
+    from top_heroes_auto.vision.resources import template_folder
+
+    box=candidate.icon_box
+    if box is None or candidate.qualified or not interior_ribbon_shape(image,candidate):
+        return None
+    b=candidate.box
+    if not (box.x+box.width*.15<=b.x and b.x+b.width<=box.x+box.width*.80
+            and box.y+box.height*.20<=b.y and b.y+b.height<=box.y+box.height*.80):
+        return None
+    template=cv2.imread(str(template_folder().parent/'tasks/phase8/decorative-ribbon-core.png'))
+    crop=image[b.y:b.y+b.height,b.x:b.x+b.width]
+    if template is None or crop.shape!=template.shape:
+        return None
+    score=float(cv2.matchTemplate(crop,template,cv2.TM_CCOEFF_NORMED)[0,0])
+    if not np.isfinite(score) or score<.995:
+        return None
+    return dict(reason='DECORATIVE_FORKED_RIBBON',owner=asdict(box),
+                core_confidence=score,badge=candidate.evidence())
 
 def guild_reminder_information(image):
     """Qualified Guild-boss reminder, excluded by the Phase8-only scope.
@@ -806,3 +885,71 @@ def competitive_navigation_shell(image, back):
     return dict(title='competitive-structure',page='event:competitive:unqualified-rewards',
                 selected=[],tabs=[],back=back,permission='BACK_ONLY',
                 functional_anchors={k:asdict(v) for k,v in boxes.items()})
+
+
+def competitive_rank_transition(image):
+    """Bright rank word above dimmed functional chrome qualifies capture-only wait.
+
+    The reusable word is not an Event title or reward identity. No announcement,
+    challenge, gift, Back or dismissal input is authorized by this detector.
+    """
+    from top_heroes_auto.vision.resources import template_folder
+
+    h,w=image.shape[:2]
+    view=cv2.resize(image,(720,1280))
+    gray=cv2.cvtColor(view,cv2.COLOR_BGR2GRAY)
+    anchors={}
+    confidences={}
+    folder=template_folder().parent/'tasks/phase8/competitive-navigation'
+    for role in ('personal-record','challenge'):
+        template=cv2.imread(str(folder/f'{role}.png'))
+        if template is None:
+            return None
+        th,tw=template.shape[:2]
+        scores=cv2.matchTemplate(gray,cv2.cvtColor(template,cv2.COLOR_BGR2GRAY),cv2.TM_CCOEFF_NORMED)
+        _,score,_,(x,y)=cv2.minMaxLoc(scores)
+        if not np.isfinite(score) or score<.98:
+            return None
+        scores[max(0,y-th//2):y+th//2+1,max(0,x-tw//2):x+tw//2+1]=-1
+        if scores.max()>=.98:
+            return None
+        anchors[role]=BoundingBox(x,y,tw,th)
+        confidences[role]=float(score)
+    record,challenge=(anchors[k] for k in ('personal-record','challenge'))
+    if (not 1280*.08<record.y<1280*.25 or record.x+record.width>720*.6
+            or not 1280*.75<challenge.y<1280*.9):
+        return None
+
+    def glyph(a):
+        return cv2.inRange(cv2.cvtColor(a,cv2.COLOR_BGR2HSV),(10,50,185),(40,255,255))
+
+    mask=glyph(view)
+    matches=[]
+    for variant in ('large','small'):
+        template=cv2.imread(str(folder/f'rank-word-{variant}.png'))
+        if template is None:
+            return None
+        th,tw=template.shape[:2]
+        scores=cv2.matchTemplate(mask,glyph(template),cv2.TM_CCOEFF_NORMED)
+        _,score,_,(x,y)=cv2.minMaxLoc(scores)
+        if not np.isfinite(score) or score<.98:
+            continue
+        scores[max(0,y-th//2):y+th//2+1,max(0,x-tw//2):x+tw//2+1]=-1
+        if scores.max()>=.98:
+            return None
+        if not 720*.15<x<x+tw<720*.85 or not 1280*.3<y<y+th<1280*.75:
+            return None
+        matches.append((score,BoundingBox(x,y,tw,th)))
+    if not matches or any(abs(a[1].center[0]-b[1].center[0])>5 or
+                          abs(a[1].center[1]-b[1].center[1])>5 for a in matches for b in matches):
+        return None
+    score,word=max(matches,key=lambda m:m[0])
+    # Foreground/underlying contrast separates this announcement from normal UI.
+    if np.mean(gray[record.y:record.y+record.height,record.x:record.x+record.width])>=140:
+        return None
+    anchors['rank-word']=word
+    confidences['rank-word']=float(score)
+    return dict(state='COMPETITIVE_RANK_TRANSITION',permission='WAIT_ONLY',
+                confidence=min(confidences.values()),anchor_confidences=confidences,
+                anchors={k:asdict(BoundingBox(round(b.x*w/720),round(b.y*h/1280),
+                        round(b.width*w/720),round(b.height*h/1280))) for k,b in anchors.items()})

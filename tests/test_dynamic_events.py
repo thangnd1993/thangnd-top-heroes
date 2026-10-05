@@ -291,7 +291,7 @@ def test_shared_shell_needs_no_predeclared_event_name():
 def test_unreadable_or_conflicting_header_is_unknown():
     from top_heroes_auto.vision.dynamic_events import event_shell
     image=cv2.imread('tests/fixtures/phase8/event-shell.png')
-    words=iter([[{'text':'Event'}],[{'text':'Different'}]])
+    words=__import__('itertools').cycle([[{'text':'Event'}],[{'text':'Different'}]])
     assert event_shell(image,BoundingBox(34,1209,52,47),reader=lambda _: next(words)) is None
     assert event_shell(image,BoundingBox(34,1209,52,47),reader=lambda _: []) is None
     assert event_shell(image,None,reader=lambda _: [{'text':'Event'}]) is None
@@ -336,7 +336,7 @@ def test_long_gold_title_uses_complete_isolated_glyphs():
 
     shell=event_shell(image,BoundingBox(34,1209,52,47),reader=reader)
     assert shell and shell['title']=='trin chien chqng v?ng'
-    assert len(crops)==2 and crops[1].shape[1]==2*crops[0].shape[1]
+    assert len(crops)==4 and crops[1].shape[1]==2*crops[0].shape[1]
     assert crops[0].shape[1] > image.shape[1]*.84
     assert set(np.unique(crops[0])) <= {0,255}
     assert np.all(crops[0][:5]==255)
@@ -347,7 +347,7 @@ def test_long_gold_title_uses_complete_isolated_glyphs():
 def test_long_header_still_rejects_inconsistent_readings():
     from top_heroes_auto.vision.dynamic_events import event_shell
     image=cv2.imread('tests/fixtures/phase8/event-long-header.png')
-    readings=iter([[{'text':'Long title'}],[{'text':'Other title'}]])
+    readings=__import__('itertools').cycle([[{'text':'Long title'}],[{'text':'Other title'}]])
     assert event_shell(image,BoundingBox(34,1209,52,47),reader=lambda _:next(readings)) is None
 
 
@@ -584,3 +584,32 @@ def test_swipe_rejects_navigation_and_header_regions(monkeypatch,surface):
     with pytest.raises(SafetyError):
         port.navigate(current,scroll)
     assert not sent
+
+
+def test_competing_positive_header_styles_fail_closed():
+    from top_heroes_auto.vision.dynamic_events import event_shell
+
+    im=cv2.imread('tests/fixtures/phase8/event-current-gallery.png')
+    readings=iter([{'text':text} for text in ('First header','First header','Other header','Other header')])
+    assert event_shell(im,BoundingBox(34,1209,52,47),reader=lambda _:[next(readings)]) is None
+
+
+@pytest.mark.parametrize('persistent',[False,True])
+def test_known_rank_transition_wait_is_bounded_and_never_dismissed(persistent):
+    from top_heroes_auto.vision.dynamic_events import competitive_rank_transition
+
+    im=cv2.imread('tests/fixtures/phase8/competitive-rank-transition-large.png')
+    assert competitive_rank_transition(im)['permission']=='WAIT_ONLY'
+    e,b=control('event','event'),control('back','parent')
+    waiting=[frame('UNKNOWN',n,render_pending=True) for n in range(1,6 if persistent else 3)]
+    frames=[frame('home',0,[e]),*waiting]
+    if not persistent:
+        frames.extend([frame('event',3,parent=b),frame('home',4)])
+    p=Port(frames)
+    result=DynamicEventExplorer().run(p)
+    assert [c[1] for c in p.calls]==(['event'] if persistent else ['event','parent'])
+    if persistent:
+        assert result.blocked[-1]['reason']=='UNKNOWN_SCREEN'
+        assert len(result.observations)==5
+    else:
+        assert result.result=='SUCCESS'
