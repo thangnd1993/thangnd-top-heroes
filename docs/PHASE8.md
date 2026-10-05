@@ -598,3 +598,41 @@ cross-variant test also PASS; Ruff/diff-check PASS. Self-review keeps immutable
 locks and one-shot dispatch, independent post-state proof, current bboxes, bounded
 traversal and no spending/config/Protected input. New code not yet real-accepted;
 fresh CI/portable gate required. Phase8 PARTIAL; no Phase9.
+
+
+## Phase 8 — explicit claimed-card post-condition (2026-10-05)
+
+18dcc1a CI37322406985 fully PASS:1452 passed+26 skipped in3479.23s.
+Artifact11354446139,394 runtime assets,667 Desktop files verified, previous
+665-file build hash-verified then replaced only inside Desktop/app.
+HiHi was observed stopped externally before this continuation; no remediation.
+Scoped run20261005-152134-954086Z-5d16b53a retained HiHi/Momo COMPLETE and processed
+seven unfinished accounts sequentially. All selections restored, Protected and
+names unchanged, mutex RELEASED. Index3 still has no independent explicit ADB
+transport/boot proof; cleanup OWNERSHIP_UNKNOWN, final stopped, config untouched.
+
+Exactly one new free claim: index4, journal237 RESERVED/POSSIBLE, caption objective
+`tich luy tieu 500 kc`, current free bbox(488,668,140,53), portrait tap(558,694).
+The objective describes earlier gameplay; no resource-spending control was tapped.
+After images show the same card explicitly 'Đã Nhận', green control gone and
+header points700→720. No receipt appeared. Existing detector missed the grey
+label and required a receipt, so it correctly retained POSSIBLE rather than
+retrying. All220 pre-run journals remain unchanged. Phase8 still PARTIAL.
+
+Offline repair now qualifies a strict current owned claimed-word glyph in each
+complete card; active green/blue controls or competing glyphs reject it. Paired
+caption/category proof remains required. Runtime verification needs two fresh
+same-card explicit claimed states if no receipt appears; popup alone still fails.
+Saved reconciliation independently re-parses the original FREE control and exact
+tap, requires the same entered root/transport/page/caption, two later distinct
+source timestamps and claimed-state/control-removal proof. It sends no gameplay
+input and can update only the explicitly identified original pending journal.
+
+224 targeted tests PASS;32 final claimed/receipt tests PASS and8 original-owner
+proof tests PASS (overlap). Ruff/diff-check PASS. Two game-only PNGs inspected,
+IHDR/IDAT/IEND only; no credential/private content. Real saved journal237 produced
+two qualified offline observations, without a journal write or tap. Self-review
+retains all old locks, rejects stale/popup/other-root/other-serial/paid/wrong-tap
+evidence, uses no account route, and adds no retry/timeout/lifecycle/config action.
+Fresh CI/portable required before journal237 saved reconciliation or continuation.
+No Phase9.

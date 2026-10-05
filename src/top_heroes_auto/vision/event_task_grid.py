@@ -110,6 +110,14 @@ def task_grid_rows(image,shell,*,reader):
         identity='task-caption:'+caption[0]
         column=BoundingBox(b.x+8,b.y+round(b.height*.80),b.width-16,round(b.height*.20)-3)
         crop=image[column.y:column.y+column.height,column.x:column.x+column.width]
+        # An explicit claimed word has its own positive glyph proof. No active
+        # green/blue control may coexist in this owned action column.
+        claimed=claimed_grid_label(crop,column)
+        if claimed:
+            rows.append(dict(identity=identity,row=b,box=claimed,family='race-task-grid',state='NOT_AVAILABLE',
+                evidence=('qualified-race-task-grid','qualified-task-grid','complete-reward-card',
+                          'independent-task-caption','explicit-claimed-label','original-green-control-absent')))
+            continue
         texts=[folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=s,fy=s)))).strip(" .:'\"") for s in (2,3)]
         if texts[0]!=texts[1] or texts[0] not in {'nhan','mien phi','den','da nhan'}:
             continue
@@ -178,3 +186,21 @@ def unresolved_grid_actions(image, shell, rows):
                 if not any(r['row']==card and _contains(box,r['box']) for r in rows):
                     unresolved.append(box)
     return tuple(unresolved)
+
+
+def claimed_grid_label(crop,column):
+    ref=cv2.imread(str(template_folder().parent/'tasks/phase8/task-grid/claimed-word.png'),cv2.IMREAD_GRAYSCALE)
+    if ref is None or crop.shape[0]<ref.shape[0] or crop.shape[1]<ref.shape[1]:
+        return None
+    hsv=cv2.cvtColor(crop,cv2.COLOR_BGR2HSV)
+    active=cv2.inRange(hsv,(35,60,80),(115,255,255))
+    for contour in cv2.findContours(active,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[0]:
+        _,_,width,height=cv2.boundingRect(contour)
+        if width>crop.shape[1]*.60 and height>crop.shape[0]*.40:
+            return None  # Ignore the preceding progress bar's one-pixel edge, not controls.
+    mask=cv2.inRange(hsv,(0,0,140),(179,115,255))
+    scores=cv2.matchTemplate(mask,ref,cv2.TM_CCOEFF_NORMED)
+    _,score,_,(x,y)=cv2.minMaxLoc(scores)
+    if not np.isfinite(score) or score<.995 or cv2.connectedComponents((scores>=.995).astype(np.uint8))[0]!=2:
+        return None
+    return BoundingBox(column.x+x,column.y+y,ref.shape[1],ref.shape[0])

@@ -228,3 +228,36 @@ def test_competing_old_and_current_glyph_variants_fail_closed():
         h,w=old.shape[:2]
         duplicate[200:200+h,100:100+w]=old
         assert body_label_box(duplicate,role) is None
+
+
+@pytest.mark.skipif(__import__('sys').platform!='win32',reason='Windows local OCR evidence')
+def test_explicit_claimed_word_and_absent_green_control_are_independent_post_state():
+    from top_heroes_auto.vision.local_ocr import read_words
+
+    im=image('task-grid-claimed')
+    rows=task_grid_rows(im,task_grid_shell(im),reader=read_words)
+    assert len(rows)==1 and rows[0]['state']=='NOT_AVAILABLE'
+    assert rows[0]['identity']=='task-caption:tich luy tieu 500 kc'
+    assert {'explicit-claimed-label','original-green-control-absent'}.issubset(rows[0]['evidence'])
+    damaged=im.copy()
+    b=rows[0]['box']
+    damaged[b.y:b.y+b.height,b.x:b.x+b.width]=40
+    assert not any('explicit-claimed-label' in r['evidence'] for r in task_grid_rows(damaged,task_grid_shell(damaged),reader=read_words))
+
+
+def test_claimed_word_cannot_coexist_with_active_button_or_duplicate_label():
+    from top_heroes_auto.vision.event_task_grid import claimed_grid_label
+
+    im=image('task-grid-claimed')
+    card=max(task_grid_shell(im)['cards'],key=lambda b:b.x)
+    col=BoundingBox(card.x+8,card.y+round(card.height*.80),card.width-16,round(card.height*.20)-3)
+    crop=im[col.y:col.y+col.height,col.x:col.x+col.width].copy()
+    assert claimed_grid_label(crop,col)
+    ref=cv2.imread('assets/tasks/phase8/task-grid/claimed-word.png',0)
+    active=np.full_like(crop,(40,170,100))
+    active[17:17+ref.shape[0],38:38+ref.shape[1]][ref>0]=(255,255,255)
+    assert claimed_grid_label(active,col) is None
+    duplicate=np.full_like(crop,40)
+    for y in (4,38):
+        duplicate[y:y+ref.shape[0],38:38+ref.shape[1]]=cv2.cvtColor(ref,cv2.COLOR_GRAY2BGR)
+    assert claimed_grid_label(duplicate,col) is None

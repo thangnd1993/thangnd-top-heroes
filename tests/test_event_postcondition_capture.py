@@ -96,3 +96,12 @@ def test_grid_needs_receipt_and_two_independent_unavailable_frames(monkeypatch,r
     result=port._claim_postcondition(frame('before'),target,'current')
     assert len(result)==(2 if receipt else 0)
     assert dismissals==(['0'] if receipt else [])
+
+
+def test_explicit_grid_claimed_state_requires_two_fresh_frames_without_receipt(monkeypatch):
+    rows=[{'identity':'reward','state':'NOT_AVAILABLE','evidence':('explicit-claimed-label','original-green-control-absent')}]
+    port,target,captures,dismissals=harness(monkeypatch,[frame(1),frame(2)],rows)
+    target=replace(target,evidence=('qualified-task-grid',))
+    result=port._claim_postcondition(frame('before'),target,'current')
+    assert len(result)==2 and captures==['1','2'] and not dismissals
+    assert all('explicit-claimed-label' in q['independent_evidence'] for q in result)

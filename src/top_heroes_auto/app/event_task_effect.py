@@ -172,15 +172,23 @@ def reconcile_saved(manager, claim_id, original_report, after_report):
     receipts=[p for p in sorted(folder.glob('*-bxh-shop.png'))
               if p.name > Path(proof['capture']).name][:5]
     observations=[]
-    for receipt in receipts:
+    if proof['page'].endswith(':race-task-grid'):
+        from top_heroes_auto.app.event_grid_effect import claimed_grid_effect
+
         for a,b in zip(candidates,candidates[1:]):
-            observations=removal_effect(proof,[a,b],receipt,allow_new_boot=True)
+            observations=claimed_grid_effect(proof,[a,b])
             if observations:
                 break
-        if observations:
-            break
+    else:
+        for receipt in receipts:
+            for a,b in zip(candidates,candidates[1:]):
+                observations=removal_effect(proof,[a,b],receipt,allow_new_boot=True)
+                if observations:
+                    break
+            if observations:
+                break
     if not observations:
-        raise SafetyError('Independent removal/count/receipt proof incomplete; journal remains POSSIBLE.')
+        raise SafetyError('Independent claimed-state or removal/count/receipt proof incomplete; journal remains POSSIBLE.')
     # Recheck live ownership immediately before the journal mutation. This does
     # not select, launch, stop, ADB-target, rename or repair any instance.
     current = [r for r in manager.refresh() if r.index==index and r.name==name]

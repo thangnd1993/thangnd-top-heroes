@@ -396,11 +396,12 @@ class DynamicEventPort:
                 if same and same[0]['state']=='AVAILABLE':
                     return []
                 continue
-            if 'qualified-task-grid' in target.evidence and not receipt:
-                continue  # Grid qualification additionally requires the owned receipt.
+            if ('qualified-task-grid' in target.evidence and not receipt
+                    and not {'explicit-claimed-label','original-green-control-absent'}.issubset(same[0].get('evidence',()))):
+                continue  # No receipt: require the independently qualified explicit claimed state.
             observations.append(dict(identity=list(after.identity),capture=after.capture,
                 event=title,page=after.page,reward=target.identity,state='NOT_AVAILABLE',
-                independent_evidence=['same-reward-card','claim-control-replaced-by-unavailable-state']))
+                independent_evidence=['same-reward-card','claim-control-replaced-by-unavailable-state',*same[0].get('evidence',())]))
             if len(observations)==2:
                 return observations
         return []
