@@ -223,3 +223,146 @@ def test_scroll_fingerprint_distinguishes_new_artwork_from_same_grid_and_ignores
     new=before.copy()
     new[825:920,440:640]=before[520:615,80:280]
     assert menu_view_key(before)!=menu_view_key(new)
+
+
+def test_current_calendar_accepts_pointed_green_timeline_not_free_button():
+    im=image('event-current-calendar')
+    assert contract(im,'10/03 10/04 10/05 10/06')=='SCHEDULE'
+    cv2.rectangle(im,(400,680),(650,750),(50,180,80),-1)
+    assert contract(im,'10/03 10/04 10/05 10/06')=='UNSUPPORTED'
+
+
+def test_current_calendar_rejects_free_text_or_missing_footer():
+    im=image('event-current-calendar')
+    assert contract(im,'10/03 10/04 10/05 10/06 Nhan')=='UNSUPPORTED'
+    assert contract(im,'Unknown date row')=='UNSUPPORTED'
+    b=body_label_box(im,'schedule-footer')
+    im[b.y:b.y+b.height,b.x:b.x+b.width]=40
+    assert contract(im,'10/03 10/04 10/05 10/06')=='UNSUPPORTED'
+
+
+@pytest.mark.skipif(__import__('sys').platform!='win32',reason='Windows local OCR evidence')
+def test_current_antialiased_header_and_calendar_with_independent_real_ocr():
+    from top_heroes_auto.vision.dynamic_events import event_shell
+    from top_heroes_auto.vision.local_ocr import read_words
+
+    im=image('event-current-antialiased-header')
+    shell=event_shell(im,BoundingBox(34,1209,52,47),reader=read_words)
+    assert shell and shell['page'].startswith('event:')
+    assert not shell['tabs']  # Navigation shell creates no reward permission.
+    im=image('event-current-calendar')
+    template=cv2.imread('assets/tasks/phase8/personal-task-tab.png')
+    assert event_body_contract(im,[],template,reader=read_words)=='SCHEDULE'
+
+
+def test_reputation_summary_owns_only_current_tasks_notification():
+    from top_heroes_auto.vision.dynamic_events import reputation_information, side_task_navigation
+
+    im=image('event-current-antialiased-header')
+    nav=side_task_navigation(im)
+    assert nav and nav['box']==BoundingBox(634,322,37,29)
+    assert reputation_information(im)
+    assert contract(im,'')=='REPUTATION_INFORMATION'
+    assert nav['evidence'] and not any('free' in e for e in nav['evidence'])
+    cv2.circle(im,(100,420),10,(255,255,255),-1)
+    cv2.circle(im,(100,420),7,(0,0,240),-1)
+    assert not reputation_information(im)
+
+
+def test_tasks_navigation_moves_with_current_visual_anchors():
+    from top_heroes_auto.vision.dynamic_events import side_task_navigation
+
+    im=image('event-current-antialiased-header')
+    tile=im[295:382,607:702].copy()
+    im[295:382,607:702]=40
+    im[395:482,527:622]=tile
+    nav=side_task_navigation(im)
+    assert nav and nav['box']==BoundingBox(554,422,37,29)
+
+
+def test_tasks_navigation_partial_duplicate_or_no_badge_stays_closed():
+    from top_heroes_auto.vision.dynamic_events import side_task_navigation
+
+    for mode in ('label','core','badge','duplicate'):
+        im=image('event-current-antialiased-header')
+        if mode=='duplicate':
+            im[400:429,100:137]=im[322:351,634:671]
+        else:
+            b={'label':BoundingBox(607,356,94,25),'core':BoundingBox(634,322,37,29),
+               'badge':BoundingBox(666,297,24,24)}[mode]
+            im[b.y:b.y+b.height,b.x:b.x+b.width]=40
+        assert side_task_navigation(im) is None
+
+
+def test_reputation_summary_extra_green_action_is_not_exhausted():
+    from top_heroes_auto.vision.dynamic_events import reputation_information
+
+    im=image('event-current-antialiased-header')
+    cv2.rectangle(im,(400,450),(650,520),(50,180,80),-1)
+    assert not reputation_information(im)
+    assert contract(im,'Nhan')=='UNSUPPORTED'
+
+
+def test_known_guild_reminder_is_out_of_scope_and_has_no_claim_permission():
+    im=image('event-guild-reminder')
+    assert contract(im,'Boss Hoi Den Doc het')=='GUILD_REMINDER_OUT_OF_SCOPE'
+    assert contract(im,'Boss Hoi Nhan')=='UNSUPPORTED'
+    cv2.rectangle(im,(400,680),(650,750),(50,180,80),-1)
+    assert contract(im,'Boss Hoi Den Doc het')=='UNSUPPORTED'
+
+
+def test_guild_reminder_new_row_or_missing_functional_role_stays_unknown():
+    im=image('event-guild-reminder')
+    b=body_label_box(im,'reminder-guild-boss')
+    im[700:700+b.height,100:100+b.width]=im[b.y:b.y+b.height,b.x:b.x+b.width]
+    assert contract(im,'Boss Hoi Den Doc het')=='UNSUPPORTED'
+    im=image('event-guild-reminder')
+    b=body_label_box(im,'reminder-timezone')
+    im[b.y:b.y+b.height,b.x:b.x+b.width]=40
+    assert contract(im,'Boss Hoi Den Doc het')=='UNSUPPORTED'
+
+
+def test_event_popup_uses_existing_home_back_policy_and_bounded_budget(monkeypatch):
+    from top_heroes_auto.automation.overlays import OverlayBudget
+    from top_heroes_auto.vision.models import ScreenState
+
+    p=DynamicEventPort.__new__(DynamicEventPort)
+    p.overlay_budget=OverlayBudget()
+    p.current=SimpleNamespace(popup=True)
+    overlay=SimpleNamespace(state=ScreenState.HOME_OVERLAY,evidence=())
+    observed=SimpleNamespace(captured=object(),overlay=overlay)
+    calls=[]
+    p.transport=SimpleNamespace(last=observed,dispatch=lambda o,a,v:calls.append((a,v)))
+    monkeypatch.setattr('top_heroes_auto.app.dynamic_event_port.dismiss_overlay_bottom_left',
+                        lambda c,d:(58,1203))
+    monkeypatch.setattr('top_heroes_auto.app.dynamic_event_port.time.sleep',lambda _:None)
+    p.dismiss(p.current)
+    p.current=SimpleNamespace(popup=True)  # New qualified frame after the tap.
+    p.dismiss(p.current)
+    assert calls==[('tap',(58,1203)),('keyevent',(4,))]
+    p.current=SimpleNamespace(popup=True)
+    with pytest.raises(SafetyError,match='limit'):
+        p.dismiss(p.current)
+    assert len(calls)==2
+
+
+def test_generic_known_receipt_never_gets_home_back_fallback(monkeypatch):
+    from top_heroes_auto.automation.overlays import OverlayBudget
+    from top_heroes_auto.vision.models import ScreenState
+
+    p=DynamicEventPort.__new__(DynamicEventPort)
+    p.overlay_budget=OverlayBudget()
+    calls=[]
+    observed=SimpleNamespace(captured=object(),overlay=SimpleNamespace(
+        state=ScreenState.REWARD_RECEIPT,evidence=()))
+    p.transport=SimpleNamespace(last=observed,dispatch=lambda o,a,v:calls.append((a,v)))
+    monkeypatch.setattr('top_heroes_auto.app.dynamic_event_port.dismiss_overlay_bottom_left',
+                        lambda c,d:(58,1203))
+    monkeypatch.setattr('top_heroes_auto.app.dynamic_event_port.time.sleep',lambda _:None)
+    for _ in range(2):
+        p.current=SimpleNamespace(popup=True)
+        p.dismiss(p.current)
+    assert calls==[('tap',(58,1203)),('tap',(58,1203))]
+    p.current=SimpleNamespace(popup=False)
+    with pytest.raises(SafetyError):
+        p.dismiss(p.current)

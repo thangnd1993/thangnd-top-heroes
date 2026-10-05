@@ -713,3 +713,17 @@ def test_recovery_observation_uses_explicit_adb_target(rig, tmp_path, monkeypatc
     assert observation.adb_target == "emulator-5568"
     screenshot_call = next(call for call in process.calls if "screencap" in call)
     assert screenshot_call[1:3] == ["-s", "emulator-5568"]
+
+
+@pytest.mark.parametrize('loaded', [True, False])
+def test_return_to_launcher_reports_observed_loading_without_relaunch(loaded):
+    states = [ScreenState.ANDROID_HOME]
+    if loaded:
+        states += [ScreenState.GAME_LOADING]
+    states += [ScreenState.ANDROID_HOME]
+    port = Port(*states)
+    clock = Clock()
+    result = HomeRecoveryEngine(clock=clock, sleep=clock.sleep).ensure_game_home(port)
+    assert result.status == RecoveryStatus.ACTION_FAILED
+    assert port.launches == 1 and port.dismissals == 0
+    assert ('after observed loading' in result.error) == loaded

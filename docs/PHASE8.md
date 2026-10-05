@@ -450,3 +450,47 @@ execution. No real emulator input or claim in the implementation pass. Require
 fresh passing CI/Desktop artifact, then resume the existing scoped report rather
 than restarting history. Phase8 remains PARTIAL pending real continuation;
 Phase9 has not started.
+
+
+## Oct05 continuation evidence and next targeted repair
+
+Fresh a77b9c4 / CI37260286867 passed all gates (1396 passed,26 skipped),
+artifact11325595502 delivered644 verified files /371 runtime assets. Scoped
+resume20261005-042552-924418Z-b6551ae5 completed9/9 current targets, max1,
+Events only, PARTIAL. Zero new claim dispatches; all220 pre-run journals unchanged,
+including original217 and VERIFIED234/235/236. Selections/names/Protection restored;
+kernel lease released. Cleanup2/3 OWNERSHIP_UNKNOWN, others SUCCESS, all nine
+ended stopped. Queen changed stopped->running without a scoped command targeting
+it; preserve this unattributed external lifecycle change, never stop/restore Queen.
+
+New evidence: cold empty indexed serial outlasted the short probe retry (2), while
+3 still lacks independently verified ADB transport/boot; optional playerName was
+not the blocker. Config/name writes remain forbidden. Soup genuinely progressed
+through loading then returned to Android launcher; do not disguise this as failure
+to leave launcher, or blindly relaunch.4/5/9/10/11 share header antialias OCR and
+calendar/reminder coverage gaps.12's paid promo remained over paired dimmed Home
+through repeated bottom-left inputs; apply the existing bounded Home-overlay Back
+policy, not a guessed paid close coordinate.
+
+Repair: extend only read-only empty-serial probes within the existing deadline
+and unchanged runtime; ambiguous serial fails immediately. Header OCR retains
+antialiased glyphs and requires two agreeing renders; no title catalog and no
+journal key migration. Calendar needs paired UTC/rewards/value/footer, independently
+readable dates, five evenly spaced visible grid boundaries; green arrow timeline
+banners are information only, rectangular/free/unexplained controls stay unknown.
+Guild-boss reminders have a paired functional contract with exactly two blue
+controls and owned notification geometry; no Guild/Go/read-all input is exposed.
+Generic reputation summaries require four functional labels, no extra action
+controls/notifications. Paired clipboard+Tasks label+owned badge qualifies only
+that current child navigation bbox, never a reward. No account coordinates.
+Events now share the existing overlay budget: at most two attempts per signature,
+four total; second positively proven HOME_OVERLAY uses the already-qualified Back
+policy, receipts never get Back and arbitrary UNKNOWN never receives input.
+
+240 focused tests PASS; affected Ruff and diff-check PASS after import formatting.
+Self-review: unchanged claim reservation/dispatch/postcondition and title-independent
+locks; no reward replay/journal downgrade, no guessed ADB, no lifecycle fallback,
+no unbounded wait, no paid/control authorization from information contracts.
+New15 PNGs contain game UI only, re-encoded without external metadata. Require
+fresh CI/Desktop artifact before another scoped continuation. Phase8 remains
+PARTIAL; no Phase9.

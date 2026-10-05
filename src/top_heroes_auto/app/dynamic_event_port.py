@@ -11,7 +11,12 @@ from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
 from top_heroes_auto.automation.dynamic_events import Control, EventFrame, overlaps
 from top_heroes_auto.automation.event_journal import dispatch_once
 from top_heroes_auto.automation.guard import SafetyError
-from top_heroes_auto.automation.overlays import DISMISSIBLE, dismiss_overlay_bottom_left
+from top_heroes_auto.automation.overlays import (
+    DISMISSIBLE,
+    OverlayBudget,
+    dismiss_overlay_bottom_left,
+    overlay_signature,
+)
 from top_heroes_auto.vision.dynamic_events import (
     blank_event_render,
     competitive_navigation_shell,
@@ -25,6 +30,7 @@ from top_heroes_auto.vision.dynamic_events import (
     matching_icon_cores,
     menu_card_boxes,
     menu_view_key,
+    side_task_navigation,
     task_context_box,
     task_reward_rows,
 )
@@ -41,7 +47,7 @@ class DynamicEventPort:
                                          folder, session.check, session.cancelled)
         self.current = None
         self.entered = None
-        self.dismissals = 0
+        self.overlay_budget = OverlayBudget()
         self.rows = ()
         self.home_icon_cores = {}
         self.event_title = None
@@ -153,6 +159,10 @@ class DynamicEventPort:
                 contract=('UNSUPPORTED' if shell.get('permission')=='BACK_ONLY' else
                           event_body_contract(image,self.rows,self.task_context,reader=read_words))
                 coverage_known=contract!='UNSUPPORTED'
+                if contract=='REPUTATION_INFORMATION':
+                    nav=side_task_navigation(image)
+                    if nav:
+                        controls.append(Control('functional-side-tasks',nav['box'],nav['evidence'],'child'))
                 if contract=='MENU_GRID':
                     for tile in discover_menu_tiles(image):
                         controls.append(Control(tile.fingerprint,tile.icon_box,
@@ -352,11 +362,18 @@ class DynamicEventPort:
 
 
     def dismiss(self, frame):
-        if frame is not self.current or not frame.popup or self.dismissals >= 3:
+        if frame is not self.current or not frame.popup:
             raise SafetyError('No qualified current popup dismissal.')
         observed = self.transport.last
         point = dismiss_overlay_bottom_left(observed.captured, observed.overlay)
-        self.transport.dispatch(observed,'tap',point)
-        self.dismissals += 1
+        self.overlay_budget.reserve(observed.overlay)
+        signature=overlay_signature(observed.overlay)
+        if (observed.overlay.state == ScreenState.HOME_OVERLAY
+                and self.overlay_budget.counts[signature] == 2):
+            # Same qualified underlying-Home fallback already used by recovery.
+            # No generic UNKNOWN Back or paid-close coordinate is introduced.
+            self.transport.dispatch(observed,'keyevent',(4,))
+        else:
+            self.transport.dispatch(observed,'tap',point)
         self.current = None
         time.sleep(.5)

@@ -200,9 +200,9 @@ def event_shell(image, back, *, reader):
     # light glyph interiors from gold artwork before OCR. This is only a
     # run-local navigation identity, never a semantic reward/journal key.
     header=image[:round(h*.07),round(w*.08):round(w*.92)]
-    glyphs=cv2.inRange(cv2.cvtColor(header,cv2.COLOR_BGR2HSV),(0,0,205),(179,90,255))
+    glyphs=cv2.inRange(cv2.cvtColor(header,cv2.COLOR_BGR2HSV),(0,0,180),(179,110,255))
     header=cv2.copyMakeBorder(cv2.cvtColor(255-glyphs,cv2.COLOR_GRAY2BGR),
-                             20,20,20,20,cv2.BORDER_CONSTANT,value=(255,255,255))
+                             5,5,5,5,cv2.BORDER_CONSTANT,value=(255,255,255))
     titles=[]
     for scale in (1,2):
         words=reader(cv2.resize(header,None,fx=scale,fy=scale,interpolation=cv2.INTER_CUBIC))
@@ -561,6 +561,10 @@ def event_body_contract(image,rows,template,*,reader):
         return 'UNSUPPORTED'
     if any(re.search(r'\b(?:vnd|nhan|mien phi|purchase|buy|kich hoat)\b',t) for t in texts):
         return 'UNSUPPORTED'
+    if guild_reminder_information(image):
+        return 'GUILD_REMINDER_OUT_OF_SCOPE'
+    if reputation_information(image):
+        return 'REPUTATION_INFORMATION'
     if any(b.qualified for b in discover_badges(image,body)):
         return 'UNSUPPORTED'
     if all('sap bat dau' in t for t in texts) and len(buttons)==1:
@@ -572,6 +576,8 @@ def event_body_contract(image,rows,template,*,reader):
                 and buttons[0].x<=label.center[0]<=buttons[0].x+buttons[0].width
                 and buttons[0].y<=label.center[1]<=buttons[0].y+buttons[0].height):
             return 'COUNTDOWN_INFORMATION'
+    if calendar_timeline(image, buttons, reader=reader):
+        return 'SCHEDULE'
     utc=body_label_box(image,'schedule-utc')
     rewards=body_label_box(image,'schedule-rewards')
     value=body_label_box(image,'schedule-value')
@@ -595,6 +601,140 @@ def event_body_contract(image,rows,template,*,reader):
                 and all(rewards.y<b.y and b.y+b.height<value.y for b in buttons)):
             return 'SCHEDULE'
     return 'UNSUPPORTED'
+
+
+def guild_reminder_information(image):
+    """Qualified Guild-boss reminder, excluded by the Phase8-only scope.
+
+    This exposes no navigation or read-all action. New rows/buttons/notifications
+    invalidate the contract rather than being silently declared exhausted.
+    """
+    names=('reminder-title','reminder-timezone','reminder-guild-boss','reminder-read-all')
+    title,zone,boss,read=[body_label_box(image,n) for n in names]
+    if not all((title,zone,boss,read)) or not title.y<zone.y<boss.y<read.y:
+        return False
+    buttons=body_action_boxes(image)
+    if len(buttons)!=2:
+        return False
+    read_buttons=[b for b in buttons if b.x<read.x and read.x+read.width<b.x+b.width
+                  and b.y<read.y and read.y+read.height<b.y+b.height]
+    go_buttons=[b for b in buttons if b.x>boss.x+boss.width
+                and b.y<=boss.y+boss.height and boss.y<b.y+b.height]
+    if len(read_buttons)!=1 or len(go_buttons)!=1 or read_buttons==go_buttons:
+        return False
+    for b in buttons:
+        crop=image[b.y:b.y+b.height,b.x:b.x+b.width]
+        blue=cv2.inRange(cv2.cvtColor(crop,cv2.COLOR_BGR2HSV),(85,60,80),(115,255,255))
+        if np.mean(blue>0)<.65:
+            return False
+    h,w=image.shape[:2]
+    badges=[b for b in discover_badges(image,BoundingBox(0,round(h*.08),w,round(h*.83)))
+            if b.qualified]
+    go=go_buttons[0]
+    return len(badges)<=1 and all(go.x+go.width*.75<b.box.center[0]<go.x+go.width+10
+        and go.y-10<b.box.center[1]<go.y+go.height*.25 for b in badges)
+
+
+def side_task_navigation(image):
+    """Paired functional clipboard/Tasks label plus one owned current badge."""
+    label=body_label_box(image,'side-tasks-label')
+    core=body_label_box(image,'side-tasks-core')
+    if not (label and core and core.y+core.height<=label.y and
+            0<label.y-core.y-core.height<core.height and
+            abs(label.center[0]-core.center[0])<label.width*.3):
+        return None
+    h,w=image.shape[:2]
+    if not h*.08<core.y<label.y<h*.85:
+        return None
+    region=BoundingBox(max(0,core.x-core.width),max(0,core.y-core.height),
+                       min(w-core.x+core.width,core.width*3),core.height*2)
+    badges=[b for b in discover_badges(image,region) if b.qualified]
+    owned=[b for b in badges if core.x+core.width*.5<b.box.center[0]<core.x+core.width*1.5
+           and core.y-core.height*.7<b.box.center[1]<core.y+core.height*.1]
+    if len(badges)!=1 or len(owned)!=1:
+        return None
+    return dict(box=core,badge=owned[0],evidence=('functional-tasks-label',
+                'unique-clipboard-core','unique-owned-attention-badge'))
+
+
+def reputation_information(image):
+    """Generic reputation summary UI; conversion controls never authorize input."""
+    names=('reputation-level','reputation-current','reputation-bonus','reputation-personal')
+    boxes=[body_label_box(image,name) for name in names]
+    if (not all(boxes) or body_action_boxes(image)
+            or not all(a.y+a.height<b.y for a,b in zip(boxes,boxes[1:]))):
+        return False
+    nav=side_task_navigation(image)
+    h,w=image.shape[:2]
+    badges=[b for b in discover_badges(image,BoundingBox(0,round(h*.08),w,round(h*.83)))
+            if b.qualified]
+    return not badges or (nav is not None and len(badges)==1 and badges[0].box==nav['badge'].box)
+
+
+def calendar_timeline(image, buttons, *, reader):
+    """Current seven-day grid and arrow banners; no input permission.
+
+    A green rectangular control is never treated as an informational banner.
+    All candidate controls must lie inside the paired calendar/footer surfaces.
+    """
+    import re
+
+    h,w=image.shape[:2]
+    utc=body_label_box(image,'schedule-utc')
+    rewards=body_label_box(image,'schedule-rewards')
+    value=body_label_box(image,'schedule-value') or body_label_box(image,'schedule-value-orange')
+    footer=body_label_box(image,'schedule-footer')
+    if not (utc and rewards and value and footer and
+            utc.y<rewards.y<value.y<footer.y<h*.91):
+        return False
+    dates=image[utc.y+utc.height+20:rewards.y-20]
+    if not dates.size:
+        return False
+    for scale in (1,2):
+        text=folded(' '.join(q['text'] for q in reader(cv2.resize(dates,None,fx=scale,fy=scale))))
+        if len(re.findall(r'(?<!\d)\d{1,2}/\d{2}(?!\d)',text))<4:
+            return False
+    table=image[rewards.y+rewards.height+10:value.y-10]
+    if not table.size:
+        return False
+    lines=cv2.morphologyEx(cv2.Canny(table,20,60),cv2.MORPH_OPEN,
+                          np.ones((max(1,round(table.shape[0]*.1)),1),np.uint8))
+    xs=np.flatnonzero(np.count_nonzero(lines,axis=0)>table.shape[0]*.15)
+    groups=np.split(xs,np.flatnonzero(np.diff(xs)>4)+1)
+    positions=[round(float(np.mean(g))) for g in groups if len(g)]
+    # Banners can cover later columns. Require five consecutive evenly spaced
+    # grid boundaries, plus independently readable dates and all three labels.
+    groups_of_five=[np.diff(positions[i:i+5]) for i in range(len(positions)-4)]
+    if not any(np.min(g)>.10*w and np.max(g)<.17*w and np.ptp(g)<6
+               for g in groups_of_five):
+        return False
+    for b in buttons:
+        if not rewards.y+rewards.height<b.y<b.y+b.height<footer.y:
+            return False
+        crop=image[b.y:b.y+b.height,b.x:b.x+b.width]
+        green=cv2.inRange(cv2.cvtColor(crop,cv2.COLOR_BGR2HSV),(35,60,80),(85,255,255))
+        if np.mean(green>0)>.15:
+            if b.y<value.y+value.height or not right_arrow_banner(green):
+                return False
+    return True
+
+
+def right_arrow_banner(mask):
+    """Positive pointed timeline shape; rounded/rectangular actions fail closed."""
+    contours,_=cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return False
+    contour=max(contours,key=cv2.contourArea)
+    filled=np.zeros_like(mask)
+    cv2.drawContours(filled,[contour],-1,255,-1)
+    h,w=mask.shape
+    ends=[]
+    for y in (round(h*.15),round(h*.5),round(h*.85)):
+        xs=np.flatnonzero(filled[y])
+        if not len(xs):
+            return False
+        ends.append(xs[-1])
+    return bool(ends[1]-max(ends[0],ends[2])>h*.25 and abs(ends[0]-ends[2])<h*.15)
 
 
 def overlap_boxes(a,b):

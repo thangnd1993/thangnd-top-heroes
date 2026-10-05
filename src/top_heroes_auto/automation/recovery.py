@@ -352,7 +352,10 @@ class HomeRecoveryEngine:
             unknown_count = 0
             if detection.state == ScreenState.ANDROID_HOME:
                 if launched:
-                    return finish(RecoveryStatus.ACTION_FAILED, "Game launch did not change Android home.")
+                    changed = any(step.state == ScreenState.GAME_LOADING for step in result.steps)
+                    error = ('Game returned to Android home after observed loading; no relaunch.'
+                             if changed else 'Game launch did not change Android home.')
+                    return finish(RecoveryStatus.ACTION_FAILED, error)
                 if cancelled():
                     return finish(RecoveryStatus.CANCELLED)
                 try:

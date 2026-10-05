@@ -282,6 +282,17 @@ class Manager:
             # never from a port formula or the first global adb device.
             try:
                 serial = self._probe_identity(index, lambda: validate_serial(self.ld.adb_serial(index)), instance=instance)
+            except IndexedSerialUnavailable as exc:
+                # Cold registration can outlast the short probe retry. Wait only
+                # on the same runtime within the original resolution deadline;
+                # no guessed transport or lifecycle retry is justified here.
+                self._same_runtime(index, instance)
+                if time.monotonic() >= deadline:
+                    raise SafetyError(
+                        'Indexed ADB serial unavailable within bounded resolution.'
+                    ) from exc
+                time.sleep(self.POLL_INTERVAL)
+                continue
             except ValueError as exc:
                 raise SafetyError(
                     "LDPlayer không cung cấp đúng một ADB serial cho instance được chỉ định."

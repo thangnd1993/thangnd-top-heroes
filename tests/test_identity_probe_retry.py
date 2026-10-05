@@ -77,3 +77,62 @@ def test_valid_mismatched_boot_is_not_transient(rig):
     with pytest.raises(SafetyError,match='không khớp'):
         manager.execute(7,'tap',values=(10,20))
     assert len([c for c in process.calls if c[1] == '-s']) == 1
+
+
+def test_cold_serial_registration_outlasts_short_probe_retry(rig, monkeypatch):
+    manager, process, _ = rig
+    manager.IDENTITY_PROBE_DELAY = 0
+    manager.POLL_INTERVAL = 0
+    reads = 0
+
+    def hook(args):
+        nonlocal reads
+        if args[-1] == 'get-serialno':
+            reads += 1
+            process.serial = '' if reads <= 4 else 'emulator-5568'
+
+    process.hook = hook
+    assert 'emulator-5568' in manager.execute(7, 'verify')
+    assert reads == 5
+    assert not any(c[1] in {'launch', 'quit', 'kill-server', 'connect'} for c in process.calls)
+    assert all(c[2] == 'emulator-5568' for c in process.calls if c[1] == '-s')
+
+
+def test_persistently_missing_serial_expires_without_lifecycle_retry(rig):
+    manager, process, _ = rig
+    manager.IDENTITY_PROBE_DELAY = 0
+    manager.ADB_RESOLVE_TIMEOUT = 0
+    process.serial = ''
+    with pytest.raises(SafetyError, match='serial unavailable within bounded'):
+        manager.execute(7, 'verify')
+    assert len([c for c in process.calls if c[-1] == 'get-serialno']) == 3
+    assert not any(c[1] in {'launch', 'quit', 'kill-server', '-s', 'connect'} for c in process.calls)
+
+
+@pytest.mark.parametrize('change', ['pid', 'name', 'selection', 'protection'])
+def test_cold_registration_wait_preserves_target_guard(rig, change):
+    manager, process, store = rig
+    manager.IDENTITY_PROBE_DELAY = 0
+    manager.POLL_INTERVAL = 0
+    reads = 0
+
+    def hook(args):
+        nonlocal reads
+        if args[-1] == 'get-serialno':
+            reads += 1
+            process.serial = ''
+            if reads == 3:
+                if change == 'pid':
+                    process.listing = process.listing.replace('201,202', '901,902')
+                elif change == 'name':
+                    process.listing = process.listing.replace('Farm-007', 'Changed')
+                elif change == 'selection':
+                    store.select(manager.namespace, 7, False)
+                else:
+                    store.protect(manager.namespace, 7, True)
+
+    process.hook = hook
+    with pytest.raises(SafetyError):
+        manager.execute(7, 'tap', values=(10, 20))
+    assert reads == 3
+    assert not any(c[1] in {'launch', 'quit', 'kill-server', '-s', 'connect'} for c in process.calls)

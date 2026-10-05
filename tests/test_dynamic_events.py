@@ -339,7 +339,7 @@ def test_long_gold_title_uses_complete_isolated_glyphs():
     assert len(crops)==2 and crops[1].shape[1]==2*crops[0].shape[1]
     assert crops[0].shape[1] > image.shape[1]*.84
     assert set(np.unique(crops[0])) <= {0,255}
-    assert np.all(crops[0][:20]==255)
+    assert np.all(crops[0][:5]==255)
     # This header qualifies navigation, never any body reward.
     assert all(c.icon_box.y > 1170 for c in shell['tabs'])
 
