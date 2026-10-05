@@ -636,3 +636,40 @@ retains all old locks, rejects stale/popup/other-root/other-serial/paid/wrong-ta
 evidence, uses no account route, and adds no retry/timeout/lifecycle/config action.
 Fresh CI/portable required before journal237 saved reconciliation or continuation.
 No Phase9.
+
+
+## Phase 8 — saved verification and tall progress repair (2026-10-06)
+
+42774e6 CI37338882555 fully PASS:1463 passed+26 skipped in2502.20s.
+Artifact11359643020,395 runtime assets,668 Desktop files verified. Saved-only
+reconciliation verified journal237 from its original one-shot tap plus two
+same-card explicit claimed/control-removed images; no ADB or gameplay input.
+All220 other journals unchanged. Scoped run20261005-170654-970279Z-4f5ddf94
+retained HiHi/Momo COMPLETE and processed seven unfinished accounts sequentially.
+No new claim; all221 pre-run journals unchanged; selections restored and mutex
+RELEASED. Six safe owned cleanups; index3 OWNERSHIP_UNKNOWN with explicit
+emulator-5560 unavailable, no independent boot proof and no blind cleanup.
+
+Protected metadata stays Protected/unselected. Inventory independently changed:
+anh Ry stopped→running; index3 LDPlayer-3→Queen con. The run had no Protected
+target, rename/config-write path or remediation command. Leave anh Ry running,
+keep the current user-owned name and require fresh identity on continuation.
+Index3/Soup config hashes changed; all stable backing disks unchanged. Do not
+claim entire inventory/name equality or attribute external changes to automation.
+
+Fresh index2 grid shows masked caption OCR disagreement and a tall(5/5) fraction
+clipped by the previous crop. Offline repair retains paired primary readings,
+uses two exact larger unmasked caption readings only on disagreement, and two
+exact larger owned fraction readings only when neither primary reading recognizes
+a fraction. Recognized conflicting fractions cannot be replaced. No fuzzy letter,
+digit or slash correction; zero denominator/missing pair/full-bar failure reject.
+Boundary comma is punctuation only; free labels and currency exclusion unchanged.
+Current card/button geometry, caption binding and all journals remain unchanged.
+
+42 grid/postcondition tests PASS;177 traversal/journal tests PASS; final28 geometry
+tests PASS (overlap, not additive). Ruff/diff-check PASS. New game-only regression
+PNG re-encoded, visually inspected, IHDR/IDAT/IEND only. Self-review retains
+one-shot dispatch, old VERIFIED/POSSIBLE, bounded OCR/navigation and fail-closed
+ambiguous/partial/cost controls; no account route or threshold reduction.
+Repair needs fresh CI/portable before real use. Other unsupported Event families
+remain unfinished; Phase8 PARTIAL, no Phase9.

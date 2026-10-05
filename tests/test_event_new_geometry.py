@@ -261,3 +261,70 @@ def test_claimed_word_cannot_coexist_with_active_button_or_duplicate_label():
     for y in (4,38):
         duplicate[y:y+ref.shape[0],38:38+ref.shape[1]]=cv2.cvtColor(ref,cv2.COLOR_GRAY2BGR)
     assert claimed_grid_label(duplicate,col) is None
+
+
+@pytest.mark.skipif(__import__('sys').platform!='win32',reason='Windows local OCR evidence')
+def test_full_tall_fraction_and_unmasked_caption_require_agreement():
+    from top_heroes_auto.vision.local_ocr import read_words
+
+    im=image('task-grid-tall-fraction')
+    shell=task_grid_shell(im)
+    rows=task_grid_rows(im,shell,reader=read_words)
+    free=[r for r in rows if r['state']=='AVAILABLE']
+    assert len(free)==1
+    assert free[0]['box'].center==(361,694)
+    assert free[0]['identity'].startswith('task-caption:')
+    # Destroy the independent filled progress bar while preserving fraction/button.
+    damaged=im.copy()
+    b=free[0]['row']
+    damaged[b.y+round(b.height*.74):b.y+round(b.height*.80),b.x:b.x+b.width]=40
+    assert not any(r['state']=='AVAILABLE' for r in task_grid_rows(damaged,shell,reader=read_words))
+
+
+def test_conflicting_readable_progress_is_never_replaced_by_fallback():
+    im,shell=available_frame()
+    count=0
+
+    def disagree(crop):
+        nonlocal count
+        # Existing masked progress renders have a distinctive short height.
+        if crop.shape[0] in {124,186}:
+            count+=1
+            return [{'text':'5/5' if count%2 else '4/5'}]
+        return reader(crop)
+
+    rows=task_grid_rows(im,shell,reader=disagree)
+    assert count>=2 and rows
+    assert not any(r['state']=='AVAILABLE' for r in rows)
+
+
+@pytest.mark.parametrize('fallback', [('5/5','4/5'),('5/5',''),('5/0','5/0')])
+def test_large_progress_fallback_still_rejects_conflict_missing_or_zero_goal(fallback):
+    im,shell=available_frame()
+    calls=0
+
+    def read(crop):
+        nonlocal calls
+        if crop.shape[0] in {124,186}:
+            return []
+        if crop.shape[0] in {204,208,255,260}:
+            text=fallback[calls%2]
+            calls+=1
+            return [{'text':text}]
+        return reader(crop)
+
+    rows=task_grid_rows(im,shell,reader=read)
+    assert calls>=2 and rows
+    assert not any(r['state']=='AVAILABLE' for r in rows)
+
+
+def test_unmasked_caption_fallback_requires_exact_pair_not_fuzzy_agreement():
+    im,shell=available_frame()
+
+    def read(crop):
+        h=crop.shape[0]
+        if h in {90,180,140,210}:
+            return [{'text':'objective complete ten' if h in {90,140} else 'objective complete two'}]
+        return reader(crop)
+
+    assert not task_grid_rows(im,shell,reader=read)

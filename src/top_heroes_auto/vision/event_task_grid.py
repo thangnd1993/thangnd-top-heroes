@@ -105,6 +105,11 @@ def task_grid_rows(image,shell,*,reader):
     h,w=image.shape[:2]
     for b in shell['cards']:
         caption=_text(image[b.y+round(b.height*.46):b.y+round(b.height*.66),b.x+8:b.x+b.width-8],reader)
+        if caption[0]!=caption[1]:
+            # Binary masks can drop Vietnamese accents/stems. Require exact
+            # agreement from two larger unmasked readings; never fuzzy-correct.
+            crop=image[b.y+round(b.height*.46):b.y+round(b.height*.66),b.x+8:b.x+b.width-8]
+            caption=[folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=s,fy=s)))) for s in (2,3)]
         if caption[0]!=caption[1] or len(caption[0])<10 or not any(c.isalpha() for c in caption[0]):
             continue  # No durable identity from a position, run or whole image hash.
         identity='task-caption:'+caption[0]
@@ -118,7 +123,7 @@ def task_grid_rows(image,shell,*,reader):
                 evidence=('qualified-race-task-grid','qualified-task-grid','complete-reward-card',
                           'independent-task-caption','explicit-claimed-label','original-green-control-absent')))
             continue
-        texts=[folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=s,fy=s)))).strip(" .:'\"") for s in (2,3)]
+        texts=[folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=s,fy=s)))).strip(" .,:'\"") for s in (2,3)]
         if texts[0]!=texts[1] or texts[0] not in {'nhan','mien phi','den','da nhan'}:
             continue
         hsv=cv2.cvtColor(crop,cv2.COLOR_BGR2HSV)
@@ -141,6 +146,14 @@ def task_grid_rows(image,shell,*,reader):
             continue  # A currency/item-colored cost cannot hide behind the Nhận OCR.
         progress=_text(image[b.y+round(b.height*.66):b.y+round(b.height*.78),b.x+8:b.x+b.width-8],reader,progress=True)
         fractions=[re.findall(r'(?<!\d)(\d+)\s*/\s*(\d+)(?!\d)',t) for t in progress]
+        if not any(fractions):
+            # The original crop clips tall completed-number glyphs. A larger
+            # owned crop plus two exact raw readings may recover an explicit
+            # fraction, but never replace a conflicting recognized fraction.
+            crop=image[b.y+round(b.height*.64):b.y+round(b.height*.73),b.x+8:b.x+b.width-8]
+            rendered=cv2.copyMakeBorder(crop,10,10,10,10,cv2.BORDER_CONSTANT,value=(255,255,255))
+            texts=[folded(' '.join(q['text'] for q in reader(cv2.resize(rendered,None,fx=s,fy=s)))) for s in (4,5)]
+            fractions=[re.findall(r'(?<!\d)(\d+)\s*/\s*(\d+)(?!\d)',t) for t in texts]
         progress_crop=image[b.y+round(b.height*.70):b.y+round(b.height*.80),b.x:b.x+b.width]
         progress_green=cv2.inRange(cv2.cvtColor(progress_crop,cv2.COLOR_BGR2HSV),(35,60,80),(85,255,255))
         bars=[]
