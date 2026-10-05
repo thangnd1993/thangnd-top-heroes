@@ -603,11 +603,15 @@ def event_body_contract(image,rows,template,*,reader):
                             for t in texts)):
             return 'MENU_GRID'
         return 'UNSUPPORTED'
-    if any(re.search(r'\b(?:vnd|nhan|mien phi|purchase|buy|kich hoat)\b',t) for t in texts):
+    reputation=reputation_information(image)
+    # In the independently qualified summary, 'cá nhân' labels personal standing,
+    # not a Nhận control. Do not erase any free/cost wording on other UI families.
+    risk_texts=[re.sub(r'\bca nhan\b','',t) for t in texts] if reputation else texts
+    if any(re.search(r'\b(?:vnd|nhan|mien phi|purchase|buy|kich hoat)\b',t) for t in risk_texts):
         return 'UNSUPPORTED'
     if guild_reminder_information(image):
         return 'GUILD_REMINDER_OUT_OF_SCOPE'
-    if reputation_information(image):
+    if reputation:
         return 'REPUTATION_INFORMATION'
     if any(b.qualified for b in discover_badges(image,body)):
         return 'UNSUPPORTED'
@@ -833,9 +837,33 @@ def body_label_box(image,name):
         return None
     scores=cv2.matchTemplate(image,template,cv2.TM_CCOEFF_NORMED)
     _,score,_,where=cv2.minMaxLoc(scores)
-    if score<.98 or cv2.connectedComponents((scores>=.98).astype(np.uint8))[0]!=2:
+    components=cv2.connectedComponents((scores>=.98).astype(np.uint8))[0]
+    if components>2:
         return None
-    return BoundingBox(*where,template.shape[1],template.shape[0])
+    color_box=(BoundingBox(*where,template.shape[1],template.shape[0])
+               if np.isfinite(score) and score>=.98 and components==2 else None)
+    # Qualified functional glyph variants exclude animated artwork behind text.
+    # Paired screen/clipboard roles are still required by the caller; this alone
+    # grants no claim, page or navigation permission. Seasonal titles are absent.
+    limits={'reputation-level':((15,100,150),(40,255,255)),
+            'side-tasks-label':((0,0,180),(179,110,255))}.get(name)
+    if limits is None:
+        return color_box
+    glyph=cv2.imread(str(template_folder().parent/'tasks/phase8'/f'{name}-glyph.png'),cv2.IMREAD_GRAYSCALE)
+    if glyph is None or np.count_nonzero(glyph)<100:
+        return color_box
+    mask=cv2.inRange(cv2.cvtColor(image,cv2.COLOR_BGR2HSV),*limits)
+    scores=cv2.matchTemplate(mask,glyph,cv2.TM_CCOEFF_NORMED)
+    _,score,_,where=cv2.minMaxLoc(scores)
+    components=cv2.connectedComponents((scores>=.995).astype(np.uint8))[0]
+    if components>2:
+        return None
+    if not np.isfinite(score) or score<.995 or components!=2:
+        return color_box
+    glyph_box=BoundingBox(*where,glyph.shape[1],glyph.shape[0])
+    if color_box and (abs(color_box.x-glyph_box.x)>4 or abs(color_box.y-glyph_box.y)>4):
+        return None
+    return glyph_box
 
 
 def menu_art_image(image,box):

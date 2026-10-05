@@ -61,7 +61,7 @@ def test_missing_or_competing_functional_role_cannot_authorize_task_modal(role):
 
 def reader(crop,*,label='Nhận',fraction='10/10'):
     h=crop.shape[0]
-    return [{'text':'Complete objective ten' if h in {76,152} else label if h in {67,134} else fraction}]
+    return [{'text':'Complete objective ten' if h in {90,180} else label if h in {134,201} else fraction}]
 
 
 def available_frame(*,bar=True):
@@ -166,3 +166,65 @@ def test_unreadable_complete_green_action_cannot_disappear_into_exhausted_covera
     rows=task_grid_rows(im,shell,reader=reader)
     assert not unresolved_grid_actions(im,shell,rows)
     assert not unresolved_grid_actions(image('task-grid-partial-free'),shell,[])
+
+
+def test_completed_fraction_may_exceed_goal_but_needs_independent_full_bar():
+    im,shell=available_frame()
+    assert task_grid_rows(im,shell,reader=lambda c:reader(c,fraction='600/500'))[0]['state']=='AVAILABLE'
+    assert task_grid_rows(im,shell,reader=lambda c:reader(c,fraction='499/500'))[0]['state']=='UNKNOWN'
+    assert task_grid_rows(im,shell,reader=lambda c:reader(c,fraction='600/0'))[0]['state']=='UNKNOWN'
+
+
+@pytest.mark.skipif(__import__('sys').platform!='win32',reason='Windows local OCR evidence')
+def test_current_full_grid_caption_and_exceeded_objective_are_safely_free():
+    from top_heroes_auto.vision.local_ocr import read_words
+
+    im=image('task-grid-complete-exceeded')
+    shell=task_grid_shell(im)
+    rows=task_grid_rows(im,shell,reader=read_words)
+    free=[r for r in rows if r['state']=='AVAILABLE']
+    assert len(free)==1
+    assert free[0]['identity']=='task-caption:tich luy tieu 500 kc'
+    assert free[0]['row'].y+free[0]['row'].height<1063
+    # Objective wording describes past activity, not a spending control.
+    assert free[0]['box'].center[1]>free[0]['row'].y+free[0]['row'].height*.80
+
+
+def test_reputation_functional_glyphs_do_not_depend_on_animated_art_background():
+    from top_heroes_auto.vision.dynamic_events import (
+        body_label_box,
+        reputation_information,
+        side_task_navigation,
+    )
+
+    im=image('reputation-current-caption')
+    assert reputation_information(im) and side_task_navigation(im)
+    b=body_label_box(im,'reputation-level')
+    damaged=im.copy()
+    damaged[b.y:b.y+b.height,b.x:b.x+b.width]=40
+    assert not reputation_information(damaged)
+    other=body_label_box(im,'side-tasks-label')
+    duplicate=im.copy()
+    duplicate[200:200+other.height,100:100+other.width]=im[other.y:other.y+other.height,other.x:other.x+other.width]
+    assert side_task_navigation(duplicate) is None
+
+
+def test_personal_standing_noun_is_not_a_free_claim_label():
+    from top_heroes_auto.vision.dynamic_events import event_body_contract
+
+    im=image('reputation-current-caption')
+    assert event_body_contract(im,(),None,reader=lambda _: [{'text':'Danh vong ca nhan'}])=='REPUTATION_INFORMATION'
+    for word in ('Nhan','Mien Phi','VND','Kich Hoat'):
+        assert event_body_contract(im,(),None,reader=lambda _: [{'text':'Danh vong ca nhan '+word}])=='UNSUPPORTED'
+
+
+def test_competing_old_and_current_glyph_variants_fail_closed():
+    from top_heroes_auto.vision.dynamic_events import body_label_box
+
+    im=image('reputation-current-caption')
+    for role in ('reputation-level','side-tasks-label'):
+        duplicate=im.copy()
+        old=cv2.imread('assets/tasks/phase8/'+role+'.png')
+        h,w=old.shape[:2]
+        duplicate[200:200+h,100:100+w]=old
+        assert body_label_box(duplicate,role) is None

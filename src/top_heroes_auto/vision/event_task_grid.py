@@ -28,7 +28,7 @@ def _contains(a,b):
 
 
 def grid_label_glyph(image,row):
-    crop=image[row.y+round(row.height*.50):row.y+round(row.height*.66),row.x+8:row.x+row.width-8]
+    crop=image[row.y+round(row.height*.46):row.y+round(row.height*.66),row.x+8:row.x+row.width-8]
     if not crop.size:
         return None
     mask=cv2.inRange(cv2.cvtColor(crop,cv2.COLOR_BGR2HSV),(0,0,180),(179,110,255))
@@ -104,13 +104,13 @@ def task_grid_rows(image,shell,*,reader):
     rows=[]
     h,w=image.shape[:2]
     for b in shell['cards']:
-        caption=_text(image[b.y+round(b.height*.50):b.y+round(b.height*.66),b.x+8:b.x+b.width-8],reader)
+        caption=_text(image[b.y+round(b.height*.46):b.y+round(b.height*.66),b.x+8:b.x+b.width-8],reader)
         if caption[0]!=caption[1] or len(caption[0])<10 or not any(c.isalpha() for c in caption[0]):
             continue  # No durable identity from a position, run or whole image hash.
         identity='task-caption:'+caption[0]
         column=BoundingBox(b.x+8,b.y+round(b.height*.80),b.width-16,round(b.height*.20)-3)
         crop=image[column.y:column.y+column.height,column.x:column.x+column.width]
-        texts=[folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=s,fy=s)))) for s in (1,2)]
+        texts=[folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=s,fy=s)))).strip(" .:'\"") for s in (2,3)]
         if texts[0]!=texts[1] or texts[0] not in {'nhan','mien phi','den','da nhan'}:
             continue
         hsv=cv2.cvtColor(crop,cv2.COLOR_BGR2HSV)
@@ -138,10 +138,16 @@ def task_grid_rows(image,shell,*,reader):
         bars=[]
         for contour in cv2.findContours(progress_green,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[0]:
             _,_,bw,bh=cv2.boundingRect(contour)
-            if .75*b.width<bw<.90*b.width and .025*b.height<bh<.07*b.height and cv2.contourArea(contour)/(bw*bh)>.80:
-                bars.append(contour)
+            if .78*b.width<bw<.90*b.width and .025*b.height<bh<.07*b.height and cv2.contourArea(contour)/(bw*bh)>.70:
+                # Rounded bar caps and percentage glyphs remove green pixels;
+                # require a continuous filled body at both owned bar endpoints.
+                bx,by,_,_=cv2.boundingRect(contour)
+                inset=max(2,round(bh*.5))
+                endpoints=[progress_green[by+bh//2,bx+inset],progress_green[by+bh//2,bx+bw-1-inset]]
+                if all(endpoints):
+                    bars.append(contour)
         complete=(len(fractions[0])==1 and fractions[0]==fractions[1] and len(bars)==1
-                  and int(fractions[0][0][0])==int(fractions[0][0][1])>0)
+                  and int(fractions[0][0][0])>=int(fractions[0][0][1])>0)
         state='NOT_AVAILABLE' if unavailable else ('AVAILABLE' if complete else 'UNKNOWN')
         rows.append(dict(identity=identity,row=b,box=buttons[0],family='race-task-grid',state=state,
             evidence=('qualified-race-task-grid','qualified-task-grid','complete-reward-card','qualified-control-color','independent-task-caption',

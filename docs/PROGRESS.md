@@ -1,5 +1,40 @@
 
 
+## Phase 8 — fresh acceptance and current-caption repair (2026-10-05)
+
+Accepted b7beb75: CI37298774347 fully PASS;1447 passed+26 skipped in3600.05s.
+Artifact11343925013,392 runtime assets,665 Desktop files verified. The exact
+previous build was hash-verified before removal; only newest Desktop app remains.
+Scoped run20261005-115455-701617Z-119ca413 retained Momo COMPLETE, processed the
+eight unfinished accounts sequentially. HiHi now COMPLETE, external running
+state preserved. Others PARTIAL. No new claims; all220 existing journals unchanged,
+Protected/selection/names unchanged; OS mutex RELEASED. Index3 still lacks
+independent explicit emulator-5560 transport/boot proof, final stopped, cleanup
+OWNERSHIP_UNKNOWN; no name/config write. Qualified child-to-Home resume and
+competitive BACK_ONLY succeeded; broader independent Event branches now recorded.
+
+Remaining saved evidence demonstrates caption clipping and glyph/background
+changes. Offline fix expands only the current card caption crop, accepts paired
+completed fractions above a positive goal (600/500), independently requires
+owned full-width bar with both filled endpoints, and qualifies free-label OCR
+from two larger renderings. Rounded caps/glyph holes have explicit geometric
+criteria; incomplete bars, costs, partial cards and disagreement still reject.
+
+Functional reputation/Tasks glyph variants exclude animated background at>=.995,
+with paired existing screen/clipboard roles and cross-variant ambiguity rejection.
+Only independently qualified summary wording 'cá nhân' is separated from a Nhận
+control; actual free/cost words and added controls still block. No seasonal title
+or account route. Four new re-encoded game/glyph-only PNGs: no metadata beyond
+IHDR/IDAT/IEND, no credential/private content.
+
+214 targeted tests PASS,57 affected glyph/contract tests PASS (overlap). Final
+cross-variant test also PASS; Ruff/diff-check PASS. Self-review keeps immutable
+locks and one-shot dispatch, independent post-state proof, current bboxes, bounded
+traversal and no spending/config/Protected input. New code not yet real-accepted;
+fresh CI/portable gate required. Phase8 PARTIAL; no Phase9.
+
+
+
 ## Phase 8 — current gallery and task-grid continuation repair (2026-10-05)
 
 Accepted baseline 6737f3e, CI37280100567: lint/full pytest1427 passed+26
