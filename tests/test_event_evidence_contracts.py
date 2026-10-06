@@ -178,6 +178,7 @@ def home_port(tmp_path,monkeypatch):
     monkeypatch.setattr(module.time,'sleep',lambda _:None)
     port=object.__new__(DynamicEventPort)
     port.current=None
+    port.session=SimpleNamespace(target={'persistent_identity':'fixture-disk'})
     port.entered=None
     port.home_icon_cores={}
     port.rows=()
@@ -197,6 +198,7 @@ def home_port(tmp_path,monkeypatch):
 def test_production_home_recheck_uses_qualified_live_icon_despite_pixel_rounding(tmp_path,monkeypatch):
     port,sent=home_port(tmp_path,monkeypatch)
     frame=port.observe()
+    assert frame.stable_id == 'fixture-disk' and frame.event_scan_performed
     assert frame.coverage_known and not frame.blocked
     assert len(frame.controls)==5 and all(c.kind=='event' for c in frame.controls)
     animated=next(c for c in frame.controls if c.box==BoundingBox(533,289,74,76))
