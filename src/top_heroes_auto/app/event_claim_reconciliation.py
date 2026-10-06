@@ -7,6 +7,7 @@ import cv2
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.dynamic_events import task_label_glyph
+from top_heroes_auto.vision.event_achievements import achievement_label_glyph
 from top_heroes_auto.vision.models import BoundingBox
 
 
@@ -19,25 +20,29 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index, famil
     rows = [dict(row) for row in rows]
     if family=='race-task-grid' and any('qualified-race-task-grid' not in r.get('evidence',()) for r in rows):
         raise SafetyError('Current task category is unproven; no new claim.')
+    if family=='achievement-cards' and any('qualified-achievement-cards' not in r.get('evidence',()) for r in rows):
+        raise SafetyError('Achievement category is unproven; no new claim.')
     for claim in claims:
         if not claim['reward_id'].startswith('event:'):
             continue
         proof = json.loads(claim['before_evidence'])
         page=proof.get('page','')
         saved_family=('personal-tasks' if page.endswith(':personal-tasks') else
-                      ('race-task-grid' if page.endswith(':race-task-grid') else None))
-        if saved_family is None or family not in {'personal-tasks','race-task-grid'}:
+                      ('race-task-grid' if page.endswith(':race-task-grid') else
+                       'achievement-cards' if page.endswith(':achievement-cards') else None))
+        if saved_family is None or family not in {'personal-tasks','race-task-grid','achievement-cards'}:
             raise SafetyError('Unsupported saved Event claim identity; no new claim.')
         if proof.get('persistent_identity') != persistent_identity or proof['identity'][0] != index:
             raise SafetyError('Saved Event claim target identity changed.')
         if saved_family!=family:
-            marker=('selected-task-context' if saved_family=='personal-tasks' else 'qualified-race-task-grid')
+            marker=('selected-task-context' if saved_family=='personal-tasks' else
+                    'qualified-achievement-cards' if saved_family=='achievement-cards' else 'qualified-race-task-grid')
             if marker not in proof.get('evidence',()):
                 raise SafetyError('Saved task category is unproven; no new claim.')
             continue  # Two positively qualified UI schemas have independent rewards.
         from top_heroes_auto.vision.event_task_grid import grid_label_glyph
 
-        label_glyph=grid_label_glyph if family=='race-task-grid' else task_label_glyph
+        label_glyph=achievement_label_glyph if family=='achievement-cards' else grid_label_glyph if family=='race-task-grid' else task_label_glyph
         source = Path(proof['capture'])
         try:
             saved = json.loads(source.with_suffix('.event.json').read_text(encoding='utf-8'))

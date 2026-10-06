@@ -38,6 +38,7 @@ from top_heroes_auto.vision.dynamic_events import (
     task_context_box,
     task_reward_rows,
 )
+from top_heroes_auto.vision.event_achievements import achievement_rows, achievement_shell
 from top_heroes_auto.vision.event_competitive import competitive_indicator_contract
 from top_heroes_auto.vision.event_paid_modal import paid_modal_navigation
 from top_heroes_auto.vision.event_task_grid import task_grid_rows, task_grid_shell, unresolved_grid_actions
@@ -127,28 +128,34 @@ class DynamicEventPort:
                 shell=competitive_navigation_shell(image,observed.box('back'))
             if shell is None:
                 shell=task_grid_shell(image)
+            if shell is None:
+                shell=achievement_shell(image)
             if shell:
                 page = shell['page']
                 self.event_title = shell['title']
                 grid=shell.get('permission')=='TASK_GRID'
-                self.rows = (task_grid_rows(image,shell,reader=read_words) if grid else
+                achievements=shell.get('permission')=='ACHIEVEMENTS'
+                self.rows = (achievement_rows(image,shell,reader=read_words) if achievements else
+                             task_grid_rows(image,shell,reader=read_words) if grid else
                              (() if shell.get('permission')=='BACK_ONLY' else
                               task_reward_rows(image,self.task_context,reader=read_words)))
-                context=(None if grid or shell.get('permission')=='BACK_ONLY' else
+                context=(None if grid or achievements or shell.get('permission')=='BACK_ONLY' else
                          task_context_box(image,self.task_context))
-                if context is not None or grid:
-                    if not grid:
+                if context is not None or grid or achievements:
+                    if not grid and not achievements:
                         page = 'event:'+shell['title']+':personal-tasks'
                     self.rows = bind_saved_rewards(image, self.rows,
                         self.session.manager.store.reward_claims(self.session.manager.namespace, self.session.index),
                         persistent_identity=self.session.target['persistent_identity'], index=self.session.index,
-                        family='race-task-grid' if grid else 'personal-tasks')
+                        family='achievement-cards' if achievements else 'race-task-grid' if grid else 'personal-tasks')
                     if any(r['state'] == 'UNKNOWN' for r in self.rows):
                         blocked.append('UNRESOLVED_SAVED_REWARD_IDENTITY')
                     for row in self.rows:
                         if row['state'] != 'NOT_AVAILABLE':
                             self.unavailable_observations.pop(row['identity'], None)
                             continue
+                        if achievements and 'explicit-claimed-label' not in row['evidence']:
+                            continue  # Unmet objective is not proof of a dispatched claim.
                         proof = dict(identity=list(identity), capture=str(c.source_image),
                             page=page, reward=row['identity'], state='NOT_AVAILABLE',
                             independent_evidence=list(row['evidence']))
@@ -183,7 +190,7 @@ class DynamicEventPort:
                             ('selected-task-context','complete-card-list','outside-action-column'),'scroll'))
                 if shell.get('permission')=='BACK_ONLY':
                     competitive_evidence=competitive_indicator_contract(image,shell,reader=read_words)
-                contract=('TASK_GRID' if grid else (
+                contract=('ACHIEVEMENTS' if achievements and len(self.rows)==len(shell['cards']) and all(r['state']!='UNKNOWN' for r in self.rows) else 'UNSUPPORTED' if achievements else 'TASK_GRID' if grid else (
                     'COMPETITIVE_OUT_OF_SCOPE_INDICATORS' if competitive_evidence else
                     ('UNSUPPORTED' if shell.get('permission')=='BACK_ONLY' else
                      event_body_contract(image,self.rows,self.task_context,reader=read_words))))
@@ -225,6 +232,7 @@ class DynamicEventPort:
                     controls.append(Control('menu-list-vertical',surface,
                         ('event-shell','qualified-menu-grid','current-card-list'),'scroll'))
                 parent = Control('current-back',shell['back'],
+                    ('achievement-title','qualified-achievement-cards','current-modal-close') if achievements else
                     ('functional-tasks-word','qualified-grid','current-modal-close') if grid else
                     (('functional-competition-chrome','paired-glyph-anchors','back-anchor')
                     if shell.get('permission')=='BACK_ONLY' else ('gold-header','stable-title','back-anchor')),'parent')
@@ -428,6 +436,9 @@ class DynamicEventPort:
                         return effect
                 if same and same[0]['state']=='AVAILABLE':
                     return []
+                continue
+            if ('qualified-achievement-cards' in target.evidence
+                    and not {'explicit-claimed-label','original-green-control-absent'}.issubset(same[0].get('evidence',()))):
                 continue
             if ('qualified-task-grid' in target.evidence and not receipt
                     and not {'explicit-claimed-label','original-green-control-absent'}.issubset(same[0].get('evidence',()))):

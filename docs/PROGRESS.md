@@ -1,3 +1,31 @@
+## Phase 8 — actual nested achievement reward qualification (2026-10-06)
+
+2b39076 CI37485852212 PASS:1573 passed/26 skipped, Windows build/smoke/upload
+PASS; artifact11426565461 delivered and681 files verified. Controlled production
+random check selected2/5-Emmmmm with secrets.choice from[2,3,4,5,8,9,10,12]
+(11 excluded as the previous random account). Scope was events only, report
+20261006-160807-786152Z-abd27283. Explicit emulator-5558, Home SUCCESS.
+Repaired nested trophy navigation dispatched(653,231) on current visual bbox;
+actual 16:11:13 capture reached Thanh Tuu. Green Nhan was visible for the first
+server level4 giant achievement, but unsupported modal stopped before claim.
+Owned cleanup SUCCESS, selections restored, all223 journals unchanged; all nine
+non-Protected config hashes match before/after. Protected untouched. No fleet.
+
+Continue on the SAME bound random target after fresh CI, not a new random test.
+Qualify the saved brown achievement modal with unique title/close+red rim, closed
+card list, multiple reward item cells and a separate current green claim control.
+Two rendered OCR readings must say only Nhan; extra digits/costs/foreign colored
+icons fail closed. Positive claimed stamps and unmet objectives are distinct.
+Only two fresh same-reward explicit Da Nhan states with original green absent
+can verify this family; receipt-only and unmet objective cannot. Caption binding
+preserves historical same-family locks and rejects ambiguity. Unknown periods
+remain locked; no source reset assumptions. One-shot existing journal boundary.
+
+207 targeted Event/navigation/journal/postcondition regressions passed; focused
+achievement tests rerun after red-close qualification. Ruff/diff review clean.
+New assets are only clean game UI functional anchors and the actual modal.
+No config writes, resource spending, other flows or Phase9. Phase8 still PARTIAL.
+
 ## Phase 8 — narrow production transition/cleanup repair (2026-10-06)
 
 Source/build preflight: clean 7388d35 on codex/phase8-dynamic-events. Desktop
