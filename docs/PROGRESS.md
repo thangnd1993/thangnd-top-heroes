@@ -1,3 +1,41 @@
+## Phase 8 — narrow production transition/cleanup repair (2026-10-06)
+
+Source/build preflight: clean 7388d35 on codex/phase8-dynamic-events. Desktop
+TopHeroesAutoManager.exe matches CI37423589031/artifact11396591645 and all679
+cache files. No TopHeroes/Python helper running; Protected index6 dnplayer PID7152
+was observed and left untouched. Last failed production entry was
+app.main automation-acceptance -> automation_fleet -> events registry/adapter,
+report 20261006-072130-248121Z-437e7262. No alternative runner is introduced.
+
+Name/config cause remains NAME_CHANGE_CAUSE_UNPROVEN. Existing reports and the
+old 6032dc8 config helper demonstrate whole-file replace/rollback risk, already
+retired in692ee47. Current source/scripts and top-level ignored helpers inspected;
+no active config writer found. No independent PID/file-operation trace identifies
+the current incident. Own zero-write counters do not establish external causation.
+Runtime display-change reporting now states unproven cause. Never restore configs.
+Local detailed audit: artifacts/phase8-production-defect-audit.json.
+
+Saved account2 first Event page was a calendar reminder with Boss Guild/Den, not
+a free claim. The first actionable missing nested edge is its 07:23:53 frame:
+visible badged Thanh Tuu trophy, but DynamicEventPort.observe provided only Back
+because body contract was UNSUPPORTED. Add paired unique trophy/functional-label
+and owned badge navigation only; do not mark the body covered or infer free
+availability. Clean game-only fixture plus two small functional anchors; no
+seasonal artwork, account coordinates, lowered thresholds or claim changes.
+
+User correction supersedes older PREMATURE_CLEANUP policy below: incomplete
+coverage stays blocked/aborted, but safe run-owned cleanup verifies the existing
+live identity/Protection/selection/runtime guards and may stop once. External or
+uncertain ownership remains untouched. Every Event/recovery tap persists exact
+current-device-point geometry before dispatch. Journal locks remain unchanged.
+
+Targeted repair/identity/pipeline/recovery/journal tests:213 passed. Earlier
+focused evidence-contract/paid-modal/recovery run:274 passed, three fixture
+setup failures corrected by providing required current screenshot evidence.
+Ruff and diff self-review passed. Fresh full CI and controlled random production
+acceptance still required; no real input or config mutation during offline work.
+Phase8 remains PARTIAL. No Phase9.
+
 ## Phase 8 — record every fresh Home scan before early blockers (2026-10-06)
 
 09f64ef CI37416385380 fully PASS:1561 passed+26 skipped; artifact11393061073,

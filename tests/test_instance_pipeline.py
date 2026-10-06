@@ -244,7 +244,7 @@ def test_session_protection_revocation_blocks_cleanup_and_selection(rig, tmp_pat
         session.recover()
     session.close()
     assert not any(c[1] == "quit" for c in process.calls)
-    assert session.report["cleanup"] == "PREMATURE_CLEANUP"
+    assert session.report["cleanup"].startswith("FAILED:")
 
 
 def test_no_phase_specific_scheduler_and_current_registration():

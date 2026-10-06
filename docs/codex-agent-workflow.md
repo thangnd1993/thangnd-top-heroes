@@ -88,9 +88,11 @@ preserves selection, Protection, ADB/session binding, journals, resume and owned
 cleanup. Recreated index or ambiguous durable history fails closed. Never rename,
 write configuration names or restore old configuration, including rollback.
 
-Before owned stop, verify terminal evidence for the entire frozen plan. For Events,
-Home alone is insufficient: require scan, candidate count, candidate outcomes,
-nested traversal, rewards and blockers. Missing work refuses cleanup with
-PREMATURE_CLEANUP. A branch blocker permits other candidates only after fresh safe
-recovery. Keep exclusive automation ownership and preserve external-running state.
-Audit starting/ending display labels and name-write attempts separately from ID.
+Record terminal evidence for the entire frozen plan: actual Event scan, candidate
+outcomes, nested traversal, rewards and blockers. Missing work is BLOCKED/ABORTED.
+Safe run-owned cleanup is independent of coverage success: verify live identity,
+Protection, selection and runtime ownership before stopping. Never stop external
+or uncertain ownership, and never convert cleanup success into task completion.
+Continue independent candidates only after fresh safe navigation evidence.
+Audit labels and write attempts, but attribute config changes only with independent
+process/file evidence; otherwise report NAME_CHANGE_CAUSE_UNPROVEN.

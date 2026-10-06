@@ -95,14 +95,22 @@ class FixedRewardPort:
         self.check()
         if observation is not self.last or self.target is None:
             raise SafetyError('Stale fixed-flow observation.')
+        tap_overlay = None
+        if action == 'tap' and getattr(self, 'record_tap_geometry', False):
+            tap_overlay = self.save_tap_geometry(observation.captured, values)
         self.events.append(dict(before=str(observation.captured.source_image), action=action,
-                                values=list(values), outcome='POSSIBLE'))
+                                values=list(values), outcome='POSSIBLE', tap_overlay=tap_overlay))
         self.save_events()
         self.manager.execute(self.index, action, values=values, snapshot=self.snapshot,
                              observed_target=self.target, before_input=before_input)
         self.events[-1]['outcome'] = 'DISPATCHED'
         self.last = None
         self.save_events()
+
+    def save_tap_geometry(self, captured, point):
+        from top_heroes_auto.vision.debug import write_device_tap
+
+        return write_device_tap(captured, point, captured.source_image.with_suffix('.tap-point.png'))
 
     def save_events(self):
         (self.folder / 'actions.json').write_text(json.dumps(self.events, indent=2), encoding='utf-8')

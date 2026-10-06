@@ -19,6 +19,7 @@ from top_heroes_auto.automation.overlays import (
 )
 from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.dynamic_events import (
+    achievement_navigation,
     blank_event_render,
     competitive_navigation_shell,
     competitive_rank_transition,
@@ -51,6 +52,7 @@ class DynamicEventPort:
         self.session, self.folder = session, folder
         self.transport = FixedRewardPort(session.manager, session.snapshot, session.index, session.name,
                                          folder, session.check, session.cancelled)
+        self.transport.record_tap_geometry = True
         self.current = None
         self.entered = None
         self.overlay_budget = OverlayBudget()
@@ -186,6 +188,10 @@ class DynamicEventPort:
                     ('UNSUPPORTED' if shell.get('permission')=='BACK_ONLY' else
                      event_body_contract(image,self.rows,self.task_context,reader=read_words))))
                 coverage_known=contract!='UNSUPPORTED'
+                achievement = achievement_navigation(image)
+                if achievement and shell.get('permission') != 'BACK_ONLY':
+                    controls.append(Control('functional-achievements', achievement['box'],
+                        achievement['evidence'], 'child'))
                 if contract=='REPUTATION_INFORMATION':
                     nav=side_task_navigation(image)
                     if nav:

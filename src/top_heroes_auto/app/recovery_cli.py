@@ -151,7 +151,7 @@ class DiagnosticRecoveryPort:
                     break
             raise
         detection = self.detector.detect(screen)
-        if not persist and detection.state in DISMISSIBLE | {ScreenState.POPUP_GENERIC, ScreenState.TREO_THUONG, ScreenState.GAME_WORLD}:
+        if not persist and detection.state in DISMISSIBLE | {ScreenState.POPUP_GENERIC, ScreenState.TREO_THUONG, ScreenState.GAME_WORLD, ScreenState.WAR_EMPTY}:
             if self._overlay_samples >= 12:
                 raise SafetyError("Overlay evidence capture bound reached.")
             self._overlay_samples += 1
@@ -180,11 +180,19 @@ class DiagnosticRecoveryPort:
         )
         return RecoveryObservation(detection, raw, target.serial, target.boot_id)
 
+    def save_tap_geometry(self, observation, screen, point):
+        from top_heroes_auto.vision.debug import write_device_tap
+
+        if observation.screenshot is None:
+            raise SafetyError('Recovery tap requires persisted current evidence.')
+        write_device_tap(screen, point, observation.screenshot.with_suffix('.tap-point.png'))
+
     def dismiss_overlay(self, observation):
         if self._overlay_frame is None or self._overlay_frame[2] is not observation.detection:
             raise SafetyError("Stale overlay observation.")
         target, screen, detection = self._overlay_frame
         point = dismiss_overlay_bottom_left(screen, detection)
+        self.save_tap_geometry(observation, screen, point)
         self._overlay_frame = None  # No uncertain input retry using this frame.
         self._after_overlay = True
         self.manager.execute(self.index, "tap", values=point, snapshot=self.snapshot,
@@ -210,6 +218,7 @@ class DiagnosticRecoveryPort:
             raise SafetyError("Stale Treo Thuong observation.")
         target, screen, detection = self._overlay_frame
         point = hanging_back_point(screen, detection)
+        self.save_tap_geometry(observation, screen, point)
         self._overlay_frame = None
         self._after_overlay = True
         self.manager.execute(self.index, "tap", values=point, snapshot=self.snapshot,
@@ -222,6 +231,7 @@ class DiagnosticRecoveryPort:
             raise SafetyError("Stale empty War observation.")
         target, screen, detection = self._overlay_frame
         point = war_back_point(screen, detection)
+        self.save_tap_geometry(observation, screen, point)
         self._overlay_frame = None
         self._after_overlay = True
         self.manager.execute(self.index, "tap", values=point, snapshot=self.snapshot,
@@ -234,6 +244,7 @@ class DiagnosticRecoveryPort:
             raise SafetyError('Stale World observation.')
         target, screen, detection = self._overlay_frame
         point = world_return_point(screen, detection)
+        self.save_tap_geometry(observation, screen, point)
         self._overlay_frame = None
         self._after_overlay = True
         self.manager.execute(self.index, 'tap', values=point, snapshot=self.snapshot,

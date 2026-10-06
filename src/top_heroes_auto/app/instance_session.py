@@ -51,7 +51,7 @@ class InstanceSession:
         self.name = live.name
         self.report['ending_display_label'] = live.name
         if live.name != self.report['starting_display_label']:
-            self.report['display_label_event'] = 'EXTERNAL_DISPLAY_NAME_CHANGE'
+            self.report['display_label_event'] = 'DISPLAY_NAME_CHANGE_CAUSE_UNPROVEN'
         return live
 
     def start(self):
@@ -113,10 +113,11 @@ class InstanceSession:
             self.report['ldplayer_name_write_attempts'] = name_write_attempts() - self.name_writes_before
             return self.report
         self.closed = True
-        self.report['cleanup_permitted_by_plan'] = self.execution_terminal
-        if self.started and not self.execution_terminal:
-            self.report['cleanup'] = 'PREMATURE_CLEANUP'
-        if self.started and self.execution_terminal and not self.cleanup_attempted:
+        self.report['execution_plan_terminal'] = self.execution_terminal
+        self.report['cleanup_basis'] = 'RUN_OWNERSHIP_AND_LIVE_IDENTITY'
+        if not self.execution_terminal:
+            self.report['execution_status'] = 'ABORTED'
+        if self.started and not self.cleanup_attempted:
             self.cleanup_attempted = True
             try:
                 # Cancellation stops new gameplay, but permits owned cleanup.

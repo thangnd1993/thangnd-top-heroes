@@ -175,7 +175,7 @@ def test_stale_confirmation_or_missing_boot_never_taps():
         assert not port.inputs
 
 
-def test_production_port_consumes_current_frame_even_when_dispatch_fails():
+def test_production_port_consumes_current_frame_even_when_dispatch_fails(tmp_path):
     frame = capture()
     found = RecoveryScreenDetector().detect(frame)
     calls = []
@@ -188,7 +188,9 @@ def test_production_port_consumes_current_frame_even_when_dispatch_fails():
     port._after_overlay = False
     port.manager = SimpleNamespace(execute=fail)
     port.index,port.name,port.snapshot = frame.index,frame.name,'snapshot'
-    obs = SimpleNamespace(detection=found)
+    clean = tmp_path / "current.png"
+    clean.write_bytes(cv2.imencode(".png", frame.original)[1].tobytes())
+    obs = SimpleNamespace(detection=found, screenshot=clean)
     with pytest.raises(SafetyError):
         port.return_from_world(obs)
     assert port._overlay_frame is None and port._after_overlay

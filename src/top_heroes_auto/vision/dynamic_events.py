@@ -989,3 +989,30 @@ def competitive_rank_transition(image):
                 confidence=min(confidences.values()),anchor_confidences=confidences,
                 anchors={k:asdict(BoundingBox(round(b.x*w/720),round(b.y*h/1280),
                         round(b.width*w/720),round(b.height*h/1280))) for k,b in anchors.items()})
+
+
+def achievement_navigation(image):
+    """Qualified trophy + functional label + owned badge; navigation only.
+
+    Current evidence has this nested reward entry on an unsupported body. Body
+    coverage remains blocked; the entry never grants reward/paid input permission.
+    """
+    core = body_label_box(image, 'achievement-trophy-core')
+    label = body_label_box(image, 'achievement-label')
+    if not (core and label and core.y + core.height <= label.y
+            and label.y - core.y - core.height < core.height
+            and abs(core.center[0] - label.center[0]) < label.width * .2):
+        return None
+    h, w = image.shape[:2]
+    left, top = max(0, core.x - core.width), max(0, core.y - core.height)
+    right, bottom = min(w, core.x + core.width * 2), min(h, core.y + core.height)
+    if not h * .08 < core.y < label.y < h * .85:
+        return None
+    badges = [b for b in discover_badges(image, BoundingBox(left, top, right-left, bottom-top))
+              if b.qualified]
+    if (len(badges) != 1 or not
+            (core.x + core.width * .5 < badges[0].box.center[0] < core.x + core.width * 1.5
+             and core.y - core.height < badges[0].box.center[1] < core.y)):
+        return None
+    return dict(box=core, badge=badges[0], evidence=(
+        'unique-trophy-core', 'paired-achievement-label', 'owned-attention-badge', 'navigation-only'))

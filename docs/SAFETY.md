@@ -93,18 +93,19 @@ mutation. Name-only historical snapshots cannot authorize execution. Exact
 indexed serial + boot and process continuity are separate session proof.
 
 Every run audits name-write attempts, starting/ending labels and stable ID/index.
-A changed label with zero writes is EXTERNAL_DISPLAY_NAME_CHANGE, never ownership
-loss. Never restore its old label. No default/first-device/index-0 ADB fallback.
+A changed label preserves technical ownership but its cause remains
+NAME_CHANGE_CAUSE_UNPROVEN without independent process/file evidence. An internal
+zero-write counter cannot identify the writer. Never restore its old label. No default/first-device/index-0 ADB fallback.
 
-Freeze the per-instance execution plan before lifecycle mutation. Owned cleanup
-requires explicit terminal results for every flow and sub-reward; omissions and
-Home without an Event scan refuse stop as PREMATURE_CLEANUP. Event evidence
-includes complete scan, candidate count, each candidate/nested traversal, reward
-results and genuine blockers. Zero claims needs positive completed discovery or
-explicit blocker proof. Navigation-only recovery continues independent candidates
-when Home is freshly qualified; UNKNOWN itself never authorizes input. A genuine
-pre-Home recovery failure is recorded separately, never a fabricated scan.
-External-running instances remain running; replaced/stopped sessions never restart.
+Freeze the per-instance execution plan before lifecycle mutation. Missing discovery
+or omitted work remains BLOCKED/ABORTED, never COMPLETE or NOT_AVAILABLE. Record
+scan, candidate/nested traversal, reward outcomes and genuine blockers. Failure
+or incomplete coverage does not prohibit safe cleanup of a run-owned instance.
+Before cleanup, verify live Protection/selection, durable identity, process and
+boot ownership. Never stop an external, replaced or uncertain owner. Cleanup
+cannot turn an incomplete task into success, unlock a claim or restart a session.
+Navigation-only recovery continues independent candidates only with fresh safe
+evidence; UNKNOWN itself never authorizes input.
 
 LDPlayer transport accepts only list2/launch/quit/indexed adb. The obsolete
 whole-config ADB remediation writer is disabled, including backup restoration:

@@ -139,7 +139,7 @@ def test_no_back_without_post_capture_budget_or_when_cancelled():
     assert not port.back_frames
 
 
-def test_production_back_consumes_fresh_qualified_frame_once():
+def test_production_back_consumes_fresh_qualified_frame_once(tmp_path):
     frame = capture()
     found = RecoveryScreenDetector().detect(frame)
     target = Target(frame.index, frame.name, frame.serial, frame.boot_id)
@@ -148,7 +148,9 @@ def test_production_back_consumes_fresh_qualified_frame_once():
     calls = []
     port.manager = SimpleNamespace(execute=lambda *a, **kw: calls.append((a,kw)))
     port._overlay_frame = target, frame, found
-    obs = SimpleNamespace(detection=found)
+    clean = tmp_path / "current.png"
+    clean.write_bytes(cv2.imencode(".png", frame.original)[1].tobytes())
+    obs = SimpleNamespace(detection=found, screenshot=clean)
     point = port.back_from_hanging(obs)
     assert calls == [((frame.index, 'tap'), dict(values=point, snapshot='snapshot', observed_target=target))]
     assert port._after_overlay and port._overlay_frame is None

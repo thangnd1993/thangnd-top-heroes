@@ -140,16 +140,17 @@ def session(rig, tmp_path, *, external=False):
 
 
 @pytest.mark.parametrize('submitted', [False, True])
-def test_owned_home_without_event_scan_refuses_cleanup(rig, tmp_path, submitted):
+def test_owned_home_without_event_scan_aborts_plan_but_cleans_up(rig, tmp_path, submitted):
     owner = session(rig, tmp_path)
     if submitted:
         owner.finish_plan({'events': event_detail(scanned=False)}, {'event-rewards': dict(result='NOT_AVAILABLE')})
     result = owner.close()
-    assert result['cleanup'] == 'PREMATURE_CLEANUP'
-    assert not result['cleanup_permitted_by_plan']
-    assert not any(c[1] == 'quit' for c in rig[1].calls)
+    assert result['cleanup'] == 'SUCCESS'
+    assert result['execution_status'] == 'ABORTED'
+    assert not result['execution_plan_terminal']
+    assert sum(c[1] == 'quit' for c in rig[1].calls) == 1
     assert result['selection_restored']
-    assert rig[0].query(7).running
+    assert not rig[0].query(7).running
 
 
 @pytest.mark.parametrize('external', [False, True])
@@ -157,7 +158,7 @@ def test_complete_zero_claim_scan_allows_only_owned_stop(rig, tmp_path, external
     owner = session(rig, tmp_path, external=external)
     owner.finish_plan({'events': event_detail()}, {'event-rewards': dict(result='NOT_AVAILABLE')})
     result = owner.close()
-    assert result['cleanup_permitted_by_plan']
+    assert result['execution_plan_terminal']
     assert result['cleanup'] == ('NOT_REQUIRED' if external else 'SUCCESS')
     assert sum(c[1] == 'quit' for c in rig[1].calls) == (0 if external else 1)
     assert result['selection_restored']
@@ -171,7 +172,7 @@ def test_rename_during_session_keeps_ownership_and_updates_label(rig, tmp_path):
     result = owner.close()
     assert result['cleanup'] == 'SUCCESS'
     assert result['ending_display_label'] == 'User B 🌿'
-    assert result['display_label_event'] == 'EXTERNAL_DISPLAY_NAME_CHANGE'
+    assert result['display_label_event'] == 'DISPLAY_NAME_CHANGE_CAUSE_UNPROVEN'
     assert result['ldplayer_name_write_attempts'] == 0
 
 
