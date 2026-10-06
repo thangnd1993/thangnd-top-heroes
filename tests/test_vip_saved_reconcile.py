@@ -21,7 +21,7 @@ from top_heroes_auto.vision.screenshot import ScreenshotService
 @pytest.mark.parametrize('bad',[None,'claimable_after','wrong_boot','stale','wrong_tap','not_dispatched','protected','foreign_folder','changed_identity','missing_identity'])
 def test_saved_upper_claim_never_replayed(tmp_path,bad):
     store=Store(tmp_path/'claims.sqlite3')
-    store.merge('test',[SimpleNamespace(index=23,name='exact')])
+    store.merge('test',[SimpleNamespace(index=23,name='exact',stable_id='fixture-disk-23')])
     task=store.create_task_run('test','vip-reward',23,'exact')
     profile,_=_load_profile_details('vip-reward')
     adapter=FrameRewardAdapter(gift_profile(profile))
@@ -55,7 +55,7 @@ def test_saved_upper_claim_never_replayed(tmp_path,bad):
     if bad=='protected':
         store.protect('test',23,True)
     if bad=='changed_identity':
-        store.merge('test',[SimpleNamespace(index=23,name='changed')])
+        store.merge('test',[SimpleNamespace(index=23,name='changed',stable_id='replacement-disk-23')])
     if bad=='missing_identity':
         with store.connect() as db:
             db.execute('DELETE FROM instances')

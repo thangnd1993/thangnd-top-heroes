@@ -117,6 +117,9 @@ def test_total_overlay_count_is_bounded_even_for_distinct_anchors():
 
 def test_vip_receipt_dismiss_gets_fresh_underlying_frame_without_claim(rig, tmp_path, monkeypatch):
     manager, _, _ = rig
+    rig[1].listing += '2,5-Emmmmm,3,4,1,301,302\n'
+    manager.refresh()
+    manager.select(2, True)
     frames = iter(['receipt-reference.png', 'index2-vip-claimable.png'])
     monkeypatch.setattr(manager, 'capture_verified', lambda *args: (TARGET,(FIXTURES / next(frames)).read_bytes()))
     taps = []
@@ -151,6 +154,9 @@ def test_vip_receipt_then_claimed_state_is_independently_verified(rig, tmp_path,
 
     from top_heroes_auto.automation.free_rewards import ClaimOutcome
     manager, _, _ = rig
+    rig[1].listing += '2,5-Emmmmm,3,4,1,301,302\n'
+    manager.refresh()
+    manager.select(2, True)
     profile, _ = _load_profile_details('vip-reward')
     adapter = FrameRewardAdapter(profile)
     before = adapter.observe(screen('index2-vip-claimable.png'))
@@ -174,6 +180,9 @@ def test_vip_receipt_then_claimed_state_is_independently_verified(rig, tmp_path,
 
 def test_receipt_transport_error_cannot_reuse_frame(rig,tmp_path,monkeypatch):
     manager,_,_=rig
+    rig[1].listing += '2,5-Emmmmm,3,4,1,301,302\n'
+    manager.refresh()
+    manager.select(2, True)
     profile,_=_load_profile_details('vip-reward')
     monkeypatch.setattr(manager,'capture_verified',lambda *args:(TARGET,(FIXTURES/'receipt-reference.png').read_bytes()))
     calls=[]

@@ -229,15 +229,15 @@ def test_external_instance_recovery_preserves_lifecycle_selection_and_prior_rewa
     registry,_,_ = setup(calls)
     port = WorldPort(ScreenState.GAME_WORLD,ScreenState.GAME_WORLD,ScreenState.GAME_HOME)
     def recover(*args,**kwargs):
-        return engine().ensure_game_home(port),tmp_path/'recovery.json',False
+        return replace(engine().ensure_game_home(port), boot_id=process.device_boot),tmp_path/'recovery.json',False
     def session(*args,**kwargs):
         return InstanceSession(*args,**kwargs,recovery_runner=recover)
     prior = dict(recovery_ok=False,rewards={
         'one':dict(result='SUCCESS',journal='VERIFIED',claim_id=91),
         'two':dict(result='UNKNOWN'),
         'three':dict(result='NOT_AVAILABLE')})
-    result = execute_instance(manager,tmp_path,dict(index=7,name='Farm-007',persistent_identity='disk'),
-        tmp_path/'account',registry,prior=prior,session_factory=session,identity_reader=lambda *a:'disk')
+    result = execute_instance(manager,tmp_path,dict(index=7,name='Farm-007',persistent_identity='fixture-disk-7'),
+        tmp_path/'account',registry,prior=prior,session_factory=session,identity_reader=lambda *a:'fixture-disk-7')
     assert result['result'] == 'COMPLETE' and calls == [(7,'feature-one',('two',))]
     assert result['cleanup'] == 'NOT_REQUIRED' and result['selection_restored']
     assert not result['session']['started_by_run']

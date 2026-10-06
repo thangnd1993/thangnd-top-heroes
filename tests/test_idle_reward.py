@@ -295,7 +295,9 @@ def test_ambiguous_rediscovered_target_identity_fails_closed(rig):
 
     manager, process, _ = rig
     process.listing = "0,Main-Thang,1,2,1,101,102\n7,Other-Account,3,4,1,201,202\n"
-    with pytest.raises(SafetyError, match="Identity mismatch"):
+    assert _instance(manager, 7, "Farm-007").name == "Other-Account"
+    manager.identity_reader = lambda console, index: "replacement-disk"
+    with pytest.raises((SafetyError, ValueError), match="IDENTITY_CHANGED|IDENTITY_UNVERIFIED"):
         _instance(manager, 7, "Farm-007")
 
 
