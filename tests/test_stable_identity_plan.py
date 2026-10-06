@@ -310,3 +310,46 @@ def test_ambiguous_verified_legacy_reward_cannot_reopen_on_new_period(rig, old_p
         store.reserve_reward_claim(next_task, 'free', 'new-period', '{}')
     assert store.reward_claims(manager.namespace, 7) == original
     assert cid in store.identity_audit(manager.namespace)['ambiguous_journal_ids']
+
+
+@pytest.mark.parametrize('exit_reason', ['unexpected_exit', 'no_progress', 'action_limit'])
+def test_fresh_home_candidates_recorded_before_early_block(exit_reason):
+    from dataclasses import asdict
+
+    from test_dynamic_events import Port, control, frame
+
+    from top_heroes_auto.automation.dynamic_events import Limits
+
+    a, b = control('A', 'event'), control('new-B', 'event')
+    start = frame('home', 0, [a])
+    blocked_home = replace(frame('home', 2, [a, b]), coverage_known=False,
+                           blocked=('UNQUALIFIED_NOTIFICATION_GEOMETRY',))
+    frames = [start, blocked_home]
+    if exit_reason == 'unexpected_exit':
+        frames.insert(1, frame('A', 1, [control('child')]))
+    limits = Limits(actions=1) if exit_reason == 'action_limit' else None
+    port = Port(frames)
+    result = DynamicEventExplorer(limits).run(port)
+    assert set(result.events) == {'A', 'new-B'}
+    assert result.candidate_count == 2 and result.event_scan == 'COMPLETE'
+    assert result.events['new-B']['visits'] == 0
+    assert result.events['new-B']['discovery_capture'] == blocked_home.capture
+    assert result.events['new-B']['result'] == 'BLOCKED'
+    assert result.events['new-B']['blockers']
+    assert not any(call[2] == 'new-B' for call in port.calls)
+    assert not result.rewards
+    detail = dict(result='BLOCKED', recovery='SUCCESS', exploration=asdict(result))
+    assert event_terminal(detail)  # Full scan facts + genuine blocker, never exhaustion.
+
+
+def test_unscanned_home_cannot_register_or_enter_candidate():
+    from dataclasses import asdict
+
+    from test_dynamic_events import Port, control, frame
+
+    port = Port([replace(frame('home', 0, [control('A', 'event')]), event_scan_performed=False)])
+    result = DynamicEventExplorer().run(port)
+    assert result.events == {} and result.event_scan == 'NOT_STARTED'
+    assert result.candidate_count == 0 and not port.calls
+    assert result.blocked[0]['reason'] == 'EVENT_SCAN_NOT_PERFORMED'
+    assert not event_terminal(dict(result='BLOCKED', recovery='SUCCESS', exploration=asdict(result)))

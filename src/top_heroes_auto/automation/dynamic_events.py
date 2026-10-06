@@ -146,6 +146,15 @@ class DynamicEventExplorer:
                 if (frame.stable_id, runtime_key(frame.identity)) != transport:
                     raise SafetyError('Event session identity/ADB changed.')
                 report.observations.append(asdict(frame))
+                if frame.page == 'home' and frame.event_scan_performed and not frame.popup:
+                    # Persist every actual scan before navigation/budget blockers
+                    # can exit early. New roots still need explicit blocked results.
+                    report.event_scan = 'COMPLETE'
+                    for candidate in frame.controls:
+                        if candidate.kind == 'event':
+                            report.events.setdefault(candidate.identity, dict(result='DISCOVERED', visits=0,
+                                discovery_capture=frame.capture, nested_traversal=[], reward_results=[], blockers=[]))
+                    report.candidate_count = len(report.events)
                 persist(asdict(report))
                 if len(report.actions) >= self.limits.actions or transitions >= self.limits.transitions:
                     block('LIMIT_REACHED', frame)
@@ -301,17 +310,14 @@ class DynamicEventExplorer:
                     block(reason, frame)
                 if frame.page == 'home':
                     report.return_home = 'SUCCESS'
+                    if not frame.event_scan_performed:
+                        block('EVENT_SCAN_NOT_PERFORMED', frame)
+                        break
                     candidates = [c for c in frame.controls if c.kind == 'event']
                     identities = [c.identity for c in candidates]
                     if len(set(identities)) != len(identities):
                         block('AMBIGUOUS_EVENT_IDENTITY', frame)
                         break
-                    if frame.event_scan_performed:
-                        report.event_scan = 'COMPLETE'
-                    for c in candidates:
-                        report.events.setdefault(c.identity, dict(result='DISCOVERED', visits=0,
-                            discovery_capture=frame.capture, nested_traversal=[], reward_results=[], blockers=[]))
-                    report.candidate_count = len(report.events)
                     candidate = next((c for c in candidates if report.events[c.identity]['visits'] == 0), None)
                     if candidate is None:
                         if any(report.events[c.identity]['result'] != 'EXHAUSTED' for c in candidates):

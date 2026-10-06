@@ -762,3 +762,29 @@ missing-flow/scan cleanup refusal, explicit Phase8 allowlist and Protected isola
 No real emulator lifecycle/gameplay/config mutation performed during implementation.
 Requires lint/full pytest/Windows build/smoke/artifact PASS before Desktop delivery
 and Phase8-only unresolved-account continuation. No Phase9.
+
+## Phase 8 — record every fresh Home scan before early blockers (2026-10-06)
+
+09f64ef CI37416385380 fully PASS:1561 passed+26 skipped; artifact11393061073,
+406 assets/679 Desktop files verified. Scoped sequential run
+20261006-055419-541397Z-837ae4ae attempted seven unfinished targets;10/12 retained.
+No reward dispatched; all223 pre-run journals unchanged. Protected0/1/6/7,
+all selections and display labels preserved; name-write attempts0.
+
+The terminal guard correctly refused stop on4/8/11: a fresh Home rescan had
+one newly discovered root omitted by an early return/budget/blocker path.
+Record actual current-frame scan facts before all such exits, including the
+new root's discovery capture. Unvisited roots become explicit BLOCKED with
+the genuine traversal blocker; never EXHAUSTED/NOT_AVAILABLE by inference.
+Unscanned Home cannot register or enter an Event. Strict terminal-plan guard,
+input qualification, journal locks, budgets and thresholds remain unchanged.
+Four focused regressions cover the reproduced missing-root/no-scan boundaries;
+170 targeted identity/pipeline/Event/journal tests PASS; Ruff/diff-check PASS.
+No additional image assets. Requires another FULL passing CI artifact before
+further real acceptance. Phase8 remains PARTIAL, no Phase9.
+
+Index3/9 had explicit indexed ADB unavailable (5560/5572), ownership uncertain,
+not name-based failures. Final inventory9/11 running; other targets stopped.
+4/8 stopped after cleanup refusal without a session-owned quit: record the
+runtime discrepancy, do not attribute it or stop/restore other instances.
+Preserve current external running ownership on the next live preflight.
