@@ -39,7 +39,7 @@ def test_persistent_direct_probe_has_strict_bound(rig):
     assert len(reads) == 3 and all(c[-1].endswith('boot_id') for c in reads)
 
 
-@pytest.mark.parametrize('change',['pid','protection','selection','name'])
+@pytest.mark.parametrize('change',['pid','protection','selection','disk'])
 def test_target_change_during_probe_cannot_retry_input(rig,change):
     manager,process,store = rig
     manager.IDENTITY_PROBE_DELAY = 0
@@ -50,8 +50,8 @@ def test_target_change_during_probe_cannot_retry_input(rig,change):
             reads += 1
             if change == 'pid':
                 process.listing = process.listing.replace('201,202','901,902')
-            elif change == 'name':
-                process.listing = process.listing.replace('Farm-007','Changed')
+            elif change == 'disk':
+                manager.identity_reader = lambda *a: 'replacement-disk'
             elif change == 'protection':
                 store.protect(manager.namespace,7,True)
             else:
@@ -109,7 +109,7 @@ def test_persistently_missing_serial_expires_without_lifecycle_retry(rig):
     assert not any(c[1] in {'launch', 'quit', 'kill-server', '-s', 'connect'} for c in process.calls)
 
 
-@pytest.mark.parametrize('change', ['pid', 'name', 'selection', 'protection'])
+@pytest.mark.parametrize('change', ['pid', 'disk', 'selection', 'protection'])
 def test_cold_registration_wait_preserves_target_guard(rig, change):
     manager, process, store = rig
     manager.IDENTITY_PROBE_DELAY = 0
@@ -124,8 +124,8 @@ def test_cold_registration_wait_preserves_target_guard(rig, change):
             if reads == 3:
                 if change == 'pid':
                     process.listing = process.listing.replace('201,202', '901,902')
-                elif change == 'name':
-                    process.listing = process.listing.replace('Farm-007', 'Changed')
+                elif change == 'disk':
+                    manager.identity_reader = lambda *a: 'replacement-disk'
                 elif change == 'selection':
                     store.select(manager.namespace, 7, False)
                 else:

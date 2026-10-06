@@ -1,10 +1,18 @@
 # auto-top-heroes workflow
 
-**Permanent, all phases:** LDPlayer instance names are user-owned and read-only.
-Automation must never rename an instance unless the user explicitly requests
-that exact rename. Never repair identity by changing an LDPlayer name or restoring
-an old config. Rediscover current names exactly, preserve Protection, verify
-technical identity, and fail closed if ambiguous.
+**Permanent, all phases:** LDPlayer names are user-owned, display-only, read-only
+labels. Never rename or write/restore LDPlayer config names. Labels are never
+technical authorization, protection, journal, lifecycle, ADB, fleet or resume keys.
+Bind installation namespace + Multi index + verified non-name backing-file
+identity; exact indexed ADB/boot/PID proves the current runtime. A user rename
+preserves flags, journals and ownership. A replaced backing disk fails closed as
+IDENTITY_CHANGED; ambiguous historical mapping stays locked. Never restore names.
+
+**Permanent cleanup guard:** freeze the execution plan before start. Every flow
+must have an explicit terminal outcome/evidence before stopping a run-owned
+instance. Home without an Event scan is PREMATURE_CLEANUP. Record candidates,
+nested traversal, rewards and blockers; continue independent candidates only
+with fresh safe Home evidence. External-running instances remain running.
 
 This repository uses one Codex agent. On a new substantial task, inspect Git
 status, current branch and recent commits, then read the latest applicable

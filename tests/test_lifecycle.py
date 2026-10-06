@@ -328,7 +328,7 @@ def test_stop_timeout_prevents_restart_launch(rig, monkeypatch):
     assert all(call[1] in ("list2", "quit") for call in process.calls)
 
 
-@pytest.mark.parametrize("change", ["protect", "unselect", "rename", "remove"])
+@pytest.mark.parametrize("change", ["protect", "unselect", "remove"])
 def test_identity_or_permission_change_between_stop_start_blocks_launch(rig, change):
     manager, process, store = rig
     process.auto_lifecycle = False
@@ -414,27 +414,18 @@ def test_launch_command_uncertainty_is_not_cleaned_or_retried(rig):
     assert lifecycle == ["launch"]
 
 
-def test_post_dispatch_rename_is_unknown_without_follow_up_adb_or_quit(rig):
+def test_post_dispatch_rename_keeps_owned_runtime_and_explicit_adb(rig):
     manager, process, _ = rig
     process.listing = STOPPED
     process.auto_lifecycle = False
-
     def renamed_launch(args):
         if args[1] == "launch":
             process.listing = RUNNING.replace("Farm-007", "LDPlayer-2")
-
     process.hook = renamed_launch
-    with pytest.raises(SafetyError, match="đổi tên"):
-        manager.execute(7, "launch")
-
-    attempt = manager.last_lifecycle_attempt
-    assert attempt is not None
-    assert attempt.ownership == LIFECYCLE_UNKNOWN
-    assert attempt.dispatch_attempted
-    assert attempt.dispatches[0].completed is True
-    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
-    assert lifecycle == ["launch"]
-    assert not any(call[1] in {"-s", "adb"} for call in process.calls if len(call) > 1)
+    manager.execute(7, "launch")
+    assert manager.last_lifecycle_attempt.ownership == 'OWNED'
+    assert [c[1] for c in process.calls if c[1] in {'launch','quit'}] == ['launch']
+    assert any(c[1] == 'adb' for c in process.calls)
 
 
 def test_selection_revocation_after_indexed_launch_is_not_retried(rig):
@@ -448,7 +439,7 @@ def test_selection_revocation_after_indexed_launch_is_not_retried(rig):
             process.listing = RUNNING
 
     process.hook = revoked_launch
-    with pytest.raises(SafetyError, match="chọn"):
+    with pytest.raises(SafetyError, match="selected"):
         manager.execute(7, "launch")
 
     assert manager.last_lifecycle_attempt.ownership == LIFECYCLE_UNKNOWN

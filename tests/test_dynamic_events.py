@@ -25,7 +25,7 @@ def control(name, kind='child', **kw):
 
 
 def frame(page, n, controls=(), **kw):
-    return EventFrame(str(n),IDENTITY,page,f'{page}:{n}',tuple(controls),coverage_known=True,**kw)
+    return EventFrame(str(n),IDENTITY,page,f'{page}:{n}',tuple(controls),coverage_known=True,event_scan_performed=page == 'home',**kw)
 
 
 class Port:

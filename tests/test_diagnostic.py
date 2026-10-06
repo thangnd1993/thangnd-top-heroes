@@ -17,9 +17,9 @@ class DiagnosticManager:
         self.store = Store(path / "config.sqlite3")
         self.data_dir = path
         self.instances = [
-            Instance(0, "Queen", False, -1, -1, 1280, 720, 240),
-            Instance(4, "3-Chíp", False, -1, -1, 1280, 720, 240),
-            Instance(7, "Other", False, -1, -1, 1280, 720, 240),
+            Instance(0, "Queen", False, -1, -1, 1280, 720, 240, stable_id="fixture-disk"),
+            Instance(4, "3-Chíp", False, -1, -1, 1280, 720, 240, stable_id="fixture-disk"),
+            Instance(7, "Other", False, -1, -1, 1280, 720, 240, stable_id="fixture-disk"),
         ]
         self.store.merge(self.namespace, tuple(self.instances))
         self.calls = []
@@ -82,9 +82,8 @@ def test_list_is_read_only(tmp_path):
 def test_protect_requires_exact_identity_and_clears_selection(tmp_path):
     manager = DiagnosticManager(tmp_path)
     manager.select(0, True)
-    with pytest.raises(SafetyError):
-        protect_command(manager, tmp_path, 0, "Not Queen")
-    assert manager.store.metadata(manager.namespace, 0).selected
+    protect_command(manager, tmp_path, 0, "stale display label")
+    assert manager.store.metadata(manager.namespace, 0).protected
     protect_command(manager, tmp_path, 0, "Queen")
     assert manager.store.metadata(manager.namespace, 0).protected
     assert not manager.store.metadata(manager.namespace, 0).selected
@@ -109,7 +108,7 @@ def test_diagnostic_uses_only_explicit_target_and_reresolves_adb(tmp_path):
     assert report["top_heroes_package"] == "com.example.topheroes.game"
     assert all(call[0] == 4 for call in manager.calls)
     assert sum(call[1] == "verify" for call in manager.calls) == 2
-    assert (tmp_path / "diagnostics" / "3-Chíp").is_dir()
+    assert (tmp_path / "diagnostics" / "4-fixture-disk").is_dir()
 
 
 def test_package_label_requires_an_exact_metadata_match():

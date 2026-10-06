@@ -21,7 +21,7 @@ def test_transient_readiness_same_runtime_readonly(monkeypatch):
     assert Manager._capture_ready(m,23).android_started
 
 
-@pytest.mark.parametrize('changes',[{'pid':303},{'vbox_pid':303},{'name':'changed'},{'pid':0,'vbox_pid':0}])
+@pytest.mark.parametrize('changes',[{'pid':303},{'vbox_pid':303},{'stable_id':'replacement'},{'pid':0,'vbox_pid':0}])
 def test_readiness_changed_runtime_fails_closed(monkeypatch,changes):
     original=instance()
     states=iter([original,replace(original,android_started=True,**changes)])

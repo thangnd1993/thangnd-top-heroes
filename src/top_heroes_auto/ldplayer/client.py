@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from top_heroes_auto.app.process import Process, decode
+from top_heroes_auto.ldplayer.name_safety import guard_command
 
 
 @dataclass(frozen=True)
@@ -19,6 +20,7 @@ class Instance:
     height: int | None = None
     dpi: int | None = None
     adb_serial: str | None = None
+    stable_id: str = ""
 
     @property
     def running(self) -> bool:
@@ -206,8 +208,13 @@ class LDPlayer:
 
     def _indexed(self, command: str, index: int, *args: str) -> bytes:
         # No generic config/rename/restore surface, even for future callers.
-        if command not in {"launch", "quit", "adb"}:
-            raise ValueError("LDPlayer command is outside the read-only-name allowlist.")
+        guard_command(command, args)
+        if command in {'launch', 'quit'} and args:
+            raise ValueError('Lifecycle command cannot carry additional target/config arguments.')
+        if command == 'adb' and (len(args) != 2 or args[0] != '--command'):
+            raise ValueError('Indexed ADB requires exactly one explicit command.')
+        if command == 'list2':
+            raise ValueError('Indexed lifecycle allowlist does not accept list2.')
         if type(index) is not int or index < 0:
             raise ValueError("Index bắt buộc, không fallback.")
         return self.process.run([str(self.installation.console), command, "--index", str(index), *args])

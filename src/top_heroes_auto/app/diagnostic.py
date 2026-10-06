@@ -19,13 +19,15 @@ def _stamp() -> str:
 
 def _instance(manager: Manager, index: int, name: str):
     instance = manager.query(index)
-    if instance.name != name:
-        raise SafetyError(f"Identity mismatch: expected #{index} / {name!r}, got {instance.name!r}.")
+    stable_id = manager.store.require_identity(manager.namespace, index)
+    if instance.stable_id != stable_id:
+        raise SafetyError('IDENTITY_UNVERIFIED: current backing disk proof missing or changed.')
+    # name is a caller's display label, never an authorization check.
     return instance
 
 
 def _state(instances):
-    return {item.index: (item.name, item.running, item.android_started) for item in instances}
+    return {item.index: (item.stable_id, item.running, item.android_started) for item in instances}
 
 
 def _only_target_changed(before, after, target: int):
@@ -75,6 +77,8 @@ def _view(manager: Manager, instances):
         {
             "index": item.index,
             "name": item.name,
+            "stable_id": item.stable_id,
+            "identity_state": manager.store.metadata(manager.namespace, item.index).identity_state,
             "status": "running" if item.running else "stopped",
             "android_started": item.android_started,
             "resolution": [item.width, item.height] if item.width else None,
@@ -94,7 +98,8 @@ def list_command(manager: Manager, data: Path):
 
 
 def protect_command(manager: Manager, data: Path, index: int, name: str):
-    _instance(manager, index, name)
+    live = _instance(manager, index, name)
+    name = live.name
     manager.protect(index, True)
     meta = manager.store.metadata(manager.namespace, index)
     if not meta.protected or meta.selected:
@@ -132,7 +137,7 @@ def test_command(manager: Manager, data: Path, index: int, name: str):
         report["adb"] = manager.execute(index, "verify")
         report["harmless_shell"] = manager.execute(index, "harmless")
         first = Path(manager.execute(index, "screenshot"))
-        shots = data / "diagnostics" / name
+        shots = data / "diagnostics" / f"{index}-{target.stable_id}"
         shots.mkdir(parents=True, exist_ok=True)
         first_path = shots / first.name
         first.replace(first_path)

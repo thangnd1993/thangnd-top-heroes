@@ -68,7 +68,7 @@ class FixedRewardPort:
     def observe(self):
         self.check()
         target, payload = self.manager.capture_verified(self.index, self.snapshot)
-        if (target.index, target.name) != (self.index, self.name):
+        if target.index != self.index:
             raise SafetyError('Fixed-flow capture identity changed.')
         if self.target and (target.serial, target.boot_id) != (self.target.serial, self.target.boot_id):
             raise SafetyError('Fixed-flow ADB/boot association changed.')

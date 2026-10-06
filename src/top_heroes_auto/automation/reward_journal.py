@@ -14,6 +14,7 @@ from top_heroes_auto.automation.free_rewards import (
     verified_anchor,
 )
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.storage.store import Store
 
 
@@ -68,7 +69,7 @@ class JournalledExplorerPort:
             validate(screen, reward, point)
 
     def claim(self, screen, reward, point):
-        if (screen.index, screen.name) != self.identity or reward.reward_id in self.pending:
+        if runtime_key((screen.index, screen.name)) != runtime_key(self.identity) or reward.reward_id in self.pending:
             raise SafetyError("Claim journal identity changed or reward already attempted.")
         cycle = self.cycle(screen, reward)
         verified_anchor(screen.detection, cycle.anchor)
@@ -88,7 +89,7 @@ class JournalledExplorerPort:
         pending = self.pending.get(reward.reward_id)
         if (not pending or pending[1] != before.capture_id
                 or after.capture_id == before.capture_id
-                or (after.index, after.name) != self.identity
+                or runtime_key((after.index, after.name)) != runtime_key(self.identity)
                 or (before.adb_target, before.boot_id) != (after.adb_target, after.boot_id)):
             return ClaimOutcome.IDENTITY_MISMATCH
         classifier = getattr(self.port, "classify_claim", None)

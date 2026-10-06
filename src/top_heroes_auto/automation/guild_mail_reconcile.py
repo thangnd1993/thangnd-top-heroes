@@ -7,6 +7,7 @@ from pathlib import Path
 from top_heroes_auto.automation.fixed_reward_reconcile import saved_frame
 from top_heroes_auto.automation.guild_mail_claims import qualified_progress
 from top_heroes_auto.automation.overlays import dismiss_overlay_bottom_left
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.guild_mail import GUILD_REWARDS, MAIL_REWARDS, GuildMailDetector
 from top_heroes_auto.vision.models import ScreenState
 
@@ -33,7 +34,7 @@ def _original_action(store, claim_id, *, detector=None):
     if (len(actions) != 1 or actions[0].get('claim_dispatched') is not True
             or actions[0].get('before') != before or not before.get('persistent_identity')
             or report.get('task_run_id') != row['task_run_id']
-            or (report['index'],report['name']) != (row['instance_index'],row['instance_name'])):
+            or runtime_key((report['index'],report['name'])) != runtime_key((row['instance_index'],row['instance_name']))):
         raise ValueError('Original dispatched action evidence is missing or ambiguous.')
     action = actions[0]
     transport = json.loads((path.parent/'actions.json').read_text(encoding='utf-8'))
@@ -57,8 +58,8 @@ def _original_action(store, claim_id, *, detector=None):
     detector = detector or GuildMailDetector()
 
     def observe(evidence):
-        if (evidence['index'],evidence['name'],evidence['adb'],evidence['boot_id']) != (
-                row['instance_index'],row['instance_name'],before['frame']['adb'],before['frame']['boot_id']):
+        if runtime_key((evidence['index'],evidence['name'],evidence['adb'],evidence['boot_id'])) != runtime_key((
+                row['instance_index'],row['instance_name'],before['frame']['adb'],before['frame']['boot_id'])):
             raise ValueError('Original capture identity changed.')
         image = Path(evidence['capture']).resolve()
         if image.parent != path.parent or image.suffix != '.png':
@@ -249,8 +250,8 @@ def reconcile_observed_guild_mail(store, claim_id, detector, frames, identity, *
         raise ValueError('Two fresh post-state frames are required.')
     a,b = (frame.captured for frame in frames)
     if (a.source_image is None or b.source_image is None or a.source_image == b.source_image
-            or (a.index,a.name,a.serial,a.boot_id) != (b.index,b.name,b.serial,b.boot_id)
-            or (a.index,a.name,a.serial) != (original.captured.index,original.captured.name,original.captured.serial)):
+            or runtime_key((a.index,a.name,a.serial,a.boot_id)) != runtime_key((b.index,b.name,b.serial,b.boot_id))
+            or runtime_key((a.index,a.name,a.serial)) != runtime_key((original.captured.index,original.captured.name,original.captured.serial))):
         raise ValueError('Fresh post-state identity/capture is ambiguous.')
     now = datetime.now(timezone.utc)
     at,bt = datetime.fromisoformat(a.timestamp),datetime.fromisoformat(b.timestamp)

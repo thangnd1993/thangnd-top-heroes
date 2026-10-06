@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from uuid import UUID
 
@@ -14,9 +14,10 @@ class BootIdentityUnavailable(SafetyError):
 @dataclass(frozen=True)
 class Target:
     index: int
-    name: str
+    name: str = field(compare=False)
     serial: str
     boot_id: str
+    stable_id: str = ""
 
 
 def valid_boot_id(value: str) -> str:

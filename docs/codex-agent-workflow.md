@@ -79,3 +79,18 @@ Completed rewards skip only themselves; an all-completed instance needs no
 start/feature visit. Future feature-specific period/identity rules belong in the
 registered feature, never in the global instance scheduler. Uncertain evidence
 stays blocked, and later independent work must still receive explicit results.
+
+## Permanent identity and cleanup architecture
+
+Use Multi index + verified non-name backing-file ID within installation namespace.
+Display labels are presentation only, including historical evidence. User rename
+preserves selection, Protection, ADB/session binding, journals, resume and owned
+cleanup. Recreated index or ambiguous durable history fails closed. Never rename,
+write configuration names or restore old configuration, including rollback.
+
+Before owned stop, verify terminal evidence for the entire frozen plan. For Events,
+Home alone is insufficient: require scan, candidate count, candidate outcomes,
+nested traversal, rewards and blockers. Missing work refuses cleanup with
+PREMATURE_CLEANUP. A branch blocker permits other candidates only after fresh safe
+recovery. Keep exclusive automation ownership and preserve external-running state.
+Audit starting/ending display labels and name-write attempts separately from ID.

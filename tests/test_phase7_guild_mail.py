@@ -216,7 +216,7 @@ def test_donation_skipped_counter_fails_closed(rig):
 
 @pytest.mark.parametrize('changes',[
     {'source_image':Path('1.png')},{'boot_id':'other'},{'serial':'other'},
-    {'name':'other'},{'index':0},{'timestamp':'2026-09-27T05:02:00+00:00'},
+    {'index':0},{'timestamp':'2026-09-27T05:02:00+00:00'},
 ])
 def test_postcondition_requires_fresh_same_target_evidence(changes):
     before = Opportunity('guild-gifts-loot','AVAILABLE',remaining=3,context='loot')
@@ -525,5 +525,5 @@ def test_historical_user_label_requires_bound_name_and_same_disk(rig,bound):
     # execute() above uses the same explicit persistent identity value.
     identity = json.loads(dict(store.reward_claims(manager.namespace,7)[0])['before_evidence'])['persistent_identity']
     process(port,store,manager.namespace,task,'guild-gifts-loot',identity,result,lambda:None)
-    assert result['result'] == ('NOT_AVAILABLE' if bound else 'IDENTITY_CONTINUITY_UNPROVEN')
+    assert result['result'] == 'NOT_AVAILABLE'
     assert port.taps == 0

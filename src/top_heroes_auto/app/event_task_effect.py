@@ -7,6 +7,7 @@ import cv2
 
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app.automation_ownership import exclusive_automation
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.dynamic_events import (
     selected_task_badge_count,
     task_context_box,
@@ -25,7 +26,7 @@ def saved_frame(path):
     screenshot = json.loads(path.with_suffix('.json').read_text(encoding='utf-8'))
     identity = [screenshot['instance']['index'], screenshot['instance']['name'],
                 screenshot['adb_target'], screenshot['boot_id']]
-    if meta['frame']['identity'] != identity:
+    if runtime_key(meta['frame']['identity']) != runtime_key(identity):
         raise ValueError('Saved frame transport evidence conflicts.')
     image = cv2.imread(str(path))
     if image is None:
@@ -49,7 +50,7 @@ def removal_effect(proof, captures, receipt, *, reader=read_words, allow_new_boo
         return []
     before, meta, before_shot = saved_frame(proof['capture'])
     frame = meta['frame']
-    if frame['identity'] != list(proof['identity']) or frame['page'] != proof['page']:
+    if runtime_key(frame['identity']) != runtime_key(proof['identity']) or frame['page'] != proof['page']:
         return []
     template = cv2.imread(str(template_folder().parent/'tasks/phase8/personal-task-tab.png'))
     context = task_context_box(before, template)
@@ -75,14 +76,15 @@ def removal_effect(proof, captures, receipt, *, reader=read_words, allow_new_boo
     receipt_shot = json.loads(receipt.with_suffix('.json').read_text(encoding='utf-8'))
     receipt_identity = [receipt_shot['instance']['index'],receipt_shot['instance']['name'],
                         receipt_shot['adb_target'],receipt_shot['boot_id']]
-    if receipt_identity != list(proof['identity']) or receipt_shot['timestamp'] <= before_shot['timestamp']:
+    if runtime_key(receipt_identity) != runtime_key(proof['identity']) or receipt_shot['timestamp'] <= before_shot['timestamp']:
         return []
     image = cv2.imread(str(receipt))
     if image is None:
         return []
     if image.shape[1] > image.shape[0]:
         image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-    target = Target(*proof['identity'])
+    target = Target(proof['identity'][0], before_shot['instance']['name'], *proof['identity'][2:],
+                    stable_id=proof.get('persistent_identity', ''))
     captured = ScreenshotService(lambda _: cv2.imencode('.png',image)[1].tobytes()).take(target)
     detected = RecoveryScreenDetector().detect(replace(captured, source_image=receipt))
     if detected.state != ScreenState.REWARD_RECEIPT:
@@ -92,11 +94,11 @@ def removal_effect(proof, captures, receipt, *, reader=read_words, allow_new_boo
         after, after_meta, shot = saved_frame(path)
         current = after_meta['frame']
         if (str(path) == proof['capture'] or current['page'] != proof['page']
-                or current['identity'][:2] != list(proof['identity'])[:2]
-                or (not allow_new_boot and current['identity'] != list(proof['identity']))
+                or current['identity'][:1] != list(proof['identity'])[:1]
+                or (not allow_new_boot and runtime_key(current['identity']) != runtime_key(proof['identity']))
                 or after_meta.get('entered_event') != meta['entered_event']
                 or shot['timestamp'] <= receipt_shot['timestamp']
-                or (observations and current['identity'] != observations[0]['identity'])):
+                or (observations and runtime_key(current['identity']) != runtime_key(observations[0]['identity']))):
             return []
         after_context = task_context_box(after, template)
         after_rows = task_reward_rows(after, template, reader=reader)
@@ -147,10 +149,10 @@ def reconcile_saved(manager, claim_id, original_report, after_report):
         return dict(claim_id=claim_id,result='ALREADY_VERIFIED',claim_dispatched=False)
     if claim['status'] != 'RESERVED' or claim['dispatch_state'] != 'POSSIBLE':
         raise SafetyError('Existing dispatched Event journal required.')
-    index, name = claim['instance_index'],claim['instance_name']
+    index = claim['instance_index']
     proof = json.loads(claim['before_evidence'])
-    current = [r for r in manager.refresh() if r.index == index and r.name == name]
-    target = [r for r in recent['targets'] if r['index'] == index and r['name'] == name]
+    current = [r for r in manager.refresh() if r.index == index]
+    target = [r for r in recent['targets'] if r['index'] == index]
     if (len(current) != 1 or len(target) != 1 or manager.store.metadata(manager.namespace,index).protected
             or persistent_identity(manager,index) != proof['persistent_identity']
             or target[0]['persistent_identity'] != proof['persistent_identity']):
@@ -191,7 +193,7 @@ def reconcile_saved(manager, claim_id, original_report, after_report):
         raise SafetyError('Independent claimed-state or removal/count/receipt proof incomplete; journal remains POSSIBLE.')
     # Recheck live ownership immediately before the journal mutation. This does
     # not select, launch, stop, ADB-target, rename or repair any instance.
-    current = [r for r in manager.refresh() if r.index==index and r.name==name]
+    current = [r for r in manager.refresh() if r.index==index]
     if (len(current)!=1 or manager.store.metadata(manager.namespace,index).protected
             or persistent_identity(manager,index)!=proof['persistent_identity']):
         raise SafetyError('Event reconciliation authorization/identity changed.')

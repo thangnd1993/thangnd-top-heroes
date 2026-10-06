@@ -38,6 +38,7 @@ from top_heroes_auto.automation.phase6_shop_navigation import (
     ShopNavigationProfile,
 )
 from top_heroes_auto.automation.phase6_visual import ManagerRewardPort, RewardVisualProfile
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.models import ScreenState, VisualAnchor
 from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
@@ -98,7 +99,7 @@ def reward_port_factory(manager, snapshot, index, name, profile, folder):
 
     def home_observer(expected_serial: str, expected_boot_id: str) -> bool:
         target, payload = manager.capture_verified(index, snapshot)
-        if (target.index, target.name) != (index, name):
+        if runtime_key((target.index, target.name)) != runtime_key((index, name)):
             raise SafetyError("Home cleanup capture identity changed.")
         if (target.serial, target.boot_id) != (expected_serial, expected_boot_id):
             return False

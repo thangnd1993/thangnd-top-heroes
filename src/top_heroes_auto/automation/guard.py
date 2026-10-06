@@ -11,46 +11,46 @@ class SafetyError(RuntimeError):
 @dataclass(frozen=True)
 class RunSnapshot:
     namespace: str
-    members: tuple[tuple[int, str], ...]
+    members: tuple[tuple[int, str], ...]  # labels for UI only
     immutable: bool = False
+    identities: tuple[tuple[int, str], ...] = ()
+
+
+def bound_snapshot(store, namespace, members, immutable=False):
+    if len({index for index, _ in members}) != len(members):
+        raise SafetyError('Ambiguous snapshot indices.')
+    identities = tuple((index, store.require_identity(namespace, index)) for index, _ in members)
+    return RunSnapshot(namespace, members, immutable, identities)
 
 
 def create_snapshot(store: Store, namespace: str, instances: tuple[Instance, ...]) -> RunSnapshot:
-    members = []
-    for instance in instances:
-        metadata = store.metadata(namespace, instance.index)
-        if metadata.selected and not metadata.protected:
-            members.append((instance.index, instance.name))
-    return RunSnapshot(namespace, tuple(members))
+    members = tuple((i.index, i.name) for i in instances
+                    if store.metadata(namespace, i.index).selected
+                    and not store.metadata(namespace, i.index).protected)
+    return bound_snapshot(store, namespace, members)
 
 
-def require_selected(
-    store: Store, snapshot: RunSnapshot, current: tuple[Instance, ...], index: int
-) -> Instance:
+def require_run_member(store, snapshot, current, index):
     if type(index) is not int or index < 0:
-        raise SafetyError("Index không hợp lệ; không fallback về index 0.")
+        raise SafetyError('Invalid index; no fallback.')
     matches = [i for i in current if i.index == index]
-    if len(matches) != 1 or (index, matches[0].name) not in snapshot.members:
-        raise SafetyError("Giả lập không tồn tại, đổi tên hoặc không nằm trong hàng đợi hiện tại.")
-    metadata = store.metadata(snapshot.namespace, index)
-    if not metadata.selected or metadata.protected:
-        raise SafetyError("Đã chặn: giả lập chưa được chọn hoặc đang được bảo vệ.")
-    return matches[0]
-
-
-def require_run_member(
-    store: Store, snapshot: RunSnapshot, current: tuple[Instance, ...], index: int
-) -> Instance:
-    """Validate an immutable queued member without re-reading its checkbox.
-
-    Selection is intentionally captured at run creation. Protection, presence,
-    and identity are always live safety checks and may still revoke execution.
-    """
-    if type(index) is not int or index < 0:
-        raise SafetyError("Index không hợp lệ; không fallback về index 0.")
-    matches = [item for item in current if item.index == index]
-    if len(matches) != 1 or (index, matches[0].name) not in snapshot.members:
-        raise SafetyError("Giả lập không tồn tại, đổi tên hoặc không nằm trong hàng đợi hiện tại.")
+    expected = [sid for idx, sid in snapshot.identities if idx == index]
+    if (len(matches) != 1 or sum(idx == index for idx, _ in snapshot.members) != 1
+            or len(expected) != 1 or not expected[0]):
+        raise SafetyError('IDENTITY_UNVERIFIED: missing or ambiguous stable snapshot binding.')
+    try:
+        store.require_identity(snapshot.namespace, index, expected[0])
+    except ValueError as exc:
+        raise SafetyError(str(exc)) from exc
+    if matches[0].stable_id != expected[0]:
+        raise SafetyError('IDENTITY_CHANGED: current backing disk differs from snapshot.')
     if store.metadata(snapshot.namespace, index).protected:
-        raise SafetyError("Đã chặn: giả lập đang được bảo vệ.")
+        raise SafetyError('Protected instance; execution blocked.')
     return matches[0]
+
+
+def require_selected(store, snapshot, current, index):
+    instance = require_run_member(store, snapshot, current, index)
+    if not store.metadata(snapshot.namespace, index).selected:
+        raise SafetyError('Instance is not selected.')
+    return instance

@@ -29,7 +29,7 @@ from top_heroes_auto.automation.free_rewards import (
     FreeRewardExplorer,
     RewardEvidence,
 )
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.guard import SafetyError, bound_snapshot
 from top_heroes_auto.automation.phase6_fixed_flows import fixed_flow_for_task
 from top_heroes_auto.automation.phase6_navigation import NavigationStatus
 from top_heroes_auto.automation.phase6_visual import (
@@ -202,7 +202,7 @@ def run_free_reward_task(
 
     if task not in PHASE6_TASKS:
         raise ValueError(f"Unsupported Phase 6 task: {task}")
-    if (index, name) != PHASE6_TARGET:
+    if index != PHASE6_TARGET[0]:
         raise SafetyError("Phase 6 is authorized only for #2 / 5-Emmmmm.")
 
     target = _instance(manager, index, name)
@@ -214,8 +214,8 @@ def run_free_reward_task(
         raise SafetyError("Phase 6 target must be selected and not Protected.")
 
     before = _state(manager.list_readonly())
-    snapshot = RunSnapshot(manager.namespace, ((index, name),), True)
-    folder = _report_folder(data, task, name)
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((index, name),), True)
+    folder = _report_folder(data, task, f"{index}-{dict(snapshot.identities)[index]}")
     task_run_id = manager.store.create_task_run(manager.namespace, task, index, name)
     profile: RewardVisualProfile | None = None
     result = Phase6TaskResult(task, "SAFETY_BLOCKED", task_run_id=task_run_id)
@@ -684,7 +684,7 @@ def run_free_reward_sequence(
                 manager.execute(
                     index,
                     "quit",
-                    snapshot=RunSnapshot(manager.namespace, ((index, name),), True),
+                    snapshot=bound_snapshot(manager.store, manager.namespace, ((index, name),), True),
                 )
                 sequence_cleanup_succeeded = True
             except Exception as exc:  # noqa: BLE001 - owned cleanup must always be attempted

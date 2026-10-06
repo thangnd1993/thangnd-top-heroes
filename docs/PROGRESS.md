@@ -1,3 +1,37 @@
+## Phase 8 — display-only labels and terminal-plan cleanup (2026-10-06)
+
+Real acceptance is paused pending this repair's full fresh CI gate. LDPlayer
+Machine UUIDs observed read-only encode the Multi index and cannot detect reuse.
+Use the existing non-name backing-data fingerprint (resolved data.vmdk path,
+Windows volume/file identity and birth time), read twice without config writes.
+Snapshots, task/run sidecars and journal mappings bind this durable identity;
+indexed serial, paired boot and process IDs separately prove the active session.
+Display-label changes preserve selection, Protection, ownership and old locks.
+Different/missing disk proof fails closed; a changed generation remains blocked
+until explicit app-side reconciliation. No LDPlayer identity/name is written.
+Historical rows are preserved; unproven journal mappings stay AMBIGUOUS/locked
+and are listed in the migration audit. Previous index/name limitations below
+are historical and superseded by this contract.
+
+Owned cleanup recomputes terminal evidence from the frozen registry plan.
+Home without an actual Event scan is PREMATURE_CLEANUP and cannot stop a target.
+Event evidence includes scan flag, discovery capture, candidate count, nested
+traversal, reward results and blockers. Genuine failed recovery before Home is
+reported separately. A blocked branch may use one qualified navigation-only
+Home recovery before continuing independent candidates; no UNKNOWN input.
+External running targets are preserved; replacement process/boot revokes cleanup.
+No hidden lifecycle restart in instance sessions. Qualified World/War/paid close
+logic and all old VERIFIED/POSSIBLE locks remain intact. Subprocess and indexed
+CLI allowlists block rename/config replacement/rollback and audit attempted writes.
+
+Offline targeted contract run: 212 passed; earlier focused batches overlap and
+are not additive. Ruff and diff checks pass. Self-review covers index reuse,
+name-independent targeting, journal preservation, bounded branch recovery,
+missing-flow/scan cleanup refusal, explicit Phase8 allowlist and Protected isolation.
+No real emulator lifecycle/gameplay/config mutation performed during implementation.
+Requires lint/full pytest/Windows build/smoke/artifact PASS before Desktop delivery
+and Phase8-only unresolved-account continuation. No Phase9.
+
 ## Phase 8 — invalid frame breaks World stability (2026-10-06)
 
 849cddd pushed; CI37366182220 queued with no Windows runner assigned. Self-review

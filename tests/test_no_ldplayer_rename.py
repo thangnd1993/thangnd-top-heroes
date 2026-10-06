@@ -68,9 +68,9 @@ def test_stale_snapshot_and_ambiguous_adb_fail_closed_without_rename(rig):
     manager.refresh()
     manager.select(7,True)
     process.calls.clear()
-    with pytest.raises(SafetyError):
-        manager.capture_verified(7,snapshot)
-    assert all(c[1]=='list2' for c in process.calls)
+    target, _ = manager.capture_verified(7,snapshot)
+    assert target.name == "User chosen"
+    process.calls.clear()
     process.device_boot='different-runtime'
     with pytest.raises(SafetyError):
         manager.capture_verified(7)

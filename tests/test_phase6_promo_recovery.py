@@ -207,7 +207,7 @@ def test_persistent_loading_is_bounded_without_input_retry(tmp_path):
 
 
 def test_wrong_clone_never_dispatches(tmp_path):
-    wrong = Target(2, "other", TARGET.serial, TARGET.boot_id)
+    wrong = Target(3, "same display label", TARGET.serial, TARGET.boot_id)
     port = Port([_frame(tmp_path, wrong, popup=True, name="wrong-clone")])
     result = _recovery(port).run(2, "5-Emmmmm")
 

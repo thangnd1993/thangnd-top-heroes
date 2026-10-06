@@ -16,7 +16,7 @@ from top_heroes_auto.app.recovery_cli import (
     run_home_recovery,
 )
 from top_heroes_auto.automation.actions import SafeInputService
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.guard import SafetyError, bound_snapshot
 from top_heroes_auto.automation.recovery import (
     HomeRecoveryEngine,
     RecoveryObservation,
@@ -314,7 +314,7 @@ def test_blank_wait_keeps_same_verified_target_and_persists_each_invalid_sample(
     rig, tmp_path, monkeypatch
 ):
     manager, _, _ = rig
-    snapshot = RunSnapshot(manager.namespace, ((7, "Farm-007"),), True)
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((7, "Farm-007"),), True)
     port = DiagnosticRecoveryPort(manager, snapshot, 7, "Farm-007", tmp_path)
     target = Target(7, "Farm-007", "emulator-5568", "boot")
     changed_target = Target(7, "Farm-007", "emulator-5570", "other-boot")
@@ -346,7 +346,7 @@ def test_valid_black_png_is_screen_not_ready_and_persisted_with_bounded_recaptur
     rig, tmp_path, monkeypatch
 ):
     manager, _, _ = rig
-    snapshot = RunSnapshot(manager.namespace, ((7, "Farm-007"),), True)
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((7, "Farm-007"),), True)
     port = DiagnosticRecoveryPort(manager, snapshot, 7, "Farm-007", tmp_path)
     target = Target(7, "Farm-007", "emulator-5568", "boot")
     encoded, payload = cv2.imencode(".png", np.zeros((720, 1280, 3), dtype=np.uint8))
@@ -497,12 +497,12 @@ def test_recovery_report_failure_cleans_only_instance_started_by_run(rig, tmp_pa
             engine=AlreadyHome(),
         )
     assert raised.value.started_by_run
-    assert raised.value.cleanup_attempted
-    assert raised.value.cleanup_succeeded
+    assert not raised.value.cleanup_attempted
+    assert not raised.value.cleanup_succeeded
     assert raised.value.launch_attempt["ownership"] == "OWNED"
     assert raised.value.ownership_uncertain is False
     lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
-    assert lifecycle == ["launch", "quit"]
+    assert lifecycle == ["launch"]
 
 
 def test_recovery_report_failure_does_not_stop_externally_running_instance(rig, tmp_path, monkeypatch):
@@ -570,7 +570,7 @@ def test_recovery_report_failure_with_uncertain_owned_cleanup_is_not_retryable(
             tmp_path,
             7,
             "Farm-007",
-            cleanup_owned=False,
+            cleanup_owned=True,
             engine=AlreadyHome(),
         )
     assert raised.value.started_by_run
@@ -602,29 +602,23 @@ def test_pre_dispatch_launch_failure_report_is_not_owned(rig, tmp_path, monkeypa
     assert lifecycle == []
 
 
-def test_post_dispatch_rename_report_is_uncertain_without_cleanup(rig, tmp_path):
+def test_post_dispatch_rename_keeps_owned_recovery_without_hidden_cleanup(rig, tmp_path):
     manager, process, _ = rig
     process.listing = "0,Queen,1,2,1,101,102\n7,Farm-007,0,0,0,-1,-1\n"
     process.auto_lifecycle = False
     manager.refresh()
-
     def renamed_launch(args):
-        if args[1] == "launch":
-            process.listing = "0,Main-Thang,1,2,1,101,102\n7,LDPlayer-2,3,4,1,201,202\n"
-
+        if args[1] == 'launch':
+            process.listing = "0,Queen,1,2,1,101,102\n7,LDPlayer-2,3,4,1,201,202\n"
     process.hook = renamed_launch
-    result, report, started = run_home_recovery(manager, tmp_path, 7, "Farm-007")
-
-    assert result.status == RecoveryStatus.ADB_ERROR
-    assert not started
-    assert result.ownership_uncertain is True
-    assert result.launch_attempt["ownership"] == "UNKNOWN"
-    payload = json.loads(report.read_text(encoding="utf-8"))
-    assert payload["ownership_uncertain"] is True
-    assert payload["launch_attempt"]["target_name"] == "Farm-007"
-    assert payload["cleanup_performed"] is False
-    lifecycle = [call[1] for call in process.calls if len(call) > 1 and call[1] in {"launch", "quit"}]
-    assert lifecycle == ["launch"]
+    class AlreadyHome:
+        def ensure_game_home(self, port, cancelled):
+            return RecoveryResult(RecoveryStatus.ALREADY_HOME, adb_target='emulator-5568')
+    result, report, started = run_home_recovery(manager, tmp_path, 7, 'Farm-007', cleanup_owned=False, engine=AlreadyHome())
+    assert result.status == RecoveryStatus.ALREADY_HOME and started
+    assert not result.ownership_uncertain and result.launch_attempt['ownership'] == 'OWNED'
+    assert not json.loads(report.read_text(encoding='utf-8'))['cleanup_performed']
+    assert [c[1] for c in process.calls if c[1] in {'launch','quit'}] == ['launch']
 
 
 def test_external_running_recovery_reports_external_without_cleanup(rig, tmp_path):
@@ -707,7 +701,7 @@ def test_recovery_observation_uses_explicit_adb_target(rig, tmp_path, monkeypatc
         "top_heroes_auto.vision.detector.ScreenDetector.detect",
         lambda self, screen: detection(ScreenState.GAME_HOME),
     )
-    snapshot = RunSnapshot(manager.namespace, ((7, "Farm-007"),), True)
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((7, "Farm-007"),), True)
     port = DiagnosticRecoveryPort(manager, snapshot, 7, "Farm-007", tmp_path)
     observation = port.observe(1)
     assert observation.adb_target == "emulator-5568"

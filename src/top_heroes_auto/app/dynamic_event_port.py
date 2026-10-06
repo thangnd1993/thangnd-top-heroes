@@ -17,6 +17,7 @@ from top_heroes_auto.automation.overlays import (
     dismiss_overlay_bottom_left,
     overlay_signature,
 )
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.dynamic_events import (
     blank_event_render,
     competitive_navigation_shell,
@@ -68,7 +69,7 @@ class DynamicEventPort:
             time.sleep(.75)  # Only the explorer's bounded capture-only settling path.
         observed = self.transport.observe()
         c = observed.captured
-        identity = (c.index, c.name, c.serial, c.boot_id)
+        identity = (c.index, self.session.target['persistent_identity'], c.serial, c.boot_id)
         image = portrait(c)
         controls, blocked = [], []
         page = observed.page if observed.page == 'home' else 'UNKNOWN'
@@ -79,6 +80,7 @@ class DynamicEventPort:
         ignored_signals = []
         competitive_evidence=None
         coverage_known = False
+        event_scan_performed = False
         self.rows = ()
         # The Home detector and current Shop anchor jointly qualify the sidebar.
         # The ROI is a semantic UI surface, not a list of icon/tap coordinates.
@@ -89,6 +91,7 @@ class DynamicEventPort:
             bottom = round(h*.40)
             if top < bottom:
                 candidates = discover_events(image, BoundingBox(left, top, w-left, bottom-top))
+                event_scan_performed = True
                 for candidate in candidates:
                     if candidate.qualified:
                         core=icon_core_image(image,candidate.icon_box)
@@ -250,6 +253,7 @@ class DynamicEventPort:
         transition=(competitive_rank_transition(image) if self.entered and page=='UNKNOWN' and not popup else None)
         self.current = EventFrame(str(c.source_image),identity,page,fingerprint,tuple(controls),
                                   coverage_known=coverage_known, parent=parent, popup=popup, blocked=tuple(blocked),
+                                  stable_id=self.session.target['persistent_identity'], event_scan_performed=event_scan_performed,
                                   render_pending=bool(self.entered and page=='UNKNOWN' and
                                                       not popup and (blank_event_render(image) or transition is not None)))
         payload = dict(frame=asdict(self.current), badges=[item.evidence() for item in candidates],
@@ -284,7 +288,7 @@ class DynamicEventPort:
             self.current=None
             fresh=self.observe()
             matches=[c for c in fresh.controls if c.kind=='scroll' and c.identity==control.identity]
-            if (fresh.identity!=frame.identity or fresh.page!=frame.page or fresh.popup
+            if (runtime_key(fresh.identity)!=runtime_key(frame.identity) or fresh.page!=frame.page or fresh.popup
                     or not fresh.coverage_known or fresh.blocked or len(matches)!=1):
                 raise SafetyError('Event scroll changed on fresh capture; no input.')
             control=matches[0]
@@ -310,7 +314,7 @@ class DynamicEventPort:
                 raise SafetyError('Purchase modal permits only its qualified close.')
             self.current = None
             fresh = self.observe()
-            if (fresh.identity!=frame.identity or fresh.page!=frame.page or fresh.popup
+            if (runtime_key(fresh.identity)!=runtime_key(frame.identity) or fresh.page!=frame.page or fresh.popup
                     or fresh.parent!=control or fresh.coverage_known
                     or fresh.controls or 'UNQUALIFIED_PAID_MODAL_CONTENT' not in fresh.blocked):
                 raise SafetyError('Purchase modal changed on fresh capture; no input.')
@@ -334,7 +338,7 @@ class DynamicEventPort:
         time.sleep(.35)
         fresh = self.observe()
         matches = [c for c in fresh.controls if c.identity == control.identity]
-        if (fresh.page != 'home' or fresh.identity != before.identity or len(matches) != 1 or
+        if (fresh.page != 'home' or runtime_key(fresh.identity) != runtime_key(before.identity) or len(matches) != 1 or
                 matches[0].box != control.box or fresh.popup):
             raise SafetyError('Moving/ambiguous event notification; no input.')
         self.transport.dispatch(self.transport.last,'tap',matches[0].box.center)
@@ -349,7 +353,7 @@ class DynamicEventPort:
         # Reprove unchanged availability, identity and exact geometry before reservation.
         fresh = self.observe()
         matches = [c for c in fresh.controls if c.kind=='reward' and c.identity==control.identity]
-        if (fresh.identity!=frame.identity or fresh.page!=frame.page or fresh.popup
+        if (runtime_key(fresh.identity)!=runtime_key(frame.identity) or fresh.page!=frame.page or fresh.popup
                 or self.event_title!=title or len(matches)!=1 or matches[0]!=control):
             raise SafetyError('Free reward changed before dispatch; no input.')
         store = self.session.manager.store
@@ -390,7 +394,7 @@ class DynamicEventPort:
                 return []
             time.sleep(.5)
             after=self.observe()  # First post-action capture is always retained.
-            if after.identity != before.identity:
+            if runtime_key(after.identity) != runtime_key(before.identity):
                 return []
             if after.popup:
                 if self.transport.last.overlay.state == ScreenState.REWARD_RECEIPT:
@@ -429,6 +433,13 @@ class DynamicEventPort:
                 return observations
         return []
 
+
+    def recover_home(self):
+        result, path, _ = self.session.recover()
+        self.current = None
+        self.entered = None
+        self.event_title = None
+        return dict(status=result.status.value, report=str(path))
 
     def dismiss(self, frame):
         if frame is not self.current or not frame.popup:

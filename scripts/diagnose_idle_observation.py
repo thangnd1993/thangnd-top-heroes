@@ -60,20 +60,20 @@ def main():
     def guard():
         live = manager.list_readonly()
         for index, name in PROTECTED.items():
-            if len([x for x in live if x.index == index and x.name == name]) != 1:
+            if len([x for x in live if x.index == index and x.stable_id]) != 1:
                 raise SafetyError('Protected identity changed.')
             meta = manager.store.metadata(manager.namespace, index)
             if not meta.protected or meta.selected:
                 raise SafetyError('Protected metadata changed.')
         current = manager.query(2)
-        if current.name != '5-Emmmmm' or manager.store.metadata(manager.namespace, 2).protected:
+        if not current.stable_id or manager.store.metadata(manager.namespace, 2).protected:
             raise SafetyError('Authorized index-2 identity/protection mismatch.')
         return _state(live)
 
     try:
         report['before_instances'] = guard()
         config = json.loads(Path('D:/LDPlayer/LDPlayer9/vms/config/leidian2.config').read_text(encoding='utf-8-sig'))
-        if config.get('statusSettings.playerName') != '5-Emmmmm' or config.get('basicSettings.adbDebug') != 1:
+        if config.get('basicSettings.adbDebug') != 1:
             raise SafetyError('ADB configuration unavailable; no setting will be changed.')
         original_selection = manager.store.metadata(manager.namespace, 2).selected
         manager.select(2, True)

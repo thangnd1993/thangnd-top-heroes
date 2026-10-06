@@ -33,7 +33,7 @@ from top_heroes_auto.app.phase6_vip_survey_tasks import (
 from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.actions import SafeInputService
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.guard import RunSnapshot, SafetyError, bound_snapshot
 from top_heroes_auto.automation.idle_reward import (
     IdleRewardObservation,
     IdleRewardResult,
@@ -172,8 +172,8 @@ def run_idle_reward_diagnostic(
         raise SafetyError("Idle Reward target must be selected and not Protected.")
 
     before = _state(manager.list_readonly())
-    snapshot = RunSnapshot(manager.namespace, ((index, name),), True)
-    folder = data / "diagnostics" / "tasks" / TASK_NAME / name / _stamp()
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((index, name),), True)
+    folder = data / "diagnostics" / "tasks" / TASK_NAME / f"{index}-{dict(snapshot.identities)[index]}" / _stamp()
     folder.mkdir(parents=True, exist_ok=False)
     task_run_id = manager.store.create_task_run(manager.namespace, TASK_NAME, index, name)
     started_by_run = False

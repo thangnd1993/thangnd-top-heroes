@@ -19,7 +19,7 @@ from top_heroes_auto.app.diagnostic import _instance, _only_target_changed, _sta
 from top_heroes_auto.app.phase6_runtime import shop_navigation_factory, shop_navigation_profile
 from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
 from top_heroes_auto.app.service import Manager
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.guard import SafetyError, bound_snapshot
 from top_heroes_auto.automation.phase6_promo_recovery import (
     PromoRecoveryResult,
     PromoRecoveryStatus,
@@ -128,7 +128,7 @@ def run_phase6_shop_navigation(
 ) -> ShopNavigationTaskResult:
     """Run the bounded daily-offer survey with exact target and persistence guards."""
 
-    if (index, name) != PHASE6_TARGET:
+    if index != PHASE6_TARGET[0]:
         raise SafetyError("Phase 6 is authorized only for #2 / 5-Emmmmm.")
     target = _instance(manager, index, name)
     queen = _instance(manager, 0, "Queen")
@@ -139,8 +139,8 @@ def run_phase6_shop_navigation(
         raise SafetyError("Phase 6 target must be selected and not Protected.")
 
     before = _state(manager.list_readonly())
-    snapshot = RunSnapshot(manager.namespace, ((index, name),), True)
-    folder = _report_folder(data, name)
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((index, name),), True)
+    folder = _report_folder(data, f"{index}-{dict(snapshot.identities)[index]}")
     task_run_id = manager.store.create_task_run(
         manager.namespace,
         SHOP_NAVIGATION_TASK,

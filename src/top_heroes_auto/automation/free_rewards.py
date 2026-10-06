@@ -14,6 +14,7 @@ from enum import StrEnum
 from typing import Callable, Protocol
 
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.models import ScreenDetection, ScreenState
 
 
@@ -107,7 +108,7 @@ class FreeRewardGuard:
 
     def observe(self, screen: RewardScreen):
         self.current = None
-        if (screen.index, screen.name) != self.identity:
+        if runtime_key((screen.index, screen.name)) != runtime_key(self.identity):
             raise SafetyError("Account identity changed.")
         transport = screen.adb_target, screen.boot_id
         if not all(transport) or (self.transport is not None and transport != self.transport):

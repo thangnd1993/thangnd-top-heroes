@@ -1,7 +1,7 @@
 import pytest
 
 from top_heroes_auto.app.service import Manager
-from top_heroes_auto.ldplayer.client import Installation, LDPlayer
+from top_heroes_auto.ldplayer.client import Installation, LDPlayer, parse_list2
 from top_heroes_auto.storage.store import Store
 
 BOOT = "ce068632-fc3e-4090-a8d7-ae8d9fe353f5"
@@ -50,7 +50,8 @@ class FakeProcess:
         if args[1] in ("launch", "quit", "reboot"):
             assert args[2:] == ["--index", "7"]
             if self.auto_lifecycle:
-                row = "7,Farm-007,3,4,1,201,202" if args[1] == "launch" else "7,Farm-007,0,0,0,-1,-1"
+                name = next(i.name for i in parse_list2(self.listing) if i.index == 7)
+                row = f"7,{name},3,4,1,201,202" if args[1] == "launch" else f"7,{name},0,0,0,-1,-1"
                 self.listing = (
                     "\n".join(row if line.startswith("7,") else line for line in self.listing.splitlines())
                     + "\n"
@@ -64,7 +65,7 @@ def rig(tmp_path):
     store = Store(tmp_path / "config.sqlite3")
     process = FakeProcess()
     ld = LDPlayer(Installation(tmp_path / "ldconsole.exe", tmp_path / "adb.exe"), process)
-    manager = Manager(ld, store, tmp_path)
+    manager = Manager(ld, store, tmp_path, identity_reader=lambda console, index: f"fixture-disk-{index}")
     manager.refresh()
     manager.protect(0, True)
     manager.select(7, True)

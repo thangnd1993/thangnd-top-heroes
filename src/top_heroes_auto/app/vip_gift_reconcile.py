@@ -10,6 +10,7 @@ from top_heroes_auto.automation.fixed_reward_reconcile import saved_frame
 from top_heroes_auto.automation.phase6_visual import FrameRewardAdapter
 from top_heroes_auto.automation.reward_journal import evidence_json
 from top_heroes_auto.automation.vip_geometry import validate_vip_claim_geometry
+from top_heroes_auto.ldplayer.identity import runtime_key
 
 
 def reconcile_saved_vip_gift(store, claim_id):
@@ -25,7 +26,7 @@ def reconcile_saved_vip_gift(store, claim_id):
     if not task or (task['namespace'],task['instance_index'],task['task']) != (
             row['namespace'],row['instance_index'],'vip-reward'):
         raise ValueError('Original VIP task ownership mismatch.')
-    if not identity or identity['protected'] or identity['name'] != row['instance_name']:
+    if not identity or identity['protected']:
         raise ValueError('Protected, missing or changed journal identity cannot be reconciled.')
     path = Path(task['report_path']).resolve()
     report = json.loads(path.read_text(encoding='utf-8'))
@@ -41,9 +42,9 @@ def reconcile_saved_vip_gift(store, claim_id):
     adapter = FrameRewardAdapter(gift_profile(profile))
     frames, times = [], []
     for evidence, folder in ((before,path.parent/'upper-gift'),(after,path.parent)):
-        if any(evidence[k] != before[k] for k in ('index','name','adb_target','boot_id')):
+        if any(evidence[k] != before[k] for k in ('index','adb_target','boot_id')):
             raise ValueError('Original target/boot changed.')
-        if (evidence['index'],evidence['name']) != (row['instance_index'],row['instance_name']):
+        if runtime_key((evidence['index'],evidence['name'])) != runtime_key((row['instance_index'],row['instance_name'])):
             raise ValueError('Original journal identity mismatch.')
         timestamp = evidence['detection']['timestamp']
         image = Path(evidence['capture_id']).resolve()

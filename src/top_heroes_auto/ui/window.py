@@ -58,6 +58,7 @@ from top_heroes_auto.app.run_queue import RunController
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.app.task_cli import run_idle_reward_diagnostic
 from top_heroes_auto.ldplayer.client import LDPlayer, discover, inspect_folder
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.storage.store import AccountStatus
 from top_heroes_auto.ui.theme import STYLE
 from top_heroes_auto.vision.detector import ScreenDetector
@@ -681,7 +682,7 @@ class Window(QMainWindow):
         allowed = False
         reason = "Phase 6 chỉ cho phép #2 / 5-Emmmmm."
         index = self.target.currentData()
-        if self.manager and instance and (index, instance.name) == PHASE6_TARGET:
+        if self.manager and instance and runtime_key((index, instance.name)) == runtime_key(PHASE6_TARGET):
             try:
                 metadata = self.store.metadata(self.manager.namespace, index)
                 queen = self.store.metadata(self.manager.namespace, 0)
@@ -794,7 +795,7 @@ class Window(QMainWindow):
     def _phase6_target(self, fixed=False):
         index = self.target.currentData()
         instance = next((item for item in self.instances if item.index == index), None)
-        if not self.manager or instance is None or (not fixed and (index, instance.name) != PHASE6_TARGET):
+        if not self.manager or instance is None or (not fixed and runtime_key((index, instance.name)) != runtime_key(PHASE6_TARGET)):
             return None
         self.update_phase6_controls(instance)
         try:

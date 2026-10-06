@@ -1,5 +1,7 @@
 import threading
 import time
+from dataclasses import replace
+from types import SimpleNamespace
 
 from top_heroes_auto.app.run_queue import RunController
 from top_heroes_auto.ldplayer.client import Instance
@@ -64,8 +66,9 @@ class StubManager:
     namespace = "queue-test"
 
     def __init__(self, store, instances, active, failing=()):
-        self.store, self.instances, self.active, self.failing = store, tuple(instances), active, set(failing)
+        self.store, self.instances, self.active, self.failing = store, tuple(replace(i,stable_id=f"fixture-{i.index}") for i in instances), active, set(failing)
         self.actions = []
+        self.last_lifecycle_attempt = None
 
     def refresh(self):
         self.store.merge(self.namespace, self.instances)
@@ -76,6 +79,8 @@ class StubManager:
 
     def execute(self, index, action, **_):
         self.actions.append((index, action))
+        if action == "launch":
+            self.last_lifecycle_attempt = SimpleNamespace(ownership="OWNED")
         if action == "verify" and index in self.failing:
             raise RuntimeError(f"ADB timeout #{index}")
         with self.active:

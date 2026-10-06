@@ -26,6 +26,7 @@ from top_heroes_auto.automation.overlays import (
     dismiss_overlay_bottom_left,
     overlay_signature,
 )
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.models import CapturedScreen, ScreenDetection, ScreenState, VisualAnchor
 from top_heroes_auto.vision.screenshot import ScreenshotService
@@ -143,7 +144,7 @@ class ManagerEntryPort(EntryPort):
 
     def observe(self, tag: str) -> EntryFrame:
         target, payload = self.manager.capture_verified(self.index, self.snapshot)
-        if (target.index, target.name) != (self.index, self.name):
+        if runtime_key((target.index, target.name)) != runtime_key((self.index, self.name)):
             raise SafetyError("Entry capture identity changed.")
         if self._target and (target.serial, target.boot_id) != (self._target.serial, self._target.boot_id):
             raise SafetyError("Entry capture transport identity changed.")
@@ -214,7 +215,7 @@ class GuardedEntryNavigator:
         identity = (frame.target.index, frame.target.name, frame.target.serial, frame.target.boot_id)
         if self._identity is None:
             self._identity = identity
-        elif identity != self._identity:
+        elif runtime_key(identity) != runtime_key(self._identity):
             raise SafetyError("Entry frame target identity changed.")
         if frame.capture_id in result.captures:
             raise SafetyError("Entry overlay requires a fresh capture.")

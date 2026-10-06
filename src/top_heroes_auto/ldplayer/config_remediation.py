@@ -6,6 +6,8 @@ rewrite/restore that file. Keep the entry point fail-closed for older callers.
 """
 from pathlib import Path
 
+from top_heroes_auto.ldplayer.name_safety import reject_name_write
+
 
 class ConfigRemediationError(ValueError):
     """Persistent LDPlayer config remediation is unavailable."""
@@ -21,6 +23,7 @@ def enable_authorized_adb_debug(
     protected: bool,
 ):
     """Never write config or a backup, including on identity/protection errors."""
-    raise ConfigRemediationError(
-        "Automatic LDPlayer config replacement is disabled: instance names are user-owned and read-only."
-    )
+    try:
+        reject_name_write('Automatic LDPlayer config replacement is disabled: names are read-only.')
+    except ValueError as exc:
+        raise ConfigRemediationError(str(exc)) from exc

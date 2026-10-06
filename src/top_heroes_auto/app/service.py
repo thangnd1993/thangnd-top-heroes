@@ -4,7 +4,7 @@ import logging
 import re
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,6 +26,7 @@ from top_heroes_auto.automation.guard import (
     require_selected,
 )
 from top_heroes_auto.ldplayer.client import IndexedSerialUnavailable, Instance, LDPlayer
+from top_heroes_auto.ldplayer.identity import disk_identity
 from top_heroes_auto.storage.store import Store
 
 log = logging.getLogger("top_heroes_auto")
@@ -114,8 +115,9 @@ class Manager:
         port = int(match.group(1)) + 1
         return f"127.0.0.1:{port}" if port <= 65535 else None
 
-    def __init__(self, ld: LDPlayer, store: Store, data_dir: Path):
+    def __init__(self, ld: LDPlayer, store: Store, data_dir: Path, *, identity_reader=disk_identity):
         self.ld, self.store, self.data_dir = ld, store, data_dir
+        self.identity_reader = identity_reader
         self.adb = ADB(str(ld.installation.adb), ld.process)
         self.namespace = ld.installation.namespace
         self._lock = threading.RLock()
@@ -134,9 +136,19 @@ class Manager:
 
         return self._last_lifecycle_attempt
 
+    def _inventory(self):
+        result = []
+        for instance in self.ld.list_instances():
+            try:
+                stable_id = self.identity_reader(self.ld.installation.console, instance.index)
+            except (OSError, ValueError):
+                stable_id = ''
+            result.append(replace(instance, stable_id=stable_id))
+        return tuple(result)
+
     def refresh(self):
         with self._lock:
-            instances = self.ld.list_instances()
+            instances = self._inventory()
             self.store.merge(self.namespace, instances)
             log.info("Đọc danh sách LDPlayer: %s giả lập (chỉ đọc).", len(instances))
             return instances
@@ -144,14 +156,18 @@ class Manager:
     def list_readonly(self):
         """Read the live Multi list without changing persisted instance metadata."""
         with self._lock:
-            return self.ld.list_instances()
+            return self._inventory()
 
     def select(self, index: int, selected: bool):
         with self._lock:
+            live = self.query(index)
+            self.store.require_identity(self.namespace, index, live.stable_id)
             self.store.select(self.namespace, index, selected)
 
     def protect(self, index: int, protected: bool):
         with self._lock:
+            live = self.query(index)
+            self.store.require_identity(self.namespace, index, live.stable_id)
             self.store.protect(self.namespace, index, protected)
 
     def query(self, index: int) -> Instance:
@@ -236,7 +252,7 @@ class Manager:
     def _check(self, index: int):
         if self._active is None or self._active.namespace != self.namespace:
             raise SafetyError("Không có hàng đợi thao tác đang hoạt động.")
-        current = self.ld.list_instances()
+        current = self._inventory()
         self.store.merge(self.namespace, current)
         if self._active.immutable:
             return require_run_member(self.store, self._active, current, index)
@@ -245,8 +261,8 @@ class Manager:
     def _same_runtime(self, index, original):
         current = self._check(index)
         if (not current.android_started or not current.running or
-                (current.name, current.pid, current.vbox_pid) !=
-                (original.name, original.pid, original.vbox_pid)):
+                (current.index, current.stable_id, current.pid, current.vbox_pid) !=
+                (original.index, original.stable_id, original.pid, original.vbox_pid)):
             raise SafetyError('Exact instance runtime changed during ADB verification.')
         return current
 
@@ -348,7 +364,7 @@ class Manager:
                 ):
                     raise SafetyError("Android đã khởi động lại trong lúc xác minh.")
                 log.info("[%s / #%s] Đã xác minh ADB %s", instance.name, index, target_serial)
-                return Target(index, instance.name, target_serial, expected)
+                return Target(index, self._check(index).name, target_serial, expected, instance.stable_id)
             if time.monotonic() >= deadline:
                 # Shared-daemon recovery is allowed once, and only when no
                 # other Android device is present and no other LDPlayer is
@@ -372,11 +388,11 @@ class Manager:
         original = self._check(index)
         if not original.running:
             raise SafetyError('Capture target stopped; no readiness restart allowed.')
-        identity = (original.index, original.name, original.pid, original.vbox_pid)
+        identity = (original.index, original.stable_id, original.pid, original.vbox_pid)
         current = original
         for attempt in range(3):
             if (not current.running or
-                    (current.index, current.name, current.pid, current.vbox_pid) != identity):
+                    (current.index, current.stable_id, current.pid, current.vbox_pid) != identity):
                 raise SafetyError('Capture runtime changed during readiness; fail closed.')
             if current.android_started:
                 return current
@@ -395,6 +411,7 @@ class Manager:
                 self.namespace,
                 tuple(member for member in snapshot.members if member[0] == index),
                 immutable_snapshot,
+                snapshot.identities,
             )
             try:
                 capture_runtime = self._capture_ready(index)
@@ -414,7 +431,7 @@ class Manager:
     @exclusive_command
     def execute(
         self, index: int, action: str, package: str = "", values: tuple = (), snapshot: RunSnapshot | None = None,
-        *, observed_target: Target | None = None, before_input=None,
+        *, observed_target: Target | None = None, before_input=None, allow_lifecycle_retry=True,
     ):
         """One explicit manual action = one short-lived immutable queue.
 
@@ -455,6 +472,7 @@ class Manager:
                 self.namespace,
                 tuple(m for m in snapshot.members if m[0] == index),
                 immutable_snapshot,
+                snapshot.identities,
             )
             try:
                 instance = self._check(index)
@@ -482,7 +500,7 @@ class Manager:
                 try:
                     target = self._resolve(index)
                 except TransportResolutionError:
-                    if action not in {"launch", "reboot"}:
+                    if action not in {"launch", "reboot"} or not allow_lifecycle_retry:
                         raise
                     # A manual launch on an already-running external instance
                     # must not stop/relaunch it merely because ADB is late.
@@ -528,7 +546,7 @@ class Manager:
                         raise SafetyError("Current ADB identity differs from the action's screenshot.")
                     # Visual actions must respect a live selection revocation,
                     # even when a queue snapshot captured earlier membership.
-                    require_selected(self.store, self._active, self.ld.list_instances(), index)
+                    require_selected(self.store, self._active, self._inventory(), index)
                 if action in {"launch", "reboot"}:
                     attempt = self._last_lifecycle_attempt
                     if attempt is not None and attempt.dispatch_attempted:

@@ -17,6 +17,7 @@ from typing import Callable, Mapping, Protocol
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.models import (
     AnchorEvidence,
@@ -95,7 +96,7 @@ class ManagerVipSurveyPort:
 
     def observe(self, tag: str) -> VipSurveyFrame:
         target, payload = self.manager.capture_verified(self.index, self.snapshot)
-        if (target.index, target.name) != (self.index, self.name):
+        if runtime_key((target.index, target.name)) != runtime_key((self.index, self.name)):
             raise SafetyError("VIP survey capture identity changed.")
         if (target.serial, target.boot_id) != self.expected_identity:
             raise _IdentityChanged("VIP survey serial/boot identity changed.")
@@ -205,7 +206,7 @@ class GuardedVipSurvey:
     ) -> VipSurveyFrame:
         self._check_limits(cancelled)
         frame = self.port.observe(tag)
-        if (frame.target.index, frame.target.name) != (2, "5-Emmmmm"):
+        if runtime_key((frame.target.index, frame.target.name)) != runtime_key((2, "5-Emmmmm")):
             raise _IdentityChanged("VIP survey target identity changed.")
         if (frame.target.serial, frame.target.boot_id) != self.expected_identity:
             raise _IdentityChanged("VIP survey serial/boot identity changed.")

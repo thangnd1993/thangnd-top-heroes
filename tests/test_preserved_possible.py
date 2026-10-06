@@ -39,7 +39,7 @@ def test_explicit_exception_skips_only_locked_reward_and_preserves_exact_row(rig
         run(rig,tmp_path,[],resume_report=path)
 
 
-@pytest.mark.parametrize('bad',['missing','identity','name','protected','verified','not-dispatched','wrong-prior','new-run'])
+@pytest.mark.parametrize('bad',['missing','identity','protected','verified','not-dispatched','wrong-prior','new-run'])
 def test_exception_requires_exact_existing_possible_and_original_scope(rig,tmp_path,bad):
     _,previous,_,cid,_ = original(rig,tmp_path)
     manager,_,store = rig

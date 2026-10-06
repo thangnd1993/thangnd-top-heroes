@@ -1,25 +1,36 @@
 """Single lifecycle/selection owner for an extensible per-instance execution plan."""
+from top_heroes_auto.adb.client import valid_boot_id
 from top_heroes_auto.app.bxh_shop_acceptance import persistent_identity
 from top_heroes_auto.app.diagnostic import _instance
 from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.execution_plan import terminal_plan
+from top_heroes_auto.automation.guard import SafetyError, bound_snapshot
 from top_heroes_auto.automation.recovery import RecoveryStatus
+from top_heroes_auto.ldplayer.name_safety import name_write_attempts
 
 
 class InstanceSession:
     def __init__(self, manager, data, target, folder, *, identity_reader=persistent_identity,
-                 temporary_selection=True, cancelled=lambda: False, recovery_runner=run_home_recovery):
+                 temporary_selection=True, cancelled=lambda: False, recovery_runner=run_home_recovery, execution_plan=()):
         self.manager, self.data, self.target, self.folder = manager, data, target, folder
         self.index, self.name = target['index'], target['name']
         self.identity_reader, self.cancelled = identity_reader, cancelled
         self.temporary_selection, self.recovery_runner = temporary_selection, recovery_runner
-        self.snapshot = RunSnapshot(manager.namespace, ((self.index, self.name),), True)
+        self.snapshot = bound_snapshot(manager.store, manager.namespace, ((self.index, self.name),), True)
         self.selected_before = None
+        self.execution_terminal = False
+        self.plan_summary = {}
+        self.execution_plan = tuple(execution_plan)
+        self.runtime = None
+        self.boot_id = None
+        self.name_writes_before = name_write_attempts()
         self.changed_selection = self.started = self.cleanup_attempted = self.closed = False
         self.initial = None
         self.used_initial = False
         self.report = dict(cleanup='NOT_REQUIRED', selection_restored=False, recoveries=[],
-                           started_by_run=False)
+                           started_by_run=False, stable_instance_id=target['persistent_identity'],
+                           starting_display_label=self.name, ending_display_label=self.name,
+                           ldplayer_name_write_attempts=0)
 
     def check(self, *, selected=True, running=True):
         live = _instance(self.manager, self.index, self.name)
@@ -28,10 +39,19 @@ class InstanceSession:
             raise SafetyError('Session target must remain selected and not Protected.')
         if self.identity_reader(self.manager, self.index) != self.target['persistent_identity']:
             raise SafetyError('Persistent session identity changed.')
+        if self.runtime is not None and (live.pid, live.vbox_pid) != self.runtime:
+            raise SafetyError('Runtime owner changed; no cleanup or restart.')
+        if live.running and self.boot_id is not None:
+            if valid_boot_id(self.manager.ld.boot_id(self.index)) != self.boot_id:
+                raise SafetyError('Session boot changed; runtime ownership lost.')
         if running and not live.running:
             raise SafetyError('Session target stopped; no restart between flows.')
         if self.cancelled() and selected and running:
             raise SafetyError('Run cancelled.')
+        self.name = live.name
+        self.report['ending_display_label'] = live.name
+        if live.name != self.report['starting_display_label']:
+            self.report['display_label_event'] = 'EXTERNAL_DISPLAY_NAME_CHANGE'
         return live
 
     def start(self):
@@ -49,6 +69,9 @@ class InstanceSession:
                 cleanup_owned=False, cancelled=self.cancelled,
                 allow_start=not self.target.get('preflight_running', False))
             result, path, self.started = self.initial
+            live = self.check(selected=True, running=False)
+            self.runtime = (live.pid, live.vbox_pid)
+            self.boot_id = result.boot_id
             if result.ownership_uncertain:
                 self.report['cleanup'] = 'OWNERSHIP_UNKNOWN'
                 self.report['ownership_uncertain'] = True
@@ -78,17 +101,30 @@ class InstanceSession:
             self.report['recoveries'].append(dict(status=result.status.value, report=str(path)))
         return result, path, False  # Only this session owns lifecycle cleanup.
 
+    def finish_plan(self, details, rewards):
+        summary = terminal_plan(self.execution_plan, details, rewards)
+        # The caller submits feature-owned evidence, never merely "Home reached".
+        self.plan_summary = summary
+        self.execution_terminal = summary.get('terminal') is True
+        self.report['execution_plan'] = summary
+
     def close(self):
         if self.closed:
+            self.report['ldplayer_name_write_attempts'] = name_write_attempts() - self.name_writes_before
             return self.report
         self.closed = True
-        if self.started and not self.cleanup_attempted:
+        self.report['cleanup_permitted_by_plan'] = self.execution_terminal
+        if self.started and not self.execution_terminal:
+            self.report['cleanup'] = 'PREMATURE_CLEANUP'
+        if self.started and self.execution_terminal and not self.cleanup_attempted:
             self.cleanup_attempted = True
             try:
                 # Cancellation stops new gameplay, but permits owned cleanup.
                 self.check(selected=True, running=False)
                 self.manager.execute(self.index, 'quit', snapshot=self.snapshot)
                 self.report['cleanup'] = 'SUCCESS'
+                self.boot_id = None
+                self.runtime = None  # Our confirmed stop ended the owned process, not disk binding.
             except Exception as exc:  # noqa: BLE001 - never retry cleanup/override protection
                 self.report['cleanup'] = f'FAILED: {exc}'
         try:
@@ -99,4 +135,5 @@ class InstanceSession:
                 self.manager.store.metadata(self.manager.namespace, self.index).selected == self.selected_before)
         except Exception as exc:  # noqa: BLE001 - identity/protection may revoke restoration
             self.report['selection_error'] = str(exc)
+        self.report['ldplayer_name_write_attempts'] = name_write_attempts() - self.name_writes_before
         return self.report

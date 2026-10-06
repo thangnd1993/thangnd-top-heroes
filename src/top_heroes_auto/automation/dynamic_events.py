@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Protocol
 
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.models import BoundingBox
 
 
@@ -26,7 +27,7 @@ class Control:
 @dataclass(frozen=True)
 class EventFrame:
     capture: str
-    identity: tuple[int, str, str, str]
+    identity: tuple[int, str, str, str]  # index, stable ID, serial, boot (legacy slot 2 was label)
     page: str
     fingerprint: str
     controls: tuple[Control, ...] = ()
@@ -35,6 +36,8 @@ class EventFrame:
     popup: bool = False
     blocked: tuple[str, ...] = ()
     render_pending: bool = False
+    stable_id: str = ''
+    event_scan_performed: bool = False
 
 
 @dataclass(frozen=True)
@@ -61,6 +64,8 @@ class Exploration:
     paid_rejected: list = field(default_factory=list)
     recoveries: list = field(default_factory=list)
     return_home: str = 'NOT_STARTED'
+    event_scan: str = 'NOT_STARTED'
+    candidate_count: int = 0
 
 
 class EventPort(Protocol):
@@ -107,11 +112,28 @@ class DynamicEventExplorer:
         seek = None
         reentries = set()
         parent_returns=set()
+        blocker_recoveries = set()
 
         def block(reason, frame):
             report.blocked.append(dict(reason=reason, event=active, page=frame.page, capture=frame.capture))
             if active:
                 report.events[active]['result'] = 'BLOCKED'
+
+        def continue_after_block(frame):
+            nonlocal active, active_seen, pending, stack, path, resume, seek, transitions
+            recover = getattr(port, 'recover_home', None)
+            if not active or active in blocker_recoveries or not callable(recover):
+                return False
+            blocker_recoveries.add(active)
+            proof = recover()  # Existing current-frame recovery; UNKNOWN never grants input.
+            report.recoveries.append(dict(event=active, reason='BLOCKED_EVENT_RETURN_HOME', **proof))
+            persist(asdict(report))
+            if proof.get('status') not in {'SUCCESS', 'ALREADY_HOME'}:
+                return False
+            active, active_seen, pending = None, False, None
+            stack, path, resume, seek = [], [], [], None
+            transitions += 1
+            return True
 
         try:
             for _ in range(self.limits.observations):
@@ -120,8 +142,8 @@ class DynamicEventExplorer:
                     raise SafetyError('Fresh evidence required after every action.')
                 captures.add(frame.capture)
                 if transport is None:
-                    transport = frame.identity
-                if frame.identity != transport:
+                    transport = (frame.stable_id, runtime_key(frame.identity))
+                if (frame.stable_id, runtime_key(frame.identity)) != transport:
                     raise SafetyError('Event session identity/ADB changed.')
                 report.observations.append(asdict(frame))
                 persist(asdict(report))
@@ -139,11 +161,15 @@ class DynamicEventExplorer:
                         render_waits += 1
                         continue  # Capture only; retain the exact pending navigation edge.
                     block('UNKNOWN_SCREEN', frame)
+                    if continue_after_block(frame):
+                        continue
                     break
                 render_waits = 0
                 if active and frame.page == 'home':
                     if not active_seen:
-                        block('NO_PROGRESS',frame)
+                        block('NO_PROGRESS', frame)
+                        if continue_after_block(frame):
+                            continue
                         break
                     # A qualified child Back may return to Home instead of its
                     # selector. This is observed current UI topology, not a stale
@@ -209,6 +235,8 @@ class DynamicEventExplorer:
                     if kind == 'scroll':
                         if frame.page != origin:
                             block('SCROLL_LEFT_PAGE', frame)
+                            if continue_after_block(frame):
+                                continue
                             break
                         seen = scroll_views.setdefault(key, {signature})
                         if frame.fingerprint in seen and seek is None:
@@ -217,15 +245,21 @@ class DynamicEventExplorer:
                     elif kind == 'parent':
                         if frame.page != origin:
                             block('PARENT_NOT_VERIFIED', frame)
+                            if continue_after_block(frame):
+                                continue
                             break
                     elif frame.page == origin:
                         block('NO_PROGRESS', frame)
+                        if continue_after_block(frame):
+                            continue
                         break
                 if resume:
                     kind,key=resume.pop(0)
                     matches=[c for c in frame.controls if c.kind==kind and c.identity==key]
                     if not frame.coverage_known or frame.blocked or len(matches)!=1:
-                        block('EVENT_RESUME_ROUTE_UNQUALIFIED',frame)
+                        block('EVENT_RESUME_ROUTE_UNQUALIFIED', frame)
+                        if continue_after_block(frame):
+                            continue
                         break
                     control=matches[0]
                     if kind=='child':
@@ -240,7 +274,9 @@ class DynamicEventExplorer:
                 if seek:
                     origin,signature,key=seek
                     if frame.page!=origin:
-                        block('EVENT_RESUME_PAGE_CHANGED',frame)
+                        block('EVENT_RESUME_PAGE_CHANGED', frame)
+                        if continue_after_block(frame):
+                            continue
                         break
                     if frame.fingerprint==signature:
                         seek=None
@@ -248,7 +284,9 @@ class DynamicEventExplorer:
                         matches=[c for c in frame.controls if c.kind=='scroll' and c.identity==key[2]]
                         if (not frame.coverage_known or frame.blocked or len(matches)!=1
                                 or scroll_counts.get(key,0)>=self.limits.scrolls):
-                            block('EVENT_RESUME_VIEW_UNQUALIFIED',frame)
+                            block('EVENT_RESUME_VIEW_UNQUALIFIED', frame)
+                            if continue_after_block(frame):
+                                continue
                             break
                         scroll_counts[key]=scroll_counts.get(key,0)+1
                         control=matches[0]
@@ -268,8 +306,12 @@ class DynamicEventExplorer:
                     if len(set(identities)) != len(identities):
                         block('AMBIGUOUS_EVENT_IDENTITY', frame)
                         break
+                    if frame.event_scan_performed:
+                        report.event_scan = 'COMPLETE'
                     for c in candidates:
-                        report.events.setdefault(c.identity, dict(result='DISCOVERED', visits=0))
+                        report.events.setdefault(c.identity, dict(result='DISCOVERED', visits=0,
+                            discovery_capture=frame.capture, nested_traversal=[], reward_results=[], blockers=[]))
+                    report.candidate_count = len(report.events)
                     candidate = next((c for c in candidates if report.events[c.identity]['visits'] == 0), None)
                     if candidate is None:
                         if any(report.events[c.identity]['result'] != 'EXHAUSTED' for c in candidates):
@@ -313,6 +355,7 @@ class DynamicEventExplorer:
                         persist(asdict(report))
                         result = port.claim(frame, reward)
                         report.rewards.append(result)
+                        report.events[active]['reward_results'].append(result)
                         if result.get('journal') not in {'VERIFIED'}:
                             block(result.get('result', 'POSSIBLE'), frame)
                         persist(asdict(report))
@@ -350,6 +393,8 @@ class DynamicEventExplorer:
                     if control is None:
                         if not frame.parent or not stack:
                             block('NO_QUALIFIED_PARENT', frame)
+                            if continue_after_block(frame):
+                                continue
                             break
                         control = frame.parent
                         destination = stack.pop()
@@ -366,6 +411,9 @@ class DynamicEventExplorer:
                     pending = (control.kind, frame.page, frame.fingerprint, key)
                 if not control.evidence or control not in (*frame.controls, frame.parent):
                     raise SafetyError('Navigation lacks current-frame ownership.')
+                if active and control.kind in {'tab', 'child', 'scroll'}:
+                    report.events[active]['nested_traversal'].append(dict(kind=control.kind,
+                        identity=control.identity, capture=frame.capture))
                 report.actions.append(dict(kind=control.kind, capture=frame.capture, identity=control.identity,
                                            box=asdict(control.box)))
                 persist(asdict(report))
@@ -376,5 +424,12 @@ class DynamicEventExplorer:
                 report.blocked.append(dict(reason='OBSERVATION_LIMIT', event=active))
         except Exception as exc:  # noqa: BLE001 - caller retains target-owned cleanup
             report.blocked.append(dict(reason='ERROR', error=f'{type(exc).__name__}: {exc}', event=active))
+        for identity, event in report.events.items():
+            event['blockers'] = [b for b in report.blocked if b.get('event') == identity]
+            if event['result'] in {'DISCOVERED', 'ENTERED'}:
+                # An observed global navigation/budget blocker explicitly prevents
+                # remaining candidates; it never means inspected or exhausted.
+                event['result'] = 'BLOCKED'
+                event['blockers'].append(dict(reason='GLOBAL_TRAVERSAL_BLOCKER', evidence=report.blocked))
         persist(asdict(report))
         return report

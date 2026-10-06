@@ -1,5 +1,4 @@
 """Explicit BXH/shop acceptance; normal Run Selected scope is not widened."""
-import hashlib
 import json
 import secrets
 import sys
@@ -11,11 +10,10 @@ from top_heroes_auto.app.diagnostic import _instance, _view
 from top_heroes_auto.app.fixed_reward_port import FixedRewardPort, TabNotFound
 from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
 from top_heroes_auto.automation.fixed_reward_claims import process_reward
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.guard import SafetyError, bound_snapshot
 from top_heroes_auto.automation.recovery import RecoveryStatus
 from top_heroes_auto.vision.fixed_rewards import MONTHLY_QUICK, REWARDS, SHOP_REWARDS
 
-MANDATORY_PROTECTED = frozenset({'Queen', 'anh Ry', 'Chicken', 'Happy'})
 COMPLETE_REWARDS = frozenset({'SUCCESS', 'NOT_AVAILABLE', 'ALREADY_VERIFIED'})
 
 
@@ -47,39 +45,31 @@ def persistent_identity(manager, index):
     """
     if type(index) is not int or index < 0:
         raise SafetyError('Invalid target index.')
-    root = manager.ld.installation.console.parent / 'vms'
-    # Current indexed inventory is authoritative for the read-only display name.
-    # Optional config display metadata is neither authorization nor disk identity.
+    from top_heroes_auto.ldplayer.identity import disk_identity
+
     original = manager.query(index)
-    if original.index != index or not original.name:
-        raise SafetyError('IDENTITY_UNVERIFIED: indexed inventory identity unavailable.')
-    path = root / f'leidian{index}' / 'data.vmdk'
-    stat = path.stat()
-    created = getattr(stat, 'st_birthtime_ns', None)
-    if created is None or not stat.st_ino:
-        raise SafetyError('Persistent disk identity unavailable; index reuse cannot be ruled out.')
+    reader = getattr(manager, 'identity_reader', disk_identity)
+    stable_id = reader(manager.ld.installation.console, index)
     current = manager.query(index)
-    fields = ('index', 'name', 'pid', 'vbox_pid', 'running', 'android_started')
-    latest = path.stat()
-    latest_disk = (latest.st_dev, latest.st_ino, getattr(latest, 'st_birthtime_ns', None))
+    fields = ('index', 'pid', 'vbox_pid', 'running', 'android_started')
     if (any(getattr(current, key) != getattr(original, key) for key in fields)
-            or latest_disk != (stat.st_dev, stat.st_ino, created)):
-        raise SafetyError('IDENTITY_UNVERIFIED: inventory/runtime or backing disk changed during verification.')
-    return hashlib.sha256(f'{path.resolve()}:{stat.st_dev}:{stat.st_ino}:{created}'.encode()).hexdigest()
+            or reader(manager.ld.installation.console, index) != stable_id):
+        raise SafetyError('IDENTITY_UNVERIFIED: backing disk/runtime changed during verification.')
+    if hasattr(manager, 'store'):
+        manager.store.require_identity(manager.namespace, index, stable_id)
+    return stable_id
 
 
 def inventory(manager):
     rows = _view(manager, manager.refresh())
     for row in rows:
-        if row['name'] in MANDATORY_PROTECTED and not row['protected']:
-            raise SafetyError(f"Mandatory Protected account is not Protected: {row['name']}")
         if row['protected'] and row['selected']:
             raise SafetyError('Protected selection invariant violated.')
     return rows
 
 
 def candidates(rows):
-    return [dict(row) for row in rows if not row['protected'] and row['name'] not in MANDATORY_PROTECTED]
+    return [dict(row) for row in rows if not row['protected']]
 
 
 def choose_random(rows, *, choice=secrets.choice, exclude=()):
@@ -93,7 +83,7 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
                 identity_reader=persistent_identity, port_factory=FixedRewardPort,
                 recovery_runner=run_home_recovery, temporary_selection=True, session=None):
     index, name = target['index'], target['name']
-    snapshot = RunSnapshot(manager.namespace, ((index, name),), True)
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((index, name),), True)
     row = dict(index=index, name=name, recovery='NOT_STARTED', adb=None,
                rewards={r: dict(result='NOT_STARTED', claim_dispatched=False, journal='NONE') for r in rewards},
                cleanup='NOT_REQUIRED', selection_restored=False, result='BLOCKED')
@@ -134,7 +124,7 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
         _instance(manager, index, name)
         metadata = manager.store.metadata(manager.namespace, index)
         selected_before = metadata.selected
-        if metadata.protected or name in MANDATORY_PROTECTED:
+        if metadata.protected:
             raise SafetyError('Protected target excluded.')
         identity = identity or identity_reader(manager, index)
         check_identity()
@@ -264,9 +254,9 @@ def resume_plan(previous, live, rewards=REWARDS):
         if not remaining:
             continue
         now = current.get(target['index'])
-        if not now or now['name'] != target['name'] or now['protected'] or now['name'] in MANDATORY_PROTECTED:
+        if not now or now['protected']:
             # Preserve the blocker, without preventing independent accounts.
-            plan.append((dict(target, identity_error='Resume target missing, renamed or Protected.'), remaining))
+            plan.append((dict(target, identity_error='Resume target missing or Protected.'), remaining))
         else:
             plan.append((dict(target), remaining))
     return plan

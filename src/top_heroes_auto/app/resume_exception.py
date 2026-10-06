@@ -28,7 +28,6 @@ def preserved_claims(manager, previous, targets, claim_ids):
             if (cid not in prior_ids or row['status'] != 'RESERVED'
                     or row['dispatch_state'] != 'POSSIBLE'
                     or row['namespace'] != manager.namespace or row['instance_index'] != idx
-                    or row['instance_name'] not in {target['name'], *target.get('historical_names', [])}
                     or not target.get('persistent_identity') or target.get('identity_error')
                     or before.get('persistent_identity') != target['persistent_identity']
                     or manager.store.metadata(manager.namespace, idx).protected):

@@ -21,6 +21,7 @@ class Flow:
     completed: Callable = lambda session, rewards: {}
     # Batch features may inspect new content; their journal guard still owns input.
     refresh_current_batches: bool = False
+    terminal_evidence: Callable = lambda detail: True
 
 
 class FlowRegistry:

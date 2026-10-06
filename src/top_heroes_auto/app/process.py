@@ -4,6 +4,8 @@ import locale
 import os
 import subprocess
 
+from top_heroes_auto.ldplayer.name_safety import guard_command
+
 
 class CommandError(RuntimeError):
     pass
@@ -13,8 +15,20 @@ class Process:
     def run(self, args: list[str], timeout: int = 20) -> bytes:
         executable = args[0].replace("\\", "/").rsplit("/", 1)[-1].casefold() if args else ""
         if executable in {"ldconsole.exe", "dnconsole.exe", "ldconsole", "dnconsole"}:
-            if len(args) < 2 or args[1] not in {"list2", "launch", "quit", "adb"}:
-                raise CommandError("LDPlayer command blocked: instance names are user-owned and read-only.")
+            try:
+                guard_command(args[1] if len(args) > 1 else '', args[2:])
+                command = args[1]
+                rest = args[2:]
+                if command == 'list2':
+                    valid = not rest
+                else:
+                    valid = (len(rest) == (4 if command == 'adb' else 2) and rest[0] == '--index'
+                             and rest[1].isascii() and rest[1].isdigit()
+                             and (command != 'adb' or rest[2] == '--command'))
+                if not valid:
+                    raise ValueError('Explicit indexed LDPlayer command shape required; no target fallback.')
+            except ValueError as exc:
+                raise CommandError(str(exc)) from exc
         try:
             result = subprocess.run(
                 args,

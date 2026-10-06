@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.guild_mail import GUILD_REWARDS, MAIL_REWARDS
 
 
@@ -42,7 +43,7 @@ def qualified_progress(before_frame, before, after_frame, after, *, maximum_elap
         # cost/control is no longer actionable. UNKNOWN pages/counts still fail.
         post_states.update(('RESOURCE_NOT_AUTHORIZED','UNKNOWN'))
     if (not a.source_image or not b.source_image or a.source_image == b.source_image or
-            (a.index,a.name,a.serial,a.boot_id) != (b.index,b.name,b.serial,b.boot_id) or
+            runtime_key((a.index,a.name,a.serial,a.boot_id)) != runtime_key((b.index,b.name,b.serial,b.boot_id)) or
             before_frame.page == 'UNKNOWN' or before_frame.page != after_frame.page or
             before.state != 'AVAILABLE' or after.state not in post_states or
             before.reward != after.reward or not before.context or before.context != after.context):
@@ -77,8 +78,7 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
         rows = [r for r in store.reward_claims(namespace,frame.captured.index) if r['reward_id'] == reward]
         for row in rows:
             original = json.loads(row['before_evidence'])
-            allowed_names = {frame.captured.name, *getattr(port, 'historical_names', ())}
-            if original.get('persistent_identity') != identity or row['instance_name'] not in allowed_names:
+            if original.get('persistent_identity') != identity:
                 report['result'] = 'IDENTITY_CONTINUITY_UNPROVEN'
                 persist()
                 return

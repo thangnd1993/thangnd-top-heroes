@@ -9,7 +9,7 @@ from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app import task_cli
 from top_heroes_auto.app.process import CommandError
 from top_heroes_auto.app.recovery_cli import DiagnosticRecoveryPort
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.guard import SafetyError, bound_snapshot
 from top_heroes_auto.automation.idle_reward import IdleRewardResult, IdleRewardStatus
 from top_heroes_auto.automation.recovery import RecoveryResult, RecoveryStatus
 from top_heroes_auto.storage.store import Store
@@ -138,7 +138,7 @@ def test_manager_journal_hook_after_guards_before_input(rig):
 
 def test_idle_rejects_stale_detection_before_transport(rig, tmp_path):
     manager, process, _ = rig
-    snapshot = RunSnapshot(manager.namespace, ((7, 'Farm-007'),), True)
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((7, 'Farm-007'),), True)
     port = task_cli.DiagnosticIdleRewardPort(manager, snapshot, 7, 'Farm-007', tmp_path)
     port.latest_detection = detection(ScreenState.GAME_HOME)
     with pytest.raises(SafetyError, match='current observation'):
@@ -149,7 +149,7 @@ def test_idle_rejects_stale_detection_before_transport(rig, tmp_path):
 def test_recovery_samples_are_bounded_and_final_is_fresh(rig, tmp_path, monkeypatch):
     manager, _, _ = rig
     now = [0]
-    snapshot = RunSnapshot(manager.namespace, ((7, 'Farm-007'),), True)
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((7, 'Farm-007'),), True)
     port = DiagnosticRecoveryPort(manager, snapshot, 7, 'Farm-007', tmp_path, clock=lambda: now[0])
     target = Target(7, 'Farm-007', 'emulator-5568', 'boot')
     captures = []
@@ -175,7 +175,7 @@ def test_recovery_samples_are_bounded_and_final_is_fresh(rig, tmp_path, monkeypa
 
 def test_final_capture_failure_reported_no_retry(rig, tmp_path, monkeypatch):
     manager, _, _ = rig
-    port = DiagnosticRecoveryPort(manager, RunSnapshot(manager.namespace, ((7, 'Farm-007'),), True),
+    port = DiagnosticRecoveryPort(manager, bound_snapshot(manager.store, manager.namespace, ((7, 'Farm-007'),), True),
                                   7, 'Farm-007', tmp_path)
     calls = []
     def fail(*args):
@@ -235,7 +235,7 @@ def test_timeout_unknown_popup_does_not_send_input(rig, tmp_path, monkeypatch):
     monkeypatch.setattr(ScreenshotService, 'take', lambda *a, **k: frame.screen)
     monkeypatch.setattr('top_heroes_auto.vision.idle_detector.IdleRewardDetector.detect',
                         lambda *a: detection(ScreenState.UNKNOWN))
-    port = task_cli.DiagnosticIdleRewardPort(manager, RunSnapshot(manager.namespace, ((7, 'Farm-007'),), True),
+    port = task_cli.DiagnosticIdleRewardPort(manager, bound_snapshot(manager.store, manager.namespace, ((7, 'Farm-007'),), True),
                                             7, 'Farm-007', tmp_path, require_known_promo=True)
     with pytest.raises(SafetyError, match='not the qualified known promo'):
         port.observe('001-game-home')

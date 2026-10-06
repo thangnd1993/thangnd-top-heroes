@@ -4,6 +4,7 @@ import json
 
 from top_heroes_auto.automation.dynamic_events import free_geometry
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.ldplayer.identity import runtime_key
 
 
 def reward_key(event, page, reward):
@@ -81,7 +82,7 @@ def dispatch_once(store, task, namespace, frame, control, *, event_identity,
             return result
         captures = {frame.capture}
         for after in observations:
-            if (after.get('identity') != list(frame.identity) or after.get('capture') in captures or
+            if (runtime_key(after.get('identity', ())) != runtime_key(frame.identity) or after.get('capture') in captures or
                     not after.get('capture') or after.get('event') != event_identity or
                     after.get('page') != frame.page or after.get('reward') != control.identity or
                     after.get('state') != 'NOT_AVAILABLE' or not after.get('independent_evidence')):

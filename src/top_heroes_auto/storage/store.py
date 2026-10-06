@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -12,6 +13,8 @@ from top_heroes_auto.ldplayer.client import Instance
 class Metadata:
     selected: bool = False
     protected: bool = False
+    stable_id: str = ""
+    identity_state: str = "UNVERIFIED"
 
 
 class RunStatus(StrEnum):
@@ -51,6 +54,18 @@ class Store:
                     selected INTEGER NOT NULL DEFAULT 0, protected INTEGER NOT NULL DEFAULT 0,
                     present INTEGER NOT NULL DEFAULT 1,
                     PRIMARY KEY(namespace, idx), CHECK (NOT (selected AND protected)));
+                CREATE TABLE IF NOT EXISTS instance_identities (
+                    namespace TEXT NOT NULL, idx INTEGER NOT NULL,
+                    stable_id TEXT NOT NULL, observed_id TEXT NOT NULL,
+                    state TEXT NOT NULL, PRIMARY KEY(namespace,idx));
+                CREATE TABLE IF NOT EXISTS task_identities (
+                    task_id INTEGER PRIMARY KEY, stable_id TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS run_identities (
+                    run_id INTEGER NOT NULL, idx INTEGER NOT NULL, stable_id TEXT NOT NULL,
+                    PRIMARY KEY(run_id,idx));
+                CREATE TABLE IF NOT EXISTS journal_identities (
+                    claim_id INTEGER PRIMARY KEY, stable_id TEXT NOT NULL,
+                    state TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS runs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT, namespace TEXT NOT NULL,
                     created_at TEXT NOT NULL, started_at TEXT, finished_at TEXT,
@@ -141,14 +156,37 @@ class Store:
                         (namespace, instance.index, instance.name),
                     )
                 else:
-                    # Rename/reappearance invalidates opt-in, but NEVER clears protection.
-                    changed = previous != (instance.name, 1)
+                    # Labels are presentation only; absence revokes selection.
+                    changed = previous[1] != 1
                     db.execute(
                         """UPDATE instances SET name=?,present=1,
                                selected=CASE WHEN ? THEN 0 ELSE selected END
                                WHERE namespace=? AND idx=?""",
                         (instance.name, changed, namespace, instance.index),
                     )
+                if instance.stable_id:
+                    binding = db.execute('SELECT stable_id,state FROM instance_identities WHERE namespace=? AND idx=?',
+                                         (namespace, instance.index)).fetchone()
+                    claims = db.execute('SELECT id,before_evidence FROM reward_claims WHERE namespace=? AND instance_index=?',
+                                        (namespace, instance.index)).fetchall()
+                    proofs = {}
+                    for claim_id, raw in claims:
+                        try:
+                            evidence = json.loads(raw)
+                            proofs[claim_id] = evidence.get('persistent_identity', '')
+                        except (ValueError, AttributeError):
+                            proofs[claim_id] = ''
+                    proven = {value for value in proofs.values() if value}
+                    state = ('IDENTITY_CHANGED' if (binding and binding[0] != instance.stable_id)
+                             or (not binding and proven - {instance.stable_id}) else
+                             binding[1] if binding else 'VERIFIED')
+                    pinned = binding[0] if binding else instance.stable_id
+                    db.execute('INSERT OR REPLACE INTO instance_identities VALUES (?,?,?,?,?)',
+                               (namespace, instance.index, pinned, instance.stable_id, state))
+                    # Sidecar migration preserves every historical journal byte/lock.
+                    for claim_id, proof in proofs.items():
+                        db.execute('INSERT OR IGNORE INTO journal_identities VALUES (?,?,?)',
+                                   (claim_id, proof, 'VERIFIED' if proof == pinned else 'AMBIGUOUS'))
             db.execute("UPDATE instances SET selected=0 WHERE namespace=? AND present=0", (namespace,))
 
     def metadata(self, namespace: str, index: int) -> Metadata:
@@ -157,9 +195,35 @@ class Store:
                 "SELECT selected,protected FROM instances WHERE namespace=? AND idx=? AND present=1",
                 (namespace, index),
             ).fetchone()
-        return Metadata(bool(row[0]), bool(row[1])) if row else Metadata()
+        with self.connect() as db:
+            binding = db.execute('SELECT stable_id,state FROM instance_identities WHERE namespace=? AND idx=?',
+                                 (namespace, index)).fetchone()
+        if binding and binding[1] != 'VERIFIED':
+            return Metadata(False, False, binding[0], binding[1])
+        return Metadata(bool(row[0]), bool(row[1]), *(binding or ('', 'UNVERIFIED'))) if row else Metadata()
+
+    def identity_audit(self, namespace):
+        with self.connect() as db:
+            instances = [dict(index=i, stable_id=sid, observed_id=observed, state=state)
+                for i, sid, observed, state in db.execute(
+                    'SELECT idx,stable_id,observed_id,state FROM instance_identities WHERE namespace=?', (namespace,))]
+            ambiguous = [cid for cid, in db.execute(
+                '''SELECT j.claim_id FROM journal_identities j JOIN reward_claims r ON r.id=j.claim_id
+                   WHERE r.namespace=? AND j.state!='VERIFIED' ''', (namespace,))]
+        return dict(instances=instances, ambiguous_journal_ids=ambiguous,
+                    historical_journals_preserved=True)
+
+    def require_identity(self, namespace: str, index: int, expected: str | None = None):
+        metadata = self.metadata(namespace, index)
+        if metadata.identity_state != 'VERIFIED' or not metadata.stable_id:
+            raise ValueError(f'{metadata.identity_state}: stable identity is not authorized.')
+        if expected is not None and metadata.stable_id != expected:
+            raise ValueError('IDENTITY_CHANGED: snapshot backing disk differs.')
+        return metadata.stable_id
 
     def select(self, namespace: str, index: int, selected: bool):
+        if self.metadata(namespace, index).identity_state == 'IDENTITY_CHANGED':
+            raise ValueError('IDENTITY_CHANGED: selection requires explicit app-side reconciliation.')
         with self.connect() as db:
             cursor = db.execute(
                 """UPDATE instances SET selected=?
@@ -170,6 +234,8 @@ class Store:
                 raise ValueError("Giả lập được bảo vệ hoặc không còn tồn tại.")
 
     def protect(self, namespace: str, index: int, protected: bool):
+        if self.metadata(namespace, index).identity_state == 'IDENTITY_CHANGED':
+            raise ValueError('IDENTITY_CHANGED: protection requires explicit app-side reconciliation.')
         with self.connect() as db:
             db.execute(
                 """UPDATE instances SET protected=?, selected=CASE WHEN ? THEN 0 ELSE selected END
@@ -194,6 +260,13 @@ class Store:
                    VALUES (?,?,?,?)""",
                 [(run_id, index, name, AccountStatus.QUEUED) for index, name in members],
             )
+            for index, _ in members:
+                binding = db.execute('SELECT stable_id,state FROM instance_identities WHERE namespace=? AND idx=?',
+                                     (namespace, index)).fetchone()
+                if binding:
+                    if binding[1] != 'VERIFIED':
+                        raise ValueError('IDENTITY_CHANGED: run cannot bind recreated instance.')
+                    db.execute('INSERT INTO run_identities VALUES (?,?,?)', (run_id, index, binding[0]))
         return int(run_id)
 
     def set_run_status(self, run_id: int, status: RunStatus):
@@ -242,6 +315,14 @@ class Store:
                    FROM run_accounts WHERE run_id=? ORDER BY instance_index""", (run_id,)
             ).fetchall()
 
+    def run_identity(self, run_id, index):
+        with self.connect() as db:
+            row = db.execute('SELECT stable_id FROM run_identities WHERE run_id=? AND idx=?',
+                             (run_id, index)).fetchone()
+        if not row:
+            raise ValueError('IDENTITY_UNVERIFIED: historical queue has no durable binding.')
+        return row[0]
+
     def retry_members(self, run_id: int) -> tuple[tuple[int, str], ...]:
         with self.connect() as db:
             rows = db.execute(
@@ -258,6 +339,12 @@ class Store:
                    ) VALUES (?,?,?,?,?,?)""",
                 (namespace, task, index, name, "RUNNING", _stamp()),
             )
+            binding = db.execute('SELECT stable_id,state FROM instance_identities WHERE namespace=? AND idx=?',
+                                 (namespace, index)).fetchone()
+            if binding:
+                if binding[1] != 'VERIFIED':
+                    raise ValueError('IDENTITY_CHANGED: task cannot bind recreated instance.')
+                db.execute('INSERT INTO task_identities VALUES (?,?)', (cursor.lastrowid, binding[0]))
         return int(cursor.lastrowid)
 
     def finish_task_run(
@@ -310,7 +397,13 @@ class Store:
             if run is None or run[3] != "RUNNING":
                 raise ValueError("Claim reservation requires an active task run.")
             namespace, index, name, _ = run
-            if expected_instance is not None and expected_instance != (index, name):
+            binding = db.execute('SELECT stable_id,state FROM instance_identities WHERE namespace=? AND idx=?',
+                                 (namespace, index)).fetchone()
+            task_binding = db.execute('SELECT stable_id FROM task_identities WHERE task_id=?',
+                                      (task_run_id,)).fetchone()
+            if binding and (binding[1] != 'VERIFIED' or task_binding != (binding[0],)):
+                raise ValueError('IDENTITY_CHANGED: task journal binding is not current.')
+            if expected_instance is not None and expected_instance[0] != index:
                 raise ValueError("Claim evidence does not belong to the task run's account.")
             if vip_daily_period and fixed_reward_period:
                 raise ValueError('Reward period policies cannot be combined.')
@@ -348,13 +441,28 @@ class Store:
                    VALUES (?,?,?,?,?,?,'RESERVED',?,?)""",
                 (namespace, index, name, reward_id, cycle_key, task_run_id, _stamp(), before_evidence),
             )
+            if binding:
+                db.execute('INSERT INTO journal_identities VALUES (?,?,?)',
+                           (cursor.lastrowid, binding[0], 'VERIFIED'))
             if not_dispatched:
                 db.execute("UPDATE reward_claims SET dispatch_state='NOT_DISPATCHED' WHERE id=?", (cursor.lastrowid,))
             return int(cursor.lastrowid)
 
+    @staticmethod
+    def _claim_binding(db, claim_id):
+        row = db.execute('SELECT namespace,instance_index FROM reward_claims WHERE id=?', (claim_id,)).fetchone()
+        if not row:
+            return
+        binding = db.execute('SELECT stable_id,state FROM instance_identities WHERE namespace=? AND idx=?', row).fetchone()
+        if binding:
+            journal = db.execute('SELECT stable_id,state FROM journal_identities WHERE claim_id=?', (claim_id,)).fetchone()
+            if binding[1] != 'VERIFIED' or (tuple(journal) if journal else None) != (binding[0], 'VERIFIED'):
+                raise ValueError('IDENTITY_CHANGED/AMBIGUOUS: historical journal stays locked.')
+
     def mark_reward_dispatch(self, claim_id: int, task_run_id: int):
         """Commit uncertainty BEFORE entering claim-capable transport, never after."""
         with self.connect() as db:
+            self._claim_binding(db, claim_id)
             cursor = db.execute(
                 """UPDATE reward_claims SET dispatch_state='POSSIBLE'
                    WHERE id=? AND task_run_id=? AND status='RESERVED' AND dispatch_state='NOT_DISPATCHED'""",
@@ -370,6 +478,7 @@ class Store:
         if not evidence.strip():
             raise ValueError('Release requires evidence.')
         with self.connect() as db:
+            self._claim_binding(db, claim_id)
             db.execute('BEGIN IMMEDIATE')
             db.row_factory = sqlite3.Row
             row = db.execute('SELECT * FROM reward_claims WHERE id=? AND task_run_id=?',
@@ -385,6 +494,7 @@ class Store:
         if not isinstance(after_evidence, str) or not after_evidence.strip():
             raise ValueError("Verified postcondition evidence is required.")
         with self.connect() as db:
+            self._claim_binding(db, claim_id)
             cursor = db.execute(
                 """UPDATE reward_claims SET status='VERIFIED',verified_at=?,after_evidence=?
                    WHERE id=? AND task_run_id=? AND status='RESERVED'""",

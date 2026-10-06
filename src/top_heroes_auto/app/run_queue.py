@@ -9,7 +9,7 @@ from typing import Callable
 
 from top_heroes_auto.app.automation_ownership import mutation_ownership
 from top_heroes_auto.app.service import Manager
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError, create_snapshot
+from top_heroes_auto.automation.guard import RunSnapshot, SafetyError, bound_snapshot, create_snapshot
 from top_heroes_auto.storage.store import AccountStatus, RunStatus, Store
 
 
@@ -32,35 +32,37 @@ class RunController:
         current = manager.refresh()
         snapshot = create_snapshot(self.store, manager.namespace, current)
         run_id = self.store.create_run(manager.namespace, snapshot.members, max_concurrency)
-        return QueueRun(run_id, RunSnapshot(snapshot.namespace, snapshot.members, True), max_concurrency)
+        return QueueRun(run_id, RunSnapshot(snapshot.namespace, snapshot.members, True, snapshot.identities), max_concurrency)
 
     def create_members(self, manager: Manager, members: tuple[tuple[int, str], ...], max_concurrency: int) -> QueueRun:
         """Create an exact diagnostic snapshot without editing other selections."""
-        current = {(item.index, item.name) for item in manager.refresh()}
+        current = {item.index for item in manager.refresh()}
         safe = tuple(
             member
             for member in members
-            if member in current
+            if member[0] in current
             and self.store.metadata(manager.namespace, member[0]).selected
             and not self.store.metadata(manager.namespace, member[0]).protected
         )
         if safe != members:
             raise SafetyError("Diagnostic target không còn selected, bị bảo vệ hoặc đổi identity.")
         run_id = self.store.create_run(manager.namespace, safe, max_concurrency)
-        return QueueRun(run_id, RunSnapshot(manager.namespace, safe, True), max_concurrency)
+        return QueueRun(run_id, bound_snapshot(self.store, manager.namespace, safe, True), max_concurrency)
 
     def retry_failed(self, manager: Manager, prior_run_id: int, max_concurrency: int) -> QueueRun:
         candidates = self.store.retry_members(prior_run_id)
         current = manager.refresh()
-        live = {(item.index, item.name) for item in current}
+        live = {item.index for item in current}
         members = tuple(
             member
             for member in candidates
-            if member in live and not self.store.metadata(manager.namespace, member[0]).protected
+            if member[0] in live and not self.store.metadata(manager.namespace, member[0]).protected
             and self.store.metadata(manager.namespace, member[0]).selected
         )
+        for index, _ in members:
+            self.store.require_identity(manager.namespace, index, self.store.run_identity(prior_run_id, index))
         run_id = self.store.create_run(manager.namespace, members, max_concurrency)
-        return QueueRun(run_id, RunSnapshot(manager.namespace, members, True), max_concurrency)
+        return QueueRun(run_id, bound_snapshot(self.store, manager.namespace, members, True), max_concurrency)
 
     def cancel(self):
         self.cancelled.set()
@@ -76,6 +78,7 @@ class RunController:
     def _account(self, run: QueueRun, index: int, name: str):
         manager = self.manager_factory()
         started_by_run = False
+        terminal = False
         try:
             if self.cancelled.is_set():
                 self.store.set_account_status(run.id, index, AccountStatus.CANCELLED)
@@ -83,11 +86,14 @@ class RunController:
             self.store.set_account_status(run.id, index, AccountStatus.STARTING)
             self.progress(run.id, index, AccountStatus.STARTING, "Đang kiểm tra lifecycle")
             instance = manager.query(index)
-            if instance.name != name:
-                raise SafetyError("Identity mismatch trong run snapshot.")
-            started_by_run = not instance.running
-            if started_by_run:
-                manager.execute(index, "launch", snapshot=run.snapshot)
+            manager.store.require_identity(manager.namespace, index, dict(run.snapshot.identities).get(index))
+            if not instance.running:
+                try:
+                    manager.execute(index, "launch", snapshot=run.snapshot, allow_lifecycle_retry=False)
+                finally:
+                    attempt = manager.last_lifecycle_attempt
+                    started_by_run = attempt is not None and attempt.ownership == 'OWNED'
+
             self.store.set_account_status(run.id, index, AccountStatus.RUNNING, started_by_run=started_by_run)
             self.progress(run.id, index, AccountStatus.RUNNING, "Kết nối ADB")
             manager.execute(index, "verify", snapshot=run.snapshot)
@@ -96,15 +102,17 @@ class RunController:
             manager.execute(index, "harmless", snapshot=run.snapshot)
             self.store.set_account_status(run.id, index, AccountStatus.SUCCESS, started_by_run=started_by_run)
             self.progress(run.id, index, AccountStatus.SUCCESS, "Hoàn tất")
+            terminal = True
             return AccountStatus.SUCCESS
         except (RuntimeError, ValueError) as exc:
             status = AccountStatus.CANCELLED if self.cancelled.is_set() else AccountStatus.FAILED
             self.store.set_account_status(run.id, index, status, str(exc), started_by_run)
             self.progress(run.id, index, status, str(exc))
+            terminal = True
             return status
         finally:
             # Never stop manually-opened instances. Target-specific cleanup only.
-            if started_by_run:
+            if started_by_run and terminal:
                 try:
                     manager.execute(index, "quit", snapshot=run.snapshot)
                 except RuntimeError:

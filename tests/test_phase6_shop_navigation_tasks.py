@@ -520,7 +520,7 @@ def test_promo_hook_respects_exact_target_queen_and_selection_guards(rig, tmp_pa
     with pytest.raises(SafetyError):
         run_phase6_shop_navigation(manager, tmp_path, 0, "Queen", promo_recovery_factory=promo)
     with pytest.raises(SafetyError):
-        run_phase6_shop_navigation(manager, tmp_path, 2, "wrong-clone", promo_recovery_factory=promo)
+        run_phase6_shop_navigation(manager, tmp_path, 3, "wrong-clone", promo_recovery_factory=promo)
 
     manager.select(2, False)
     with pytest.raises(SafetyError):

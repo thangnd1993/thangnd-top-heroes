@@ -6,7 +6,7 @@ import pytest
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app.free_reward_tasks import _load_profile_details
 from top_heroes_auto.app.vip_gift import gift_profile, gift_state
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.guard import SafetyError, bound_snapshot
 from top_heroes_auto.automation.overlays import OverlayBudget, dismiss_overlay_bottom_left
 from top_heroes_auto.automation.phase6_visual import FrameRewardAdapter, ManagerRewardPort
 from top_heroes_auto.automation.recovery import HomeRecoveryEngine, RecoveryObservation, RecoveryStatus
@@ -122,7 +122,7 @@ def test_vip_receipt_dismiss_gets_fresh_underlying_frame_without_claim(rig, tmp_
     taps = []
     monkeypatch.setattr(manager, 'execute', lambda index, action, **kwargs: taps.append((index,action,kwargs)))
     profile, _ = _load_profile_details('vip-reward')
-    port = ManagerRewardPort(manager, RunSnapshot(manager.namespace, ((2,TARGET.name),),True), 2,TARGET.name,profile,tmp_path)
+    port = ManagerRewardPort(manager, bound_snapshot(manager.store, manager.namespace, ((2,TARGET.name),),True), 2,TARGET.name,profile,tmp_path)
     before = port.observe()
     after = port.dismiss_receipts(before, sleep=lambda _: None)
     assert after.capture_id != before.capture_id
@@ -165,7 +165,7 @@ def test_vip_receipt_then_claimed_state_is_independently_verified(rig, tmp_path,
     monkeypatch.setattr(manager,'capture_verified',lambda *args:(TARGET,next(frames)))
     taps=[]
     monkeypatch.setattr(manager,'execute',lambda *args,**kwargs:taps.append(kwargs['values']))
-    port = ManagerRewardPort(manager,RunSnapshot(manager.namespace,((2,TARGET.name),),True),2,TARGET.name,profile,tmp_path)
+    port = ManagerRewardPort(manager,bound_snapshot(manager.store, manager.namespace,((2,TARGET.name),),True),2,TARGET.name,profile,tmp_path)
     popup=port.observe()
     after=port.dismiss_receipts(popup,sleep=lambda _:None)
     assert taps == [(58,1203)]
@@ -181,7 +181,7 @@ def test_receipt_transport_error_cannot_reuse_frame(rig,tmp_path,monkeypatch):
         calls.append(kwargs['values'])
         raise OSError('uncertain input')
     monkeypatch.setattr(manager,'execute',uncertain)
-    port=ManagerRewardPort(manager,RunSnapshot(manager.namespace,((2,TARGET.name),),True),2,TARGET.name,profile,tmp_path)
+    port=ManagerRewardPort(manager,bound_snapshot(manager.store, manager.namespace,((2,TARGET.name),),True),2,TARGET.name,profile,tmp_path)
     popup=port.observe()
     with pytest.raises(OSError):
         port.dismiss_receipts(popup,sleep=lambda _:None)
@@ -214,7 +214,7 @@ def test_upper_gift_journal_is_one_shot_and_independent_of_daily(rig,tmp_path,mo
         dismiss_receipts=lambda frame:frame,overlay_events=[{'receipt':'qualified'}] if receipt_present else [])
     monkeypatch.setattr(vip_gift,'reward_port_factory',lambda *args:port)
     task=store.create_task_run(manager.namespace,'vip-reward',2,TARGET.name)
-    snap=RunSnapshot(manager.namespace,((2,TARGET.name),),True)
+    snap=bound_snapshot(manager.store, manager.namespace,((2,TARGET.name),),True)
     row={}
     vip_gift.run_upper_gift(manager,snap,2,TARGET.name,profile,tmp_path,None,task,row)
     assert row['journal_state']=='VERIFIED'

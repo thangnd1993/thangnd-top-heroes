@@ -20,7 +20,7 @@ from top_heroes_auto.app.automation_ownership import exclusive_automation
 from top_heroes_auto.app.diagnostic import _instance, _only_target_changed, _state
 from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
 from top_heroes_auto.app.service import Manager
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.guard import SafetyError, bound_snapshot
 from top_heroes_auto.automation.phase6_vip_survey import (
     GuardedVipSurvey,
     ManagerVipSurveyPort,
@@ -170,7 +170,7 @@ def run_phase6_vip_survey(
 ) -> VipSurveyTaskResult:
     """Run one bounded, claim-free VIP observation for the exact target."""
 
-    if (index, name) != PHASE6_TARGET:
+    if index != PHASE6_TARGET[0]:
         raise SafetyError("Phase 6 VIP survey is authorized only for #2 / 5-Emmmmm.")
     target = _instance(manager, index, name)
     queen = _instance(manager, 0, "Queen")
@@ -181,8 +181,8 @@ def run_phase6_vip_survey(
         raise SafetyError("Phase 6 VIP target must be selected and not Protected.")
 
     before = _state(manager.list_readonly())
-    snapshot = RunSnapshot(manager.namespace, ((index, name),), True)
-    folder = data / "diagnostics" / "tasks" / VIP_SURVEY_TASK / _safe_folder_name(name) / _stamp()
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((index, name),), True)
+    folder = data / "diagnostics" / "tasks" / VIP_SURVEY_TASK / f"{index}-{dict(snapshot.identities)[index]}" / _stamp()
     folder.mkdir(parents=True, exist_ok=False)
     task_run_id = manager.store.create_task_run(manager.namespace, VIP_SURVEY_TASK, index, name)
     result = VipSurveyTaskResult(VIP_SURVEY_TASK, "SAFETY_BLOCKED", task_run_id=task_run_id)

@@ -6,7 +6,7 @@ from top_heroes_auto.storage.fleet_repair import TRIAL, release_trial_locks
 from top_heroes_auto.storage.store import Store
 
 
-def fixture_trial(tmp_path):
+def fixture_trial(tmp_path, *, bound=True):
     database = tmp_path / 'app.db'
     store = Store(database)
     fleet_path = tmp_path / 'fleet.json'
@@ -35,6 +35,12 @@ def fixture_trial(tmp_path):
                        cycle_key,task_run_id,status,reserved_at,before_evidence) VALUES (?,?,?,?,?,?,?,?,?,?)''',
                        (claim, 'install', index, name, 'idle-reward', 'fleet-current-implementation-once',
                         outer, 'RESERVED', 'start', 'before'))
+    if bound:
+        with store.connect() as db:
+            for claim, _, _, index, _ in TRIAL:
+                sid = f'fixture-disk-{index}'
+                db.execute('INSERT INTO instance_identities VALUES (?,?,?,?,?)', ('install', index, sid, sid, 'VERIFIED'))
+                db.execute('INSERT INTO journal_identities VALUES (?,?,?)', (claim, sid, 'VERIFIED'))
     fleet_path.write_text(json.dumps({'commit': 'af5464c', 'max_concurrency': 1, 'finished_at': 'end',
                                      'accounts': accounts}), encoding='utf-8')
     return store, fleet_path
@@ -75,3 +81,11 @@ def test_audit_rejects_incomplete_or_changed_production_evidence(tmp_path, chang
     with store.connect() as db:
         assert db.execute('SELECT COUNT(*) FROM reward_claims').fetchone()[0] == 3
         assert db.execute('SELECT COUNT(*) FROM reward_release_audit').fetchone()[0] == 0
+
+
+def test_ambiguous_legacy_locks_cannot_be_archived(tmp_path):
+    store, fleet = fixture_trial(tmp_path, bound=False)
+    with pytest.raises(ValueError, match='AMBIGUOUS'):
+        release_trial_locks(store.path, fleet, apply=True)
+    with store.connect() as db:
+        assert db.execute('SELECT COUNT(*) FROM reward_claims').fetchone()[0] == 3

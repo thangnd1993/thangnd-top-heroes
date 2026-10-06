@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 
 from top_heroes_auto.adb.client import Target
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.fixed_rewards import ALL_REWARDS as REWARDS
 from top_heroes_auto.vision.models import ScreenState
 from top_heroes_auto.vision.screenshot import ScreenshotService
@@ -18,8 +19,8 @@ def saved_frame(evidence, folder):
     if path.parent != folder.resolve() or path.suffix != '.png':
         raise ValueError('Receipt capture must belong to the reserving task folder.')
     metadata = json.loads(path.with_suffix('.json').read_text(encoding='utf-8'))
-    if (metadata['instance']['index'], metadata['instance']['name'], metadata['adb_target'], metadata['boot_id']) != (
-            evidence['index'], evidence['name'], evidence['adb'], evidence['boot_id']):
+    if runtime_key((metadata['instance']['index'], metadata['instance']['name'], metadata['adb_target'], metadata['boot_id'])) != runtime_key((
+            evidence['index'], evidence['name'], evidence['adb'], evidence['boot_id'])):
         raise ValueError('Saved capture identity mismatch.')
     raw = cv2.imdecode(np.frombuffer(path.read_bytes(), np.uint8), 1)
     if metadata['rotated_from_portrait']:
@@ -135,8 +136,8 @@ def reconcile_saved_fixed_reward(store, claim_id):
     detector = FixedRewardDetector()
     frames = []
     for item in evidence:
-        if (item['index'], item['name'], item['adb'], item['boot_id']) != (
-                before['index'], before['name'], before['adb'], before['boot_id']):
+        if runtime_key((item['index'], item['name'], item['adb'], item['boot_id'])) != runtime_key((
+                before['index'], before['name'], before['adb'], before['boot_id'])):
             raise ValueError('Capture target/boot changed.')
         metadata = json.loads(Path(item['capture']).with_suffix('.json').read_text(encoding='utf-8'))
         # ScreenshotService persists metadata immediately before constructing
@@ -165,7 +166,7 @@ def reconcile_saved_fixed_reward(store, claim_id):
             item = dict(capture=str(candidate), timestamp=metadata['timestamp'],
                 index=metadata['instance']['index'], name=metadata['instance']['name'],
                 adb=metadata['adb_target'], boot_id=metadata['boot_id'])
-            if any(item[k] != before[k] for k in ('index','name','adb','boot_id')):
+            if any(item[k] != before[k] for k in ('index','adb','boot_id')):
                 continue
             observed = detector.observe(saved_frame(item,path.parent))
             if detector.availability(observed,reward_id)[0] == 'NOT_AVAILABLE':

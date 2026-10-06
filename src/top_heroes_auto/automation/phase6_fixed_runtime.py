@@ -16,6 +16,7 @@ from top_heroes_auto.automation.phase6_fixed_flows import (
     FixedFlowSpec,
     FixedStepKind,
 )
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.storage.store import Store
 from top_heroes_auto.vision.models import BoundingBox
 
@@ -78,12 +79,12 @@ class FixedFlowAttemptJournal(Protocol):
 @dataclass(frozen=True)
 class FixedAttemptKey:
     index: int
-    name: str
+    name: str = field(compare=False)
     flow_id: str
     cycle_key: str
 
     def __post_init__(self):
-        if self.index < 0 or not self.name or not self.flow_id or not self.cycle_key:
+        if self.index < 0 or not self.flow_id or not self.cycle_key:
             raise ValueError("A fixed claim attempt requires account, reward and proven cycle scope.")
 
 
@@ -105,7 +106,7 @@ class StoreFixedFlowAttemptJournal:
         self.pending: dict[FixedAttemptKey, int] = {}
 
     def _check(self, key: FixedAttemptKey) -> None:
-        if (key.index, key.name) != self.identity:
+        if runtime_key((key.index, key.name)) != runtime_key(self.identity):
             raise ValueError("Fixed-flow journal identity changed.")
 
     def is_attempted(self, key: FixedAttemptKey) -> bool:
@@ -353,7 +354,7 @@ class FixedFlowRunner:
         seen: set[str],
         transport: tuple[str, str] | None,
     ) -> FixedFlowStatus | None:
-        if (frame.index, frame.name) != (index, name):
+        if runtime_key((frame.index, frame.name)) != runtime_key((index, name)):
             return FixedFlowStatus.IDENTITY_MISMATCH
         current_transport = frame.serial, frame.boot_id
         if not all(current_transport) or (transport is not None and current_transport != transport):

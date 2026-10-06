@@ -16,7 +16,9 @@ from top_heroes_auto.app.bxh_shop_acceptance import (
 from top_heroes_auto.app.flow_registry import COMPLETE, production_registry
 from top_heroes_auto.app.instance_session import InstanceSession
 from top_heroes_auto.app.resume_exception import preserved_claims
+from top_heroes_auto.automation.execution_plan import terminal_plan
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.ldplayer.name_safety import name_write_attempts
 
 
 def blocked(error):
@@ -31,7 +33,8 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
     plan = tuple(f for f in full_plan if (not resume_flows or f.id in resume_flows)
                  and (not only_flows or f.id in only_flows))
     required = tuple(r for flow in plan for r in flow.rewards)
-    row = dict(index=target['index'], name=target['name'], result='PARTIAL',
+    row = dict(index=target['index'], name=target['name'], stable_instance_id=target.get('persistent_identity'),
+        ldplayer_name_write_attempts=0, starting_display_label=target['name'], ending_display_label=target['name'], result='PARTIAL',
         plan=[dict(flow=f.id, rewards=list(f.rewards), enabled=f.enabled, supported=f.supported) for f in plan],
         rewards=dict(prior.get('rewards', {})), flows={},
         cleanup='NOT_REQUIRED', selection_restored=True, recovery_ok=prior.get('recovery_ok', False), new_claims=0)
@@ -51,8 +54,15 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
     def persist():
         write(folder/'account-report.json', row)
     persist()  # The execution plan is durable BEFORE selection/lifecycle mutation.
+    if target.get('identity_error'):
+        row['error'] = target['identity_error']
+        row['rewards'].update({r: blocked(row['error']) for r in required})
+        row['flows'] = {f.id: dict(result='BLOCKED', error=row['error'], blocking_stage='identity_preflight') for f in plan}
+        row['execution_plan_summary'] = dict(terminal=True, no_mutation=True, blocker=row['error'])
+        persist()
+        return row
     session = session_factory(manager, data, target, folder, identity_reader=identity_reader,
-        temporary_selection=temporary_selection, cancelled=cancelled)
+        temporary_selection=temporary_selection, cancelled=cancelled, execution_plan=plan)
     started = False
     if all(not f.enabled for f in plan):
         row['recovery_ok'] = True
@@ -111,6 +121,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                 flow_folder.mkdir(exist_ok=True)
                 detail = flow.run(session, flow_folder, pending)
                 outcomes = detail.get('rewards', {})
+                detail['omitted_rewards'] = [r for r in pending if r not in outcomes]
                 # Silent omissions never become successful/exhausted features.
                 for reward in pending:
                     row['rewards'][reward] = outcomes.get(reward, blocked('Enabled reward omitted by flow.'))
@@ -122,6 +133,10 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                     row['shop_traversal'] = detail['shop_traversal']
             except Exception as exc:  # noqa: BLE001 - every independent flow still gets a terminal result
                 row['flows'][flow.id] = dict(result='BLOCKED', error=f'{type(exc).__name__}: {exc}')
+                recoveries = session.report.get('recoveries', []) if hasattr(session, 'report') else []
+                if recoveries and recoveries[-1]['status'] not in {'SUCCESS', 'ALREADY_HOME'}:
+                    row['flows'][flow.id].update(blocking_stage='before_home', recovery=recoveries[-1]['status'],
+                                                recovery_report=recoveries[-1]['report'])
                 for reward in pending:
                     row['rewards'][reward] = blocked(exc)
                 row['recovery_ok'] = False
@@ -140,14 +155,20 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
     except Exception as exc:  # noqa: BLE001 - cleanup is independent of plan errors
         row['error'] = f'{type(exc).__name__}: {exc}'
     finally:
+        summary = terminal_plan(plan, row['flows'], row['rewards'])
+        row['execution_plan_summary'] = summary
         if started:
+            session.finish_plan(row['flows'], row['rewards'])
             lifecycle = session.close()
-            row.update(session=lifecycle, cleanup=lifecycle['cleanup'], selection_restored=lifecycle['selection_restored'])
+            row.update(session=lifecycle, cleanup=lifecycle['cleanup'], selection_restored=lifecycle['selection_restored'],
+                       ldplayer_name_write_attempts=lifecycle.get('ldplayer_name_write_attempts', 0),
+                       starting_display_label=lifecycle.get('starting_display_label', target['name']),
+                       ending_display_label=lifecycle.get('ending_display_label', target['name']))
         if start_error:
             row['error'] = start_error
         for reward in required:
             row['rewards'].setdefault(reward, blocked(row.get('error', 'Plan did not finish.')))
-        row['result'] = 'COMPLETE' if (not row.get('error') and row['recovery_ok']
+        row['result'] = 'COMPLETE' if (summary['terminal'] and not row.get('error') and row['recovery_ok']
             and row['cleanup'] in {'SUCCESS', 'NOT_REQUIRED'} and row['selection_restored']
             and all(complete(row['rewards'][r]) for r in required)) else 'PARTIAL'
         persist()
@@ -159,6 +180,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         identity_reader=persistent_identity, session_factory=InstanceSession, targets=None,
         temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=(), resume_flows=(), refresh_flows=(), only_flows=()):
     registry = registry or production_registry()
+    name_writes_before = name_write_attempts()
     before = inventory(manager)
     previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
     if previous and (previous.get('schema') != 'instance-first-v1' or previous.get('max_concurrency') != 1):
@@ -252,8 +274,6 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
             if previous and target.get('persistent_identity') != identity:
                 raise SafetyError('Original persistent identity changed.')
             if live[0]['name'] != target['name']:
-                if not previous:
-                    raise SafetyError('Explicit target name changed before its snapshot.')
                 # User-owned display labels can change between sessions. Only
                 # the SAME verified backing disk permits binding the fresh name.
                 previous_name = target['name']
@@ -298,14 +318,18 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
     final_exceptions = preserved_claims(manager, previous, targets, preserve_possible)
     report['preserved_journals_unchanged'] = final_exceptions == exceptions
     report['after_instances'] = inventory(manager)
+    report['identity_migration_audit'] = manager.store.identity_audit(manager.namespace)
     report['all_selection_states_restored'] = {r['index']: r['selected'] for r in before} == {
         r['index']: r['selected'] for r in report['after_instances']}
-    report['protected_state_unchanged'] = all(r in report['after_instances'] for r in before if r['protected'])
+    report['protected_state_unchanged'] = all(any(
+        a['index'] == r['index'] and a['stable_id'] == r['stable_id'] and a['protected'] and not a['selected']
+        and a['status'] == r['status'] for a in report['after_instances']) for r in before if r['protected'])
     report['instance_names_unchanged'] = {r['index']: r['name'] for r in before} == {
         r['index']: r['name'] for r in report['after_instances']}
+    report['ldplayer_name_write_attempts'] = name_write_attempts() - name_writes_before
     report['result'] = 'PASS' if (targets and all(r['result'] == 'COMPLETE' for r in report['accounts'])
         and report['all_selection_states_restored'] and report['protected_state_unchanged']
-        and report['instance_names_unchanged'] and report['preserved_journals_unchanged']) else 'PARTIAL'
+        and report['ldplayer_name_write_attempts'] == 0 and report['preserved_journals_unchanged']) else 'PARTIAL'
     write(path, report)
     progress(f'AUTOMATION REPORT: {path}')
     return report

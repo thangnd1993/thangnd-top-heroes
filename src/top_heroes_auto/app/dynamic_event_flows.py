@@ -5,6 +5,7 @@ from dataclasses import asdict
 from top_heroes_auto.app.dynamic_event_port import DynamicEventPort
 from top_heroes_auto.app.flow_registry import REGISTRY, Flow
 from top_heroes_auto.automation.dynamic_events import DynamicEventExplorer
+from top_heroes_auto.automation.execution_plan import event_terminal
 
 
 def run(session, folder, rewards, *, port_factory=DynamicEventPort):
@@ -20,6 +21,7 @@ def run(session, folder, rewards, *, port_factory=DynamicEventPort):
     recovery, recovery_path, _ = session.recover()
     report.update(recovery=recovery.status.value,recovery_report=str(recovery_path),adb=recovery.adb_target)
     if recovery.status.value not in {'SUCCESS','ALREADY_HOME'}:
+        report['blocking_stage'] = 'before_home'
         report['rewards']['dynamic-event-exploration'] = dict(result='BLOCKED',claim_dispatched=False)
         persist()
         return report
@@ -35,4 +37,4 @@ def run(session, folder, rewards, *, port_factory=DynamicEventPort):
 
 
 # This is a coverage summary only. Real reward journals use event/page/reward keys.
-REGISTRY.register(Flow('events',('dynamic-event-exploration',),run,refresh_current_batches=True))
+REGISTRY.register(Flow('events',('dynamic-event-exploration',),run,refresh_current_batches=True,terminal_evidence=event_terminal))

@@ -37,7 +37,7 @@ class ScreenshotService:
             source.write_bytes(png_data.tobytes())
             metadata = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "instance": {"index": target.index, "name": target.name},
+                "instance": {"index": target.index, "name": target.name, "stable_id": target.stable_id},
                 "adb_target": target.serial,
                 "boot_id": target.boot_id,
                 "original_resolution": [width, height],

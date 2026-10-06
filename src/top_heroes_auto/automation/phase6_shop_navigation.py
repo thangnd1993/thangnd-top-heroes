@@ -19,6 +19,7 @@ from typing import Callable, Protocol
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.models import CapturedScreen, ScreenDetection, ScreenState, VisualAnchor
 from top_heroes_auto.vision.screenshot import ScreenshotService
@@ -169,7 +170,7 @@ class GuardedShopNavigation:
         screen = frame.screen
         captured = (target.index, target.name, target.serial, target.boot_id)
         rendered = (screen.index, screen.name, screen.serial, screen.boot_id)
-        if captured != rendered or not all(captured):
+        if runtime_key(captured) != runtime_key(rendered) or not all(captured[2:]):
             raise _IdentityMismatch("Shop navigation frame identity is missing or inconsistent.")
         return captured
 
@@ -181,11 +182,11 @@ class GuardedShopNavigation:
     ) -> ShopNavigationFrame:
         frame = self.port.observe(tag)
         identity = self._identity(frame)
-        if identity[:2] != expected:
+        if identity[:1] != expected[:1]:
             raise _IdentityMismatch("Shop navigation account identity changed.")
         if self._expected_identity is None:
             self._expected_identity = identity
-        elif identity != self._expected_identity:
+        elif runtime_key(identity) != runtime_key(self._expected_identity):
             raise _IdentityMismatch("Shop navigation serial or boot identity changed.")
         if frame.capture_id in self._seen_captures:
             raise SafetyError("Shop navigation requires a fresh screenshot for every observation.")
@@ -409,7 +410,7 @@ class ManagerShopNavigationPort(ShopNavigationPort):
 
     def observe(self, tag: str) -> ShopNavigationFrame:
         target, payload = self.manager.capture_verified(self.index, self.snapshot)
-        if (target.index, target.name) != (self.index, self.name):
+        if runtime_key((target.index, target.name)) != runtime_key((self.index, self.name)):
             raise SafetyError("Shop navigation capture identity changed.")
         if self._target and (target.serial, target.boot_id) != (
             self._target.serial,

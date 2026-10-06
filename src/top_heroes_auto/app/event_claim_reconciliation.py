@@ -5,6 +5,7 @@ from pathlib import Path
 import cv2
 
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.dynamic_events import task_label_glyph
 from top_heroes_auto.vision.models import BoundingBox
 
@@ -104,7 +105,7 @@ def reconcile_possible(store, namespace, index, persistent_identity, observation
         return verified
     a,b = observations
     if (not a.get('capture') or not b.get('capture') or a['capture'] == b['capture']
-            or a.get('identity') != b.get('identity') or a['identity'][0] != index):
+            or runtime_key(a.get('identity', ())) != runtime_key(b.get('identity', ())) or a['identity'][0] != index):
         return verified
     for row in store.reward_claims(namespace, index):
         if not row['reward_id'].startswith('event:'):
@@ -117,7 +118,7 @@ def reconcile_possible(store, namespace, index, persistent_identity, observation
         if proof.get('persistent_identity') != persistent_identity:
             raise SafetyError('Reconciliation persistent identity changed.')
         if any(o.get('state') != 'NOT_AVAILABLE' or o.get('reward') != proof['reward']
-               or o.get('page') != proof['page'] or o.get('identity', [])[:2] != proof['identity'][:2]
+               or o.get('page') != proof['page'] or o.get('identity', [])[:1] != proof['identity'][:1]
                or o['capture'] == proof['capture']
                or not {'unique-saved-caption-agreement', 'qualified-control-color',
                        'selected-task-context', 'complete-reward-card'}.issubset(o.get('independent_evidence', []))

@@ -51,9 +51,9 @@ def journal_completions(session,rewards,*,vip_period=False):
     for reward in rewards:
         action = MONTHLY_QUICK if reward == 'shop-monthly-privilege-gift' else reward
         prior = (vip_attempts if vip_period else fixed_attempts)(rows,action)
-        if not prior or any(row['status'] != 'VERIFIED' or row['instance_name'] != session.name for row in prior):
+        if not prior or any(row['status'] != 'VERIFIED' for row in prior):
             continue
-        if not vip_period and any(json.loads(row['before_evidence']).get('persistent_identity') !=
+        if any(json.loads(row['before_evidence']).get('persistent_identity') !=
                                   session.target['persistent_identity'] for row in prior):
             continue
         row = prior[-1]

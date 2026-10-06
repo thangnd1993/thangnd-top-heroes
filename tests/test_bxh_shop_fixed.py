@@ -13,7 +13,7 @@ from top_heroes_auto.app import bxh_shop_acceptance as fleet
 from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
 from top_heroes_auto.automation.fixed_reward_claims import process_reward
 from top_heroes_auto.automation.fixed_reward_period import current_attempts, cycle_key
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.guard import SafetyError, bound_snapshot
 from top_heroes_auto.automation.recovery import RecoveryResult, RecoveryStatus
 from top_heroes_auto.storage.store import Store
 from top_heroes_auto.vision.fixed_rewards import REWARDS, FixedRewardDetector, claim_geometry
@@ -207,7 +207,7 @@ def test_actual_daily_period_preserves_old_receipt_but_not_new_period_lock():
 
 def test_random_excludes_all_protected_no_fixed_index():
     rows = [dict(index=31, name='new A', protected=False), dict(index=40, name='new B', protected=False),
-            dict(index=52, name='new C', protected=True), dict(index=0, name='Queen', protected=False)]
+            dict(index=52, name='new C', protected=True), dict(index=0, name='Renamed protected main', protected=True)]
     selected, eligible = fleet.choose_random(rows, choice=lambda values: values[-1])
     assert [r['index'] for r in eligible] == [31, 40]
     assert selected['index'] == 40
@@ -273,7 +273,7 @@ def test_selection_restore_and_new_protection_overrides_cleanup(rig, tmp_path, p
 
 def test_forbidden_route_and_stale_frame_never_dispatch(rig, tmp_path, detector):
     manager, _, _ = rig
-    port = FixedRewardPort(manager, RunSnapshot(manager.namespace, ((7, 'Farm-007'),), True),
+    port = FixedRewardPort(manager, bound_snapshot(manager.store, manager.namespace, ((7, 'Farm-007'),), True),
                            7, 'Farm-007', tmp_path)
     obs = detector.observe(make_frame('shop-daily-gift'))
     with pytest.raises(SafetyError, match='annotated'):
@@ -287,7 +287,7 @@ def test_forbidden_route_and_stale_frame_never_dispatch(rig, tmp_path, detector)
 
 def test_allowed_tab_discovered_after_bounded_scroll(rig, tmp_path, detector):
     manager, _, _ = rig
-    port = FixedRewardPort(manager, RunSnapshot(manager.namespace, ((7, 'Farm-007'),), True),
+    port = FixedRewardPort(manager, bound_snapshot(manager.store, manager.namespace, ((7, 'Farm-007'),), True),
                            7, 'Farm-007', tmp_path)
     image = make_frame('shop-daily-gift').normalized
     portrait = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
@@ -326,7 +326,7 @@ def test_reused_disk_identity_cannot_unlock_claim(tmp_path, detector):
 
 def test_shop_remembered_allowed_tab_is_not_misreported_as_unknown(rig, tmp_path, detector):
     manager, _, _ = rig
-    port = FixedRewardPort(manager, RunSnapshot(manager.namespace, ((7, 'Farm-007'),), True),
+    port = FixedRewardPort(manager, bound_snapshot(manager.store, manager.namespace, ((7, 'Farm-007'),), True),
                            7, 'Farm-007', tmp_path)
     weekly = detector.observe(make_frame('shop-weekly-card-gift'))
     home = replace(weekly, page='home', anchors={**weekly.anchors,
@@ -386,7 +386,7 @@ def test_ranking_receipt_three_anchors_and_layout(detector, variant):
 
 def test_final_bounded_dismissal_always_captures_fresh_screen(rig, tmp_path, detector, monkeypatch):
     manager, _, _ = rig
-    port = FixedRewardPort(manager, RunSnapshot(manager.namespace, ((7, 'Farm-007'),), True),
+    port = FixedRewardPort(manager, bound_snapshot(manager.store, manager.namespace, ((7, 'Farm-007'),), True),
                            7, 'Farm-007', tmp_path)
     receipt = detector.observe(ranking_receipt_frame())
     unknown = replace(receipt, overlay=replace(receipt.overlay, state='UNKNOWN'))

@@ -19,7 +19,7 @@ from top_heroes_auto.app.service import (
     LifecycleAttempt,
     Manager,
 )
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.guard import RunSnapshot, SafetyError, bound_snapshot
 from top_heroes_auto.automation.overlays import DISMISSIBLE, dismiss_overlay_bottom_left
 from top_heroes_auto.automation.recovery import (
     HomeRecoveryEngine,
@@ -287,11 +287,11 @@ def run_home_recovery(
     metadata = manager.store.metadata(manager.namespace, target.index)
     if metadata.protected or not metadata.selected:
         raise SafetyError("Recovery target must be selected and not Protected.")
-    snapshot = RunSnapshot(manager.namespace, ((index, name),), True)
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((index, name),), True)
     started_by_run = False
     cleanup_attempted = False
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%fZ")
-    folder = data / "diagnostics" / "recovery" / name / stamp
+    folder = data / "diagnostics" / "recovery" / f"{index}-{dict(snapshot.identities)[index]}" / stamp
     folder.mkdir(parents=True, exist_ok=False)
     result: RecoveryResult | None = None
     launch_attempt: dict | None = None
@@ -313,7 +313,7 @@ def run_home_recovery(
                 result = RecoveryResult(status=RecoveryStatus.CANCELLED)
             else:
                 try:
-                    manager.execute(index, "launch", snapshot=snapshot)
+                    manager.execute(index, "launch", snapshot=snapshot, allow_lifecycle_retry=cleanup_owned)
                 finally:
                     attempt = manager.last_lifecycle_attempt
                     launch_attempt = attempt.as_dict() if attempt is not None else None
@@ -393,7 +393,7 @@ def run_home_recovery(
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception as exc:  # noqa: BLE001 - persistence failure must not leak an owned instance
         cleanup_error: str | None = None
-        if started_by_run and not cleanup_attempted:
+        if started_by_run and cleanup_owned and not cleanup_attempted:
             cleanup_attempted = True
             try:
                 manager.execute(index, "quit", snapshot=snapshot)

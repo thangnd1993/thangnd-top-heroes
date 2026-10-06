@@ -2,11 +2,11 @@ from dataclasses import replace
 
 import pytest
 
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.guard import SafetyError, bound_snapshot
 
 
 @pytest.mark.parametrize("changes", [
-    {"index": 2}, {"name": "other"}, {"serial": "emulator-9999"},
+    {"index": 2}, {"stable_id": "replacement"}, {"serial": "emulator-9999"},
     {"boot_id": "bb068632-fc3e-4090-a8d7-ae8d9fe353f5"},
 ])
 def test_input_rejects_identity_different_from_screenshot(rig, changes):
@@ -21,7 +21,7 @@ def test_input_rejects_identity_different_from_screenshot(rig, changes):
 def test_visual_input_respects_live_selection_even_with_snapshot(rig):
     manager, process, _ = rig
     target, _ = manager.capture_verified(7)
-    snapshot = RunSnapshot(manager.namespace, ((7, target.name),), True)
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((7, target.name),), True)
     manager.select(7, False)
     process.calls.clear()
     with pytest.raises(SafetyError):

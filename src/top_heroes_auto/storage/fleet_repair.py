@@ -31,7 +31,7 @@ def release_trial_locks(database: Path, fleet_path: Path, *, apply: bool = False
     results = []
     try:
         db.execute('BEGIN IMMEDIATE')
-        for claim_id, outer_id, inner_id, index, name in TRIAL:
+        for claim_id, outer_id, inner_id, index, _display_label in TRIAL:
             row = db.execute('SELECT * FROM reward_claims WHERE id=?', (claim_id,)).fetchone()
             if row is None:
                 audit = db.execute("SELECT 1 FROM sqlite_master WHERE name='reward_release_audit'").fetchone()
@@ -42,35 +42,34 @@ def release_trial_locks(database: Path, fleet_path: Path, *, apply: bool = False
                 results.append({'claim_id': claim_id, 'status': 'ALREADY_RELEASED'})
                 continue
             row = dict(row)
-            if (row['task_run_id'], row['instance_index'], row['instance_name'], row['status'],
+            if (row['task_run_id'], row['instance_index'], row['status'],
                 row['reward_id'], row['cycle_key']) != (
-                    outer_id, index, name, 'RESERVED', 'idle-reward', 'fleet-current-implementation-once'):
+                    outer_id, index, 'RESERVED', 'idle-reward', 'fleet-current-implementation-once'):
                 raise ValueError('Reservation identity/status mismatch.')
             if row.get('dispatch_state', 'UNKNOWN') != 'UNKNOWN' or row['after_evidence'] is not None:
                 raise ValueError('Reservation has new dispatch/receipt evidence; manual review required.')
             outer = db.execute('SELECT * FROM task_runs WHERE id=?', (outer_id,)).fetchone()
             inner = db.execute('SELECT * FROM task_runs WHERE id=?', (inner_id,)).fetchone()
             for run, task in ((outer, 'fleet-idle-once'), (inner, 'idle-reward')):
-                if not run or (run['namespace'], run['instance_index'], run['instance_name'], run['task']) != (
-                    row['namespace'], index, name, task) or not run['finished_at']:
+                if not run or (run['namespace'], run['instance_index'], run['task']) != (row['namespace'], index, task) or not run['finished_at']:
                     raise ValueError('Task identity/completion mismatch.')
             accounts = [a for a in fleet['accounts'] if a['index'] == index]
             if len(accounts) != 1:
                 raise ValueError('Ambiguous fleet account.')
             account = accounts[0]
-            if (account.get('journal_id'), account.get('task_run_id'), account.get('account'),
-                account.get('claims_performed')) != (claim_id, inner_id, name, 0):
+            if (account.get('journal_id'), account.get('task_run_id'),
+                account.get('claims_performed')) != (claim_id, inner_id, 0):
                 raise ValueError('Fleet/production linkage mismatch.')
             if Path(inner['report_path']) != Path(account['task_report']) or Path(outer['report_path']) != fleet_path:
                 raise ValueError('Task report path mismatch.')
             report = read(inner['report_path'])
-            if report.get('instance') != {'index': index, 'name': name} or report.get('task_run_id') != inner_id:
+            if report.get('instance', {}).get('index') != index or report.get('task_run_id') != inner_id:
                 raise ValueError('Production report identity mismatch.')
             if report.get('claim_dispatched') is not False or report.get('actions') != []:
                 raise ValueError('No-dispatch proof missing.')
             steps = report.get('steps')
             recovery = read(report['recovery_report'])
-            if recovery.get('instance') != report['instance'] or any(
+            if recovery.get('instance', {}).get('index') != report['instance']['index'] or any(
                 action not in {'launch_game', 'wait'} for action in recovery.get('actions', [])
             ):
                 raise ValueError('Recovery contains unknown input or identity.')
@@ -91,6 +90,15 @@ def release_trial_locks(database: Path, fleet_path: Path, *, apply: bool = False
             results.append({'claim_id': claim_id, 'status': 'RELEASED' if apply else 'PROVEN_NOT_DISPATCHED',
                             'original_row': row})
         if apply:
+            # Historical no-dispatch evidence alone cannot reconcile a generation.
+            from top_heroes_auto.storage.store import Store
+            for result in results:
+                if result['status'] == 'RELEASED':
+                    Store._claim_binding(db, result['claim_id'])
+                    binding = db.execute('SELECT stable_id,state FROM journal_identities WHERE claim_id=?',
+                                         (result['claim_id'],)).fetchone()
+                    if not binding or not binding['stable_id'] or binding['state'] != 'VERIFIED':
+                        raise ValueError('AMBIGUOUS: historical journal stays locked.')
             db.execute('''CREATE TABLE IF NOT EXISTS reward_release_audit (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, claim_id INTEGER NOT NULL UNIQUE,
                 released_at TEXT NOT NULL, original_row TEXT NOT NULL, evidence TEXT NOT NULL)''')

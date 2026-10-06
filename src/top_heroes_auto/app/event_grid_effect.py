@@ -2,6 +2,7 @@
 import cv2
 import numpy as np
 
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.event_task_grid import grid_label_glyph, task_grid_rows, task_grid_shell
 from top_heroes_auto.vision.local_ocr import read_words
 
@@ -12,7 +13,7 @@ def claimed_grid_effect(proof,captures,*,reader=read_words):
     if len(captures)!=2 or len(set(map(str,captures)))!=2 or not proof['page'].endswith(':race-task-grid'):
         return []
     before,meta,shot=saved_frame(proof['capture'])
-    if (meta['frame']['identity']!=list(proof['identity']) or meta['frame']['page']!=proof['page']
+    if (runtime_key(meta['frame']['identity'])!=runtime_key(proof['identity']) or meta['frame']['page']!=proof['page']
             or not meta.get('entered_event')):
         return []
     shell=task_grid_shell(before)
@@ -30,7 +31,7 @@ def claimed_grid_effect(proof,captures,*,reader=read_words):
     observations=[]
     for path in captures:
         after,metadata,screenshot=saved_frame(path)
-        if (metadata['frame']['identity']!=list(proof['identity'])
+        if (runtime_key(metadata['frame']['identity'])!=runtime_key(proof['identity'])
                 or metadata['frame']['page']!=proof['page']
                 or metadata.get('entered_event')!=meta['entered_event']
                 or metadata['frame'].get('popup')

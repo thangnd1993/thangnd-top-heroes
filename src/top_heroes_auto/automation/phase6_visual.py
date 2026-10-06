@@ -29,6 +29,7 @@ from top_heroes_auto.automation.vip_geometry import (
     validate_vip_claim_geometry,
     write_vip_geometry_overlay,
 )
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.exploration import content_fingerprint, red_dot_candidates, unique_current_anchor
 from top_heroes_auto.vision.models import (
     AnchorEvidence,
@@ -240,12 +241,12 @@ class FrameRewardAdapter:
         disappeared button remains UNKNOWN and is never retried.
         """
 
-        if (before.index, before.name, before.adb_target, before.boot_id) != (
+        if runtime_key((before.index, before.name, before.adb_target, before.boot_id)) != runtime_key((
             after.index,
             after.name,
             after.adb_target,
             after.boot_id,
-        ):
+        )):
             return ClaimOutcome.IDENTITY_MISMATCH
         evidence = {item.anchor_id: item for item in after.detection.evidence}
         claimable_anchors = (reward.action_anchor, reward.available_anchor)
@@ -341,7 +342,7 @@ class ManagerRewardPort(ExplorerPort):
 
     def observe(self) -> RewardScreen:
         target, payload = self.manager.capture_verified(self.index, self.snapshot)
-        if (target.index, target.name) != (self.index, self.name):
+        if runtime_key((target.index, target.name)) != runtime_key((self.index, self.name)):
             raise SafetyError("Reward capture identity changed.")
         if self._target and (target.serial, target.boot_id) != (self._target.serial, self._target.boot_id):
             raise SafetyError("Reward capture transport identity changed.")

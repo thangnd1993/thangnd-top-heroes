@@ -72,20 +72,39 @@ Current random target must come from LIVE non-Protected candidates, including
 accounts already tested when only navigation is possible. No hardcoded account.
 
 
-LDPlayer instance names are user-owned and read-only. Automation must never
-rename an instance unless the user explicitly requests that exact rename.
-This applies to production, diagnostics, tests, recovery, migrations, discovery,
-reconciliation and fleet execution. No CLI rename/modify, config-name writes,
-normalization/transliteration, generated names, copied names or old-name restoration.
-Tests simulate user edits in temporary fixtures; never rename a real instance.
+LDPlayer instance names are user-owned, DISPLAY-ONLY and READ-ONLY. Automation
+has no rename/config replacement/rollback surface. Names never participate in
+technical identity, opt-in, Protection, journal, runtime ownership or resume.
+Unicode labels are preserved exactly for display, with no normalization.
 
-Current live names are preserved exactly in internal display metadata. Protection
-is keyed by installation namespace/index and survives rename. Names alone never
-authorize a target: explicit selection, unique live index, explicit ADB/boot
-mapping and existing stable-disk checks still apply. Rediscover and use a fresh
-snapshot after a user rename. A stale active snapshot or uncertain runtime/disk
-identity fails closed; do not silently reauthorize it or write the old name back.
-A freshly authorized renamed target can proceed through normal ADB verification.
+Bind installation namespace + live Multi index + non-name backing-file identity.
+Read-only evidence uses data.vmdk resolved path, filesystem volume/file ID and
+creation timestamp, preserving the project's existing fingerprint. Actual
+LDPlayer Machine UUIDs encode the index and cannot independently prove against
+index reuse. Never write an identifier into LDPlayer configuration.
+
+Selection and Protection survive user renames. A durable identity mismatch is
+IDENTITY_CHANGED and remains blocked, even if an old disk/name later reappears;
+never transfer flags, authorization or journal ownership to a replacement.
+App-side identity sidecars preserve original historical journal rows/evidence.
+Rows without sufficient durable evidence are AMBIGUOUS and stay locked, never
+implicitly verified, released or retried. Current snapshots pin stable IDs before
+mutation. Name-only historical snapshots cannot authorize execution. Exact
+indexed serial + boot and process continuity are separate session proof.
+
+Every run audits name-write attempts, starting/ending labels and stable ID/index.
+A changed label with zero writes is EXTERNAL_DISPLAY_NAME_CHANGE, never ownership
+loss. Never restore its old label. No default/first-device/index-0 ADB fallback.
+
+Freeze the per-instance execution plan before lifecycle mutation. Owned cleanup
+requires explicit terminal results for every flow and sub-reward; omissions and
+Home without an Event scan refuse stop as PREMATURE_CLEANUP. Event evidence
+includes complete scan, candidate count, each candidate/nested traversal, reward
+results and genuine blockers. Zero claims needs positive completed discovery or
+explicit blocker proof. Navigation-only recovery continues independent candidates
+when Home is freshly qualified; UNKNOWN itself never authorizes input. A genuine
+pre-Home recovery failure is recorded separately, never a fabricated scan.
+External-running instances remain running; replaced/stopped sessions never restart.
 
 LDPlayer transport accepts only list2/launch/quit/indexed adb. The obsolete
 whole-config ADB remediation writer is disabled, including backup restoration:
@@ -131,7 +150,7 @@ UI dùng resolver CLI của LDPlayer, không tự tính port hoặc fallback con
 2. Cặp index/tên trong snapshot của thao tác đang thực thi.
 3. SQLite vẫn selected.
 4. SQLite không protected.
-5. Index/tên trùng khớp, cùng namespace bản cài LDPlayer.
+5. Index + stable ID trùng khớp, cùng namespace; tên chỉ để hiển thị.
 6. **Riêng thao tác phụ thuộc ADB:** explicit serial online, boot ID trùng CLI index, không thay đổi khi verify lại.
 
 Lifecycle mutation áp dụng điều kiện 1–5; ADB-dependent áp dụng cả 1–6. UI không có đường bypass

@@ -73,7 +73,7 @@ def _survey(*args):
 
 def _inventory(*rows):
     return [
-        SimpleNamespace(index=index, name=name, running=running, android_started=android_started)
+        SimpleNamespace(index=index, name=name, running=running, android_started=android_started, stable_id=f"fixture-disk-{index}")
         for index, name, running, android_started in rows
     ]
 
@@ -827,7 +827,7 @@ def _run11_initial_case(
             self.capture_count += 1
             current = target
             if wrong_target:
-                current = Target(2, "revoked", "emulator-5558", actual_boot)
+                current = Target(3, "revoked", "emulator-5558", actual_boot)
             elif self.capture_count == 2 and after_boot_change:
                 current = Target(2, "5-Emmmmm", "emulator-5558", "boot-new")
             return current, next(self.frames)

@@ -37,6 +37,7 @@ from top_heroes_auto.automation.phase6_promo_recovery import (
     PromoRecoveryStatus,
 )
 from top_heroes_auto.automation.phase6_visual import Matcher, RewardRule
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.exploration import (
     content_fingerprint,
     red_dot_candidates,
@@ -294,9 +295,9 @@ class ShopSurveyEngine:
         screen = observation.screen
         captured_identity = captured.index, captured.name, captured.serial, captured.boot_id
         screen_identity = screen.index, screen.name, screen.adb_target, screen.boot_id
-        if captured_identity != screen_identity:
+        if runtime_key(captured_identity) != runtime_key(screen_identity):
             raise _SurveyIdentityMismatch("Shop frame identity disagrees with its captured transport.")
-        if not all(screen_identity):
+        if type(screen_identity[0]) is not int or screen_identity[0] < 0 or not all(screen_identity[2:]):
             raise _SurveyIdentityMismatch("Shop frame is missing explicit account or transport identity.")
         return screen_identity
 
@@ -309,7 +310,7 @@ class ShopSurveyEngine:
         seen_captures: set[str],
     ) -> tuple[int, str, str, str]:
         current = self._identity(observation)
-        if current[:2] != expected:
+        if current[:1] != expected[:1]:
             raise _SurveyIdentityMismatch("Shop survey account identity changed.")
         if identity is not None and current[2:] != identity[2:]:
             raise _SurveyIdentityMismatch("Shop survey serial or boot identity changed.")
@@ -722,12 +723,12 @@ class FrameShopAdapter:
     def classify_claim(self, before: RewardScreen, after: RewardScreen, reward: RewardEvidence) -> ClaimOutcome:
         """Classify only independently anchored receipt/cooldown frames."""
 
-        if (before.index, before.name, before.adb_target, before.boot_id) != (
+        if runtime_key((before.index, before.name, before.adb_target, before.boot_id)) != runtime_key((
             after.index,
             after.name,
             after.adb_target,
             after.boot_id,
-        ):
+        )):
             return ClaimOutcome.IDENTITY_MISMATCH
         evidence = {item.anchor_id: item for item in after.detection.evidence}
         free_state = _strong(evidence.get(reward.action_anchor)) or _strong(
@@ -839,7 +840,7 @@ class ManagerShopPort(ExplorerPort):
 
     def observe(self) -> RewardScreen:
         target, payload = self.manager.capture_verified(self.index, self.snapshot)
-        if (target.index, target.name) != (self.index, self.name):
+        if runtime_key((target.index, target.name)) != runtime_key((self.index, self.name)):
             raise SafetyError("Shop capture identity changed.")
         if self._target and (target.serial, target.boot_id) != (self._target.serial, self._target.boot_id):
             raise SafetyError("Shop capture transport identity changed.")
@@ -1132,7 +1133,7 @@ class ManagerShopSurveyPort:
         allow_transport_change: bool = False,
     ) -> tuple[Target, CapturedScreen]:
         target, payload = self.manager.capture_verified(self.index, self.snapshot)
-        if (target.index, target.name) != (self.index, self.name):
+        if runtime_key((target.index, target.name)) != runtime_key((self.index, self.name)):
             raise SafetyError("Shop survey capture identity changed.")
         if (
             self._target

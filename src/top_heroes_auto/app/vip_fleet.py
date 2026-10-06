@@ -13,7 +13,7 @@ from top_heroes_auto.app.main import data_directory
 from top_heroes_auto.app.phase6_runtime import entry_navigator_factory, reward_port_factory
 from top_heroes_auto.app.recovery_cli import RecoveryFailure, run_home_recovery
 from top_heroes_auto.automation.free_rewards import ClaimOutcome, FreeRewardGuard
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError
+from top_heroes_auto.automation.guard import SafetyError, bound_snapshot
 from top_heroes_auto.automation.recovery import RecoveryStatus
 from top_heroes_auto.automation.reward_journal import evidence_json
 from top_heroes_auto.automation.vip_period import current_attempts, cycle_key
@@ -46,7 +46,7 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
     cleanup_attempted = False
     task_id = None
     claim_id = None
-    snapshot = RunSnapshot(manager.namespace, ((index, name),), True)
+    snapshot = bound_snapshot(manager.store, manager.namespace, ((index, name),), True)
     try:
         if session is not None:
             session.check()

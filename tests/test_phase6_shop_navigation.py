@@ -159,7 +159,7 @@ def test_ambiguous_current_anchor_dispatches_zero_inputs(tmp_path):
 
 def test_wrong_initial_identity_dispatches_zero_inputs(tmp_path):
     profile = _profile()
-    wrong = Target(2, "other", TARGET.serial, TARGET.boot_id)
+    wrong = Target(3, "same display label", TARGET.serial, TARGET.boot_id)
     port = Port([_frame(tmp_path, _image(profile.home_shop_entry), "wrong", target=wrong)])
     result = _navigator(port).run(*TARGET_MEMBER)
 

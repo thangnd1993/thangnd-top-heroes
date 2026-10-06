@@ -96,7 +96,7 @@ def relic_completed(session,rewards):
     if any(r['status'] != 'VERIFIED' for r in rows):
         return {}
     current = [r for r in rows if r['cycle_key'] == relic_cycle()]
-    if (len(current) != 1 or current[0]['instance_name'] != session.name or
+    if (len(current) != 1 or
             json.loads(current[0]['before_evidence']).get('persistent_identity') != session.target['persistent_identity']):
         return {}
     return {'guild-relic':dict(result='ALREADY_VERIFIED',journal='VERIFIED',claim_id=current[0]['id'],

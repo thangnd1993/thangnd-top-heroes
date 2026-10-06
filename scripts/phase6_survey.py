@@ -19,7 +19,7 @@ from top_heroes_auto.adb.client import Target  # noqa: E402
 from top_heroes_auto.app.diagnostic import _manager  # noqa: E402
 from top_heroes_auto.app.main import data_directory  # noqa: E402
 from top_heroes_auto.app.vision_cli import _capture  # noqa: E402
-from top_heroes_auto.automation.guard import RunSnapshot, SafetyError  # noqa: E402
+from top_heroes_auto.automation.guard import SafetyError, bound_snapshot  # noqa: E402
 
 
 def portrait(image):
@@ -51,22 +51,22 @@ def main():
     p.add_argument("--tap", nargs=4, type=int)
     p.add_argument("--swipe", nargs=5, type=int)
     args = p.parse_args()
-    if (args.index, args.name) != (2, "5-Emmmmm"):
+    if args.index != 2:
         raise SafetyError("This survey is authorized only for 2 / 5-Emmmmm.")
     if args.tap and args.swipe:
         raise SafetyError("Only one navigation action per capture.")
     d = data_directory()
     m = _manager(d)
     identity = m.query(args.index)
-    if identity.name != args.name or not m.store.metadata(m.namespace, 0).protected:
+    if not identity.stable_id or not m.store.metadata(m.namespace, 0).protected:
         raise SafetyError("Exact target and Queen protection must remain verified.")
-    snap = RunSnapshot(m.namespace, ((args.index, args.name),), True)
+    snap = bound_snapshot(m.store, m.namespace, ((args.index, args.name),), True)
     s = _capture(m, d, args.index, args.name, args.tag + "-before")
     if args.tap or args.swipe:
         if not args.source or not args.context:
             raise SafetyError("Inspected same-account source and known context required.")
         metadata = json.loads(args.source.with_suffix(".json").read_text(encoding="utf-8"))
-        if (metadata["instance"] != {"index": s.index, "name": s.name}
+        if (metadata["instance"]["index"] != s.index
                 or metadata["adb_target"] != s.serial or metadata["boot_id"] != s.boot_id):
             raise SafetyError("Reference screenshot belongs to another account or boot.")
         reference = portrait(cv2.imdecode(np.frombuffer(args.source.read_bytes(), np.uint8), 1))

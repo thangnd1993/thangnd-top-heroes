@@ -131,7 +131,7 @@ def test_rename_remove_reappear_reset_selection_preserve_protection(rig):
     manager, process, store = rig
     process.listing = process.listing.replace("Farm-007", "Replacement")
     manager.refresh()
-    assert not store.metadata(manager.namespace, 7).selected
+    assert store.metadata(manager.namespace, 7).selected
     manager.protect(7, True)
     process.listing = "0,Main-Thang,0,0,0,-1,-1"
     manager.refresh()

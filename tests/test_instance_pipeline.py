@@ -30,6 +30,9 @@ def setup(calls):
             calls.append((self.target["index"], "recover"))
             return RecoveryResult(RecoveryStatus.SUCCESS), None, False
 
+        def finish_plan(self, details, rewards):
+            pass
+
         def close(self):
             calls.append((self.target["index"], "cleanup"))
             return dict(cleanup="SUCCESS", selection_restored=True)
@@ -210,12 +213,14 @@ def test_shared_session_one_start_then_navigation_only_one_cleanup(rig, tmp_path
         tmp_path,
         identity_reader=lambda *a: "disk",
         recovery_runner=recovery,
+        execution_plan=(Flow("fixture",("reward",), lambda *a: None),)
     )
     session.start()
     session.recover()
     session.recover()
     session.recover()
     assert not any(c[1] == "quit" for c in process.calls)
+    session.finish_plan({"fixture":dict(result="COMPLETE")}, {"reward":dict(result="NOT_AVAILABLE")})
     session.close()
     session.close()
     assert sum(c[1] == "quit" for c in process.calls) == (0 if external else 1)
@@ -239,7 +244,7 @@ def test_session_protection_revocation_blocks_cleanup_and_selection(rig, tmp_pat
         session.recover()
     session.close()
     assert not any(c[1] == "quit" for c in process.calls)
-    assert session.report["cleanup"].startswith("FAILED")
+    assert session.report["cleanup"] == "PREMATURE_CLEANUP"
 
 
 def test_no_phase_specific_scheduler_and_current_registration():
@@ -404,7 +409,7 @@ def test_fixed_feature_completes_only_bound_current_verified_journal(bad):
             journal_completions(session,('shop-monthly-privilege-gift',))
     else:
         result=journal_completions(session,('shop-monthly-privilege-gift',))
-        assert bool(result)==(bad is None)
+        assert bool(result)==(bad in (None,"name"))
         if result:
             assert result['shop-monthly-privilege-gift']['claim_id']==73
 

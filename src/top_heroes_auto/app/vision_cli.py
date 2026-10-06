@@ -43,7 +43,7 @@ def _capture(manager, data: Path, index: int, name: str, tag: str):
             raise SafetyError("Vision capture target changed unexpectedly.")
         return payload
 
-    folder = data / "diagnostics" / "vision" / name
+    folder = data / "diagnostics" / "vision" / f"{index}-{target_instance.stable_id}"
     return ScreenshotService(exact_capture).take(target, folder, tag)
 
 

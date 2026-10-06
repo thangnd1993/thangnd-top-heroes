@@ -7,6 +7,7 @@ import cv2
 from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, dismiss_overlay_bottom_left
+from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.guild_mail import GuildMailDetector, portrait
 from top_heroes_auto.vision.screenshot import ScreenshotService
 
@@ -24,7 +25,7 @@ class GuildMailPort(FixedRewardPort):
     def observe(self):
         self.check()
         target, payload = self.manager.capture_verified(self.index,self.snapshot)
-        if (target.index,target.name) != (self.index,self.name):
+        if runtime_key((target.index,target.name)) != runtime_key((self.index,self.name)):
             raise SafetyError('Guild/Mail capture identity changed.')
         if self.target and (target.serial,target.boot_id) != (self.target.serial,self.target.boot_id):
             raise SafetyError('Guild/Mail ADB/boot changed.')
