@@ -173,7 +173,8 @@ class Store:
                     for claim_id, raw in claims:
                         try:
                             evidence = json.loads(raw)
-                            proofs[claim_id] = evidence.get('persistent_identity', '')
+                            value = evidence.get('persistent_identity', '')
+                            proofs[claim_id] = value if isinstance(value, str) else ''
                         except (ValueError, AttributeError):
                             proofs[claim_id] = ''
                     proven = {value for value in proofs.values() if value}
@@ -403,6 +404,12 @@ class Store:
                                       (task_run_id,)).fetchone()
             if binding and (binding[1] != 'VERIFIED' or task_binding != (binding[0],)):
                 raise ValueError('IDENTITY_CHANGED: task journal binding is not current.')
+            if binding and db.execute(
+                    '''SELECT 1 FROM reward_claims r LEFT JOIN journal_identities j ON j.claim_id=r.id
+                       WHERE r.namespace=? AND r.instance_index=? AND r.reward_id=?
+                       AND (j.state IS NULL OR j.state!='VERIFIED' OR j.stable_id!=?) LIMIT 1''',
+                    (namespace, index, reward_id, binding[0])).fetchone():
+                raise ValueError('AMBIGUOUS: historical reward ownership stays locked across periods.')
             if expected_instance is not None and expected_instance[0] != index:
                 raise ValueError("Claim evidence does not belong to the task run's account.")
             if vip_daily_period and fixed_reward_period:

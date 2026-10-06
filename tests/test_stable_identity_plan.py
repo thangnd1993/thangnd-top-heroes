@@ -283,3 +283,30 @@ def test_no_progress_branch_recovers_then_inspects_other_candidate():
     assert result.events['A']['result'] == 'BLOCKED'
     assert result.events['B']['result'] == 'EXHAUSTED'
     assert result.candidate_count == 2
+
+
+@pytest.mark.parametrize('label', ['', '   '])
+def test_empty_display_label_cannot_revoke_stable_snapshot(rig, label):
+    manager, process, store = rig
+    snapshot = create_snapshot(store, manager.namespace, manager.refresh())
+    process.listing = process.listing.replace('Farm-007', label)
+    target, _ = manager.capture_verified(7, snapshot)
+    assert target.name == label and target.stable_id == 'fixture-disk-7'
+    assert store.metadata(manager.namespace, 7).selected
+
+
+@pytest.mark.parametrize('old_proof', [None, [], {}, 123])
+def test_ambiguous_verified_legacy_reward_cannot_reopen_on_new_period(rig, old_proof):
+    manager, _, store = rig
+    task = store.create_task_run(manager.namespace, 'fixture', 7, 'old label')
+    cid = store.reserve_reward_claim(task, 'free', 'old-period', json.dumps({'persistent_identity':old_proof}))
+    store.verify_reward_claim(cid, task, 'old receipt')
+    original = store.reward_claims(manager.namespace, 7)
+    with store.connect() as db:
+        db.execute('DELETE FROM journal_identities WHERE claim_id=?', (cid,))
+    manager.refresh()
+    next_task = store.create_task_run(manager.namespace, 'fixture', 7, 'new label')
+    with pytest.raises(ValueError, match='AMBIGUOUS'):
+        store.reserve_reward_claim(next_task, 'free', 'new-period', '{}')
+    assert store.reward_claims(manager.namespace, 7) == original
+    assert cid in store.identity_audit(manager.namespace)['ambiguous_journal_ids']

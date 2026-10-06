@@ -52,8 +52,8 @@ def parse_list2(output: str) -> tuple[Instance, ...]:
             if fields is None:
                 raise ValueError("unrecognized list2 layout")
             name, index, top, bind, android, pid, vbox, *display = fields
-            if index < 0 or index in seen or not name.strip() or android not in (0, 1, 2):
-                raise ValueError("index/name/state invalid")
+            if index < 0 or index in seen or android not in (0, 1, 2):
+                raise ValueError("index/state invalid")
             if top < 0 or bind < 0 or pid < -1 or vbox < -1:
                 raise ValueError("invalid process values")
             if display:
