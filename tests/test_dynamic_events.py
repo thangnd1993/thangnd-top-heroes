@@ -79,6 +79,25 @@ def test_popup_preserves_event_context():
     assert [c[1] for c in p.calls] == ['event','reward','dismiss','parent']
 
 
+def test_unstable_root_does_not_cancel_independent_current_home_candidate():
+    from top_heroes_auto.automation.dynamic_events import EventEntryUnstable
+
+    bad, good, back = control('unstable','event'), control('independent','event'), control('back','parent')
+    class UnstablePort(Port):
+        def navigate(self, f, c):
+            if c.identity == 'unstable':
+                raise EventEntryUnstable('no input; fresh Home remains verified')
+            super().navigate(f,c)
+
+    p = UnstablePort([frame('home',0,[bad,good]),frame('home',1,[bad,good]),
+                      frame('event:current',2,[],parent=back),frame('home',3,[bad,good])])
+    result = DynamicEventExplorer().run(p)
+    assert result.events['unstable']['result'] == 'BLOCKED'
+    assert result.events['independent']['result'] == 'EXHAUSTED'
+    assert any(call[2]=='independent' for call in p.calls)
+    assert not result.rewards
+
+
 @pytest.mark.parametrize('cost',['DIAMONDS','MONEY','TICKETS','RESOURCE','PREMIUM'])
 def test_paid_targets_never_dispatched(cost):
     e,r,b = control('icon','event'),control('paid','reward',cost=cost,available=True),control('back','parent')

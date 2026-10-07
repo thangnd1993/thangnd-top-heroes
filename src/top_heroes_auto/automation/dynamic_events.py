@@ -11,6 +11,10 @@ from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.models import BoundingBox
 
 
+class EventEntryUnstable(SafetyError):
+    """No input sent; current Home/runtime still verified. Block only this root."""
+
+
 @dataclass(frozen=True)
 class Control:
     identity: str
@@ -119,6 +123,18 @@ class DynamicEventExplorer:
             if active:
                 report.events[active]['result'] = 'BLOCKED'
 
+        def navigate_edge(frame, control):
+            nonlocal active, active_seen, pending, stack, path, resume, seek
+            try:
+                port.navigate(frame, control)
+            except EventEntryUnstable:
+                if frame.page != 'home' or control.kind != 'event':
+                    raise
+                block('EVENT_REACQUISITION_FAILED',frame)
+                active, active_seen, pending = None, False, None
+                stack, path, resume, seek = [], [], [], None
+                # Another root requires a NEW verified Home observation.
+
         def continue_after_block(frame):
             nonlocal active, active_seen, pending, stack, path, resume, seek, transitions
             recover = getattr(port, 'recover_home', None)
@@ -199,7 +215,7 @@ class DynamicEventExplorer:
                         report.actions.append(dict(kind='event',capture=frame.capture,
                             identity=control.identity,box=asdict(control.box),recovery='QUALIFIED_CHILD_RETURN_HOME'))
                         persist(asdict(report))
-                        port.navigate(frame,control)
+                        navigate_edge(frame,control)
                         transitions+=1
                         continue
                     report.recoveries.append(dict(reason='UNEXPECTED_EVENT_EXIT',event=active,
@@ -235,7 +251,7 @@ class DynamicEventExplorer:
                                                identity=control.identity,box=asdict(control.box),
                                                recovery='UNEXPECTED_EVENT_EXIT'))
                     persist(asdict(report))
-                    port.navigate(frame,control)
+                    navigate_edge(frame,control)
                     transitions+=1
                     continue
                 if pending:
@@ -277,7 +293,7 @@ class DynamicEventExplorer:
                     report.actions.append(dict(kind=kind,capture=frame.capture,identity=key,
                                                box=asdict(control.box),recovery='UNEXPECTED_EVENT_EXIT'))
                     persist(asdict(report))
-                    port.navigate(frame,control)
+                    navigate_edge(frame,control)
                     transitions+=1
                     continue
                 if seek:
@@ -303,7 +319,7 @@ class DynamicEventExplorer:
                         report.actions.append(dict(kind='scroll',capture=frame.capture,identity=control.identity,
                                                    box=asdict(control.box),recovery='UNEXPECTED_EVENT_EXIT'))
                         persist(asdict(report))
-                        port.navigate(frame,control)
+                        navigate_edge(frame,control)
                         transitions+=1
                         continue
                 for reason in frame.blocked:
@@ -424,7 +440,7 @@ class DynamicEventExplorer:
                                            box=asdict(control.box)))
                 persist(asdict(report))
                 report.return_home = 'NOT_STARTED'
-                port.navigate(frame, control)
+                navigate_edge(frame, control)
                 transitions += 1
             else:
                 report.blocked.append(dict(reason='OBSERVATION_LIMIT', event=active))

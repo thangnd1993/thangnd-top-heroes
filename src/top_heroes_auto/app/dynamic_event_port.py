@@ -8,7 +8,7 @@ import cv2
 from top_heroes_auto.app.event_claim_reconciliation import bind_saved_rewards, reconcile_possible
 from top_heroes_auto.app.event_task_effect import removal_effect
 from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
-from top_heroes_auto.automation.dynamic_events import Control, EventFrame, overlaps
+from top_heroes_auto.automation.dynamic_events import Control, EventEntryUnstable, EventFrame, overlaps
 from top_heroes_auto.automation.event_journal import dispatch_once
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import (
@@ -41,6 +41,7 @@ from top_heroes_auto.vision.dynamic_events import (
 from top_heroes_auto.vision.event_achievements import achievement_rows, achievement_shell
 from top_heroes_auto.vision.event_competitive import competitive_indicator_contract
 from top_heroes_auto.vision.event_paid_modal import paid_modal_navigation
+from top_heroes_auto.vision.event_reacquisition import stable_entry_match
 from top_heroes_auto.vision.event_task_grid import task_grid_rows, task_grid_shell, unresolved_grid_actions
 from top_heroes_auto.vision.guild_mail import portrait
 from top_heroes_auto.vision.local_ocr import read_words
@@ -74,6 +75,7 @@ class DynamicEventPort:
         c = observed.captured
         identity = (c.index, self.session.target['persistent_identity'], c.serial, c.boot_id)
         image = portrait(c)
+        self.navigation_image = image
         controls, blocked = [], []
         page = observed.page if observed.page == 'home' else 'UNKNOWN'
         candidates = ()
@@ -102,7 +104,15 @@ class DynamicEventPort:
                         if len(keys)>1:
                             blocked.append('AMBIGUOUS_ICON_CORE')
                             continue
-                        key=keys[0] if keys else candidate.fingerprint
+                        references=getattr(self,'home_navigation_references',{})
+                        stable=[key for key,(prior,box) in references.items()
+                                if stable_entry_match(prior,box,image,candidate.icon_box)]
+                        if len(stable)>1:
+                            blocked.append('AMBIGUOUS_ICON_CORE')
+                            continue
+                        key=stable[0] if stable else (keys[0] if keys else candidate.fingerprint)
+                        self.home_navigation_references=references
+                        references.setdefault(key,(image,candidate.icon_box))
                         self.home_icon_cores.setdefault(key,core)
                         controls.append(Control(key, candidate.icon_box,
                                                 ('GAME_HOME', 'current-shop-sidebar', 'rimmed-notification', 'unique-outlined-icon'), 'event'))
@@ -270,6 +280,14 @@ class DynamicEventPort:
                                   stable_id=self.session.target['persistent_identity'], event_scan_performed=event_scan_performed,
                                   render_pending=bool(self.entered and page=='UNKNOWN' and
                                                       not popup and (blank_event_render(image) or transition is not None)))
+        if getattr(self,'pending_entry_proof',None) is not None:
+            proof=self.pending_entry_proof
+            proof.update(post_capture=self.current.capture,post_page=page,
+                         event_opened_verified=bool(page.startswith('event:') and not popup))
+            if hasattr(self,'folder'):
+                with (self.folder/'entry-reacquisition.jsonl').open('a',encoding='utf-8') as stream:
+                    stream.write(json.dumps(proof)+'\n')
+            self.pending_entry_proof=None
         payload = dict(frame=asdict(self.current), badges=[item.evidence() for item in candidates],
                        observed=observed.evidence(), entered_event=self.entered,
                        shell=dict(title=shell['title'],selected=shell['selected']) if shell else None,
@@ -343,22 +361,51 @@ class DynamicEventPort:
             self.current = None
             time.sleep(.5)
             return
-        if (frame.page != 'home' or control not in frame.controls or
+        if (frame.page != 'home' or frame.popup or not frame.event_scan_performed or control not in frame.controls or
                 control.kind != 'event' or self.entered is not None):
             raise SafetyError('Event navigation lacks a qualified current-frame edge.')
-        # Two observations must agree on the icon core and notification box.
-        self.current = None
+        reference = self.navigation_image.copy()
         before = frame
-        time.sleep(.35)
-        fresh = self.observe()
-        matches = [c for c in fresh.controls if c.identity == control.identity]
-        if (fresh.page != 'home' or runtime_key(fresh.identity) != runtime_key(before.identity) or len(matches) != 1 or
-                matches[0].box != control.box or fresh.popup):
-            raise SafetyError('Moving/ambiguous event notification; no input.')
-        self.transport.dispatch(self.transport.last,'tap',matches[0].box.center)
-        self.entered = control.identity
-        self.current = None
-        time.sleep(.5)
+        attempts = []
+        for _ in range(3):
+            self.current = None
+            time.sleep(.35)
+            fresh = self.observe()
+            if (fresh.page != 'home' or fresh.popup or not fresh.event_scan_performed
+                    or fresh.stable_id != before.stable_id
+                    or runtime_key(fresh.identity) != runtime_key(before.identity)):
+                raise SafetyError('Event reacquisition context/runtime changed; no input.')
+            matches = [c for c in fresh.controls if c.kind=='event'
+                       and stable_entry_match(reference,control.box,self.navigation_image,c.box,require_geometry=False)]
+            attempts.append(dict(capture=fresh.capture,matches=[asdict(c.box) for c in matches]))
+            if len(matches) != 1:
+                continue
+            target = matches[0]
+            if not stable_entry_match(reference,control.box,self.navigation_image,target.box):
+                continue
+            # A duplicate candidate near this one invalidates uniqueness even if
+            # only one cropped patch happens to reach the pixel threshold.
+            if any(c is not target and c.kind=='event' and overlaps(c.box,target.box) for c in fresh.controls):
+                continue
+            point = target.box.center
+            if not (target.box.x < point[0] < target.box.x+target.box.width
+                    and target.box.y < point[1] < target.box.y+target.box.height):
+                raise SafetyError('Event tap is outside current interior.')
+            proof=dict(previous_capture=before.capture,previous_box=asdict(control.box),
+                       capture=fresh.capture,current_box=asdict(target.box),tap=point,
+                       runtime=fresh.identity,attempts=attempts,kind='NAVIGATION_ONLY')
+            if hasattr(self,'folder'):
+                with (self.folder/'entry-reacquisition.jsonl').open('a',encoding='utf-8') as stream:
+                    stream.write(json.dumps(proof)+'\n')
+            self.current = None
+            self.transport.dispatch(self.transport.last,'tap',point)
+            self.entered = control.identity
+            self.pending_entry_proof=proof
+            time.sleep(.5)
+            # The shared explorer captures afresh and verifies event: context
+            # before any nested navigation or independent reward evaluation.
+            return
+        raise EventEntryUnstable('Event entry could not be uniquely reacquired in 3 fresh frames; no input.')
 
     def claim(self, frame, control):
         if control is None or frame is not getattr(self,'current',None) or control not in frame.controls or control.kind!='reward':

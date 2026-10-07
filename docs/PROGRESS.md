@@ -1,3 +1,32 @@
+## Phase 8 — bounded current Event reacquisition (2026-10-07)
+
+Continue from bbc39ce, whose CI37497473221 passed1590 tests/26 skipped and
+Windows build/smoke/upload;687 Desktop files verified. Its memory-failed run
+20261006-173657-673740Z-78b29a12 dispatched no claims (WinError1455, independently
+correlated Windows resource-exhaustion events). Selection2 was restored afterward.
+The fresh controlled run20261007-033428-498717Z-4a8f0aff reached Home but blocked
+on DynamicEventPort.navigate: exact identity equality and bbox equality failed.
+Cleanup/selection succeeded;223 journals and all9 config hashes unchanged.
+
+Saved03:39:38/03:39:45 frames show mask -> scroll animation beside the same red
+wrapped gift/base, boxes(624,285,75,75)->(624,288,75,72). icon_core_key contains
+no explicit coordinates, but hashes a resized relative left crop: changing bbox
+margins and animated left artwork change its bytes. Badge is outside that crop.
+New navigation-only matching requires >=7 textured interior patches at >=.995,
+distributed across both axes and agreeing on translation; bounded15% displacement,
+10% size change, unique content across current qualified cluster entries, verified
+Home/runtime and no popup. Geometry alone never grants permission. Three fresh
+capture attempts maximum. Current bbox center only; existing device tap overlay
+and transport ownership checks remain. Fresh Event page evidence is recorded.
+
+Stable associations are local navigation hints only. Claim equality, paid-cost
+exclusion, one-shot journals and independent postconditions remain unchanged.
+Unstable root blocks only itself; another candidate requires fresh safe Home.
+No identity/config/lifecycle redesign or permission changes. No Phase9.
+Latest user scope requires a NEW randomly selected live eligible account after
+fresh full CI, then conditional Phase8-only sequential fleet. No old fixed target.
+Targeted tests and self-review recorded in the task; real acceptance pending.
+
 ## Phase 8 — actual nested achievement reward qualification (2026-10-06)
 
 2b39076 CI37485852212 PASS:1573 passed/26 skipped, Windows build/smoke/upload

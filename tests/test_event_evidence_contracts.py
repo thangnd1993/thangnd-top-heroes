@@ -207,6 +207,18 @@ def test_production_home_recheck_uses_qualified_live_icon_despite_pixel_rounding
     assert port.entered==animated.identity
 
 
+def test_production_reacquires_saved_jitter_pair_and_rebinds_navigation_only(tmp_path,monkeypatch):
+    port,sent=home_port(tmp_path,monkeypatch)
+    pictures=iter([image('home-entry-jitter-a'),image('home-entry-jitter-b')])
+    monkeypatch.setattr('top_heroes_auto.app.dynamic_event_port.portrait',lambda _:next(pictures))
+    frame=port.observe()
+    old=next(c for c in frame.controls if c.box==BoundingBox(624,285,75,75))
+    port.navigate(frame,old)
+    assert sent[0][1:]==('tap',(661,324))
+    assert port.entered==old.identity
+    assert old.cost=='UNKNOWN' and not old.available
+
+
 def test_multiple_cached_artwork_matches_are_blocked_before_input(tmp_path,monkeypatch):
     port,sent=home_port(tmp_path,monkeypatch)
     core=icon_core_image(image('home-event-before-animation'),BoundingBox(533,289,74,76))
