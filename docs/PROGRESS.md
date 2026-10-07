@@ -1,3 +1,38 @@
+## Phase 8 — attach-only free claim and narrow-grid dispatch (2026-10-07)
+
+New scope: one manually running, non-Protected HOME account only; no lifecycle,
+game launch/stop, configuration writes, fleet, Phase6/7 or Phase9. Desktop e287d81
+matches CI37599779815/artifact11474990758; all688 copied files verified.
+Running/HOME eligible set[8], secrets.choice selected8/Soup. Explicit emulator-5570,
+boot9137b4e3-cb52-43c0-8c25-228e77eac4dc, existing backing identity preserved.
+The reproduction calls the unchanged production execute_instance/registered events
+services at that accepted commit through an attach-only guard (not manual taps).
+Portable vision preflight independently verifies HOME; selection restored.
+
+Report diagnostics/tasks/event-attach/20261007-120210-261929Z/attach-report.json:
+Event navigation reaches the race-task modal; one free completed "Tieu hao Nang
+Luong200" reward dispatches once at current button center(558,694). Green Nhan
+changes to explicit Da Nhan in two fresh frames; event points1080->1100. Claim240
+is VERIFIED. The run continues and attempts scrolling for clipped lower rewards.
+DynamicEventPort.navigate rejects the qualified4px internal gutter because its
+generic swipe validation incorrectly requires width>=20. No swipe dispatched.
+Target stays running with unchanged PID/boot; selection restored; no lifecycle
+commands. Real inventory observations require the same Windows execution context.
+
+Narrow fix: allow a thin vertical centerline ONLY for the existing current
+task-grid control with paired functional/grid/card-exclusion evidence. Other
+scroll surfaces retain20px minimum; current reacquisition, blockers, boundary and
+navigation intersection checks remain. No new templates or claim changes.
+Add portable event-attach-acceptance integration that reuses execute_instance and
+the registered Event flow, rejects lifecycle/game commands, binds serial/boot,
+and stops on inventory/name changes. A saved repair continuation binds only the
+same account and may navigate qualified current Event parent edges back to HOME.
+No diagnostic-only claim implementation, identity/storage/scheduler changes.
+Targeted regression, self-review and fresh full CI required before portable
+continuation. Preserve VERIFIED240 and every older uncertain/verified journal.
+This is controlled development acceptance, not final Phase8 fleet acceptance.
+Retain at most two testable local build versions; Desktop contains newest only.
+
 ## Phase 8 — loading fill dependency and Android startup blocker (2026-10-07)
 
 8d3fe84 CI37586825390 PASS:1616 passed/26 skipped, build/smoke/upload PASS.

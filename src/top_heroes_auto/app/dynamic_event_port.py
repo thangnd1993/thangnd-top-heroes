@@ -337,8 +337,13 @@ class DynamicEventPort:
             navigation=[c.box for c in fresh.controls if c.kind in {'tab','parent','event'}]
             if fresh.parent:
                 navigation.append(fresh.parent.box)
+            grid_gap = (control.identity == 'task-grid-vertical' and
+                        {'functional-tasks-word','qualified-task-grid','outside-task-actions'} <= set(control.evidence))
+            # A vertical gesture needs a clear centerline, not a button-width ROI.
+            # Only the qualified grid's current, card-disjoint gutter can be narrow.
+            minimum_width = 2 if grid_gap else 20
             if (b.x<0 or b.y<h*.08 or b.x+b.width>w or b.y+b.height>h*.90
-                    or min(b.width,b.height)<20 or any(overlaps(b,q) for q in navigation)):
+                    or b.width<minimum_width or b.height<20 or any(overlaps(b,q) for q in navigation)):
                 raise SafetyError('Event swipe ROI crosses navigation or image boundary.')
             x=b.x+b.width//2
             start=b.y+round(b.height*.75)

@@ -80,3 +80,56 @@ def test_saved_android_notice_real_ocr():
     from top_heroes_auto.vision.local_ocr import read_words
 
     assert system_dialog(image('android-system-ui-blocker'), reader=read_words)['reason'] == 'SYSTEM_UI_NOT_RESPONDING'
+
+
+def grid_navigation(monkeypatch, *, qualified=True, blocked=()):
+    from types import SimpleNamespace
+
+    from top_heroes_auto.app.dynamic_event_port import DynamicEventPort
+    from top_heroes_auto.automation.dynamic_events import Control, EventFrame
+
+    im = image('task-grid-live-clipped')
+    shell = task_grid_shell(im)
+    evidence = ('functional-tasks-word', 'qualified-task-grid', 'outside-task-actions') if qualified else ('qualified-menu-grid',)
+    control = Control('task-grid-vertical' if qualified else 'menu-grid-vertical', shell['scroll'], evidence, 'scroll')
+    parent = Control('current-back', shell['back'], ('qualified-close',), 'parent')
+    old = EventFrame('before', (8, 'disk', 'explicit', 'boot'), 'event:race-task-grid', 'a',
+                     (control,), True, parent)
+    fresh_control = replace(control, box=replace(control.box, x=control.box.x+8, y=control.box.y+10))
+    fresh = replace(old, capture='fresh', fingerprint='b', controls=(fresh_control,), blocked=blocked)
+    port = object.__new__(DynamicEventPort)
+    sent = []
+    observed = SimpleNamespace(captured=SimpleNamespace(original=im, rotated_from_portrait=False))
+    port.transport = SimpleNamespace(last=observed, dispatch=lambda *a: sent.append(a))
+    port.current = old
+    port.observe = lambda: fresh
+    monkeypatch.setattr('top_heroes_auto.app.dynamic_event_port.time.sleep', lambda _: None)
+    return port, old, control, fresh_control, sent
+
+
+def test_production_swipe_accepts_current_qualified_narrow_grid_gutter(monkeypatch):
+    port, frame, control, current, sent = grid_navigation(monkeypatch)
+    assert current.box.width == 4
+    port.navigate(frame, control)
+    b = current.box
+    assert sent[0][1:] == ('swipe', (b.center[0], b.y+round(b.height*.75),
+                                   b.center[0], b.y+round(b.height*.25), 450))
+    assert len(sent) == 1 and port.current is None
+
+
+def test_other_narrow_scroll_surfaces_remain_rejected(monkeypatch):
+    from top_heroes_auto.automation.guard import SafetyError
+
+    port, frame, control, _, sent = grid_navigation(monkeypatch, qualified=False)
+    with pytest.raises(SafetyError, match='swipe ROI'):
+        port.navigate(frame, control)
+    assert not sent
+
+
+def test_fresh_grid_blocker_prevents_scroll_dispatch(monkeypatch):
+    from top_heroes_auto.automation.guard import SafetyError
+
+    port, frame, control, _, sent = grid_navigation(monkeypatch, blocked=('UNQUALIFIED_TASK_GRID_ACTION',))
+    with pytest.raises(SafetyError, match='fresh capture'):
+        port.navigate(frame, control)
+    assert not sent

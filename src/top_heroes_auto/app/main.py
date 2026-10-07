@@ -14,6 +14,20 @@ def data_directory() -> Path:
 
 def main(argv: list[str] | None = None):
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == 'event-attach-acceptance':
+        from argparse import ArgumentParser
+
+        from top_heroes_auto.app.diagnostic import _manager
+        from top_heroes_auto.app.event_attach import run
+
+        parser = ArgumentParser(prog=argv[0])
+        scope = parser.add_mutually_exclusive_group(required=True)
+        scope.add_argument('--random-home', action='store_true')
+        scope.add_argument('--resume-report', type=Path)
+        options = parser.parse_args(argv[1:])
+        data = data_directory()
+        result = run(_manager(data), data, resume_report=options.resume_report)
+        return 0 if result['result'] == 'COMPLETE' else 1
     if argv and argv[0] in {'automation-acceptance', 'phase6-acceptance'}:
         from argparse import ArgumentParser
 
