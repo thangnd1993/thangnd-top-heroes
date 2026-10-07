@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import cv2
+import pytest
 
 from top_heroes_auto.adb.client import Target
 from top_heroes_auto.automation.recovery import (
@@ -99,3 +100,66 @@ def test_engine_only_extends_on_a_new_proven_stage():
 def test_saved_frame_production_recovery_detector_classifies_loading():
     from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
     assert RecoveryScreenDetector().detect(screen()).state==ScreenState.GAME_LOADING
+
+
+@pytest.mark.parametrize('name', ['loading-zero', 'loading-sixty'])
+def test_partial_fill_is_loading_not_unknown_and_keeps_existing_wait_bound(name):
+    from top_heroes_auto.vision.loading_progress import progressing_stage
+    from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
+
+    image=cv2.imread('tests/fixtures/phase8/'+name+'.png')
+    detected=RecoveryScreenDetector().detect(screen(image))
+    assert progressing_stage(detected)
+    assert any(e.anchor_id=='loading-progress-track-end' for e in detected.evidence)
+    clock=[0.0]
+    engine=HomeRecoveryEngine(max_duration=12,loading_timeout=9,loading_interval=5,
+        clock=lambda:clock[0],sleep=lambda d:clock.__setitem__(0,clock[0]+d))
+    port=SimpleNamespace(observe=lambda _:RecoveryObservation(detected,None,'explicit','boot'))
+    result=engine.ensure_game_home(port)
+    assert result.status!=RecoveryStatus.SUCCESS and clock[0]<=15
+    assert 'qualified_loading_progress' not in result.actions
+    assert all(a in {'qualified_loading_stage','wait'} for a in result.actions)
+
+
+def test_track_rim_without_paired_labels_or_with_duplicate_is_not_loading():
+    image=cv2.imread('tests/fixtures/phase8/loading-zero.png')
+    missing=image.copy()
+    missing[83:101,8:107]=0
+    assert not loading_progress_evidence(screen(missing))
+    duplicate=image.copy()
+    duplicate[1108:1142,545:572]=image[1108:1142,645:672]
+    assert not loading_progress_evidence(screen(duplicate))
+    missing=image.copy()
+    missing[1088:1180]=0
+    assert not loading_progress_evidence(screen(missing))
+
+
+def test_recovery_system_dialog_overrides_home_and_never_launches_or_dismisses(monkeypatch):
+    from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
+
+    monkeypatch.setattr('top_heroes_auto.vision.recovery_detector.read_words',
+        lambda _: [{'text': "System UI isn't responding Close app Wait"}])
+    im=cv2.imread('tests/fixtures/phase8/android-system-ui-blocker.png')
+    detected=RecoveryScreenDetector().detect(screen(im))
+    assert detected.state==ScreenState.SYSTEM_BLOCKING
+    clock=[0.0]
+    engine=HomeRecoveryEngine(clock=lambda:clock[0],sleep=lambda _:pytest.fail('No wait on Android dialog'))
+    # No input methods exist; calling any would fail this production-engine test.
+    port=SimpleNamespace(observe=lambda _:RecoveryObservation(detected,None,'explicit','boot'))
+    result=engine.ensure_game_home(port)
+    assert result.status==RecoveryStatus.SYSTEM_BLOCKING and not result.actions
+    assert 'SYSTEM_UI_NOT_RESPONDING' in result.error
+
+
+def test_android_blocker_during_final_grace_is_reported_without_input():
+    clock=[126.0]
+    engine=HomeRecoveryEngine(clock=lambda:clock[0],sleep=lambda d:clock.__setitem__(0,clock[0]+d))
+    loading=detection(ScreenState.GAME_LOADING,loading_progress_evidence(screen()))
+    final=RecoveryObservation(loading,None,'explicit','boot')
+    blocked=replace(final,detection=detection(ScreenState.SYSTEM_BLOCKING))
+    result=RecoveryResult(RecoveryStatus.LOADING_TIMEOUT,
+        steps=[RecoveryStep(8,ScreenState.GAME_LOADING,1,None)],adb_target='explicit',boot_id='boot')
+    port=SimpleNamespace(started=0,clock=lambda:clock[0],observe=lambda _:blocked)
+    assert not wait_for_final_loading_progress(result,final,port,engine)
+    assert result.status==RecoveryStatus.SYSTEM_BLOCKING
+    assert result.actions==['qualified_loading_progress','wait']

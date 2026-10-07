@@ -9,9 +9,11 @@ from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.hanging_reward import hanging_evidence, qualified_hanging
 from top_heroes_auto.vision.loading_progress import loading_progress_evidence
-from top_heroes_auto.vision.models import NormalizedRect, ScreenDetection, ScreenState
+from top_heroes_auto.vision.local_ocr import read_words
+from top_heroes_auto.vision.models import AnchorEvidence, NormalizedRect, ScreenDetection, ScreenState
 from top_heroes_auto.vision.resources import template_folder
 from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
+from top_heroes_auto.vision.system_dialog import system_dialog
 from top_heroes_auto.vision.war_recovery import qualified_war, war_evidence
 from top_heroes_auto.vision.world_recovery import qualified_world, world_evidence
 
@@ -59,6 +61,13 @@ class RecoveryScreenDetector:
 
     def detect(self, screen):
         detected = self._detect_existing(screen)
+        image=(cv2.rotate(screen.original,cv2.ROTATE_90_COUNTERCLOCKWISE)
+               if screen.rotated_from_portrait else screen.original)
+        dialog=system_dialog(image,reader=read_words)
+        if dialog:
+            evidence=tuple(AnchorEvidence(dialog['reason'],ScreenState.SYSTEM_BLOCKING,
+                                          1,.98,True,device_box=b) for b in dialog['panels'])
+            return replace(detected,state=ScreenState.SYSTEM_BLOCKING,confidence=1,evidence=evidence)
         evidence = hanging_evidence(screen)
         if qualified_hanging(screen, evidence):
             if detected.state != ScreenState.UNKNOWN or detected.evidence:

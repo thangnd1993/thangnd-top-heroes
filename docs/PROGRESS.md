@@ -1,3 +1,30 @@
+## Phase 8 — loading fill dependency and Android startup blocker (2026-10-07)
+
+8d3fe84 CI37586825390 PASS:1616 passed/26 skipped, build/smoke/upload PASS.
+Artifact11470592120 delivered with687 copied files verified. Only8d3fe84 and
+preceding e5c89a3 binaries retained; bbc39ce binaries removed, evidence preserved.
+Random production checks used explicit Phase8-only scope, no claims:
+- index5, eligible[2,3,5,8,9,10,11], prior4 excluded: report
+  20261007-084415-507697Z-921b6571. emulator-5564. Android System UI ANR
+  covers loading0%; recovery reported LOADING_TIMEOUT before Event adapter.
+- additional random index2, eligible[2,3,4,8,9,10,11], prior5 excluded: report
+  20261007-085247-149484Z-511a8b5f. emulator-5558. Saved40s frame0%, final60%,
+  no ANR; recovery misclassified new loading stage UNKNOWN and timed out.
+Both owned cleanup/selection restored. All223 journal rows, live inventory and
+non-Protected config hashes unchanged after BOTH checks.
+No fleet or Phase6/7 actions. Protected0/1/6/7/12 excluded.
+
+Concrete root cause: existing loading utility anchors match >=.996, but the
+third anchor incorrectly requires gold fill width >55% of the SCREEN. It cannot
+recognize the empty/part-filled track. Add a unique stable track-end core at.995
+with both existing utility labels; percentages/artwork are not templates. Existing
+bounded one-time stage wait policy stays unchanged; no global timeout increase.
+Recovery now prioritizes the qualified Android dialog blocker over Home/loading
+and exits SYSTEM_BLOCKING without launching/dismissing/clicking the dialog.
+Fresh CI required before continuing the unfinished bound index2 development
+check; no repeated fleet trial until actual Event viewport path is proven.
+Phase8 remains PARTIAL. No Phase9. Retain at most two verified build versions.
+
 ## Phase 8 — live grid viewport and Android blocker repair (2026-10-07)
 
 e5c89a3 CI37571131738 passed1604 tests/26 skipped and build/smoke/upload.

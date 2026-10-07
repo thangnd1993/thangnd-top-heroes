@@ -51,14 +51,35 @@ def loading_progress_evidence(screen):
         if (.55*720 < bw < .9*720 and 8 <= bh <= .035*1280
                 and cv2.contourArea(contour)/(bw*bh)>.7 and .05*720 < x < .2*720):
             bars.append(BoundingBox(round(x*w/720),round(y*h/1280),round(bw*w/720),round(bh*h/1280)))
-    if len(bars)!=1:
+    if len(bars)>1:
         return ()
+    if not bars:
+        # Filled width is a percentage, not a screen identity: 0/60% must not
+        # require a >55%-of-screen gold fill. Use the stable track rim instead.
+        track=cv2.imread(str(template_folder().parent/'tasks/phase8/loading/loading-track-end.png'))
+        if track is None:
+            return ()
+        footer=image[round(1280*.85):round(1280*.92)]
+        scores=cv2.matchTemplate(footer,track,cv2.TM_CCOEFF_NORMED)
+        _,score,_,(x,y)=cv2.minMaxLoc(scores)
+        th,tw=track.shape[:2]
+        if not np.isfinite(score) or score<.995:
+            return ()
+        scores[max(0,y-th//2):y+th//2+1,max(0,x-tw//2):x+tw//2+1]=-1
+        if scores.max()>=.995 or not .75*720<x<.95*720:
+            return ()
+        box=BoundingBox(round(x*w/720),round((y+round(1280*.85))*h/1280),
+                        round(tw*w/720),round(th*h/1280))
+        evidence.append(AnchorEvidence('loading-progress-track-end',ScreenState.GAME_LOADING,
+                                      float(score),.995,True,device_box=box))
+        return tuple(evidence)
     evidence.append(AnchorEvidence('loading-progress-bar',ScreenState.GAME_LOADING,1,.98,True,
                                   device_box=bars[0]))
     return tuple(evidence)
 
 
 def progressing_stage(detection):
+    roles={e.anchor_id for e in detection.evidence if e.matched and e.score>=.98}
     return (detection.state==ScreenState.GAME_LOADING and
-            {e.anchor_id for e in detection.evidence if e.matched and e.score>=.98}
-            >= {'loading-help','loading-network','loading-progress-bar'})
+            roles >= {'loading-help','loading-network'} and
+            bool(roles & {'loading-progress-bar','loading-progress-track-end'}))

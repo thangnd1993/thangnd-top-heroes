@@ -19,6 +19,7 @@ class RecoveryStatus(StrEnum):
     SUCCESS = "SUCCESS"
     ALREADY_HOME = "ALREADY_HOME"
     UNKNOWN_SCREEN = "UNKNOWN_SCREEN"
+    SYSTEM_BLOCKING = "SYSTEM_BLOCKING"
     LOADING_TIMEOUT = "LOADING_TIMEOUT"
     PROMO_BLOCKING = "PROMO_BLOCKING"
     ACTION_FAILED = "ACTION_FAILED"
@@ -264,6 +265,9 @@ class HomeRecoveryEngine:
                 observation.screenshot,
             )
             result.steps.append(step)
+            if detection.state == ScreenState.SYSTEM_BLOCKING:
+                reasons=', '.join(e.anchor_id for e in detection.evidence if e.matched)
+                return finish(RecoveryStatus.SYSTEM_BLOCKING, f'{reasons}; no Android dialog input authorized.')
             if following_back and self.clock() - started >= self.max_duration:
                 return finish(RecoveryStatus.LIMIT_REACHED, "Post-Back capture completed after deadline; no further input.")
             if hanging_backs and detection.state != navigation_state:
@@ -475,6 +479,10 @@ def wait_for_final_loading_progress(result, observation, port, engine, cancelled
         state=fresh.detection.state
         result.steps.append(RecoveryStep(number,state,fresh.detection.confidence,fresh.screenshot,'wait'))
         result.actions.append('wait')
+        if state==ScreenState.SYSTEM_BLOCKING:
+            result.status=RecoveryStatus.SYSTEM_BLOCKING
+            result.error='System dialog blocked loading recovery; no input.'
+            break
         if state==ScreenState.GAME_HOME:
             result.status,result.error=RecoveryStatus.SUCCESS,None
             result.duration=port.clock()-port.started

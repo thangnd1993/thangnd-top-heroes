@@ -10,6 +10,7 @@ import numpy as np
 
 class ScreenState(StrEnum):
     UNKNOWN = "UNKNOWN"
+    SYSTEM_BLOCKING = "SYSTEM_BLOCKING"
     ANDROID_HOME = "ANDROID_HOME"
     GAME_LOADING = "GAME_LOADING"
     PROMO_LOADING = "PROMO_LOADING"
