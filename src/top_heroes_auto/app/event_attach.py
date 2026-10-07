@@ -120,6 +120,9 @@ def run(manager, data, *, resume_report=None, choice=secrets.choice):
             if previous:
                 if previous.get('mode') != 'ATTACH_ONLY_PHASE8_ONLY' or not previous.get('bound_target'):
                     raise SafetyError('Attach continuation requires a saved single bound account.')
+                if (not previous.get('after_instances') or
+                        inventory_signature(previous['after_instances']) != inventory_signature(before)):
+                    raise SafetyError('ATTACH_ONLY_INVENTORY_CHANGED_SINCE_CHECKPOINT: no further input.')
                 original = previous['bound_target']
                 matching = [r for r in before if r['index'] == original['index'] and not r['protected']
                             and r['status'] == 'running' and r['android_started']]

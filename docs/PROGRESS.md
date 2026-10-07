@@ -1,3 +1,29 @@
+## Phase 8 — attach continuation halted on cross-checkpoint runtime change (2026-10-07)
+
+f3e445f CI37626995148 fully PASS; artifact11487726280,415 assets/688 Desktop
+files verified. Only f3e445f/e287d81 test builds retained;8d3fe84 binaries removed.
+Portable continuation on the same index8 started at20261007-142504-042570Z.
+It navigated qualified Event parents back to HOME, opened current Event menus
+and sent one menu-grid swipe. It did NOT dispatch a reward claim before halt.
+No real task-grid gutter movement was demonstrated by this interrupted run.
+
+Protected1/7 were observed running at the fresh-build preflight although they
+were stopped at the earlier attach checkpoint. Cause remains UNPROVEN. Further
+input was halted by stopping ONLY the owned TopHeroes acceptance process15408;
+no emulator/game lifecycle command or name/config restoration was sent. Source
+entry incorrectly compared only to its new starting inventory; add the missing
+saved-after/current-before comparison BEFORE selection or screenshot/input.
+Regression covers Protected runtime change during CI blocking without dispatch.
+Soup retains PID11988/VBox12096 and the same explicit emulator-5570/boot;
+selection restored false. All224 pre-continuation journals unchanged;240 remains
+VERIFIED. Protected7 was later observed stopped;1 running. Preserve discrepancy
+evidence and never infer a writer/cause from the zero-input counter.
+
+No further real acceptance in this controlled check. Continue only offline
+targeted guard repair, CI and delivery; user must reconcile the observed runtime
+changes before another bound real continuation. Phase8 remains PARTIAL, no fleet
+or Phase6/7/9. Detailed evidence: artifacts/phase8-attach-halt-audit.json.
+
 ## Phase 8 — attach-only free claim and narrow-grid dispatch (2026-10-07)
 
 New scope: one manually running, non-Protected HOME account only; no lifecycle,

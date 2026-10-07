@@ -100,10 +100,26 @@ def test_single_home_target_uses_only_production_events_and_restores_selection(r
 def test_resume_never_switches_to_another_running_account(rig, tmp_path):
     manager, process, _ = rig
     path = tmp_path/'prior.json'
-    path.write_text(json.dumps(dict(mode='ATTACH_ONLY_PHASE8_ONLY', bound_target=dict(index=13))), encoding='utf-8')
+    path.write_text(json.dumps(dict(mode='ATTACH_ONLY_PHASE8_ONLY', bound_target=dict(index=13),
+                                   after_instances=attach.inventory(manager))), encoding='utf-8')
     result = attach.run(manager, tmp_path, resume_report=path)
     assert result['result'] == 'BLOCKED' and 'BOUND_INSTANCE_NOT_RUNNING' in result['error']
     assert not result['actions']
+    assert all(c[1:] == ['list2'] for c in process.calls)
+
+
+def test_resume_inventory_change_during_ci_blocks_before_selection_or_capture(rig, tmp_path, monkeypatch):
+    manager, process, _ = rig
+    checkpoint = attach.inventory(manager)
+    checkpoint[0]['status'] = 'stopped'  # Protected runtime changed while no acceptance was active.
+    path = tmp_path/'prior.json'
+    path.write_text(json.dumps(dict(mode='ATTACH_ONLY_PHASE8_ONLY', bound_target=dict(index=7),
+                                   after_instances=checkpoint)), encoding='utf-8')
+    monkeypatch.setattr(attach, 'capture_home', lambda *a: pytest.fail('No screenshot/selection stage allowed'))
+    monkeypatch.setattr(attach, 'execute_instance', lambda *a, **k: pytest.fail('No Event input allowed'))
+    result = attach.run(manager, tmp_path, resume_report=path)
+    assert result['result'] == 'BLOCKED' and 'CHANGED_SINCE_CHECKPOINT' in result['error']
+    assert not result['actions'] and result['selection_restored']
     assert all(c[1:] == ['list2'] for c in process.calls)
 
 
