@@ -76,11 +76,21 @@ def task_grid_shell(image):
             closes.append(b)
     if len(closes)!=1:
         return None
-    left=panel.x+round(panel.width*.03)
-    right=min(b.x for b in cards)-3
-    if right-left<20:
+    # The outer panel margin is not part of the game's scroll viewport.
+    # Reacquire an INTERNAL gap between current card columns; the entire
+    # gesture stays outside every reward/Go control, including clipped cards.
+    columns=sorted({(b.x,b.x+b.width) for b in cards})
+    gaps=[(a[1]+2,b[0]-2) for a,b in zip(columns,columns[1:])
+          if b[0]-a[1]>=8]
+    if not gaps:
         return None
-    scroll=BoundingBox(left,min(b.y for b in cards),right-left,bottom-min(b.y for b in cards))
+    left,right=max(gaps,key=lambda gap:gap[1]-gap[0])
+    top=min(b.y for b in cards)
+    strip=view[top:bottom,left:right]
+    # A later row spanning the gap would invalidate this input surface.
+    if not strip.size or np.max(np.std(strip.astype(float),axis=(0,1)))>12:
+        return None
+    scroll=BoundingBox(left,top,right-left,bottom-top)
 
     def mapped(b):
         return BoundingBox(round(b.x*w/720),round(b.y*h/1280),round(b.width*w/720),round(b.height*h/1280))
@@ -143,7 +153,7 @@ def task_grid_rows(image,shell,*,reader):
         color=cv2.cvtColor(interior,cv2.COLOR_BGR2HSV)
         unexplained=(color[:,:,1]>=100) & (color[:,:,2]>=160) & ((color[:,:,0]<30) | (color[:,:,0]>90))
         if not unavailable and np.mean(unexplained)>.015:
-            continue  # A currency/item-colored cost cannot hide behind the Nhận OCR.
+            continue  # A currency/item-colored cost cannot hide behind the free-label OCR.
         progress=_text(image[b.y+round(b.height*.66):b.y+round(b.height*.78),b.x+8:b.x+b.width-8],reader,progress=True)
         fractions=[re.findall(r'(?<!\d)(\d+)\s*/\s*(\d+)(?!\d)',t) for t in progress]
         if not any(fractions):

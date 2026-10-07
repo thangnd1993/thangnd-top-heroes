@@ -52,6 +52,11 @@ For each substantial task, the single agent follows this sequence:
 
 ## Permanent Windows app delivery
 
+Retain at most TWO newest verified local test build versions (prefer one when
+comparison is unnecessary). Remove older portable binaries and redundant build
+ZIPs after verifying the new build. Preserve source, journals, diagnostics and
+evidence; resolve exact paths and never delete unrelated files.
+
 Every new testable Windows version must come from a fresh CI-passing portable
 artifact. Deliver it to `C:\Users\ADMIN\Desktop\app`. Verify the artifact run,
 commit and copied files. Remove only previous Top Heroes app builds and copied

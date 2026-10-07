@@ -40,7 +40,8 @@ def test_task_grid_current_frame_owns_close_scroll_and_only_complete_cards(name)
     assert shell and shell['permission']=='TASK_GRID'
     assert len(shell['cards'])==3
     assert all(b.y+b.height<1063 for b in shell['cards'])
-    assert shell['scroll'].x+shell['scroll'].width<min(b.x for b in shell['cards'])
+    assert min(b.x for b in shell['cards']) < shell['scroll'].x < max(b.x for b in shell['cards'])
+    assert all(shell['scroll'].x >= b.x+b.width or shell['scroll'].x+shell['scroll'].width <= b.x for b in shell['cards'])
     assert shell['scroll'].y+shell['scroll'].height<shell['back'].y
     moved=cv2.warpAffine(im,np.float32([[1,0,8],[0,1,10]]),(720,1280))
     fresh=task_grid_shell(moved)

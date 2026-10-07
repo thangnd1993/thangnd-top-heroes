@@ -181,6 +181,10 @@ class DynamicEventExplorer:
                     port.dismiss(frame)
                     continue  # Preserve event/parent stack through qualified receipts.
                 if frame.page == 'UNKNOWN':
+                    system_blockers={'SYSTEM_UI_NOT_RESPONDING','BLOCKING_SYSTEM_DIALOG'} & set(frame.blocked)
+                    if system_blockers:
+                        block(sorted(system_blockers)[0], frame)
+                        break  # No game recovery/dismiss input on an Android dialog.
                     if (frame.render_pending and pending and pending[0] in {'event','tab','child'}
                             and render_waits < 3):
                         render_waits += 1

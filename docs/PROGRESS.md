@@ -1,3 +1,30 @@
+## Phase 8 — live grid viewport and Android blocker repair (2026-10-07)
+
+e5c89a3 CI37571131738 passed1604 tests/26 skipped and build/smoke/upload.
+Random index4 reached verified Event pages and nested race task grid; no claim.
+Sequential report20261007-060605-834307Z-7ce22593 attempted2/3/4/5/8/9/10/11/12,
+no claims; all223 prior journals unchanged. Fleet remains PARTIAL. Index8 raw
+COMPLETE is invalid: its saved image has System UI isn't responding over Home.
+Indexes3/9/12 had ADB errors;3/9 cleanup OWNERSHIP_UNKNOWN. Final read-only
+inventory found all stopped/unselected;12 is now Protected and must be excluded
+from future live authorization. No name/key loss observed; index3 config hash
+changed without proven writer attribution. Never restore its configuration.
+
+Current narrow repair: opaque central Android dialog blocks Event Home scanning,
+navigation, game popup dismissal and recovery input; paired OCR labels known ANR.
+Unknown opaque dialog remains BLOCKING_SYSTEM_DIALOG, never empty COMPLETE.
+Race task grid scrolling moves from the inert outer panel margin to a current,
+visually clear internal inter-column gap. Clipped cards remain ineligible; no
+caption/cost/postcondition or claim-lock relaxation. Actual scrolling movement
+still requires fresh CI portable validation. The current top cards have ambiguous
+OCR and remain unavailable for action; do not invent reward identity from geometry.
+
+User permanent retention rule: keep at most TWO newest local test build versions.
+65 old portable binaries and one ZIP were removed (16.26GiB); journals/evidence
+preserved. e5c89a3 and bbc39ce remain; retire bbc39ce after new artifact verification.
+No Phase6/7 execution, no Protected mutation, no Phase9. Continue targeted tests,
+CI, fresh portable delivery and controlled random Phase8-only development check.
+
 ## Phase 8 — bounded current Event reacquisition (2026-10-07)
 
 Continue from bbc39ce, whose CI37497473221 passed1590 tests/26 skipped and

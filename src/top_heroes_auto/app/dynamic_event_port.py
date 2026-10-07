@@ -47,6 +47,7 @@ from top_heroes_auto.vision.guild_mail import portrait
 from top_heroes_auto.vision.local_ocr import read_words
 from top_heroes_auto.vision.models import BoundingBox, ScreenState
 from top_heroes_auto.vision.resources import template_folder
+from top_heroes_auto.vision.system_dialog import system_dialog
 
 
 class DynamicEventPort:
@@ -76,8 +77,9 @@ class DynamicEventPort:
         identity = (c.index, self.session.target['persistent_identity'], c.serial, c.boot_id)
         image = portrait(c)
         self.navigation_image = image
+        dialog = system_dialog(image, reader=read_words)
         controls, blocked = [], []
-        page = observed.page if observed.page == 'home' else 'UNKNOWN'
+        page = observed.page if observed.page == 'home' and not dialog else 'UNKNOWN'
         candidates = ()
         parent = None
         shell = None
@@ -132,7 +134,7 @@ class DynamicEventPort:
             blocked.append('HOME_SHOP_CONTEXT_MISSING')
         # Do not infer safe navigation or free rewards from arbitrary event art.
         # Event content contracts need clean real evidence, including paid controls.
-        if self.entered and page != 'home':
+        if self.entered and page != 'home' and not dialog:
             shell = event_shell(image,observed.box('back'),reader=read_words)
             if shell is None:
                 shell=competitive_navigation_shell(image,observed.box('back'))
@@ -274,12 +276,15 @@ class DynamicEventPort:
                 for r in self.rows]).encode()).hexdigest()
         popup = (observed.overlay.state in DISMISSIBLE and
                  (self.entered is None or observed.overlay.state != ScreenState.HOME_OVERLAY))
-        transition=(competitive_rank_transition(image) if self.entered and page=='UNKNOWN' and not popup else None)
+        if dialog:
+            popup = False  # Never route Android dialogs through game popup dismissal.
+            blocked.append(dialog['reason'])
+        transition=(competitive_rank_transition(image) if self.entered and page=='UNKNOWN' and not popup and not dialog else None)
         self.current = EventFrame(str(c.source_image),identity,page,fingerprint,tuple(controls),
                                   coverage_known=coverage_known, parent=parent, popup=popup, blocked=tuple(blocked),
                                   stable_id=self.session.target['persistent_identity'], event_scan_performed=event_scan_performed,
                                   render_pending=bool(self.entered and page=='UNKNOWN' and
-                                                      not popup and (blank_event_render(image) or transition is not None)))
+                                                      not popup and not dialog and (blank_event_render(image) or transition is not None)))
         if getattr(self,'pending_entry_proof',None) is not None:
             proof=self.pending_entry_proof
             proof.update(post_capture=self.current.capture,post_page=page,
@@ -290,6 +295,7 @@ class DynamicEventPort:
             self.pending_entry_proof=None
         payload = dict(frame=asdict(self.current), badges=[item.evidence() for item in candidates],
                        observed=observed.evidence(), entered_event=self.entered,
+                       system_dialog={**dialog,'panels':[asdict(b) for b in dialog['panels']]} if dialog else None,
                        shell=dict(title=shell['title'],selected=shell['selected']) if shell else None,
                        body_contract=contract,competitive_evidence=competitive_evidence,known_transition=transition,ignored_contained_signals=ignored_signals,
                        reward_rows=[{**r,'row':asdict(r['row']),'box':asdict(r['box'])} for r in self.rows])
