@@ -375,6 +375,9 @@ class DynamicEventPort:
                     or fresh.stable_id != before.stable_id
                     or runtime_key(fresh.identity) != runtime_key(before.identity)):
                 raise SafetyError('Event reacquisition context/runtime changed; no input.')
+            if 'AMBIGUOUS_ICON_CORE' in fresh.blocked:
+                attempts.append(dict(capture=fresh.capture,blocked='AMBIGUOUS_ICON_CORE'))
+                continue
             matches = [c for c in fresh.controls if c.kind=='event'
                        and stable_entry_match(reference,control.box,self.navigation_image,c.box,require_geometry=False)]
             attempts.append(dict(capture=fresh.capture,matches=[asdict(c.box) for c in matches]))

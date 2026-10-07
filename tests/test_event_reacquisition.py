@@ -99,6 +99,15 @@ def test_duplicate_candidates_terminate_without_dispatch_or_reservation(monkeypa
     assert list(tmp_path.iterdir()) == []
 
 
+def test_filtered_ambiguous_core_cannot_leave_false_unique_candidate(monkeypatch,tmp_path):
+    p, frame, old, sent, calls, _ = port_for(monkeypatch,tmp_path)
+    observe=p.observe
+    p.observe=lambda: replace(observe(),blocked=('AMBIGUOUS_ICON_CORE',))
+    with pytest.raises(EventEntryUnstable):
+        p.navigate(frame,old)
+    assert len(calls)==3 and not sent
+
+
 def test_paid_and_ambiguous_claim_guards_unchanged():
     for cost in ('UNKNOWN', 'VND', 'DIAMONDS'):
         c = Control('reward', NEW, ('a', 'b', 'c'), 'reward', cost, True)
