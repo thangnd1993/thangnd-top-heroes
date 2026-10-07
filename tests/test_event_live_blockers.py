@@ -26,7 +26,8 @@ def test_saved_android_dialog_positive_and_unreadable_fail_closed():
 
 
 @pytest.mark.parametrize('name', ['home-entry-jitter-a', 'task-grid-live-clipped',
-                                 'task-grid-partial-free', 'home-event-before-animation'])
+                                 'task-grid-partial-free', 'home-event-before-animation',
+                                 'match-notice', 'paid-offer-one', 'paid-offer-two'])
 def test_real_game_screens_are_not_android_dialogs(name):
     assert system_dialog(image(name), reader=notice) is None
 

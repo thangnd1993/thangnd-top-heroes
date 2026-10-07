@@ -9,7 +9,7 @@ from top_heroes_auto.vision.models import BoundingBox
 
 def system_dialog(image, *, reader):
     h, w = image.shape[:2]
-    white = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV), (0, 0, 235), (179, 25, 255))
+    white = cv2.inRange(image, (245, 245, 245), (255, 255, 255))
     panels = []
     for contour in cv2.findContours(white, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]:
         x, y, bw, bh = cv2.boundingRect(contour)
