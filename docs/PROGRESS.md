@@ -1,3 +1,19 @@
+## Phase 8 — bound-target operation guard (2026-10-09)
+
+User now explicitly authorizes live free Event claims on index8/Soup and permits
+unrelated instances to change at any time. The old Chicken confirmation gate is
+superseded. Production95f9464 attempt20261009-100956-757204Z was blocked before
+input by ATTACH_ONLY_INVENTORY_CHANGED_SINCE_CHECKPOINT.
+
+Remove only the global inventory equality blocker in Event attach. Check the
+bound disk identity, Protection, selection, running Android, runtime PIDs and
+explicit ADB/boot; reject every other target and lifecycle operation. Display
+labels and unrelated states are observations, never authorization. Restore only
+the selection this run changed, preserving a newer user deselection. Continue
+through existing live production registry/claim services after fresh passing CI.
+No claim logic, journal, vision or traversal changes. Journal240 remains VERIFIED
+for20 EVENT POINTS. No Phase6/7, fleet, lifecycle/config writes or Phase9.
+
 ## Phase 8 — scrolled blue Go label requalification (2026-10-09)
 
 Continue original index8/Soup only. User now authorizes automatic startup of

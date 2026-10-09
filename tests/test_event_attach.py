@@ -9,7 +9,7 @@ from top_heroes_auto.automation.guard import SafetyError
 
 
 def rows():
-    return [dict(index=8, name='display', status='running', stable_id='disk', protected=False)]
+    return [dict(index=8, name='display', status='running', stable_id='disk', protected=False, selected=True, pid=10, vbox_pid=20)]
 
 
 def guarded(tmp_path, monkeypatch):
@@ -18,6 +18,12 @@ def guarded(tmp_path, monkeypatch):
     target = SimpleNamespace(serial='explicit', boot_id='boot')
     manager = SimpleNamespace(execute=lambda *a, **k: calls.append((a, k)),
                               capture_verified=lambda *a, **k: (target, b'png'))
+    manager.namespace = 'test'
+    manager.query = lambda index: SimpleNamespace(
+        running=live[0]['status'] == 'running', android_started=True,
+        stable_id=live[0]['stable_id'], pid=live[0]['pid'], vbox_pid=live[0]['vbox_pid'])
+    manager.store = SimpleNamespace(metadata=lambda *a: SimpleNamespace(
+        selected=live[0]['selected'], protected=live[0]['protected'], identity_state='VERIFIED'))
     monkeypatch.setattr(attach, 'inventory', lambda _: live)
     return manager, live, calls, target
 
@@ -46,13 +52,13 @@ def test_attach_forwards_one_shot_boundary_and_rejects_other_target(tmp_path, mo
     assert len(calls) == 1
 
 
-@pytest.mark.parametrize('field,value', [('name', 'changed'), ('status', 'stopped'), ('protected', True)])
+@pytest.mark.parametrize('field,value', [('stable_id', 'replaced'), ('status', 'stopped'), ('protected', True), ('selected', False)])
 def test_inventory_change_stops_further_input(tmp_path, monkeypatch, field, value):
     manager, live, calls, _ = guarded(tmp_path, monkeypatch)
     with attach.attach_guard(manager, live, tmp_path) as (binding, _, _):
         binding['index'] = 8
         live[0][field] = value
-        with pytest.raises(SafetyError, match='INVENTORY_CHANGED'):
+        with pytest.raises(SafetyError, match='BOUND_TARGET_UNSAFE'):
             manager.execute(8, 'tap', values=(40, 50))
     assert not calls
 
@@ -108,19 +114,60 @@ def test_resume_never_switches_to_another_running_account(rig, tmp_path):
     assert all(c[1:] == ['list2'] for c in process.calls)
 
 
-def test_resume_inventory_change_during_ci_blocks_before_selection_or_capture(rig, tmp_path, monkeypatch):
+def test_resume_ignores_unrelated_ci_changes_and_display_rename(rig, tmp_path, monkeypatch):
     manager, process, _ = rig
     checkpoint = attach.inventory(manager)
-    checkpoint[0]['status'] = 'stopped'  # Protected runtime changed while no acceptance was active.
+    checkpoint[0]['status'] = 'stopped'
     path = tmp_path/'prior.json'
-    path.write_text(json.dumps(dict(mode='ATTACH_ONLY_PHASE8_ONLY', bound_target=dict(index=7),
-                                   after_instances=checkpoint)), encoding='utf-8')
-    monkeypatch.setattr(attach, 'capture_home', lambda *a: pytest.fail('No screenshot/selection stage allowed'))
-    monkeypatch.setattr(attach, 'execute_instance', lambda *a, **k: pytest.fail('No Event input allowed'))
+    path.write_text(json.dumps(dict(mode='ATTACH_ONLY_PHASE8_ONLY',
+        bound_target=dict(index=7, name='old label', persistent_identity='fixture-disk-7'),
+        after_instances=checkpoint, home_candidates=[dict(index=7, adb='explicit', boot='boot')],
+        account={'flows': {'events': {'exploration': {'actions': [dict(kind='event', identity='event')]}}}})), encoding='utf-8')
+    monkeypatch.setattr(attach, 'persistent_identity', lambda *a: 'fixture-disk-7')
+    monkeypatch.setattr(attach, 'resume_home', lambda *a: True)
+    calls = []
+    monkeypatch.setattr(attach, 'execute_instance', lambda *a, **k: calls.append(k) or dict(result='COMPLETE'))
     result = attach.run(manager, tmp_path, resume_report=path)
-    assert result['result'] == 'BLOCKED' and 'CHANGED_SINCE_CHECKPOINT' in result['error']
-    assert not result['actions'] and result['selection_restored']
+    assert result['result'] == 'COMPLETE' and result['selection_restored']
+    assert calls == [dict(only_flows=('events',), temporary_selection=False)]
     assert all(c[1:] == ['list2'] for c in process.calls)
+
+
+def test_unrelated_changes_do_not_block_current_bound_input(tmp_path, monkeypatch):
+    manager, live, calls, _ = guarded(tmp_path, monkeypatch)
+    live.append(dict(index=6, name='Protected', status='running', stable_id='other', protected=True))
+    with attach.attach_guard(manager, live, tmp_path) as (binding, _, _):
+        binding['index'] = 8
+        manager.execute(8, 'tap')
+        live[1].update(name='user label', status='stopped', stable_id='unrelated')
+        live[0]['name'] = 'new target display label'
+        manager.execute(8, 'tap')
+    assert len(calls) == 2
+
+
+def test_bound_runtime_change_blocks_next_input(tmp_path, monkeypatch):
+    manager, live, calls, _ = guarded(tmp_path, monkeypatch)
+    with attach.attach_guard(manager, live, tmp_path) as (binding, _, _):
+        binding['index'] = 8
+        manager.execute(8, 'tap')
+        live[0]['pid'] += 1
+        with pytest.raises(SafetyError, match='RUNTIME_CHANGED'):
+            manager.execute(8, 'tap')
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize('original', [True, False])
+def test_attach_preserves_newer_user_deselection(rig, tmp_path, monkeypatch, original):
+    manager, _, _ = rig
+    manager.select(7, original)
+    monkeypatch.setattr(attach, 'persistent_identity', lambda m, i: f'fixture-disk-{i}')
+    monkeypatch.setattr(attach, 'capture_home', lambda m, d, r, f: (True, dict(index=r['index'], adb='explicit', boot='boot')))
+    def execute(*a, **k):
+        manager.select(7, False)
+        return dict(result='PARTIAL')
+    monkeypatch.setattr(attach, 'execute_instance', execute)
+    attach.run(manager, tmp_path, choice=lambda choices: choices[0])
+    assert not manager.store.metadata(manager.namespace, 7).selected
 
 
 def test_resume_unknown_screen_never_dispatches_parent(rig, tmp_path):

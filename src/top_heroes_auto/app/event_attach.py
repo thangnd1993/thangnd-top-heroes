@@ -22,15 +22,26 @@ def inventory_signature(rows):
 
 @contextmanager
 def attach_guard(manager, before, folder):
-    """Reject forbidden operations before dispatch; observe names and all runtimes."""
-    signature = inventory_signature(before)
-    binding = dict(index=None, serial=None, boot=None)
+    """Reject cross-target/lifecycle commands; bind only the authorized runtime."""
+    identities = {r["index"]: r["stable_id"] for r in before}
+    binding = dict(index=None, serial=None, boot=None, runtime=None)
     actions = []
     execute, capture = manager.execute, manager.capture_verified
 
     def check():
-        if inventory_signature(inventory(manager)) != signature:
-            raise SafetyError('ATTACH_ONLY_INVENTORY_CHANGED: no further input or restoration.')
+        index = binding['index']
+        if index is None:
+            return  # Random HOME qualification has not bound a target yet.
+        live = manager.query(index)
+        meta = manager.store.metadata(manager.namespace, index)
+        if (not live.running or not live.android_started or meta.protected or not meta.selected
+                or live.stable_id != identities.get(index) or meta.identity_state != 'VERIFIED'):
+            raise SafetyError('ATTACH_ONLY_BOUND_TARGET_UNSAFE: no further input.')
+        runtime = live.pid, live.vbox_pid
+        if binding['runtime'] is None:
+            binding['runtime'] = runtime
+        elif binding['runtime'] != runtime:
+            raise SafetyError('ATTACH_ONLY_RUNTIME_CHANGED: no further input.')
 
     def guarded_execute(index, action, *args, **kwargs):
         check()
@@ -120,9 +131,6 @@ def run(manager, data, *, resume_report=None, choice=secrets.choice):
             if previous:
                 if previous.get('mode') != 'ATTACH_ONLY_PHASE8_ONLY' or not previous.get('bound_target'):
                     raise SafetyError('Attach continuation requires a saved single bound account.')
-                if (not previous.get('after_instances') or
-                        inventory_signature(previous['after_instances']) != inventory_signature(before)):
-                    raise SafetyError('ATTACH_ONLY_INVENTORY_CHANGED_SINCE_CHECKPOINT: no further input.')
                 original = previous['bound_target']
                 matching = [r for r in before if r['index'] == original['index'] and not r['protected']
                             and r['status'] == 'running' and r['android_started']]
@@ -130,7 +138,7 @@ def run(manager, data, *, resume_report=None, choice=secrets.choice):
                     raise SafetyError('ATTACH_ONLY_BOUND_INSTANCE_NOT_RUNNING')
                 chosen = dict(matching[0], persistent_identity=persistent_identity(manager, original['index']),
                               preflight_running=True)
-                if chosen['persistent_identity'] != original['persistent_identity'] or chosen['name'] != original['name']:
+                if chosen['persistent_identity'] != original['persistent_identity']:
                     raise SafetyError('ATTACH_ONLY_BOUND_INSTANCE_CHANGED')
                 proofs = [p for p in previous['home_candidates'] if p['index'] == chosen['index']]
                 if len(proofs) != 1:
@@ -177,15 +185,16 @@ def run(manager, data, *, resume_report=None, choice=secrets.choice):
         except (OSError, ValueError, RuntimeError) as exc:
             report.update(result='BLOCKED', error=f'{type(exc).__name__}: {exc}')
         finally:
-            if chosen is not None and selected_before is not None:
+            if chosen is not None and selected_before is False:
                 meta = manager.store.metadata(manager.namespace, chosen['index'])
-                if (not meta.protected and
+                if (meta.selected and not meta.protected and
                         persistent_identity(manager, chosen['index']) == chosen['persistent_identity']):
                     manager.select(chosen['index'], selected_before)
             report['actions'] = actions
             report['after_instances'] = inventory(manager)
-            report['selection_restored'] = {r['index']: r['selected'] for r in before} == {
-                r['index']: r['selected'] for r in report['after_instances']}
+            report['selection_restored'] = chosen is None or any(
+                r['index'] == chosen['index'] and r['selected'] == selected_before
+                for r in report['after_instances'])
             report['inventory_unchanged'] = inventory_signature(before) == inventory_signature(report['after_instances'])
             write(folder/'attach-report.json', report)
     progress(f'ATTACH REPORT: {folder / "attach-report.json"}')
