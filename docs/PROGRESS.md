@@ -1,3 +1,29 @@
+## Phase 8 — scrolled blue Go label requalification (2026-10-09)
+
+Continue original index8/Soup only. User now authorizes automatic startup of
+non-Protected targets and confirms manually stopping index3 at14:26 Vietnam.
+Historical Protected1/7 transitions remain cause UNPROVEN; preserve Oct07 record.
+A new baseline records current Protection/runtime and exclusive kernel ownership.
+Only index8 was launched once; no Protected command, rename/config write, restart
+or shared ADB restart. Keep Soup running; preserve unrelated Protected6 running.
+
+Fresh bc0e8a0 portable CI37643087409/artifact11496037639:688 Desktop files match.
+Exact emulator-5570, boot a089d5d2-db01-4de2-ab75-f236a7f4196a, PID8676/VBox2508.
+Recovery reaches GAME_HOME confidence0.964636. Production event-attach report
+20261009-073227-945735Z opens Event and nested tabs, including Tam Bao Di Tich.
+One list swipe moves content; next fresh validation returns BLOCKED because a
+complete card loses native-scale OCR of blue Den. Saved native reading is empty;
+2x and3x both read Den. No new claim; journal240 remains VERIFIED/20 EVENT POINTS.
+Selection restored; instance remains running. Other candidates remain uninspected.
+
+Narrow fix: ONLY empty native +2x Den may use agreeing3x Den to qualify the
+existing BLUE unavailable Go state. Free claim labels retain original two-scale
+agreement; cost/conflict/unknown/color/card/runtime/navigation guards unchanged.
+Saved game-only fixture and targeted regressions cover conflict/cost/claim/color,
+current scroll geometry, changed fingerprints and fail-closed fresh frames.
+93 targeted tests PASS; affected-file Ruff/diff-check PASS. Fresh full CI and
+portable continuation remain required. This is PARTIAL, not Phase8 fleet PASS.
+
 ## Phase 8 — attach continuation halted on cross-checkpoint runtime change (2026-10-07)
 
 f3e445f CI37626995148 fully PASS; artifact11487726280,415 assets/688 Desktop

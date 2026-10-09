@@ -380,6 +380,13 @@ def task_reward_rows(image,context_template,*,reader):
         labels=[]
         for scale in (1,2):
             labels.append(folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=scale,fy=scale)))))
+        if labels == ['', 'den']:
+            # Small blue Go text may disappear at native scale after scrolling.
+            # Two enlarged readings qualify ONLY its unavailable state;
+            # claim labels still require the original two-scale agreement.
+            enlarged=folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=3,fy=3))))
+            if enlarged == 'den':
+                labels[0]='den'
         if labels[0]!=labels[1] or labels[0] not in {'nhan','nhan nhanh','mien phi','den','da nhan'}:
             continue  # Cost text, digits, purchase requirement or noisy OCR.
         hsv=cv2.cvtColor(crop,cv2.COLOR_BGR2HSV)
