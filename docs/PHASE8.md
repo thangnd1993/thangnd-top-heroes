@@ -1,3 +1,57 @@
+## Phase 8 - sequential free Event collection and expedition dispatch (2026-10-11)
+
+Latest authorization: attachment ee41a55e and subsequent user corrections replace
+old attach-only/Soup-only restrictions. Resume original snapshot 2,3,4,5,8,9,10,11;
+only the events registry flow, one instance at a time. Protected 0,1,6,7,12 receive
+no actions. Start only the current target; finish its terminal evidence and owned
+cleanup before opening the next. Unrelated manual state changes are observational.
+Local production repairs plus targeted tests are authorized before the batch CI.
+
+Current repair: claim visible free rewards before navigation, then qualify the
+Tầm Bảo Gửi Nhanh footer and separate no-cost Xác Nhận modal. Opening the selection
+modal is navigation, not a reward or mission dispatch. Confirmation uses a durable
+one-shot journal and never counts as a reward. Unknown confirmation results remain
+locked; no reset period is invented. Saved mission journals are positively typed
+and excluded from reward-caption aliasing, while all original locks remain intact.
+Shared ADB restart was removed. An unresolved started-instance cleanup blocks
+opening more instances rather than accumulating windows with uncertain ownership.
+
+Live index5 / 4-Em Pé, explicit emulator-5564: journal242 is VERIFIED from one
+original tap, two removed claimable cards, badge9->7 in two fresh captures and the
+independent receipt. Original report 20261011-081259-177703Z-997abf72; reconciliation
+uses 20261011-082511-459379Z-4b2a11b0. Journal243 dispatched one mission confirmation;
+saved frames show blue Go controls replaced by running timers. Keep243 POSSIBLE.
+Journal241 remains locked historical modal-opening evidence; do not rewrite it.
+
+Report 20261011-091857-925916Z-9d41c2be: journal245 VERIFIED by existing saved-frame
+reconciliation: Nhận -> Đã Nhận in two captures;20 Event points (1000->1020).
+Journal244 is dispatched/POSSIBLE; independent proof incomplete; do not retry.
+Original journal240 remains VERIFIED and unchanged. These are not fleet PASS.
+Index5 cleanup SUCCESS and selection restored; remaining targets resume serially.
+
+Current sequential checkpoint: index8/Soup report
+20261011-095549-313827Z-e2a48466 is PARTIAL (unknown Event/recovery), no new
+claims, cleanup SUCCESS, unselected/stopped. Index9/Mini Queen report
+20261011-095755-939744Z-70f71d27 cannot verify emulator-5572. A bounded
+verify-only re-probe also failed; no game input or claim. Index9 remains running
+unselected with OWNERSHIP_UNKNOWN. Do not stop it without ownership proof or
+open more windows while this run-started window remains unresolved. User has
+been asked to close exactly index9 manually; configuration is read-only.
+Pending:9,10,11,4,2,3. Protected actions0; no Phase9; never report fleet PASS.
+
+Qualified receipt layout reuses unique title/continue anchors for the helper-report
+variant. Scrolled task cards use a strict filled-border fallback; independent
+caption/fraction readings plus full bar/free-control proof remain required. A
+compact claimed-label glyph verifies the unavailable state, never popup-only
+success. Independent qualified Home roots can continue despite an unrelated
+unqualified badge; the coverage blocker still prevents overall PASS.
+
+Evidence/checkpoint: artifacts/phase8-current-checkpoint.json and local diagnostics.
+Targeted geometry, journal, lifecycle, traversal, receipt and anti-repeat groups
+PASS; Ruff and diff review PASS. Full CI/portable delivery follow the cohesive
+repair batch. Preserve diagnostics and journals; keep only latest1-2 test binaries.
+No Phase6/7 gameplay or Phase9.
+
 # Phase 8 â€” Dynamic Seasonal / Event Free Reward Explorer
 
 ## Scope and current checkpoint

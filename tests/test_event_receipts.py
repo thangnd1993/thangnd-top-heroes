@@ -80,3 +80,31 @@ def test_known_match_notice_qualifies_dismissal_without_go_permission():
         image = screen.normalized.copy()
         image[b.y:b.y+b.height, b.x:b.x+b.width] = 0
         assert detector.detect(replace(screen, normalized=image)).state != ScreenState.EVENT_PROMO
+
+
+def test_expedition_receipt_report_variant_reuses_paired_anchors():
+    payload=(Path(__file__).parent/'fixtures/phase8/relic-receipt-reports.png').read_bytes()
+    screen=ScreenshotService(lambda _:payload).take(Target(5,'fixture','explicit','boot'))
+    detector=RecoveryScreenDetector()
+    result=detector.detect(screen)
+    assert result.state==ScreenState.REWARD_RECEIPT
+    assert {e.anchor_id for e in result.evidence}=={'large-receipt-title','large-receipt-continue'}
+    assert dismiss_overlay_bottom_left(screen,result)==(58,1203)
+    for evidence in result.evidence:
+        box=evidence.normalized_box
+        image=screen.normalized.copy()
+        image[box.y:box.y+box.height,box.x:box.x+box.width]=0
+        assert detector.detect(replace(screen,normalized=image)).state!=ScreenState.REWARD_RECEIPT
+
+
+def test_lower_title_is_not_rescued_as_expedition_receipt():
+    payload=(Path(__file__).parent/'fixtures/phase8/relic-receipt-reports.png').read_bytes()
+    screen=ScreenshotService(lambda _:payload).take(Target(5,'fixture','explicit','boot'))
+    detector=RecoveryScreenDetector()
+    title=next(e for e in detector.detect(screen).evidence if e.anchor_id=='large-receipt-title')
+    b=title.normalized_box
+    image=screen.normalized.copy()
+    crop=image[b.y:b.y+b.height,b.x:b.x+b.width].copy()
+    image[b.y:b.y+b.height,b.x:b.x+b.width]=0
+    image[b.y:b.y+b.height,b.x-250:b.x-250+b.width]=crop
+    assert detector.detect(replace(screen,normalized=image)).state!=ScreenState.REWARD_RECEIPT

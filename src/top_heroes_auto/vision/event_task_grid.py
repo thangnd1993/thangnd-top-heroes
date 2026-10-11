@@ -36,6 +36,10 @@ def grid_label_glyph(image,row):
 
 
 def task_grid_shell(image):
+    return _task_grid_shell(image) or _task_grid_shell(image, filled_cards=True)
+
+
+def _task_grid_shell(image, *, filled_cards=False):
     # Existing event transport uses portrait pixels. Normalize visual inspection,
     # then map every current box back to the actual captured image.
     h,w=image.shape[:2]
@@ -55,7 +59,7 @@ def task_grid_shell(image):
     if not panels or any(abs(a.center[0]-b.center[0])>5 or abs(a.center[1]-b.center[1])>5 for a in panels for b in panels):
         return None
     panel=max(panels,key=lambda b:b.width*b.height)
-    bottom=panel.y+panel.height-round(1280*.04)
+    bottom=panel.y+panel.height-round(1280*(.02 if filled_cards else .04))
     cards=[]
     for c in contours:
         x,y,bw,bh=cv2.boundingRect(c)
@@ -63,6 +67,26 @@ def task_grid_shell(image):
         if (720*.20<bw<720*.30 and 1280*.25<bh<1280*.31 and cv2.contourArea(c)/(bw*bh)>.94
                 and panel.y+1280*.25<y and y+bh<=bottom and _contains(panel,b)
                 and not any(abs(x-a.x)<8 and abs(y-a.y)<8 for a in cards)):
+            cards.append(b)
+    # Artwork can break Canny borders on a scrolled card. The same current
+    # purple card surface supplies independent complete rectangle evidence.
+    purple=cv2.inRange(cv2.cvtColor(view,cv2.COLOR_BGR2HSV),(110,10,70),(155,110,230))
+    for contour in (cv2.findContours(purple,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[0] if filled_cards else ()):
+        x,y,bw,bh=cv2.boundingRect(contour)
+        if not (720*.20<bw<720*.30 and 1280*.25<bh<1280*.31
+                and cv2.contourArea(contour)/(bw*bh)>.94):
+            continue
+        crop=purple[y:y+bh,x:x+bw]>0
+        spans=np.flatnonzero(crop.mean(axis=1)>=.90)
+        if not len(spans):
+            continue
+        top,end=int(spans[0]),int(spans[-1])+1
+        rail=crop[top:end]
+        side_rows=(rail[:,:8].mean(axis=1)>.70)&(rail[:,-8:].mean(axis=1)>.70)
+        b=BoundingBox(x,y+top,bw,end-top)
+        if (side_rows.mean()>=.94 and 1280*.24<b.height<1280*.31
+                and panel.y+1280*.25<b.y and b.y+b.height<=bottom and _contains(panel,b)
+                and not any(abs(b.x-a.x)<8 and abs(b.y-a.y)<8 for a in cards)):
             cards.append(b)
     if len(cards)<2 or max(b.width for b in cards)-min(b.width for b in cards)>8 or max(b.height for b in cards)-min(b.height for b in cards)>8:
         return None
@@ -96,7 +120,7 @@ def task_grid_shell(image):
         return BoundingBox(round(b.x*w/720),round(b.y*h/1280),round(b.width*w/720),round(b.height*h/1280))
 
     return dict(title='functional-race-task-grid',page='event:functional-race-task-grid:race-task-grid',
-        selected=[],tabs=[],back=mapped(closes[0]),permission='TASK_GRID',
+        selected=[],tabs=[],back=mapped(closes[0]),permission='TASK_GRID',filled_card_geometry=filled_cards,
         cards=tuple(mapped(b) for b in sorted(cards,key=lambda b:(b.y,b.x))),scroll=mapped(scroll),
         functional_anchors={'tasks-word':asdict(mapped(title)),'race-word':asdict(mapped(race)),'close-core':asdict(mapped(core))})
 
@@ -120,6 +144,12 @@ def task_grid_rows(image,shell,*,reader):
             # agreement from two larger unmasked readings; never fuzzy-correct.
             crop=image[b.y+round(b.height*.46):b.y+round(b.height*.66),b.x+8:b.x+b.width-8]
             caption=[folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=s,fy=s)))) for s in (2,3)]
+        if caption[0]!=caption[1] and shell.get('filled_card_geometry'):
+            # Colored borders end inside rounded corners: the old ratio clips
+            # the first caption row. Keep the larger crop within this card and
+            # require exact independent readings, never fuzzy title correction.
+            crop=image[b.y+round(b.height*.43):b.y+round(b.height*.66),b.x+4:b.x+b.width-4]
+            caption=[folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=s,fy=s)))) for s in (3,5)]
         if caption[0]!=caption[1] or len(caption[0])<10 or not any(c.isalpha() for c in caption[0]):
             continue  # No durable identity from a position, run or whole image hash.
         identity='task-caption:'+caption[0]
@@ -163,6 +193,15 @@ def task_grid_rows(image,shell,*,reader):
             crop=image[b.y+round(b.height*.64):b.y+round(b.height*.73),b.x+8:b.x+b.width-8]
             rendered=cv2.copyMakeBorder(crop,10,10,10,10,cv2.BORDER_CONSTANT,value=(255,255,255))
             texts=[folded(' '.join(q['text'] for q in reader(cv2.resize(rendered,None,fx=s,fy=s)))) for s in (4,5)]
+            fractions=[re.findall(r'(?<!\d)(\d+)\s*/\s*(\d+)(?!\d)',t) for t in texts]
+        if not any(fractions) and shell.get('filled_card_geometry'):
+            # The compact scrolled variant uses green fraction glyphs. Exclude
+            # white artwork/percent text and require two exact fractions.
+            crop=image[b.y+round(b.height*.635):b.y+round(b.height*.74),b.x+8:b.x+b.width-8]
+            numeric=cv2.inRange(cv2.cvtColor(crop,cv2.COLOR_BGR2HSV),(20,60,120),(85,255,255))
+            rendered=cv2.copyMakeBorder(cv2.cvtColor(255-numeric,cv2.COLOR_GRAY2BGR),10,10,10,10,
+                                       cv2.BORDER_CONSTANT,value=(255,255,255))
+            texts=[folded(' '.join(q['text'] for q in reader(cv2.resize(rendered,None,fx=s,fy=s)))) for s in (3,4)]
             fractions=[re.findall(r'(?<!\d)(\d+)\s*/\s*(\d+)(?!\d)',t) for t in texts]
         progress_crop=image[b.y+round(b.height*.70):b.y+round(b.height*.80),b.x:b.x+b.width]
         progress_green=cv2.inRange(cv2.cvtColor(progress_crop,cv2.COLOR_BGR2HSV),(35,60,80),(85,255,255))
@@ -212,7 +251,12 @@ def unresolved_grid_actions(image, shell, rows):
 
 
 def claimed_grid_label(crop,column):
-    ref=cv2.imread(str(template_folder().parent/'tasks/phase8/task-grid/claimed-word.png'),cv2.IMREAD_GRAYSCALE)
+    original=_claimed_grid_label(crop,column,'claimed-word.png')
+    return original or _claimed_grid_label(crop,column,'claimed-word-compact.png')
+
+
+def _claimed_grid_label(crop,column,filename):
+    ref=cv2.imread(str(template_folder().parent/'tasks/phase8/task-grid'/filename),cv2.IMREAD_GRAYSCALE)
     if ref is None or crop.shape[0]<ref.shape[0] or crop.shape[1]<ref.shape[1]:
         return None
     hsv=cv2.cvtColor(crop,cv2.COLOR_BGR2HSV)

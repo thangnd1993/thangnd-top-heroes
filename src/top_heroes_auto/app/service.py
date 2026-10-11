@@ -290,7 +290,6 @@ class Manager:
             raise SafetyError("Android chưa sẵn sàng; không thể xác minh ADB.")
         self.adb.start_server()
         deadline = time.monotonic() + self.ADB_RESOLVE_TIMEOUT
-        recovered_server = False
         original_serial = original_boot = None
         while True:
             self._same_runtime(index, instance)
@@ -366,17 +365,7 @@ class Manager:
                 log.info("[%s / #%s] Đã xác minh ADB %s", instance.name, index, target_serial)
                 return Target(index, self._check(index).name, target_serial, expected, instance.stable_id)
             if time.monotonic() >= deadline:
-                # Shared-daemon recovery is allowed once, and only when no
-                # other Android device is present and no other LDPlayer is
-                # running. It is never the normal first strategy.
-                others_running = any(
-                    item.index != index and item.running for item in self.ld.list_instances()
-                )
-                if not recovered_server and not devices and not others_running:
-                    recovered_server = True
-                    self.adb.restart_server()
-                    deadline = time.monotonic() + self.ADB_RESOLVE_TIMEOUT
-                    continue
+                # Shared ADB belongs to all instances; never restart it here.
                 raise TransportResolutionError(
                     f"LDPlayer xác định ADB {serial} cho #{index}, nhưng target không sẵn sàng; "
                     "kiểm tra ADB debugging của đúng instance."

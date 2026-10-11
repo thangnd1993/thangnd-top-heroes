@@ -1,7 +1,7 @@
 """Current-frame event entry transport. Unknown event contents remain fail-closed."""
 import json
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 import cv2
 
@@ -135,7 +135,12 @@ class DynamicEventPort:
         # Do not infer safe navigation or free rewards from arbitrary event art.
         # Event content contracts need clean real evidence, including paid controls.
         if self.entered and page != 'home' and not dialog:
-            shell = event_shell(image,observed.box('back'),reader=read_words)
+            from top_heroes_auto.vision.relic_expedition import confirm_send
+
+            mission_modal = confirm_send(image)
+            shell = (dict(page='event:relic-expedition:confirm',title='relic-expedition-confirm',
+                          back=mission_modal['close'],tabs=[],selected=[],permission='MISSION_CONFIRM')
+                     if mission_modal else event_shell(image,observed.box('back'),reader=read_words))
             if shell is None:
                 shell=competitive_navigation_shell(image,observed.box('back'))
             if shell is None:
@@ -200,12 +205,23 @@ class DynamicEventPort:
                             round(first.width*.40),last.y+last.height-first.y-40)
                         controls.append(Control('task-list-vertical',surface,
                             ('selected-task-context','complete-card-list','outside-action-column'),'scroll'))
+                if context is not None:
+                    from top_heroes_auto.vision.relic_expedition import quick_send
+
+                    send = quick_send(image,self.task_context,reader=read_words)
+                    if send:
+                        controls.append(Control('relic-expedition-quick-send',send['box'],
+                            send['evidence'],'mission',cost='FREE',available=True,forbidden=send['forbidden']))
                 if shell.get('permission')=='BACK_ONLY':
                     competitive_evidence=competitive_indicator_contract(image,shell,reader=read_words)
                 contract=('ACHIEVEMENTS' if achievements and len(self.rows)==len(shell['cards']) and all(r['state']!='UNKNOWN' for r in self.rows) else 'UNSUPPORTED' if achievements else 'TASK_GRID' if grid else (
                     'COMPETITIVE_OUT_OF_SCOPE_INDICATORS' if competitive_evidence else
                     ('UNSUPPORTED' if shell.get('permission')=='BACK_ONLY' else
                      event_body_contract(image,self.rows,self.task_context,reader=read_words))))
+                if mission_modal:
+                    contract='MISSION_CONFIRM'
+                    controls.append(Control('relic-expedition-confirm-send',mission_modal['box'],
+                        mission_modal['evidence'],'mission',cost='FREE',available=True))
                 coverage_known=contract!='UNSUPPORTED'
                 achievement = achievement_navigation(image)
                 if achievement and shell.get('permission') != 'BACK_ONLY':
@@ -420,6 +436,61 @@ class DynamicEventPort:
             # before any nested navigation or independent reward evaluation.
             return
         raise EventEntryUnstable('Event entry could not be uniquely reacquired in 3 fresh frames; no input.')
+
+    def send_mission(self, frame, control):
+        """One durable dispatch of the qualified free expedition action, never a reward receipt."""
+        if (frame is not self.current or frame.popup or control not in frame.controls
+                or control.kind != 'mission' or control.identity not in {
+                    'relic-expedition-quick-send','relic-expedition-confirm-send'}):
+            raise SafetyError('Unqualified expedition send.')
+        fresh = self.observe()
+        matches = [c for c in fresh.controls if c.kind == 'mission' and c.identity == control.identity]
+        if (runtime_key(fresh.identity) != runtime_key(frame.identity) or fresh.page != frame.page
+                or fresh.popup or len(matches) != 1 or matches[0] != control):
+            raise SafetyError('Expedition send changed; no input.')
+        # Reuse the durable one-shot boundary; report separately from reward claims.
+        action = replace(control,kind='reward')
+        proof = replace(fresh,controls=(action,))
+        if control.identity == 'relic-expedition-quick-send':
+            # This opens the qualified selection modal; it sends no expedition.
+            # Historical journal rows stay locked and are never rewritten.
+            from top_heroes_auto.automation.dynamic_events import free_geometry
+
+            point = free_geometry(action)
+            self.current = None
+            self.transport.dispatch(self.transport.last,'tap',point)
+            time.sleep(.5)
+            after = self.observe()
+            opened = (runtime_key(after.identity) == runtime_key(frame.identity)
+                      and after.page == 'event:relic-expedition:confirm' and not after.popup
+                      and any(c.identity == 'relic-expedition-confirm-send' for c in after.controls))
+            return dict(result='NAVIGATION_SUCCESS' if opened else 'NAVIGATION_UNVERIFIED',
+                        mission_dispatched=False, navigation_dispatched=True, journal='NONE',
+                        action_type='OPEN_MISSION_SELECTION', first_post_capture=after.capture,
+                        first_post_page=after.page)
+        store = self.session.manager.store
+        task = store.create_task_run(self.session.manager.namespace,'event-mission-send',
+                                    self.session.index,self.session.name)
+        path = self.folder/f'mission-{task}.json'
+        def persist(result):
+            path.write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+        def dispatch(before,target,point,intent):
+            if self.current is not fresh or before is not proof or target is not action:
+                raise SafetyError('Mission frame ownership changed.')
+            self.transport.dispatch(self.transport.last,'tap',point,before_input=intent)
+            self.current = None
+        result = dispatch_once(store,task,self.session.manager.namespace,proof,action,
+            event_identity='relic-expedition-mission',persistent_identity=self.session.target['persistent_identity'],
+            dispatch=dispatch,postcondition=lambda *a: [],persist=persist)
+        if result.get('claim_dispatched'):
+            after = self.observe()
+            result['first_post_capture'] = after.capture
+            result['first_post_page'] = after.page
+        result['mission_dispatched'] = result.pop('claim_dispatched',False)
+        result['action_type'] = 'MISSION_SEND_NOT_REWARD'
+        persist(result)
+        store.finish_task_run(task,result['result'],report_path=str(path))
+        return result
 
     def claim(self, frame, control):
         if control is None or frame is not getattr(self,'current',None) or control not in frame.controls or control.kind!='reward':

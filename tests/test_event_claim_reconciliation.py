@@ -140,3 +140,22 @@ def test_verified_partial_batch_cannot_reopen_unidentified_offscreen_reward(tmp_
     assert result[0]['state']=='UNKNOWN'
     result=bind_saved_rewards(current,[{**changed,'state':'NOT_AVAILABLE'}],[claim],persistent_identity='disk',index=13)
     assert result[0]['state']=='NOT_AVAILABLE'
+
+
+def test_qualified_mission_journal_does_not_block_independent_reward_cards(tmp_path):
+    from top_heroes_auto.automation.event_journal import reward_key
+    image,row,_=evidence(tmp_path)
+    proof=dict(event='relic-expedition-mission',page='event:event:personal-tasks',
+        reward='relic-expedition-quick-send',identity=[13,'disk','explicit','boot'],
+        persistent_identity='disk',possible_affected_rewards=['relic-expedition-quick-send'],
+        evidence=['qualified-relic-expedition-title','selected-task-context',
+                  'exact-clean-quick-send-glyph','separate-paid-refresh','user-authorized-free-mission'])
+    claim=dict(reward_id=reward_key(proof['event'],proof['page'],proof['reward']),
+               status='RESERVED',dispatch_state='POSSIBLE',before_evidence=json.dumps(proof))
+    before=dict(claim)
+    result=bind_saved_rewards(image,[row],[claim],persistent_identity='disk',index=13)
+    assert result[0]==row and claim==before
+    proof['possible_affected_rewards'].append(row['identity'])
+    claim['before_evidence']=json.dumps(proof)
+    with pytest.raises(SafetyError,match='Unqualified saved mission'):
+        bind_saved_rewards(image,[row],[claim],persistent_identity='disk',index=13)

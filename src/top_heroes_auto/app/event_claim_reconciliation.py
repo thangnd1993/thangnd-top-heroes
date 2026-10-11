@@ -26,6 +26,26 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index, famil
         if not claim['reward_id'].startswith('event:'):
             continue
         proof = json.loads(claim['before_evidence'])
+        if proof.get('persistent_identity') != persistent_identity or proof['identity'][0] != index:
+            raise SafetyError('Saved Event claim target identity changed.')
+        if proof.get('event') == 'relic-expedition-mission':
+            from top_heroes_auto.automation.event_journal import reward_key
+
+            action = proof.get('reward')
+            markers = set(proof.get('evidence', ()))
+            required = ({'qualified-relic-expedition-title', 'selected-task-context',
+                         'exact-clean-quick-send-glyph', 'separate-paid-refresh'}
+                        if action == 'relic-expedition-quick-send' else
+                        {'paired-expedition-modal-title', 'selected-mission-checks',
+                         'exact-no-cost-blue-confirm'} if action == 'relic-expedition-confirm-send' else None)
+            if (not required or not required.issubset(markers)
+                    or 'user-authorized-free-mission' not in markers
+                    or claim['reward_id'] != reward_key(proof['event'], proof.get('page'), action)
+                    or set(proof.get('possible_affected_rewards', ())) - {action}):
+                raise SafetyError('Unqualified saved mission identity; keep claim locks.')
+            # Mission/open-menu records are not reward-card captions. Keep their
+            # durable one-shot locks; dispatch_once still checks these records.
+            continue
         page=proof.get('page','')
         saved_family=('personal-tasks' if page.endswith(':personal-tasks') else
                       ('race-task-grid' if page.endswith(':race-task-grid') else

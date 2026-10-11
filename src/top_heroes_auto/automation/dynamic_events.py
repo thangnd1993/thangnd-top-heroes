@@ -98,15 +98,17 @@ class DynamicEventExplorer:
     def __init__(self, limits=None):
         self.limits = limits or Limits()
 
-    def run(self, port, *, persist=lambda report: None):
+    def run(self, port, *, persist=lambda report: None, initial_event=None):
         report = Exploration()
         transport = None
         captures, edges, attempted, exhausted_scrolls = set(), set(), set(), set()
         scroll_counts, scroll_views = {}, {}
         visited_tabs = set()
-        stack = []
-        active = None
-        active_seen = False
+        stack = ["home"] if initial_event else []
+        active = initial_event
+        active_seen = bool(initial_event)
+        if initial_event:
+            report.events[initial_event] = dict(result="ENTERED",visits=1,nested_traversal=[],reward_results=[],blockers=[])
         pending = None
         transitions = 0
         empty_home_passes = 0
@@ -228,9 +230,12 @@ class DynamicEventExplorer:
                     if (active in reentries or not frame.coverage_known or frame.blocked
                             or len(candidates)!=1):
                         block('UNEXPECTED_EVENT_EXIT_UNRESOLVED',frame)
-                        if not frame.coverage_known or frame.blocked:
+                        if (not frame.event_scan_performed or
+                                set(frame.blocked)-{'UNQUALIFIED_NOTIFICATION_GEOMETRY'}):
                             break
-                        # A proven Home abandons only this blocked branch. Clear
+                        # A proven Home abandons only this blocked branch. An
+                        # unrelated unqualified badge still blocks overall PASS,
+                        # but cannot invalidate another qualified current root. Clear
                         # its navigation route; keep visited edges and claim locks.
                         # Other current roots may proceed from a NEW Home capture.
                         active=None
@@ -389,6 +394,20 @@ class DynamicEventExplorer:
                         break
                     if control:
                         continue  # Claims consume the frame; never navigate on it.
+                    for mission in (c for c in frame.controls if c.kind == 'mission'):
+                        key = active, frame.page, mission.identity, mission.period
+                        if key in attempted:
+                            continue
+                        attempted.add(key)
+                        result = port.send_mission(frame,mission)
+                        report.actions.append(dict(kind='mission',capture=frame.capture,identity=mission.identity,result=result))
+                        if result.get('result') not in {'NAVIGATION_SUCCESS', 'SUCCESS', 'ALREADY_VERIFIED'}:
+                            block(result.get('result', 'MISSION_UNVERIFIED'), frame)
+                        persist(asdict(report))
+                        control = mission
+                        break
+                    if control:
+                        continue
                     for c in frame.controls:
                         key = active, frame.page, c.identity
                         if c.kind == 'tab' and (active,tuple(stack),c.identity) not in visited_tabs:

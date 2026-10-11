@@ -266,7 +266,7 @@ def test_shared_adb_restart_requires_no_devices_and_no_other_running_instance(ri
     assert not any(call[1] == "kill-server" for call in process.calls)
 
 
-def test_shared_adb_restart_allowed_once_under_safe_preconditions(rig):
+def test_shared_adb_restart_forbidden_even_with_only_target_running(rig):
     manager, process, _ = rig
     manager.ADB_RESOLVE_TIMEOUT = 0
     process.listing = ONLY_TARGET_RUNNING
@@ -281,8 +281,9 @@ def test_shared_adb_restart_allowed_once_under_safe_preconditions(rig):
             process.devices_output = "List of devices attached\nemulator-5568\tdevice\n"
 
     process.hook = hook
-    assert "emulator-5568" in manager.execute(7, "verify")
-    assert kills == 1
+    with pytest.raises(SafetyError):
+        manager.execute(7, "verify")
+    assert kills == 0
 
 
 @pytest.mark.parametrize("action", ["launch", "reboot"])

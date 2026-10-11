@@ -259,7 +259,9 @@ class RecoveryScreenDetector:
             title = boxes['large-receipt-title']
             continuation = boxes['large-receipt-continue']
             width, height = screen.device_size or screen.original_size
-            return (title.y + title.height < height*.12
+            # Expedition receipts add helper reports below the rewards; the
+            # same unique title sits lower, still above the upper fifth.
+            return (title.y + title.height < height*.20
                     and continuation.y > height*.85
                     and continuation.y-title.y > height*.70
                     and all(abs(b.center[0]-width*.5) < width*.10

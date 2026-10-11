@@ -314,6 +314,20 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         report['accounts'].append(row)
         write(path, report)
         progress(f"INSTANCE END #{target['index']}: {row['result']}")
+        cleanup_uncertain = (row['cleanup'] == 'OWNERSHIP_UNKNOWN' or row['cleanup'].startswith('FAILED'))
+        if cleanup_uncertain and not target.get('preflight_running', False):
+            # A failed start may leave a window without verified ADB ownership.
+            # Do not accumulate more started windows or guess who may stop it.
+            try:
+                remains_running = manager.query(target['index']).running
+            except (SafetyError, OSError, ValueError):
+                remains_running = True
+            if remains_running:
+                report['continuation_blocker'] = 'PRIOR_STARTED_INSTANCE_CLEANUP_UNRESOLVED'
+                processed = {a['index'] for a in report['accounts']}
+                report['pending_indexes'] = [t['index'] for t in targets if t['index'] not in processed]
+                write(path, report)
+                break
     # A preserved journal must remain byte-for-byte unchanged throughout the run.
     final_exceptions = preserved_claims(manager, previous, targets, preserve_possible)
     report['preserved_journals_unchanged'] = final_exceptions == exceptions

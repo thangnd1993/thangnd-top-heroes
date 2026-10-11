@@ -429,3 +429,25 @@ def test_unauthorized_resource_does_not_fail_other_independent_flows(rig,tmp_pat
     assert account['rewards']['wood-only']['result'] == 'RESOURCE_NOT_AUTHORIZED'
     assert account['rewards']['later']['result'] == 'NOT_AVAILABLE'
     assert calls[-2:] == [(7,'later-independent',('later',)),(7,'cleanup')]
+
+
+@pytest.mark.parametrize('still_running',[True,False])
+def test_uncertain_start_cleanup_cannot_accumulate_running_instances(rig,tmp_path,monkeypatch,still_running):
+    from types import SimpleNamespace
+    manager,process,_=rig
+    process.listing=process.listing.replace('7,Farm-007,3,4,1,201,202','7,Farm-007,0,0,0,-1,-1')
+    process.listing+='13,another,0,0,0,-1,-1\n'
+    calls=[]
+    registry,base,_=setup(calls)
+    class Uncertain(base):
+        def close(self):
+            result=super().close()
+            result['cleanup']='OWNERSHIP_UNKNOWN'
+            return result
+    monkeypatch.setattr(manager,'query',lambda _:SimpleNamespace(running=still_running))
+    result=fleet.run(manager,tmp_path,registry=registry,session_factory=Uncertain,identity_reader=lambda *a:'disk')
+    started=[c[0] for c in calls if c[1]=='start']
+    assert started==([7] if still_running else [7,13])
+    if still_running:
+        assert result['pending_indexes']==[13]
+        assert result['result']=='PARTIAL'

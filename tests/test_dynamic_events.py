@@ -663,3 +663,15 @@ def test_blocked_root_is_retired_only_on_fresh_safe_home_then_sibling_runs():
     assert sum(c[1]=='event' and c[2]=='bad' for c in p.calls)==2
     assert sum(c[1]=='event' and c[2]=='good' for c in p.calls)==1
     assert not result.rewards
+
+
+def test_unqualified_home_badge_does_not_cancel_independent_qualified_root_after_exit():
+    a,b,parent=control('first','event'),control('second','event'),control('back','parent')
+    unknown=dict(coverage_known=False,blocked=('UNQUALIFIED_NOTIFICATION_GEOMETRY',))
+    home=replace(frame('home',2,[a,b]),**unknown)
+    p=Port([frame('home',0,[a,b]),frame('first-page',1,[],parent=parent),
+            home,replace(home,capture='3'),frame('second-page',4,[],parent=parent),
+            frame('home',5,[a,b])])
+    r=DynamicEventExplorer().run(p)
+    assert any(c[1]=='event' and c[2]=='second' for c in p.calls)
+    assert r.result=='BLOCKED'

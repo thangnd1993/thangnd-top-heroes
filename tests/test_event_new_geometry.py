@@ -329,3 +329,44 @@ def test_unmasked_caption_fallback_requires_exact_pair_not_fuzzy_agreement():
         return reader(crop)
 
     assert not task_grid_rows(im,shell,reader=read)
+
+
+def test_scrolled_five_card_grid_keeps_current_claim_and_safe_gutter():
+    from top_heroes_auto.vision.event_task_grid import task_grid_rows, task_grid_shell
+    from top_heroes_auto.vision.local_ocr import read_words
+    image=cv2.imread('tests/fixtures/phase8/task-grid-bottom-five.png')
+    shell=task_grid_shell(image)
+    assert shell and len(shell['cards'])==5
+    rows=task_grid_rows(image,shell,reader=read_words)
+    available=[r for r in rows if r['state']=='AVAILABLE']
+    assert len(available)==1
+    assert available[0]['box'].center[1]>900
+    gutter=shell['scroll']
+    assert all(gutter.x+gutter.width<=b.x or gutter.x>=b.x+b.width for b in shell['cards'])
+
+
+@pytest.mark.parametrize('defect',['title','close','progress'])
+def test_scrolled_grid_still_rejects_missing_independent_proof(defect):
+    from top_heroes_auto.vision.local_ocr import read_words
+    im=image('task-grid-bottom-five')
+    shell=task_grid_shell(im)
+    if defect in {'title','close'}:
+        b=shell['functional_anchors']['tasks-word' if defect=='title' else 'close-core']
+        im[b['y']:b['y']+b['height'],b['x']:b['x']+b['width']]=0
+        assert task_grid_shell(im) is None
+    else:
+        b=shell['cards'][3]
+        im[b.y+round(b.height*.63):b.y+round(b.height*.80),b.x+8:b.x+b.width-8]=0
+        assert not any(r['state']=='AVAILABLE' for r in task_grid_rows(im,shell,reader=read_words))
+
+
+def test_compact_claimed_state_is_positive_and_not_an_active_reward():
+    from top_heroes_auto.vision.local_ocr import read_words
+    im=image('task-grid-bottom-claimed')
+    shell=task_grid_shell(im)
+    rows=task_grid_rows(im,shell,reader=read_words)
+    claimed=[r for r in rows if 'explicit-claimed-label' in r['evidence']]
+    assert len(claimed)==1 and claimed[0]['state']=='NOT_AVAILABLE'
+    before=image('task-grid-bottom-five')
+    prior=task_grid_rows(before,task_grid_shell(before),reader=read_words)
+    assert claimed[0]['identity']==next(r['identity'] for r in prior if r['state']=='AVAILABLE')
