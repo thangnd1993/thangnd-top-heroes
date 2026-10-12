@@ -18,7 +18,7 @@ def image(name='paid-offer-one'):
     return cv2.imread(str(ROOT/(name+'.png')))
 
 
-@pytest.mark.parametrize('name',['paid-offer-one','paid-offer-two'])
+@pytest.mark.parametrize('name',['paid-offer-one','paid-offer-two','paid-offer-antialiased'])
 def test_current_paid_modal_only_qualifies_close(name):
     im=image(name)
     result=paid_modal_navigation(im)
@@ -67,6 +67,33 @@ def test_modal_can_move_and_price_digits_can_change():
     moved[c.y+8:c.y+8+c.height,c.x-6:c.x-6+c.width]=patch
     new=paid_modal_navigation(moved)
     assert new and new['close']==replace(current['close'],x=current['close'].x-6,y=current['close'].y+8)
+
+
+@pytest.mark.parametrize('role',['close','paid_region'])
+def test_current_raster_variant_requires_all_controls(role):
+    im=image('paid-offer-antialiased')
+    proof=paid_modal_navigation(im)
+    b=proof[role]
+    im[b.y:b.y+b.height,b.x:b.x+b.width]=0
+    assert paid_modal_navigation(im) is None
+
+
+def test_two_different_close_variants_cannot_authorize_input():
+    im=image('paid-offer-antialiased')
+    older=image()
+    b=paid_modal_navigation(older)['close']
+    im[400:400+b.height,100:100+b.width]=older[b.y:b.y+b.height,b.x:b.x+b.width]
+    assert paid_modal_navigation(im) is None
+
+
+def test_tooltip_price_fallback_still_requires_orange_paid_control():
+    im=image('paid-offer-antialiased')
+    b=paid_modal_navigation(im)['paid_region']
+    hsv=cv2.cvtColor(im,cv2.COLOR_BGR2HSV)
+    part=hsv[b.y:b.y+b.height,b.x:b.x+b.width]
+    orange=cv2.inRange(part,(10,100,100),(35,255,255))>0
+    part[orange,0]=70
+    assert paid_modal_navigation(cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)) is None
 
 
 @pytest.mark.parametrize('name',['world-map-one','world-attack-confirmation','task-grid-tall-fraction'])

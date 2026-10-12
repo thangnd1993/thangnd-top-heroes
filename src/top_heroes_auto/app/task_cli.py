@@ -162,7 +162,12 @@ def run_idle_reward_diagnostic(
     *,
     cancelled=lambda: False,
     task: IdleRewardTask | None = None,
+    session=None,
 ) -> tuple[IdleRewardResult, Path, bool, int]:
+    if session is not None:
+        if session.manager is not manager or session.index != index:
+            raise SafetyError('Idle session target mismatch.')
+        session.check()
     target = _instance(manager, index, name)
     queen = _instance(manager, 0, "Queen")
     if not manager.store.metadata(manager.namespace, queen.index).protected:
@@ -172,7 +177,8 @@ def run_idle_reward_diagnostic(
         raise SafetyError("Idle Reward target must be selected and not Protected.")
 
     before = _state(manager.list_readonly())
-    snapshot = bound_snapshot(manager.store, manager.namespace, ((index, name),), True)
+    snapshot = session.snapshot if session is not None else bound_snapshot(
+        manager.store, manager.namespace, ((index, name),), True)
     folder = data / "diagnostics" / "tasks" / TASK_NAME / f"{index}-{dict(snapshot.identities)[index]}" / _stamp()
     folder.mkdir(parents=True, exist_ok=False)
     task_run_id = manager.store.create_task_run(manager.namespace, TASK_NAME, index, name)
@@ -194,14 +200,12 @@ def run_idle_reward_diagnostic(
             json.dumps({'task_run_id': task_run_id, 'scope': 'pre-dispatch task lock'}),
             expected_instance=(index, name), not_dispatched=True,
         )
-        recovery, recovery_report, started_by_run = run_home_recovery(
-            manager,
-            data,
-            index,
-            name,
-            cancelled=cancelled,
-            cleanup_owned=False,
-        )
+        if session is not None:
+            recovery, recovery_report, _ = session.recover()
+        else:
+            recovery, recovery_report, started_by_run = run_home_recovery(
+                manager, data, index, name, cancelled=cancelled, cleanup_owned=False,
+            )
         initial_recovery_result = (
             "SUCCESS"
             if recovery.status in {RecoveryStatus.SUCCESS, RecoveryStatus.ALREADY_HOME}
@@ -242,7 +246,7 @@ def run_idle_reward_diagnostic(
                 result.recovery_result = initial_recovery_result
     except RecoveryFailure as exc:
         initial_recovery_result = "FAILED"
-        started_by_run = exc.started_by_run and not exc.cleanup_attempted
+        started_by_run = session is None and exc.started_by_run and not exc.cleanup_attempted
         recovery_report = exc.report_path
         result = IdleRewardResult(
             IdleRewardStatus.ACTION_FAILED,

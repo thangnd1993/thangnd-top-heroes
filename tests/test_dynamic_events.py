@@ -134,6 +134,34 @@ def test_no_badge_does_not_enter_event():
     assert not p.calls
 
 
+def test_real_tab_crop_jitter_cannot_loop_or_suppress_an_independent_tab():
+    # Actual Soup Oct12 tab boxes: the same icon's outline grew upward by4px,
+    # changing its raw crop identity. Suppression grants no claim permission.
+    e, back = control('root','event'), control('back','parent')
+    evidence = ('event-shell','tab-strip','unique-outlined-icon','rimmed-notification')
+    first = Control('first-render',BoundingBox(318,1196,65,77),evidence,'tab')
+    changed = replace(first,identity='second-render',box=BoundingBox(318,1192,65,81))
+    other = replace(first,identity='independent',box=BoundingBox(452,1196,76,80))
+    p=Port([frame('home',0,[e]),frame('tab-a',1,[first],parent=back),
+        frame('tab-b',2,[changed,other],parent=back),frame('tab-c',3,[],parent=back),frame('home',4)])
+    result=DynamicEventExplorer().run(p)
+    assert [c[2] for c in p.calls if c[1]=='tab']==['first-render','independent']
+    assert any(b['reason']=='TAB_REVISIT_IDENTITY_UNSTABLE' for b in result.blocked)
+    assert result.events['root']['result']=='BLOCKED' and not result.rewards
+
+
+def test_tab_revisit_suppression_is_local_to_its_event():
+    a,b,back=control('a','event'),control('b','event'),control('back','parent')
+    tab=replace(control('tab','tab'),evidence=('event-shell','tab-strip','current-target'))
+    p=Port([frame('home',0,[a,b]),frame('a',1,[tab],parent=back),
+        frame('a-child',2,[],parent=back),frame('home',3,[a,b]),
+        frame('b',4,[replace(tab,identity='different')],parent=back),
+        frame('b-child',5,[],parent=back),frame('home',6,[a,b])])
+    result=DynamicEventExplorer().run(p)
+    assert result.result=='SUCCESS'
+    assert [c[2] for c in p.calls if c[1]=='tab']==['tab','different']
+
+
 def test_repeated_state_terminates_no_progress():
     a=frame('home',0,[control('new','event')])
     p=Port([a,replace(a,capture='fresh')])

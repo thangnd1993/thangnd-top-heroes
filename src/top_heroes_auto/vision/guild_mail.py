@@ -541,7 +541,10 @@ class GuildMailDetector:
                 count = self.local_badge(frame,quick,numbered=True)
                 if count is not None and count > 0:
                     return Opportunity(reward,'AVAILABLE','gifts-quick',quick,count,reward)
-            if quick and self.badge_absent(frame,quick) and self.received_rows(frame) >= 2:
+            # A batch may contain exactly one gift. Its positive received check,
+            # the qualified tab/control, no badge and no remaining claim label
+            # jointly prove exhaustion; a missing badge alone is insufficient.
+            if quick and self.badge_absent(frame,quick) and self.received_rows(frame) >= 1:
                 row_claim = frame.anchors.get('gift-claim')
                 if row_claim is not None and row_claim.score < row_claim.threshold:
                     return Opportunity(reward,'NOT_AVAILABLE',remaining=0,context=reward)

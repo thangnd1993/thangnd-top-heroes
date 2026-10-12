@@ -327,6 +327,10 @@ class HomeRecoveryEngine:
             if detection.state == ScreenState.GAME_HOME:
                 return finish(RecoveryStatus.SUCCESS if result.actions else RecoveryStatus.ALREADY_HOME)
             if detection.state in DISMISSIBLE:
+                # Positive overlay evidence ends the loading stage even before
+                # the second stable frame permits input. A transient next frame
+                # must not inherit an already-expired loading timer.
+                loading_started = None
                 signature = overlay_signature(detection)
                 # Wait for a second current classified frame before any overlay input.
                 if stable_overlay != signature:

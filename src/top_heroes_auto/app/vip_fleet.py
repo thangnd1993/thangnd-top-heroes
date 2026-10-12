@@ -46,6 +46,7 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
     cleanup_attempted = False
     task_id = None
     claim_id = None
+    port = None
     snapshot = bound_snapshot(manager.store, manager.namespace, ((index, name),), True)
     try:
         if session is not None:
@@ -187,6 +188,16 @@ def run_vip_account(manager, data, index, name, folder, *, include_upper_gift=Fa
         )
         return row
     finally:
+        # A journal refusal or uncertain reward must not strand independent
+        # flows inside VIP. Reacquire a fresh frame; the existing return guard
+        # only permits navigation from qualified VIP/receipt evidence.
+        if port is not None and 'return_home' not in row and not cancelled():
+            try:
+                fresh = port.dismiss_receipts(port.observe())
+                row['return_home'] = 'SUCCESS' if port.return_home(fresh) else 'FAILED'
+            except Exception as exc:  # noqa: BLE001 - preserve the original reward/journal outcome
+                row['return_home'] = 'FAILED'
+                row['return_home_error'] = f'{type(exc).__name__}: {exc}'
         if session is None and started and not cleanup_attempted:
             try:
                 manager.execute(index, "quit", snapshot=snapshot)

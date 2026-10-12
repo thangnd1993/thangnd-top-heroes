@@ -55,6 +55,7 @@ def production_registry():
     # point without changing automation_fleet or its instance-first lifecycle.
     # Static imports keep the portable build complete; order is registry order.
     # isort: off
+    from top_heroes_auto.app import idle_flows  # noqa: F401
     from top_heroes_auto.app import reward_flows  # noqa: F401
     from top_heroes_auto.app import guild_mail_flows  # noqa: F401
     from top_heroes_auto.app import dynamic_event_flows  # noqa: F401

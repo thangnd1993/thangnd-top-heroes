@@ -8,6 +8,24 @@ from top_heroes_auto.vision.resources import template_folder
 
 
 def _match(mask, name):
+    names = (name, name+'-raster') if name in {'close-red-core','purchase-remaining'} else (name,)
+    matches=[]
+    for variant in names:
+        box, ambiguous = _match_variant(mask,variant)
+        if ambiguous:
+            return None
+        if box is not None:
+            matches.append(box)
+    if not matches:
+        return None
+    first=matches[0]
+    if any(abs(b.center[0]-first.center[0]) > first.width*.25 or
+           abs(b.center[1]-first.center[1]) > first.height*.25 for b in matches):
+        return None
+    return first
+
+
+def _match_variant(mask, name):
     ref = cv2.imdecode(
         np.frombuffer(
             (template_folder().parent / "tasks/phase8/paid-modal" / (name + ".png")).read_bytes(), np.uint8
@@ -20,16 +38,16 @@ def _match(mask, name):
         or any(a > b for a, b in zip(ref.shape, mask.shape))
         or ref.std() < 1
     ):
-        return None
+        return None, False
     scores = cv2.matchTemplate(mask, ref, cv2.TM_CCOEFF_NORMED)
     _, score, _, (x, y) = cv2.minMaxLoc(scores)
     h, w = ref.shape
     if not np.isfinite(score) or score < 0.995:
-        return None
+        return None, False
     scores[max(0, y - h // 2) : y + h // 2 + 1, max(0, x - w // 2) : x + w // 2 + 1] = -1
     if scores.max() >= 0.995:
-        return None
-    return BoundingBox(x, y, w, h)
+        return None, True
+    return BoundingBox(x, y, w, h), False
 
 
 def contains(a, b):
@@ -81,6 +99,19 @@ def paid_modal_navigation(image):
             and contains(panel, b)
         ):
             prices.append(b)
+    if not prices:
+        # A price tooltip can join the orange component to a decorative bubble.
+        # The actual closed button contour must still contain VND, sit below
+        # the purchase label, and have a strongly orange rectangular interior.
+        for contour in cv2.findContours(edge, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]:
+            x,y,bw,bh=cv2.boundingRect(contour)
+            b=BoundingBox(x,y,bw,bh)
+            if (w*.20 < bw < w*.50 and h*.03 < bh < h*.10
+                    and cv2.contourArea(contour)/(bw*bh) > .90
+                    and float(np.mean(orange[y:y+bh,x:x+bw] > 0)) > .80
+                    and contains(b,vnd) and contains(panel,b)
+                    and remaining.y+remaining.height <= b.y):
+                prices.append(b)
     if len(prices) != 1 or not remaining.y + remaining.height <= prices[0].y:
         return None
     return dict(

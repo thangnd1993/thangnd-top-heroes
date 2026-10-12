@@ -104,6 +104,7 @@ class DynamicEventExplorer:
         captures, edges, attempted, exhausted_scrolls = set(), set(), set(), set()
         scroll_counts, scroll_views = {}, {}
         visited_tabs = set()
+        visited_tab_regions = {}
         stack = ["home"] if initial_event else []
         active = initial_event
         active_seen = bool(initial_event)
@@ -412,6 +413,23 @@ class DynamicEventExplorer:
                         key = active, frame.page, c.identity
                         if c.kind == 'tab' and (active,tuple(stack),c.identity) not in visited_tabs:
                             visited_tabs.add((active,tuple(stack),c.identity))
+                            # Animated outlined tabs can acquire a different
+                            # crop/hash in the same slot. Geometry only DENIES
+                            # a repeated input; it never identifies or authorizes
+                            # a target, reward, journal or resumed route.
+                            if 'tab-strip' in c.evidence:
+                                scope = active, tuple(stack)
+                                regions = visited_tab_regions.setdefault(scope, [])
+                                if any(
+                                    min(c.box.x+c.box.width,b.x+b.width)-max(c.box.x,b.x)
+                                        > .85*max(c.box.width,b.width) and
+                                    min(c.box.y+c.box.height,b.y+b.height)-max(c.box.y,b.y)
+                                        > .85*max(c.box.height,b.height)
+                                    for b in regions
+                                ):
+                                    block('TAB_REVISIT_IDENTITY_UNSTABLE', frame)
+                                    continue  # Other independently qualified tabs can proceed.
+                                regions.append(c.box)
                             path=[edge for edge in path if not (edge[0]==len(stack) and edge[1]=='tab')]
                             path.append((len(stack),'tab',c.identity))
                             control = c

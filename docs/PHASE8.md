@@ -1,3 +1,31 @@
+## Full implemented-scope operation (2026-10-12)
+
+Final operational outcome: PARTIAL. Eight targets attempted;40 new reward actions
+VERIFIED on4,5,8,10,11, plus15 Mail reads VERIFIED and4 Mail POSSIBLE kept locked.
+No new Event claim. All selections restored and owned cleanup completed, including
+5/8 only after original process-time ownership proof. Final inventory all stopped;
+Protected actions0; all229 old journal rows unchanged. See
+[full operation report](FULL-RUN-2026-10-12.md) for real coverage and remaining
+ADB, historical identity, Mail and unqualified Event blockers. Final packaging
+must not redispatch claims. Phase9 remains outside scope.
+
+Current authorization: attachment303d19cf supersedes Phase8-only/attach-only/scan-only
+restrictions. Execute the full registered plan on the current non-Protected snapshot:
+Idle, VIP upper+daily, BXH, four Shop rewards, Guild relic/gift tabs/wood donation,
+Mail and Events. One instance/session at a time; current protection and immutable
+non-name identity binding remain mandatory. No Phase9 or expanded spending.
+
+Idle now participates through its existing task and conservative opportunity lock,
+with recovery delegated to the shared session. Historical dispatched Idle results
+predating claim journals also remain locked; no assumed daily reset. Historical
+ambiguous journal identity is reported as blocked, never as newly verified.
+
+Fresh live snapshot:2,3,4,5,8,9,10,11; Protected0,1,6,7,12 excluded. Production
+checkout plus focused tests is authorized during operation; final CI/build follows
+the cohesive batch. Manifest and live reports:artifacts/full-run-oct12-manifest.json.
+Do not repeat completed actions for final packaging. Unknown ownership stays
+untouched; finish that worker and continue independently verified targets.
+
 ## Phase 8 - per-account deferred cleanup (2026-10-12)
 
 User attachment9d121fec supersedes the Oct11 requirement to physically close an

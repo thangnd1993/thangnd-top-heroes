@@ -39,6 +39,35 @@ def test_saved_progress_qualified_without_season_or_percent_template():
     assert len(loading_progress_evidence(screen(image)))==3
 
 
+def test_new_outlined_loading_labels_use_same_bounded_wait_without_input():
+    from top_heroes_auto.vision.loading_progress import progressing_stage
+    from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
+
+    image=cv2.imread('tests/fixtures/phase8/loading-outlined-zero.png')
+    detected=RecoveryScreenDetector().detect(screen(image))
+    assert progressing_stage(detected)
+    assert {e.anchor_id for e in detected.evidence} >= {
+        'loading-help', 'loading-network', 'loading-progress-percent-sign'}
+    image[330:1000]=0  # All promotional artwork can change.
+    image[1108:1138,335:359]=0  # No numerical percentage in the anchor.
+    assert len(loading_progress_evidence(screen(image)))==3
+    clock=[0.0]
+    engine=HomeRecoveryEngine(max_duration=12,loading_timeout=9,loading_interval=5,
+        clock=lambda:clock[0],sleep=lambda d:clock.__setitem__(0,clock[0]+d))
+    port=SimpleNamespace(observe=lambda _:RecoveryObservation(detected,None,'explicit','boot'))
+    result=engine.ensure_game_home(port)
+    assert result.status!=RecoveryStatus.SUCCESS and clock[0]<=15
+    assert set(result.actions) <= {'wait', 'qualified_loading_stage'}
+
+
+@pytest.mark.parametrize('area', [(0,75,120,105),(0,170,110,320),(335,1108,385,1140)])
+def test_outlined_loading_missing_any_independent_anchor_fails_closed(area):
+    image=cv2.imread('tests/fixtures/phase8/loading-outlined-zero.png')
+    x1,y1,x2,y2=area
+    image[y1:y2,x1:x2]=0
+    assert not loading_progress_evidence(screen(image))
+
+
 def test_missing_or_duplicate_utility_labels_rejected():
     image=cv2.imread('tests/fixtures/phase8/loading-progress.png')
     missing=image.copy()
@@ -163,3 +192,10 @@ def test_android_blocker_during_final_grace_is_reported_without_input():
     assert not wait_for_final_loading_progress(result,final,port,engine)
     assert result.status==RecoveryStatus.SYSTEM_BLOCKING
     assert result.actions==['qualified_loading_progress','wait']
+
+
+def test_asset_loading_without_network_label_retains_paired_wait_only_evidence():
+    image=cv2.imread('tests/fixtures/phase8/loading-outlined-zero.png')
+    image[270:330,:120]=0
+    evidence=loading_progress_evidence(screen(image))
+    assert {e.anchor_id for e in evidence} == {'loading-help','loading-repair','loading-progress-percent-sign'}

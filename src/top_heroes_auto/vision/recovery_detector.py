@@ -6,6 +6,7 @@ import cv2
 
 from top_heroes_auto.vision.detail_anchor import unique_detail_anchor
 from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
+from top_heroes_auto.vision.event_promo import event_promo_evidence
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.hanging_reward import hanging_evidence, qualified_hanging
 from top_heroes_auto.vision.loading_progress import loading_progress_evidence
@@ -68,6 +69,18 @@ class RecoveryScreenDetector:
             evidence=tuple(AnchorEvidence(dialog['reason'],ScreenState.SYSTEM_BLOCKING,
                                           1,.98,True,device_box=b) for b in dialog['panels'])
             return replace(detected,state=ScreenState.SYSTEM_BLOCKING,confidence=1,evidence=evidence)
+        evidence = event_promo_evidence(screen)
+        if evidence:
+            # A foreground promo naturally coexists with a dimmed Home HUD.
+            # Both independently authorize the same bounded dismissal. Other
+            # screen evidence (loading, receipt, dialog, etc.) still conflicts.
+            compatible = {ScreenState.HOME_OVERLAY, ScreenState.EVENT_PROMO}
+            if (detected.state not in compatible | {ScreenState.UNKNOWN} or
+                    any(e.state not in compatible for e in detected.evidence)):
+                return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
+                               evidence=(*detected.evidence, *evidence))
+            return replace(detected, state=ScreenState.EVENT_PROMO,
+                           confidence=min(e.score for e in evidence), evidence=evidence)
         evidence = hanging_evidence(screen)
         if qualified_hanging(screen, evidence):
             if detected.state != ScreenState.UNKNOWN or detected.evidence:

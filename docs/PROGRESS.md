@@ -1,3 +1,56 @@
+## Full implemented-scope operation: PARTIAL (2026-10-12)
+
+Operation ended 17:31 ICT. All eight frozen targets were attempted; five reached
+the reward flows. Forty new reward actions VERIFIED: eight each on4,5,8,10,11
+(BXH, four Shop rewards, Guild relic and both Guild gift tabs). Saved receipts
+show2,000 diamonds total,30 Guild points,20 silver chests and other materials.
+Mail:15 quick-read actions VERIFIED;259,270,282,293 remain RESERVED/POSSIBLE.
+Guild member journals290/302 were reconciled from the original one-shot action
+and two saved progress frames, without device input. All229 pre-existing journal
+rows are unchanged. No new Event claim or donation was dispatched.
+
+2/3/9 failed explicit ADB readiness. Idle prior actions remain conservatively
+locked; VIP historical identity ambiguity remains blocked. Guild donation screens
+offered STONE, outside the WOOD-only permission. Event navigation reached real
+nested pages, but unqualified content/badge geometry and the multi-offer paid
+popup remain blockers, not NOT_AVAILABLE. This is not full acceptance PASS.
+
+All selections restored. All13 instances finally observed stopped; Protected
+0,1,6,7,12 received zero actions. Delayed cleanup of5/8 used original successful
+launch evidence, matching disk identity/PIDs AND process creation times, only
+after the worker exited. No external/manual session was stopped. No unauthorized
+spending or LDPlayer name/config writes. Full detail: [operation report](FULL-RUN-2026-10-12.md).
+Final CI/portable delivery follows this committed batch; never replay claims to
+validate packaging.
+
+The current full-run authorization (attachment303d19cf) supersedes the older
+Phase8-only and attach-only scope below. Frozen non-Protected targets are
+2,3,4,5,8,9,10,11; Protected0,1,6,7,12 remain excluded. One production worker,
+one bound instance at a time, no Phase9. Local focused repairs and targeted
+checks are authorized during this operation; final full CI/portable delivery
+follows the batch. Do not replay claims for packaging.
+
+Concrete repairs in this batch: existing conservative Idle task registered in
+the shared session (including pre-journal accepted actions); fresh guarded VIP
+return after journal refusal; paired functional promo footer and compatible
+dimmed Home evidence; outlined loading utility/progress anchors; loading-stage
+reset on positively identified overlay; conservative denial of repeated Event
+tab slots with unstable crop identities; strictly close-only raster variants
+for the observed VND paid modal; single-gift received-state false negative.
+One qualified received tick plus no badge/claim control can prove a one-item
+batch exhausted; original one-shot/two-post-frame reconciliation remains required.
+No purchase or gift inside the paid modal is enabled.
+No global threshold/timeout relaxation, account coordinates, name/config writes,
+identity rebind, journal reset or expanded resource spending.
+
+Local checks: 149 focused integration/recovery tests;76 Event traversal tests;
+28 paid-modal tests;additional promo frame regressions;affected Ruff and diff
+checks PASS. Actual execution uses the locally validated production checkout,
+not the older Desktop portable. Existing229 journal rows are preserved verbatim.
+Operation manifest/results/evidence are under artifacts/full-run-oct12* and the
+app diagnostics/tasks/automation folders. Current worker checkpoint is
+artifacts/full-run-current.json. Pending/blocked work must stay PARTIAL.
+
 ## Phase 8 - per-account deferred cleanup (2026-10-12)
 
 User attachment9d121fec supersedes the Oct11 requirement to physically close an

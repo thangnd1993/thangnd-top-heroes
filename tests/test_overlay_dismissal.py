@@ -95,6 +95,19 @@ def test_multiple_known_promos_fresh_capture_after_each_then_home():
     assert port.observations == 5
 
 
+def test_qualified_promo_ends_loading_timer_before_stable_input():
+    port = RecoveryPort([ScreenState.GAME_LOADING,ScreenState.EVENT_PROMO,
+                         ScreenState.UNKNOWN,ScreenState.EVENT_PROMO,
+                         ScreenState.EVENT_PROMO,ScreenState.GAME_HOME])
+    clock = [0.0]
+    engine = HomeRecoveryEngine(max_duration=30,loading_timeout=6,loading_interval=5,action_settle=2,
+        clock=lambda:clock[0],sleep=lambda d:clock.__setitem__(0,clock[0]+d))
+    result = engine.ensure_game_home(port)
+    assert result.status == RecoveryStatus.SUCCESS
+    assert port.actions == [(5,(58,1203))]
+    assert clock[0] < 30
+
+
 def test_same_popup_bounded_retry_and_unknown_after_dismiss_stops():
     port = RecoveryPort([ScreenState.EVENT_PROMO]*4)
     result = HomeRecoveryEngine(sleep=lambda _: None).ensure_game_home(port)

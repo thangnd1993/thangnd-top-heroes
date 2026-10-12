@@ -226,7 +226,7 @@ def test_postcondition_requires_fresh_same_target_evidence(changes):
 
 def test_phase7_registered_with_existing_instance_pipeline():
     plan = production_registry().snapshot()
-    assert [f.id for f in plan[:5]] == ['vip','ranking','shop','guild','mail']
+    assert [f.id for f in plan[:6]] == ['idle','vip','ranking','shop','guild','mail']
     assert next(f for f in plan if f.id == 'mail').rewards == tuple(
         f'mail-{name}' for name in ('war','guild','system','reports','collection'))
 
@@ -425,6 +425,40 @@ def test_missing_badge_alone_cannot_prove_gifts_exhausted(live_frames,monkeypatc
     detector,frames = live_frames
     monkeypatch.setattr(detector,'received_rows',lambda frame:0)
     assert detector.availability(frames['member-live-after'],'guild-gifts-member').state == 'UNKNOWN'
+
+
+def test_single_member_gift_has_independent_received_state():
+    detector = GuildMailDetector(number_reader=lambda *a, **kw: 1)
+    before = detector.observe(capture('member-single-before'))
+    after = detector.observe(capture('member-single-received'))
+    assert detector.received_rows(before) == 0
+    assert detector.received_rows(after) == 1
+    available = detector.availability(before, 'guild-gifts-member')
+    received = detector.availability(after, 'guild-gifts-member')
+    assert available.state == 'AVAILABLE' and available.remaining == 1
+    assert received.state == 'NOT_AVAILABLE' and received.remaining == 0
+    before = replace(before, captured=replace(before.captured,
+        source_image=Path('single-before.png'), timestamp=BASE_TIME.isoformat()))
+    after = replace(after, captured=replace(after.captured,
+        source_image=Path('single-after.png'), timestamp=(BASE_TIME+timedelta(seconds=30)).isoformat()))
+    assert qualified_progress(before, available, after, received)
+
+
+@pytest.mark.parametrize('missing', ['check', 'badge_proof', 'page', 'claim_conflict'])
+def test_single_received_row_requires_all_independent_evidence(missing, monkeypatch):
+    detector = GuildMailDetector()
+    frame = detector.observe(capture('member-single-received'))
+    if missing == 'check':
+        monkeypatch.setattr(detector, 'received_rows', lambda _: 0)
+    elif missing == 'badge_proof':
+        monkeypatch.setattr(detector, 'badge_absent', lambda *a: False)
+    elif missing == 'page':
+        frame = replace(frame, page='UNKNOWN')
+    else:
+        anchors = dict(frame.anchors)
+        anchors['gift-claim'] = replace(anchors['gift-claim'], score=1.0)
+        frame = replace(frame, anchors=anchors)
+    assert detector.availability(frame, 'guild-gifts-member').state == 'UNKNOWN'
 
 
 def test_live_technology_graph_lines_do_not_hide_marked_node(live_frames):

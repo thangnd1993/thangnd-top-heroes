@@ -96,3 +96,28 @@ def test_protected_target_never_selected_or_recovered(rig, tmp_path, monkeypatch
     row = vip_fleet.run_vip_account(manager, tmp_path, 12, "New protected", tmp_path)
     assert row["final_result"] == "SKIPPED_PROTECTED"
     assert row["claim_dispatched"] is False
+
+
+@pytest.mark.parametrize('home_safe', [True, False])
+def test_journal_refusal_recovers_from_fresh_vip_without_claim(rig, tmp_path, monkeypatch, home_safe):
+    manager, store = prepare(rig)
+    captures = iter((frame('before'), frame('fresh-after-refusal')))
+    returned = []
+    port = SimpleNamespace(set_entry_geometry=lambda _: None, observe=lambda: next(captures),
+        validate_claim=lambda *a: None, geometry_report={'safe': True},
+        claim=lambda *a, **kw: pytest.fail('Journal refused; claim forbidden'),
+        dismiss_receipts=lambda screen: screen,
+        return_home=lambda screen: returned.append(screen.capture_id) or home_safe)
+    monkeypatch.setattr(vip_fleet, '_load_profile_details', lambda _: (object(), None))
+    monkeypatch.setattr(vip_fleet, 'run_home_recovery', lambda *a, **kw:
+        (RecoveryResult(RecoveryStatus.ALREADY_HOME), tmp_path/'r.json', False))
+    monkeypatch.setattr(vip_fleet, 'entry_navigator_factory', lambda *a: NavigationResult(NavigationStatus.SUCCESS))
+    monkeypatch.setattr(vip_fleet, 'reward_port_factory', lambda *a: port)
+    def locked(*a, **kw):
+        raise ValueError('AMBIGUOUS: historical reward ownership stays locked across periods.')
+    monkeypatch.setattr(store, 'reserve_reward_claim', locked)
+    row = vip_fleet.run_vip_account(manager, tmp_path, 9, 'Pooh5', tmp_path)
+    assert returned == ['fresh-after-refusal']
+    assert row['return_home'] == ('SUCCESS' if home_safe else 'FAILED')
+    assert row['final_result'] == 'SAFETY_BLOCKED' and not row['claim_dispatched']
+    assert not store.reward_claims(manager.namespace, 9)

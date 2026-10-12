@@ -11,6 +11,11 @@ from top_heroes_auto.vision.resources import template_folder
 
 
 def loading_progress_evidence(screen):
+    variants = [e for v in ('', '-outlined') if (e := _loading_variant(screen, v))]
+    return variants[0] if len(variants) == 1 else ()
+
+
+def _loading_variant(screen, variant):
     image=(cv2.rotate(screen.original,cv2.ROTATE_90_COUNTERCLOCKWISE)
            if screen.rotated_from_portrait else screen.original)
     h,w=image.shape[:2]
@@ -21,7 +26,7 @@ def loading_progress_evidence(screen):
     evidence=[]
     boxes=[]
     for role in ('loading-help','loading-network'):
-        template=cv2.imread(str(template_folder().parent/'tasks/phase8/loading'/f'{role}.png'))
+        template=cv2.imread(str(template_folder().parent/'tasks/phase8/loading'/f'{role}{variant}.png'))
         if template is None:
             return ()
         th,tw=template.shape[:2]
@@ -29,6 +34,16 @@ def loading_progress_evidence(screen):
             return cv2.inRange(cv2.cvtColor(im,cv2.COLOR_BGR2HSV),(0,0,185),(179,100,255))
         scores=cv2.matchTemplate(glyph(crop),glyph(template),cv2.TM_CCOEFF_NORMED)
         _,score,_,(x,y)=cv2.minMaxLoc(scores)
+        if variant == '-outlined' and role == 'loading-network' and np.isfinite(score) and score < .98:
+            # The current asset-loading frame omits Network but retains the
+            # separate Repair label. Either utility + Help + progress is wait-only.
+            role = 'loading-repair'
+            template=cv2.imread(str(template_folder().parent/'tasks/phase8/loading/loading-repair-outlined.png'))
+            if template is None:
+                return ()
+            th,tw=template.shape[:2]
+            scores=cv2.matchTemplate(glyph(crop),glyph(template),cv2.TM_CCOEFF_NORMED)
+            _,score,_,(x,y)=cv2.minMaxLoc(scores)
         if not np.isfinite(score) or score<.98:
             return ()
         scores[max(0,y-th//2):y+th//2+1,max(0,x-tw//2):x+tw//2+1]=-1
@@ -56,6 +71,26 @@ def loading_progress_evidence(screen):
     if not bars:
         # Filled width is a percentage, not a screen identity: 0/60% must not
         # require a >55%-of-screen gold fill. Use the stable track rim instead.
+        if variant == '-outlined':
+            # Only the stable percent glyph, never its changing numeric value or
+            # seasonal artwork. Paired utility labels above are still required.
+            template=cv2.imread(str(template_folder().parent/'tasks/phase8/loading/loading-percent-outlined.png'))
+            if template is None:
+                return ()
+            footer=image[round(1280*.85):round(1280*.92),round(720*.4):round(720*.6)]
+            scores=cv2.matchTemplate(glyph(footer),glyph(template),cv2.TM_CCOEFF_NORMED)
+            _,score,_,(x,y)=cv2.minMaxLoc(scores)
+            th,tw=template.shape[:2]
+            if not np.isfinite(score) or score<.995:
+                return ()
+            scores[max(0,y-th//2):y+th//2+1,max(0,x-tw//2):x+tw//2+1]=-1
+            if scores.max()>=.995:
+                return ()
+            box=BoundingBox(round((x+round(720*.4))*w/720),round((y+round(1280*.85))*h/1280),
+                            round(tw*w/720),round(th*h/1280))
+            evidence.append(AnchorEvidence('loading-progress-percent-sign',ScreenState.GAME_LOADING,
+                                          float(score),.995,True,device_box=box))
+            return tuple(evidence)
         track=cv2.imread(str(template_folder().parent/'tasks/phase8/loading/loading-track-end.png'))
         if track is None:
             return ()
@@ -81,5 +116,5 @@ def loading_progress_evidence(screen):
 def progressing_stage(detection):
     roles={e.anchor_id for e in detection.evidence if e.matched and e.score>=.98}
     return (detection.state==ScreenState.GAME_LOADING and
-            roles >= {'loading-help','loading-network'} and
-            bool(roles & {'loading-progress-bar','loading-progress-track-end'}))
+            'loading-help' in roles and bool(roles & {'loading-network','loading-repair'}) and
+            bool(roles & {'loading-progress-bar','loading-progress-track-end','loading-progress-percent-sign'}))
