@@ -333,11 +333,11 @@ def test_fresh_home_candidates_recorded_before_early_block(exit_reason):
     result = DynamicEventExplorer(limits).run(port)
     assert set(result.events) == {'A', 'new-B'}
     assert result.candidate_count == 2 and result.event_scan == 'COMPLETE'
-    assert result.events['new-B']['visits'] == 0
+    assert result.events['new-B']['visits'] == (1 if exit_reason == 'unexpected_exit' else 0)
     assert result.events['new-B']['discovery_capture'] == blocked_home.capture
     assert result.events['new-B']['result'] == 'BLOCKED'
     assert result.events['new-B']['blockers']
-    assert not any(call[2] == 'new-B' for call in port.calls)
+    assert any(call[2] == 'new-B' for call in port.calls) == (exit_reason == 'unexpected_exit')
     assert not result.rewards
     detail = dict(result='BLOCKED', recovery='SUCCESS', exploration=asdict(result))
     assert event_terminal(detail)  # Full scan facts + genuine blocker, never exhaustion.

@@ -307,7 +307,7 @@ def test_uncertain_lifecycle_ownership_never_reports_cleanup_success(rig,tmp_pat
             RecoveryResult(RecoveryStatus.SUCCESS,ownership_uncertain=True),tmp_path/'r',False))
     session.start()
     session.close()
-    assert session.report['cleanup']=='OWNERSHIP_UNKNOWN'
+    assert session.report['cleanup']=='DEFERRED_OWNERSHIP_UNPROVEN'
     assert not any(c[1]=='quit' for c in process.calls)
 
 
@@ -432,7 +432,7 @@ def test_unauthorized_resource_does_not_fail_other_independent_flows(rig,tmp_pat
 
 
 @pytest.mark.parametrize('still_running',[True,False])
-def test_uncertain_start_cleanup_cannot_accumulate_running_instances(rig,tmp_path,monkeypatch,still_running):
+def test_uncertain_start_cleanup_defers_only_that_target(rig,tmp_path,monkeypatch,still_running):
     from types import SimpleNamespace
     manager,process,_=rig
     process.listing=process.listing.replace('7,Farm-007,3,4,1,201,202','7,Farm-007,0,0,0,-1,-1')
@@ -447,7 +447,34 @@ def test_uncertain_start_cleanup_cannot_accumulate_running_instances(rig,tmp_pat
     monkeypatch.setattr(manager,'query',lambda _:SimpleNamespace(running=still_running))
     result=fleet.run(manager,tmp_path,registry=registry,session_factory=Uncertain,identity_reader=lambda *a:'disk')
     started=[c[0] for c in calls if c[1]=='start']
-    assert started==([7] if still_running else [7,13])
-    if still_running:
-        assert result['pending_indexes']==[13]
-        assert result['result']=='PARTIAL'
+    assert started==[7,13]
+    assert result['deferred_cleanup_indexes']==[7,13]
+    assert calls.index((7,'cleanup')) < calls.index((13,'start'))
+    assert result['result']=='PARTIAL'
+
+
+@pytest.mark.parametrize('conflict', [None, 'protected', 'identity', 'runtime'])
+def test_confirmed_indexed_start_adb_failure_cleanup_is_independent(rig,tmp_path,conflict):
+    manager,process,_=rig
+    process.listing=process.listing.replace('7,Farm-007,3,4,1,201,202','7,Farm-007,0,0,0,-1,-1')
+    process.devices_output='List of devices attached\n'
+    manager.ADB_RESOLVE_TIMEOUT=0
+    identity=['fixture-disk-7']
+    session=InstanceSession(manager,tmp_path,dict(index=7,name='Farm-007',
+        persistent_identity=identity[0],preflight_running=False),tmp_path,
+        identity_reader=lambda *a:identity[0])
+    session.start()
+    assert session.started and session.initial[0].status==RecoveryStatus.ADB_ERROR
+    assert session.initial[0].launch_attempt['confirmed_runtime']==(201,202)
+    if conflict=='protected':
+        manager.protect(7,True)
+    if conflict=='identity':
+        identity[0]='replaced-disk'
+    if conflict=='runtime':
+        process.listing=process.listing.replace('201,202','301,302')
+    calls=len(process.calls)
+    session.close()
+    later=process.calls[calls:]
+    assert sum(c[1]=='quit' for c in later)==(1 if conflict is None else 0)
+    assert not any(c[1] in {'adb','-s','launch'} for c in later)
+    assert session.report['cleanup']=='SUCCESS' if conflict is None else session.report['cleanup'].startswith('FAILED')

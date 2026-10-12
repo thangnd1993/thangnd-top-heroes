@@ -1,3 +1,27 @@
+## Phase 8 - per-account deferred cleanup (2026-10-12)
+
+User attachment9d121fec supersedes the Oct11 requirement to physically close an
+uncertain target before advancing. max_concurrency1 means one active automation
+target. Unknown lifecycle ownership: BLOCKED / DEFERRED_OWNERSHIP_UNPROVEN;
+no stop/restart/input, preserve evidence and locks, continue independent targets.
+Confirmed indexed launch + same stable disk/process observations can establish
+lifecycle ownership before ADB readiness. A pure transport failure preserves it;
+identity/Protection/runtime conflicts prohibit cleanup. Launch intent is insufficient.
+All execution is synchronous under the existing exclusive automation lease.
+
+Index9 prior record has no confirmed runtime; never infer ownership retrospectively.
+Live Oct12 inventory observes it stopped externally; no command sent to index9.
+No old workers remain. Continue original pending10,11,4,2,3 only; retain5/8/9
+results and all229 existing journals. Phase8 remains PARTIAL, no Phase9.
+Direct user confirmation also authorizes deferred-cleanup continuation after the
+prior worker exits. 126 lifecycle/plan +138 Event/journal +37 recovery +9 kernel
+ownership tests PASS locally; no full local suite. CI failures were a stale
+traversal expectation and OS-dependent OCR assertions. Production OCR still
+requires exact agreement; replayed conflicting readings remain non-claimable.
+
+CI38131109979 failed three tests; no Desktop replacement occurred. Local targeted
+production corrections are explicitly authorized; final passing delivery later.
+
 ## Phase 8 - sequential free Event collection and expedition dispatch (2026-10-11)
 
 Latest authorization: attachment ee41a55e and subsequent user corrections replace

@@ -331,13 +331,21 @@ def test_unmasked_caption_fallback_requires_exact_pair_not_fuzzy_agreement():
     assert not task_grid_rows(im,shell,reader=read)
 
 
+def scrolled_reader(crop):
+    # Geometry/semantic unit boundary: OS OCR varies across Windows language
+    # packs. Supply exact agreed text; separately replay real conflicting OCR.
+    h=crop.shape[0]
+    text=('Complete objective ten' if h in {84,168,128,192,222,370} else
+          'Nhận' if h in {122,183,124,186} else '10/10')
+    return [{'text':text}]
+
+
 def test_scrolled_five_card_grid_keeps_current_claim_and_safe_gutter():
     from top_heroes_auto.vision.event_task_grid import task_grid_rows, task_grid_shell
-    from top_heroes_auto.vision.local_ocr import read_words
     image=cv2.imread('tests/fixtures/phase8/task-grid-bottom-five.png')
     shell=task_grid_shell(image)
     assert shell and len(shell['cards'])==5
-    rows=task_grid_rows(image,shell,reader=read_words)
+    rows=task_grid_rows(image,shell,reader=scrolled_reader)
     available=[r for r in rows if r['state']=='AVAILABLE']
     assert len(available)==1
     assert available[0]['box'].center[1]>900
@@ -347,7 +355,6 @@ def test_scrolled_five_card_grid_keeps_current_claim_and_safe_gutter():
 
 @pytest.mark.parametrize('defect',['title','close','progress'])
 def test_scrolled_grid_still_rejects_missing_independent_proof(defect):
-    from top_heroes_auto.vision.local_ocr import read_words
     im=image('task-grid-bottom-five')
     shell=task_grid_shell(im)
     if defect in {'title','close'}:
@@ -357,16 +364,28 @@ def test_scrolled_grid_still_rejects_missing_independent_proof(defect):
     else:
         b=shell['cards'][3]
         im[b.y+round(b.height*.63):b.y+round(b.height*.80),b.x+8:b.x+b.width-8]=0
-        assert not any(r['state']=='AVAILABLE' for r in task_grid_rows(im,shell,reader=read_words))
+        assert not any(r['state']=='AVAILABLE' for r in task_grid_rows(im,shell,reader=scrolled_reader))
 
 
 def test_compact_claimed_state_is_positive_and_not_an_active_reward():
-    from top_heroes_auto.vision.local_ocr import read_words
     im=image('task-grid-bottom-claimed')
     shell=task_grid_shell(im)
-    rows=task_grid_rows(im,shell,reader=read_words)
+    rows=task_grid_rows(im,shell,reader=scrolled_reader)
     claimed=[r for r in rows if 'explicit-claimed-label' in r['evidence']]
     assert len(claimed)==1 and claimed[0]['state']=='NOT_AVAILABLE'
     before=image('task-grid-bottom-five')
-    prior=task_grid_rows(before,task_grid_shell(before),reader=read_words)
+    prior=task_grid_rows(before,task_grid_shell(before),reader=scrolled_reader)
     assert claimed[0]['identity']==next(r['identity'] for r in prior if r['state']=='AVAILABLE')
+
+
+def test_saved_real_conflicting_ocr_cannot_authorize_scrolled_claim():
+    import hashlib
+    import json
+    from pathlib import Path
+    transcript=json.loads(Path('tests/fixtures/phase8/scrolled-grid-ocr.json').read_text(encoding='utf-8'))
+    def read(crop):
+        return transcript[hashlib.sha256(crop.tobytes()).hexdigest()]
+    for name in ('task-grid-bottom-five','task-grid-bottom-claimed'):
+        im=image(name)
+        rows=task_grid_rows(im,task_grid_shell(im),reader=read)
+        assert not any(r['state']=='AVAILABLE' for r in rows)

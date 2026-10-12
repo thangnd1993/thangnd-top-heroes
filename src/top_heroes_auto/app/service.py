@@ -70,6 +70,8 @@ class LifecycleAttempt:
     failure_stage: str | None = None
     error: str | None = None
     dispatches: list[LifecycleDispatch] = field(default_factory=list)
+    confirmed_runtime: tuple[int, int] | None = None
+    confirmed_identity: str | None = None
 
     @property
     def dispatch_attempted(self) -> bool:
@@ -87,6 +89,8 @@ class LifecycleAttempt:
             "pre_running": self.pre_running,
             "ownership": self.ownership,
             "ownership_uncertain": self.ownership_uncertain,
+            "confirmed_runtime": self.confirmed_runtime,
+            "confirmed_identity": self.confirmed_identity,
             "dispatch_attempted": self.dispatch_attempted,
             "dispatches": [item.as_dict() for item in self.dispatches],
             "failure_stage": self.failure_stage,
@@ -247,6 +251,16 @@ class Manager:
                     attempt.ownership = LIFECYCLE_UNKNOWN
                     attempt.failure_stage = "post_dispatch_wait"
             raise
+        if (attempt is not None and attempt.dispatch_attempted
+                and attempt.dispatches[-1].completed):
+            fresh = self._same_runtime(index, started)
+            if (fresh.stable_id != instance.stable_id or not fresh.stable_id
+                    or min(fresh.pid, fresh.vbox_pid) <= 0):
+                raise SafetyError('Indexed startup lacks stable identity/process proof.')
+            attempt.confirmed_runtime = (fresh.pid, fresh.vbox_pid)
+            attempt.confirmed_identity = fresh.stable_id
+            attempt.ownership = LIFECYCLE_OWNED
+            attempt.failure_stage = 'resolve_transport'
         return started
 
     def _check(self, index: int):
@@ -621,7 +635,14 @@ class Manager:
                     if before_input is not None:
                         before_input()
                     return self.adb._shell(target.serial, "input", action, *(str(v) for v in values))
-            except Exception:
+            except Exception as exc:
+                attempt = self._last_lifecycle_attempt
+                if action in {'launch', 'reboot'} and attempt is not None and attempt.dispatch_attempted:
+                    # Only pure ADB unavailability preserves independently proven
+                    # indexed lifecycle ownership. Identity/permission conflicts do not.
+                    if not isinstance(exc, TransportResolutionError):
+                        attempt.ownership = LIFECYCLE_UNKNOWN
+                    attempt.error = str(exc)
                 log.exception("[#%s] Hủy thao tác %s", index, action)
                 raise
             finally:

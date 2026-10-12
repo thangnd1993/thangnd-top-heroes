@@ -69,11 +69,17 @@ class InstanceSession:
                 cleanup_owned=False, cancelled=self.cancelled,
                 allow_start=not self.target.get('preflight_running', False))
             result, path, self.started = self.initial
+            proof = result.launch_attempt or {}
+            if self.started and proof.get('confirmed_runtime'):
+                if proof.get('confirmed_identity') != self.target['persistent_identity']:
+                    self.started = False
+                    raise SafetyError('Startup identity proof changed; no owned cleanup.')
+                self.runtime = tuple(proof['confirmed_runtime'])
             live = self.check(selected=True, running=False)
             self.runtime = (live.pid, live.vbox_pid)
             self.boot_id = result.boot_id
             if result.ownership_uncertain:
-                self.report['cleanup'] = 'OWNERSHIP_UNKNOWN'
+                self.report['cleanup'] = 'DEFERRED_OWNERSHIP_UNPROVEN'
                 self.report['ownership_uncertain'] = True
             self.report['recoveries'].append(dict(status=result.status.value, report=str(path)))
         except RecoveryFailure as exc:
