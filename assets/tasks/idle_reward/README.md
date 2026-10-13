@@ -28,3 +28,14 @@ not treated as a blocking popup: the chest must still be uniquely detected in th
 it can be tapped.
 
 The Adventure portal action anchor uses only its stable blue core and excludes the animated flame.
+
+## Recurring accumulation policy (user confirmed 2026-10-14)
+
+Idle becomes eligible again when new rewards accumulate, not on a calendar reset.
+A previous VERIFIED action permits a new inspection only when its original task
+has a reclassified empty accumulation panel and a verified non-name disk binding.
+The next opportunity is keyed to that previous claim ID. The normal current-frame
+attention chest and minimum green accumulation gates must both pass before input.
+The new before-evidence preserves the original empty proof and fresh claim frame.
+POSSIBLE/reserved actions, ambiguous old disk mappings, missing original empty proof
+and pre-journal actions remain locked. No old receipt is erased or relabelled.

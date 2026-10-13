@@ -1,0 +1,52 @@
+"""Qualified collaboration-map navigation; labels and badges grant no reward permission."""
+import cv2
+import numpy as np
+
+from top_heroes_auto.vision.dynamic_events import discover_badges
+from top_heroes_auto.vision.models import BoundingBox
+from top_heroes_auto.vision.resources import template_folder
+
+
+def _white(image):
+    return cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV), (0, 0, 185), (179, 95, 255))
+
+
+def _unique(view, name):
+    reference = cv2.imread(str(template_folder().parent/'tasks/phase8/collaboration-hub'/f'{name}.png'))
+    if reference is None:
+        return None
+    scores = cv2.matchTemplate(_white(view), _white(reference), cv2.TM_CCOEFF_NORMED)
+    _, score, _, (x, y) = cv2.minMaxLoc(scores)
+    h, w = reference.shape[:2]
+    if not np.isfinite(score) or score < .995:
+        return None
+    scores[max(0,y-h//2):y+h//2+1, max(0,x-w//2):x+w//2+1] = -1
+    if scores.max() >= .995:
+        return None
+    return BoundingBox(x,y,w,h)
+
+
+def collaboration_hub(image):
+    h,w = image.shape[:2]
+    view = cv2.resize(image,(720,1280))
+    exit_box, preview = (_unique(view,n) for n in ('exit','preview-caption'))
+    labels = {n:_unique(view,n) for n in ('training-caption','treasure-caption','collection-caption','training-rewards-caption')}
+    if (exit_box is None or preview is None or exit_box.y < 1100 or preview.y > 400
+            or abs(exit_box.center[0]-preview.center[0]) > 90
+            or not all(labels.values())):
+        return None
+    badges = [b.box for b in discover_badges(view,BoundingBox(0,0,720,1280)) if b.qualified]
+    controls = []
+    for name,b in labels.items():
+        if b is None:
+            continue
+        # A unique rimmed notification must be at this current label's upper-right.
+        matches = [q for q in badges if b.x+b.width*.65 < q.center[0] < b.x+b.width+35
+                   and b.y-90 < q.center[1] < b.y+12]
+        if len(matches)==1:
+            controls.append((name,b))
+    def scaled(b):
+        return BoundingBox(round(b.x*w/720),round(b.y*h/1280),round(b.width*w/720),round(b.height*h/1280))
+    return dict(page='event:collaboration-hub',title='collaboration-hub',permission='NAVIGATION_HUB',
+        back=scaled(exit_box),tabs=[],selected=[],children=[(n,scaled(b)) for n,b in controls],
+        evidence=('paired-exit-preview-glyphs','multiple-current-menu-labels','unique-associated-notification'))

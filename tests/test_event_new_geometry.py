@@ -384,8 +384,26 @@ def test_saved_real_conflicting_ocr_cannot_authorize_scrolled_claim():
     from pathlib import Path
     transcript=json.loads(Path('tests/fixtures/phase8/scrolled-grid-ocr.json').read_text(encoding='utf-8'))
     def read(crop):
-        return transcript[hashlib.sha256(crop.tobytes()).hexdigest()]
+        return transcript.get(hashlib.sha256(crop.tobytes()).hexdigest(), [])
     for name in ('task-grid-bottom-five','task-grid-bottom-claimed'):
         im=image(name)
         rows=task_grid_rows(im,task_grid_shell(im),reader=read)
         assert not any(r['state']=='AVAILABLE' for r in rows)
+
+
+def test_actual_ten_completed_caption_requires_two_full_high_resolution_readings():
+    import hashlib
+    import json
+    from pathlib import Path
+
+    transcript=json.loads(Path('tests/fixtures/phase8/task-grid-ten-ocr.json').read_text(encoding='utf-8'))
+    def read(crop):
+        return transcript.get(hashlib.sha256(crop.tobytes()).hexdigest(), [])
+    im=image('task-grid-ten-complete')
+    rows=task_grid_rows(im,task_grid_shell(im),reader=read)
+    active=[r for r in rows if r['state']=='AVAILABLE']
+    assert len(active)==1 and active[0]['box'].center==(165,1022)
+    assert 'completed-fraction-full-bar-and-free-label' in active[0]['evidence']
+    def conflicting(crop):
+        return [] if crop.shape[0]>400 else read(crop)
+    assert not any(r['state']=='AVAILABLE' for r in task_grid_rows(im,task_grid_shell(im),reader=conflicting))

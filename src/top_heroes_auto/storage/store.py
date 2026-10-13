@@ -404,11 +404,12 @@ class Store:
                                       (task_run_id,)).fetchone()
             if binding and (binding[1] != 'VERIFIED' or task_binding != (binding[0],)):
                 raise ValueError('IDENTITY_CHANGED: task journal binding is not current.')
-            if binding and db.execute(
+            ambiguous = db.execute(
                     '''SELECT 1 FROM reward_claims r LEFT JOIN journal_identities j ON j.claim_id=r.id
                        WHERE r.namespace=? AND r.instance_index=? AND r.reward_id=?
                        AND (j.state IS NULL OR j.state!='VERIFIED' OR j.stable_id!=?) LIMIT 1''',
-                    (namespace, index, reward_id, binding[0])).fetchone():
+                    (namespace, index, reward_id, binding[0])).fetchone() if binding else None
+            if ambiguous and not vip_daily_period:
                 raise ValueError('AMBIGUOUS: historical reward ownership stays locked across periods.')
             if expected_instance is not None and expected_instance[0] != index:
                 raise ValueError("Claim evidence does not belong to the task run's account.")
@@ -442,6 +443,16 @@ class Store:
                 ).fetchone()
             if existing:
                 raise ValueError("Reward already attempted or unresolved; automatic retry forbidden.")
+            # VIP has a specifically qualified daily reset. A dated earlier
+            # entitlement cannot block this new period, even if its historical
+            # disk association remains unresolved. Do not bind or alter it.
+            # current_attempts keeps current/future/undated attempts locked.
+            if ambiguous and vip_daily_period:
+                db.execute('INSERT INTO settings VALUES (?,?)',
+                    (f'vip_prior_period_review:{task_run_id}:{reward_id}:{cycle_key}',
+                     json.dumps(dict(current_identity=binding[0], period=cycle_key,
+                                     prior_claim_ids=[r['id'] for r in rows],
+                                     original_records_unchanged=True))))
             cursor = db.execute(
                 """INSERT INTO reward_claims(namespace,instance_index,instance_name,reward_id,
                    cycle_key,task_run_id,status,reserved_at,before_evidence)

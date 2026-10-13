@@ -78,6 +78,9 @@ class DiagnosticIdleRewardPort:
         self.observed_target = None
         self.claim_pending = False
         self.latest_detection = None
+        self.latest_screen = None
+        self.accumulation_proof = {}
+        self.entry_qualified = False
         self.cancelled = cancelled
         self.require_known_promo = require_known_promo
 
@@ -105,6 +108,7 @@ class DiagnosticIdleRewardPort:
         screen = ScreenshotService(exact_capture).take(target, self.folder, tag)
         detection = self.detector.detect(screen)
         self.latest_detection = detection
+        self.latest_screen = screen
         if detection.state == ScreenState.UNKNOWN and self.promo_budget_available and tag.endswith('-game-home'):
             from top_heroes_auto.app.phase6_runtime import pending_promo_anchor
             from top_heroes_auto.vision.exploration import unique_current_anchor
@@ -134,9 +138,23 @@ class DiagnosticIdleRewardPort:
     def tap(self, detection, anchor_id: str) -> None:
         if detection is not self.latest_detection or self.observed_target is None:
             raise SafetyError('Idle input requires the current observation, not cached evidence.')
+        if anchor_id in {'idle-entry-available', 'idle-entry-available-open'}:
+            self.entry_qualified = detection.state == ScreenState.IDLE_ENTRY_AVAILABLE
         if anchor_id == 'idle-claim-button':
             if self.claim_id is None or self.task_run_id is None:
                 raise SafetyError('Idle claim requires a durable dispatch reservation.')
+            if self.accumulation_proof:
+                if not self.entry_qualified or detection.state != ScreenState.IDLE_REWARD_CLAIMABLE:
+                    raise SafetyError('New accumulation requires current attention entry and green reward panel.')
+                proof = dict(method='original_empty_then_current_attention_and_green_accumulation',
+                             **self.accumulation_proof, current_capture=str(self.latest_screen.source_image),
+                             current_timestamp=self.latest_screen.timestamp)
+                with self.manager.store.connect() as db:
+                    changed = db.execute('UPDATE reward_claims SET before_evidence=? WHERE id=? AND task_run_id=? '
+                        "AND status='RESERVED' AND dispatch_state='NOT_DISPATCHED'",
+                        (json.dumps(proof),self.claim_id,self.task_run_id)).rowcount
+                    if changed != 1:
+                        raise SafetyError('Idle accumulation reservation changed; no input.')
         self.claim_pending = anchor_id == 'idle-claim-button'
         try:
             self.input.tap_detected_target(detection, anchor_id)
@@ -195,9 +213,14 @@ def run_idle_reward_diagnostic(
     port = None
     log.info("[%s / #%s] Idle Reward: bắt đầu", name, index)
     try:
+        from top_heroes_auto.app.idle_opportunity import opportunity
+
+        stable_id = dict(snapshot.identities)[index]
+        cycle, accumulation_proof = opportunity(manager.store, manager.namespace, index, stable_id)
         claim_id = manager.store.reserve_reward_claim(
-            task_run_id, 'idle-reward', 'idle-conservative-opportunity',
-            json.dumps({'task_run_id': task_run_id, 'scope': 'pre-dispatch task lock'}),
+            task_run_id, 'idle-reward', cycle,
+            json.dumps({'task_run_id': task_run_id, 'scope': 'pre-dispatch task lock',
+                        'accumulation_proof': accumulation_proof}),
             expected_instance=(index, name), not_dispatched=True,
         )
         if session is not None:
@@ -235,6 +258,7 @@ def run_idle_reward_diagnostic(
                 cancelled=cancelled,
                 require_known_promo=recovery.status == RecoveryStatus.LOADING_TIMEOUT,
             )
+            port.accumulation_proof = accumulation_proof
             if recovery.adb_target and recovery.boot_id:
                 port.verified_identity = (recovery.adb_target, recovery.boot_id)
             result = (task or IdleRewardTask()).run(port, cancelled)

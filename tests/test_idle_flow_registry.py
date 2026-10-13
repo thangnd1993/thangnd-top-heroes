@@ -32,7 +32,7 @@ def test_conservative_prior_never_reopens_on_date_change(rig, tmp_path, monkeypa
     before = store.reward_claims(manager.namespace, 7)
     monkeypatch.setattr(idle_flows, 'run_idle_reward_diagnostic', lambda *a, **kw: pytest.fail('Redispatch'))
     result = idle_flows.run(session, tmp_path, (idle_flows.REWARD,))['rewards'][idle_flows.REWARD]
-    assert result['result'] == ('ALREADY_VERIFIED' if verified and binding_ok else 'BLOCKED')
+    assert result['result'] == 'BLOCKED'  # Date/status alone cannot prove new accumulation.
     assert not result['claim_dispatched']
     assert store.reward_claims(manager.namespace, 7) == before
     assert not process.calls

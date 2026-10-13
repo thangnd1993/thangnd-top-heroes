@@ -150,6 +150,12 @@ def task_grid_rows(image,shell,*,reader):
             # require exact independent readings, never fuzzy title correction.
             crop=image[b.y+round(b.height*.43):b.y+round(b.height*.66),b.x+4:b.x+b.width-4]
             caption=[folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=s,fy=s)))) for s in (3,5)]
+            if caption[0] != caption[1]:
+                # The real 10/10 card's small caption reads digit 10 as IO at
+                # scale 3. Keep its full owned crop and require two agreeing
+                # high-resolution readings; never substitute OCR characters.
+                caption=[caption[1],folded(' '.join(q['text'] for q in
+                    reader(cv2.resize(crop,None,fx=6,fy=6))))]
         if caption[0]!=caption[1] or len(caption[0])<10 or not any(c.isalpha() for c in caption[0]):
             continue  # No durable identity from a position, run or whole image hash.
         identity='task-caption:'+caption[0]

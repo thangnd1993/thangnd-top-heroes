@@ -45,6 +45,8 @@ from top_heroes_auto.vision.dynamic_events import (
     task_reward_rows,
 )
 from top_heroes_auto.vision.event_achievements import achievement_rows, achievement_shell
+from top_heroes_auto.vision.event_book_objectives import book_context, book_rows
+from top_heroes_auto.vision.event_collaboration_hub import collaboration_hub
 from top_heroes_auto.vision.event_competitive import competitive_indicator_contract
 from top_heroes_auto.vision.event_inline_objectives import inline_objective_rows
 from top_heroes_auto.vision.event_paid_modal import paid_modal_navigation
@@ -154,6 +156,8 @@ class DynamicEventPort:
                 shell=task_grid_shell(image)
             if shell is None:
                 shell=achievement_shell(image)
+            if shell is None:
+                shell=collaboration_hub(image)
             if shell:
                 page = shell['page']
                 self.event_title = shell['title']
@@ -170,20 +174,24 @@ class DynamicEventPort:
                 if inline:
                     self.rows = inline
                     page = 'event:'+shell['title']+':inline-objectives'
-                if context is not None or grid or achievements or inline:
-                    if not grid and not achievements and not inline:
+                book = book_context(image) if not shell.get('permission') and context is None and not inline else None
+                if book:
+                    self.rows=book_rows(image,reader=read_words)
+                    page='event:'+shell['title']+':book-objectives'
+                if context is not None or grid or achievements or inline or book:
+                    if not grid and not achievements and not inline and not book:
                         page = 'event:'+shell['title']+':personal-tasks'
                     self.rows = bind_saved_rewards(image, self.rows,
                         self.session.manager.store.reward_claims(self.session.manager.namespace, self.session.index),
                         persistent_identity=self.session.target['persistent_identity'], index=self.session.index,
-                        family='inline-objectives' if inline else 'achievement-cards' if achievements else 'race-task-grid' if grid else 'personal-tasks')
+                        family='book-objectives' if book else 'inline-objectives' if inline else 'achievement-cards' if achievements else 'race-task-grid' if grid else 'personal-tasks')
                     if any(r['state'] == 'UNKNOWN' for r in self.rows):
                         blocked.append('UNRESOLVED_SAVED_REWARD_IDENTITY')
                     for row in self.rows:
                         if row['state'] != 'NOT_AVAILABLE':
                             self.unavailable_observations.pop(row['identity'], None)
                             continue
-                        if (achievements or inline) and 'explicit-claimed-label' not in row['evidence']:
+                        if (achievements or inline or book) and 'explicit-claimed-label' not in row['evidence']:
                             continue  # Unmet objective is not proof of a dispatched claim.
                         proof = dict(identity=list(identity), capture=str(c.source_image),
                             page=page, reward=row['identity'], state='NOT_AVAILABLE',
@@ -209,6 +217,9 @@ class DynamicEventPort:
                             blocked.append('UNQUALIFIED_TASK_GRID_ACTION')
                         controls.append(Control('task-grid-vertical',shell['scroll'],
                             ('functional-tasks-word','qualified-task-grid','outside-task-actions'),'scroll'))
+                    elif book:
+                        controls.append(Control('book-objective-list',book['scroll'],
+                            ('qualified-book-objectives','paired-functional-book-chrome','outside-action-column'),'scroll'))
                     elif len(self.rows)>=2 and not inline:
                         first,last=self.rows[0]['row'],self.rows[-1]['row']
                         # Gesture stays wholly within CURRENT complete reward cards,
@@ -234,6 +245,13 @@ class DynamicEventPort:
                     contract='MISSION_CONFIRM'
                     controls.append(Control('relic-expedition-confirm-send',mission_modal['box'],
                         mission_modal['evidence'],'mission',cost='FREE',available=True))
+                if book:
+                    contract='BOOK_OBJECTIVES'
+                    blocked.append('BOOK_MILESTONES_AND_UNQUALIFIED_CONTROLS')
+                if shell.get('permission')=='NAVIGATION_HUB':
+                    contract='NAVIGATION_HUB'
+                    for key,box in shell['children']:
+                        controls.append(Control(key,box,shell['evidence'],'child'))
                 coverage_known=contract!='UNSUPPORTED'
                 achievement = achievement_navigation(image)
                 if achievement and shell.get('permission') != 'BACK_ONLY':
@@ -272,6 +290,7 @@ class DynamicEventPort:
                     controls.append(Control('menu-list-vertical',surface,
                         ('event-shell','qualified-menu-grid','current-card-list'),'scroll'))
                 parent = Control('current-back',shell['back'],
+                    (*shell['evidence'],'current-exit-control') if shell.get('permission')=='NAVIGATION_HUB' else
                     ('achievement-title','qualified-achievement-cards','current-modal-close') if achievements else
                     ('functional-tasks-word','qualified-grid','current-modal-close') if grid else
                     (('functional-competition-chrome','paired-glyph-anchors','back-anchor')
@@ -349,7 +368,8 @@ class DynamicEventPort:
         if control.kind=='scroll':
             if (not frame.page.startswith('event:') or not frame.coverage_known or frame.popup
                     or control not in frame.controls or not (frame.page.endswith(':personal-tasks')
-                    or 'qualified-menu-grid' in control.evidence or 'qualified-task-grid' in control.evidence)):
+                    or 'qualified-menu-grid' in control.evidence or 'qualified-task-grid' in control.evidence
+                    or 'qualified-book-objectives' in control.evidence)):
                 raise SafetyError('No qualified current Event scroll surface.')
             self.current=None
             fresh=self.observe()
@@ -357,7 +377,8 @@ class DynamicEventPort:
             if runtime_key(fresh.identity)!=runtime_key(frame.identity) or fresh.stable_id!=frame.stable_id:
                 raise SafetyError('Event scroll runtime changed on fresh capture; no input or recovery.')
             if (fresh.page!=frame.page or fresh.popup
-                    or not fresh.coverage_known or fresh.blocked or len(matches)!=1):
+                    or not fresh.coverage_known or (set(fresh.blocked)-({'BOOK_MILESTONES_AND_UNQUALIFIED_CONTROLS'}
+                        if 'qualified-book-objectives' in control.evidence else set())) or len(matches)!=1):
                 raise EventNavigationRejected('Event scroll changed on fresh capture; no input.')
             control=matches[0]
             b=control.box
@@ -583,7 +604,7 @@ class DynamicEventPort:
                 if same and same[0]['state']=='AVAILABLE':
                     return []
                 continue
-            if ({'qualified-achievement-cards','qualified-inline-objectives'} & set(target.evidence)
+            if ({'qualified-achievement-cards','qualified-inline-objectives','qualified-book-objectives'} & set(target.evidence)
                     and not {'explicit-claimed-label','original-green-control-absent'}.issubset(same[0].get('evidence',()))):
                 continue
             if ('qualified-task-grid' in target.evidence and not receipt

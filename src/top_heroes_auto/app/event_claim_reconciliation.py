@@ -8,6 +8,7 @@ from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.dynamic_events import task_label_glyph
 from top_heroes_auto.vision.event_achievements import achievement_label_glyph
+from top_heroes_auto.vision.event_book_objectives import book_label_glyph
 from top_heroes_auto.vision.event_inline_objectives import objective_label_glyph
 from top_heroes_auto.vision.models import BoundingBox
 
@@ -25,6 +26,8 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index, famil
         raise SafetyError('Achievement category is unproven; no new claim.')
     if family=='inline-objectives' and any('qualified-inline-objectives' not in r.get('evidence',()) for r in rows):
         raise SafetyError('Inline objective category is unproven; no new claim.')
+    if family=='book-objectives' and any('qualified-book-objectives' not in r.get('evidence',()) for r in rows):
+        raise SafetyError('Book objective category is unproven; no new claim.')
     for claim in claims:
         if not claim['reward_id'].startswith('event:'):
             continue
@@ -50,22 +53,22 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index, famil
             # durable one-shot locks; dispatch_once still checks these records.
             continue
         page=proof.get('page','')
-        saved_family=('inline-objectives' if page.endswith(':inline-objectives') else 'personal-tasks' if page.endswith(':personal-tasks') else
+        saved_family=('book-objectives' if page.endswith(':book-objectives') else 'inline-objectives' if page.endswith(':inline-objectives') else 'personal-tasks' if page.endswith(':personal-tasks') else
                       ('race-task-grid' if page.endswith(':race-task-grid') else
                        'achievement-cards' if page.endswith(':achievement-cards') else None))
-        if saved_family is None or family not in {'personal-tasks','race-task-grid','achievement-cards','inline-objectives'}:
+        if saved_family is None or family not in {'personal-tasks','race-task-grid','achievement-cards','inline-objectives','book-objectives'}:
             raise SafetyError('Unsupported saved Event claim identity; no new claim.')
         if proof.get('persistent_identity') != persistent_identity or proof['identity'][0] != index:
             raise SafetyError('Saved Event claim target identity changed.')
         if saved_family!=family:
-            marker=('qualified-inline-objectives' if saved_family=='inline-objectives' else 'selected-task-context' if saved_family=='personal-tasks' else
+            marker=('qualified-book-objectives' if saved_family=='book-objectives' else 'qualified-inline-objectives' if saved_family=='inline-objectives' else 'selected-task-context' if saved_family=='personal-tasks' else
                     'qualified-achievement-cards' if saved_family=='achievement-cards' else 'qualified-race-task-grid')
             if marker not in proof.get('evidence',()):
                 raise SafetyError('Saved task category is unproven; no new claim.')
             continue  # Two positively qualified UI schemas have independent rewards.
         from top_heroes_auto.vision.event_task_grid import grid_label_glyph
 
-        label_glyph=objective_label_glyph if family=='inline-objectives' else achievement_label_glyph if family=='achievement-cards' else grid_label_glyph if family=='race-task-grid' else task_label_glyph
+        label_glyph=book_label_glyph if family=='book-objectives' else objective_label_glyph if family=='inline-objectives' else achievement_label_glyph if family=='achievement-cards' else grid_label_glyph if family=='race-task-grid' else task_label_glyph
         source = Path(proof['capture'])
         try:
             saved = json.loads(source.with_suffix('.event.json').read_text(encoding='utf-8'))
@@ -150,7 +153,8 @@ def reconcile_possible(store, namespace, index, persistent_identity, observation
         marker=next((m for suffix,m in (
             (':race-task-grid','qualified-race-task-grid'),
             (':achievement-cards','qualified-achievement-cards'),
-            (':inline-objectives','qualified-inline-objectives'))
+            (':inline-objectives','qualified-inline-objectives'),
+            (':book-objectives','qualified-book-objectives'))
             if proof.get('page','').endswith(suffix)),None)
         if marker:
             if marker not in proof.get('evidence',()):

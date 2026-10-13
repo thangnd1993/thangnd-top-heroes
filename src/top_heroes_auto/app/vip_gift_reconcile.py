@@ -14,10 +14,21 @@ from top_heroes_auto.ldplayer.identity import runtime_key
 
 
 def reconcile_saved_vip_gift(store, claim_id):
+    return _reconcile_saved_vip(store, claim_id)
+
+
+def reconcile_saved_vip_daily(store, claim_id):
+    return _reconcile_saved_vip(store, claim_id, daily=True)
+
+
+def _reconcile_saved_vip(store, claim_id, *, daily=False):
+    from top_heroes_auto.automation.free_rewards import ClaimOutcome, Cost
+
+    reward_id = "vip-daily" if daily else "vip-upper-gift"
     with store.connect() as db:
         db.row_factory = sqlite3.Row
         row = db.execute('SELECT * FROM reward_claims WHERE id=?', (claim_id,)).fetchone()
-        if (not row or row['reward_id'] != 'vip-upper-gift' or row['status'] != 'RESERVED'
+        if (not row or row['reward_id'] != reward_id or row['status'] != 'RESERVED'
                 or row['dispatch_state'] != 'POSSIBLE'):
             raise ValueError('An original uncertain VIP upper-gift claim is required.')
         task = db.execute('SELECT * FROM task_runs WHERE id=?', (row['task_run_id'],)).fetchone()
@@ -30,18 +41,18 @@ def reconcile_saved_vip_gift(store, claim_id):
         raise ValueError('Protected, missing or changed journal identity cannot be reconciled.')
     path = Path(task['report_path']).resolve()
     report = json.loads(path.read_text(encoding='utf-8'))
-    upper = report['upper_gift']
+    upper = report if daily else report['upper_gift']
     before = json.loads(row['before_evidence'])
     # The production runner captures this AFTER upper-gift handling, BEFORE the
     # independent green reward. No caller-supplied newer screenshot is accepted.
-    after = report['before_evidence']
+    after = report['after_evidence'] if daily else report['before_evidence']
     if (upper.get('claim_id') != claim_id or upper.get('claim_dispatched') is not True
-            or upper.get('before') != before or report['task_run_id'] != row['task_run_id']):
+            or upper.get('before_evidence' if daily else 'before') != before or report['task_run_id'] != row['task_run_id']):
         raise ValueError('Original one-shot upper-gift dispatch is not proven.')
     profile, _ = _load_profile_details('vip-reward')
-    adapter = FrameRewardAdapter(gift_profile(profile))
+    adapter = FrameRewardAdapter(profile if daily else gift_profile(profile))
     frames, times = [], []
-    for evidence, folder in ((before,path.parent/'upper-gift'),(after,path.parent)):
+    for evidence, folder in ((before,path.parent if daily else path.parent/'upper-gift'),(after,path.parent)):
         if any(evidence[k] != before[k] for k in ('index','adb_target','boot_id')):
             raise ValueError('Original target/boot changed.')
         if runtime_key((evidence['index'],evidence['name'])) != runtime_key((row['instance_index'],row['instance_name'])):
@@ -61,7 +72,12 @@ def reconcile_saved_vip_gift(store, claim_id):
         times.append(datetime.fromisoformat(meta['timestamp']))
     if not timedelta(0) < times[1]-times[0] <= timedelta(seconds=60):
         raise ValueError('Post-state is outside the original action window.')
-    if gift_state(frames[0].screen) != 'FREE_CLAIMABLE' or gift_state(frames[1].screen) != 'NOT_AVAILABLE':
+    if daily:
+        rewards=frames[0].screen.rewards
+        if (len(rewards)!=1 or rewards[0].cost!=Cost.FREE or rewards[0].ambiguous
+                or adapter.classify_claim(frames[0].screen,frames[1].screen,rewards[0])!=ClaimOutcome.CLAIMED):
+            raise ValueError('Independent free-to-disabled daily change is not proven.')
+    elif gift_state(frames[0].screen) != 'FREE_CLAIMABLE' or gift_state(frames[1].screen) != 'NOT_AVAILABLE':
         raise ValueError('Independent claimable-to-inactive gift change is not proven.')
     core, paid = (frames[0].evidence[role] for role in ('claim','paid'))
     geometry = upper['geometry']
@@ -71,7 +87,7 @@ def reconcile_saved_vip_gift(store, claim_id):
     validate_vip_claim_geometry(core.device_box,point,(paid.device_box,))
     if point != core.device_box.center or geometry['claim_bbox'] != vars(core.device_box):
         raise ValueError('Original dispatched point differs from the visual target.')
-    proof = dict(method='original_vip_upper_dispatch_and_same_task_inactive_gift',
+    proof = dict(method='original_vip_daily_dispatch_and_same_task_disabled_countdown' if daily else 'original_vip_upper_dispatch_and_same_task_inactive_gift',
         claim_id=claim_id, task_run_id=row['task_run_id'], claim_redispatched=False,
         before=json.loads(evidence_json(frames[0].screen)),
         after=json.loads(evidence_json(frames[1].screen)))

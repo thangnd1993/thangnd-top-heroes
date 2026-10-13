@@ -1,0 +1,1559 @@
+{
+  "733806e19d8915874d8b0660b62565d12fa4157f2de77a72a863f6ac00f71d3e": [
+    {
+      "text": "Hoån",
+      "x": 22,
+      "y": 16,
+      "width": 40,
+      "height": 15
+    },
+    {
+      "text": "thånh",
+      "x": 69,
+      "y": 16,
+      "width": 48,
+      "height": 15
+    },
+    {
+      "text": "10",
+      "x": 124,
+      "y": 18,
+      "width": 17,
+      "height": 12
+    },
+    {
+      "text": "Ian",
+      "x": 147,
+      "y": 17,
+      "width": 26,
+      "height": 14
+    },
+    {
+      "text": "Treo",
+      "x": 43,
+      "y": 47,
+      "width": 36,
+      "height": 13
+    },
+    {
+      "text": "Thddng",
+      "x": 86,
+      "y": 42,
+      "width": 66,
+      "height": 21
+    }
+  ],
+  "2b8c1827ac2ab1cb14a4ed8802125c44d9541193ce96447b657b560b64d36b42": [
+    {
+      "text": "Hoån",
+      "x": 43,
+      "y": 31,
+      "width": 82,
+      "height": 31
+    },
+    {
+      "text": "thånh",
+      "x": 137,
+      "y": 31,
+      "width": 97,
+      "height": 31
+    },
+    {
+      "text": "10",
+      "x": 247,
+      "y": 35,
+      "width": 35,
+      "height": 26
+    },
+    {
+      "text": "Ian",
+      "x": 293,
+      "y": 33,
+      "width": 54,
+      "height": 29
+    },
+    {
+      "text": "Treo",
+      "x": 85,
+      "y": 93,
+      "width": 74,
+      "height": 28
+    },
+    {
+      "text": "Thddng",
+      "x": 171,
+      "y": 83,
+      "width": 133,
+      "height": 44
+    }
+  ],
+  "d1e4de0a1cbe88e44672a8907783233c7bb9f486baa9ecfde84110ef49b1fabe": [
+    {
+      "text": "Dén",
+      "x": 136,
+      "y": 16,
+      "width": 77,
+      "height": 39
+    }
+  ],
+  "1bd70d41be00f8314149e51144045ebc3423748c0eb8bda5daca6b77ba345d31": [],
+  "bb0e228433eaf61facffe24a539ed2b52a392bc4e8b5db1bcb4ca7246cb7a4b2": [
+    {
+      "text": "Thddng",
+      "x": 28,
+      "y": 15,
+      "width": 66,
+      "height": 19
+    },
+    {
+      "text": "Dii",
+      "x": 100,
+      "y": 15,
+      "width": 25,
+      "height": 19
+    },
+    {
+      "text": "Giao",
+      "x": 132,
+      "y": 17,
+      "width": 33,
+      "height": 13
+    },
+    {
+      "text": "Oich",
+      "x": 15,
+      "y": 43,
+      "width": 34,
+      "height": 21
+    },
+    {
+      "text": "xuät",
+      "x": 55,
+      "y": 43,
+      "width": 36,
+      "height": 16
+    },
+    {
+      "text": "phåt",
+      "x": 98,
+      "y": 44,
+      "width": 36,
+      "height": 18
+    },
+    {
+      "text": "4",
+      "x": 140,
+      "y": 46,
+      "width": 8,
+      "height": 13
+    },
+    {
+      "text": "län",
+      "x": 154,
+      "y": 43,
+      "width": 25,
+      "height": 16
+    }
+  ],
+  "718ed4edaa08f34a28e29ed380c0948e9cc49225580a2e7133a26e07dba15944": [
+    {
+      "text": "Thddng",
+      "x": 55,
+      "y": 29,
+      "width": 134,
+      "height": 40
+    },
+    {
+      "text": "Dii",
+      "x": 200,
+      "y": 29,
+      "width": 51,
+      "height": 40
+    },
+    {
+      "text": "Giao",
+      "x": 263,
+      "y": 33,
+      "width": 68,
+      "height": 28
+    },
+    {
+      "text": "Dich",
+      "x": 29,
+      "y": 85,
+      "width": 69,
+      "height": 43
+    },
+    {
+      "text": "xuät",
+      "x": 109,
+      "y": 85,
+      "width": 74,
+      "height": 34
+    },
+    {
+      "text": "phåt",
+      "x": 195,
+      "y": 87,
+      "width": 74,
+      "height": 38
+    },
+    {
+      "text": "4",
+      "x": 280,
+      "y": 92,
+      "width": 16,
+      "height": 27
+    },
+    {
+      "text": "län",
+      "x": 308,
+      "y": 85,
+      "width": 51,
+      "height": 34
+    }
+  ],
+  "99024d2a73358f643b22e4cf6e14f57bcf7d18647d787994bd4768bbc3ed68e0": [
+    {
+      "text": "Thddng",
+      "x": 36,
+      "y": 9,
+      "width": 132,
+      "height": 39
+    },
+    {
+      "text": "Déi",
+      "x": 179,
+      "y": 10,
+      "width": 52,
+      "height": 39
+    },
+    {
+      "text": "Giao",
+      "x": 243,
+      "y": 14,
+      "width": 68,
+      "height": 27
+    },
+    {
+      "text": "Dich",
+      "x": 9,
+      "y": 64,
+      "width": 69,
+      "height": 44
+    },
+    {
+      "text": "xuät",
+      "x": 90,
+      "y": 65,
+      "width": 74,
+      "height": 33
+    },
+    {
+      "text": "phåt",
+      "x": 174,
+      "y": 68,
+      "width": 75,
+      "height": 38
+    },
+    {
+      "text": "4",
+      "x": 259,
+      "y": 72,
+      "width": 18,
+      "height": 26
+    },
+    {
+      "text": "län",
+      "x": 288,
+      "y": 61,
+      "width": 51,
+      "height": 37
+    }
+  ],
+  "a601756cff0da7a4d9680d61e552c1d33ee4f9ee3fb649ae14fad73f4e8be6a5": [
+    {
+      "text": "Thddng",
+      "x": 54,
+      "y": 14,
+      "width": 198,
+      "height": 58
+    },
+    {
+      "text": "Döi",
+      "x": 268,
+      "y": 14,
+      "width": 79,
+      "height": 60
+    },
+    {
+      "text": "Giao",
+      "x": 365,
+      "y": 20,
+      "width": 101,
+      "height": 41
+    },
+    {
+      "text": "Dich",
+      "x": 13,
+      "y": 96,
+      "width": 104,
+      "height": 66
+    },
+    {
+      "text": "xuät",
+      "x": 134,
+      "y": 97,
+      "width": 112,
+      "height": 50
+    },
+    {
+      "text": "phåt",
+      "x": 261,
+      "y": 102,
+      "width": 113,
+      "height": 57
+    },
+    {
+      "text": "4",
+      "x": 389,
+      "y": 108,
+      "width": 27,
+      "height": 39
+    },
+    {
+      "text": "län",
+      "x": 432,
+      "y": 91,
+      "width": 77,
+      "height": 56
+    }
+  ],
+  "59e86686c0e1584c852a1efaf18989c2c42701cdc269e0a51a39e616e85eb16f": [
+    {
+      "text": "Thddng",
+      "x": 66,
+      "y": 43,
+      "width": 198,
+      "height": 59
+    },
+    {
+      "text": "Döi",
+      "x": 280,
+      "y": 44,
+      "width": 79,
+      "height": 60
+    },
+    {
+      "text": "Giao",
+      "x": 377,
+      "y": 50,
+      "width": 101,
+      "height": 41
+    },
+    {
+      "text": "Dich",
+      "x": 25,
+      "y": 126,
+      "width": 104,
+      "height": 66
+    },
+    {
+      "text": "xuät",
+      "x": 146,
+      "y": 127,
+      "width": 112,
+      "height": 50
+    },
+    {
+      "text": "phåt",
+      "x": 273,
+      "y": 132,
+      "width": 113,
+      "height": 57
+    },
+    {
+      "text": "4",
+      "x": 400,
+      "y": 138,
+      "width": 28,
+      "height": 39
+    },
+    {
+      "text": "län",
+      "x": 444,
+      "y": 121,
+      "width": 77,
+      "height": 56
+    }
+  ],
+  "fd919db5d937f4b6005dc83a55e7bc42e8189c2cbe52d8589ac4ee11899a288a": [
+    {
+      "text": "Thddng",
+      "x": 110,
+      "y": 72,
+      "width": 330,
+      "height": 98
+    },
+    {
+      "text": "Déi",
+      "x": 466,
+      "y": 74,
+      "width": 131,
+      "height": 99
+    },
+    {
+      "text": "Giao",
+      "x": 629,
+      "y": 84,
+      "width": 168,
+      "height": 69
+    },
+    {
+      "text": "Dich",
+      "x": 41,
+      "y": 210,
+      "width": 174,
+      "height": 110
+    },
+    {
+      "text": "xuät",
+      "x": 243,
+      "y": 211,
+      "width": 187,
+      "height": 85
+    },
+    {
+      "text": "phåt",
+      "x": 456,
+      "y": 220,
+      "width": 186,
+      "height": 95
+    },
+    {
+      "text": "4",
+      "x": 667,
+      "y": 231,
+      "width": 45,
+      "height": 64
+    },
+    {
+      "text": "Ian",
+      "x": 741,
+      "y": 227,
+      "width": 128,
+      "height": 69
+    }
+  ],
+  "20b7461a3dd17af3728f990737bf70d25b1afc0b9a3335e92358c8b54c6905c4": [
+    {
+      "text": "Thddng",
+      "x": 132,
+      "y": 88,
+      "width": 396,
+      "height": 117
+    },
+    {
+      "text": "Déi",
+      "x": 560,
+      "y": 90,
+      "width": 157,
+      "height": 118
+    },
+    {
+      "text": "Giao",
+      "x": 754,
+      "y": 101,
+      "width": 201,
+      "height": 82
+    },
+    {
+      "text": "Dich",
+      "x": 50,
+      "y": 253,
+      "width": 208,
+      "height": 130
+    },
+    {
+      "text": "xuät",
+      "x": 291,
+      "y": 253,
+      "width": 224,
+      "height": 102
+    },
+    {
+      "text": "phåt4",
+      "x": 547,
+      "y": 264,
+      "width": 308,
+      "height": 113
+    },
+    {
+      "text": "Ian",
+      "x": 889,
+      "y": 272,
+      "width": 154,
+      "height": 83
+    }
+  ],
+  "a69a4b820abd46711e6c875e153c71bd781e01a0be012974abf63da33ee94004": [
+    {
+      "text": "Nghi@n",
+      "x": 26,
+      "y": 16,
+      "width": 57,
+      "height": 18
+    },
+    {
+      "text": "c13u",
+      "x": 90,
+      "y": 12,
+      "width": 30,
+      "height": 19
+    },
+    {
+      "text": "Cöng",
+      "x": 127,
+      "y": 16,
+      "width": 40,
+      "height": 18
+    },
+    {
+      "text": "Nghe",
+      "x": 52,
+      "y": 43,
+      "width": 42,
+      "height": 22
+    },
+    {
+      "text": "1",
+      "x": 102,
+      "y": 47,
+      "width": 6,
+      "height": 13
+    },
+    {
+      "text": "län",
+      "x": 116,
+      "y": 42,
+      "width": 25,
+      "height": 18
+    }
+  ],
+  "bf56123802c9f427e321f16a69308184e98366371fdd715916126d42e2bfb5ec": [
+    {
+      "text": "Nghién",
+      "x": 51,
+      "y": 31,
+      "width": 116,
+      "height": 38
+    },
+    {
+      "text": "cüu",
+      "x": 180,
+      "y": 24,
+      "width": 61,
+      "height": 38
+    },
+    {
+      "text": "Cöng",
+      "x": 253,
+      "y": 31,
+      "width": 82,
+      "height": 38
+    },
+    {
+      "text": "Nghe",
+      "x": 103,
+      "y": 85,
+      "width": 86,
+      "height": 45
+    },
+    {
+      "text": "1",
+      "x": 203,
+      "y": 93,
+      "width": 14,
+      "height": 28
+    },
+    {
+      "text": "län",
+      "x": 231,
+      "y": 83,
+      "width": 52,
+      "height": 38
+    }
+  ],
+  "6b1105655d4e43b2b674ca59c29268fe8cf1069a2903e4fa0d672dfc55842f74": [
+    {
+      "text": "Nghién",
+      "x": 31,
+      "y": 13,
+      "width": 114,
+      "height": 39
+    },
+    {
+      "text": "cüu",
+      "x": 157,
+      "y": 4,
+      "width": 64,
+      "height": 38
+    },
+    {
+      "text": "Cöng",
+      "x": 232,
+      "y": 9,
+      "width": 81,
+      "height": 37
+    },
+    {
+      "text": "Nghe",
+      "x": 83,
+      "y": 65,
+      "width": 87,
+      "height": 45
+    },
+    {
+      "text": "1",
+      "x": 183,
+      "y": 73,
+      "width": 15,
+      "height": 27
+    },
+    {
+      "text": "län",
+      "x": 211,
+      "y": 61,
+      "width": 52,
+      "height": 38
+    }
+  ],
+  "aacee61a6f75ab58cbaaca0da7d958bd895729754469f2dd4811cd9de0723671": [
+    {
+      "text": "Nghién",
+      "x": 48,
+      "y": 16,
+      "width": 171,
+      "height": 58
+    },
+    {
+      "text": "c(lu",
+      "x": 238,
+      "y": 6,
+      "width": 95,
+      "height": 57
+    },
+    {
+      "text": "Cöng",
+      "x": 350,
+      "y": 17,
+      "width": 122,
+      "height": 57
+    },
+    {
+      "text": "Nghe",
+      "x": 124,
+      "y": 97,
+      "width": 131,
+      "height": 68
+    },
+    {
+      "text": "1",
+      "x": 274,
+      "y": 110,
+      "width": 22,
+      "height": 40
+    },
+    {
+      "text": "län",
+      "x": 315,
+      "y": 93,
+      "width": 79,
+      "height": 57
+    }
+  ],
+  "dbd50b1ef2de491bf43f7ed74b2cbf5e0a16afc3217ef9a4a7ed02cd233feb6a": [
+    {
+      "text": "Nghién",
+      "x": 60,
+      "y": 47,
+      "width": 171,
+      "height": 57
+    },
+    {
+      "text": "Cilu",
+      "x": 249,
+      "y": 35,
+      "width": 96,
+      "height": 58
+    },
+    {
+      "text": "Cöng",
+      "x": 362,
+      "y": 47,
+      "width": 122,
+      "height": 57
+    },
+    {
+      "text": "Nghe",
+      "x": 136,
+      "y": 127,
+      "width": 130,
+      "height": 68
+    },
+    {
+      "text": "1",
+      "x": 286,
+      "y": 140,
+      "width": 22,
+      "height": 40
+    },
+    {
+      "text": "län",
+      "x": 327,
+      "y": 123,
+      "width": 79,
+      "height": 57
+    }
+  ],
+  "6a7a0bd0d1245fc45595ec28e7460abd12e6fb6c322e135d3664d162d812dfd7": [
+    {
+      "text": "Nghién",
+      "x": 100,
+      "y": 78,
+      "width": 285,
+      "height": 95
+    },
+    {
+      "text": "cutu",
+      "x": 417,
+      "y": 59,
+      "width": 157,
+      "height": 95
+    },
+    {
+      "text": "Cöng",
+      "x": 604,
+      "y": 78,
+      "width": 202,
+      "height": 95
+    },
+    {
+      "text": "Nghe",
+      "x": 226,
+      "y": 213,
+      "width": 218,
+      "height": 111
+    },
+    {
+      "text": "llän",
+      "x": 476,
+      "y": 205,
+      "width": 201,
+      "height": 95
+    }
+  ],
+  "82c8d39e884150e111a06611a5f4fdfa98a9ea9db15d0ddf49087968c73cc407": [
+    {
+      "text": "Nghién",
+      "x": 121,
+      "y": 94,
+      "width": 341,
+      "height": 113
+    },
+    {
+      "text": "c(iu",
+      "x": 501,
+      "y": 72,
+      "width": 188,
+      "height": 113
+    },
+    {
+      "text": "Cöng",
+      "x": 726,
+      "y": 94,
+      "width": 241,
+      "height": 113
+    },
+    {
+      "text": "Nghe",
+      "x": 272,
+      "y": 256,
+      "width": 261,
+      "height": 133
+    },
+    {
+      "text": "1",
+      "x": 571,
+      "y": 281,
+      "width": 46,
+      "height": 79
+    },
+    {
+      "text": "län",
+      "x": 655,
+      "y": 247,
+      "width": 156,
+      "height": 113
+    }
+  ],
+  "ace27e2702ab5a11ee7c928bfda31180602a7144682dc6a43c42e26ebd240ab8": [
+    {
+      "text": "Dann",
+      "x": 21,
+      "y": 10,
+      "width": 42,
+      "height": 12
+    },
+    {
+      "text": "noang",
+      "x": 70,
+      "y": 10,
+      "width": 51,
+      "height": 16
+    },
+    {
+      "text": "aa",
+      "x": 128,
+      "y": 10,
+      "width": 19,
+      "height": 12
+    },
+    {
+      "text": "10",
+      "x": 154,
+      "y": 10,
+      "width": 18,
+      "height": 12
+    },
+    {
+      "text": "län",
+      "x": 20,
+      "y": 33,
+      "width": 25,
+      "height": 18
+    },
+    {
+      "text": "trong",
+      "x": 52,
+      "y": 39,
+      "width": 46,
+      "height": 16
+    },
+    {
+      "text": "Thé",
+      "x": 105,
+      "y": 34,
+      "width": 31,
+      "height": 17
+    },
+    {
+      "text": "Gidi",
+      "x": 142,
+      "y": 32,
+      "width": 32,
+      "height": 19
+    }
+  ],
+  "951d8fa97b42db2770d75523f0fb51c77bf311490596f9e66e99abc8689ae29f": [
+    {
+      "text": "Oanh",
+      "x": 41,
+      "y": 19,
+      "width": 85,
+      "height": 26
+    },
+    {
+      "text": "hoang",
+      "x": 140,
+      "y": 19,
+      "width": 103,
+      "height": 34
+    },
+    {
+      "text": "da",
+      "x": 255,
+      "y": 19,
+      "width": 40,
+      "height": 26
+    },
+    {
+      "text": "10",
+      "x": 308,
+      "y": 19,
+      "width": 37,
+      "height": 26
+    },
+    {
+      "text": "Ian",
+      "x": 39,
+      "y": 73,
+      "width": 52,
+      "height": 30
+    },
+    {
+      "text": "trong",
+      "x": 103,
+      "y": 77,
+      "width": 94,
+      "height": 34
+    },
+    {
+      "text": "Thé",
+      "x": 209,
+      "y": 67,
+      "width": 63,
+      "height": 36
+    },
+    {
+      "text": "Gidi",
+      "x": 284,
+      "y": 64,
+      "width": 65,
+      "height": 39
+    }
+  ],
+  "09c1ee5302374a36608ab4d7d69d318d97119919cf16f27441d6cdcff018bdfc": [
+    {
+      "text": "Danh",
+      "x": 22,
+      "y": 0,
+      "width": 84,
+      "height": 25
+    },
+    {
+      "text": "hoang",
+      "x": 119,
+      "y": 0,
+      "width": 104,
+      "height": 32
+    },
+    {
+      "text": "d",
+      "x": 235,
+      "y": 0,
+      "width": 19,
+      "height": 24
+    },
+    {
+      "text": "län",
+      "x": 18,
+      "y": 44,
+      "width": 54,
+      "height": 38
+    },
+    {
+      "text": "trong",
+      "x": 84,
+      "y": 56,
+      "width": 94,
+      "height": 34
+    },
+    {
+      "text": "Thé",
+      "x": 188,
+      "y": 44,
+      "width": 66,
+      "height": 38
+    },
+    {
+      "text": "Gidi",
+      "x": 264,
+      "y": 43,
+      "width": 64,
+      "height": 39
+    }
+  ],
+  "8a6ad81f9ab9b4a08a63d229e6ee89e60228093364a8cc385dfeae6f2089cf05": [
+    {
+      "text": "Danh",
+      "x": 33,
+      "y": 0,
+      "width": 127,
+      "height": 37
+    },
+    {
+      "text": "hoang",
+      "x": 178,
+      "y": 0,
+      "width": 157,
+      "height": 48
+    },
+    {
+      "text": "da",
+      "x": 353,
+      "y": 0,
+      "width": 60,
+      "height": 37
+    },
+    {
+      "text": "1",
+      "x": 432,
+      "y": 0,
+      "width": 22,
+      "height": 37
+    },
+    {
+      "text": "län",
+      "x": 28,
+      "y": 66,
+      "width": 79,
+      "height": 57
+    },
+    {
+      "text": "trong",
+      "x": 126,
+      "y": 85,
+      "width": 141,
+      "height": 50
+    },
+    {
+      "text": "Thé",
+      "x": 282,
+      "y": 66,
+      "width": 99,
+      "height": 57
+    },
+    {
+      "text": "Gidi",
+      "x": 395,
+      "y": 65,
+      "width": 97,
+      "height": 58
+    }
+  ],
+  "6f34daee2695d833835d2eb6a7ccee32a94cffdc3edea86775a87e39709c555b": [
+    {
+      "text": "Dånh",
+      "x": 45,
+      "y": 21,
+      "width": 127,
+      "height": 46
+    },
+    {
+      "text": "hoang",
+      "x": 190,
+      "y": 25,
+      "width": 157,
+      "height": 54
+    },
+    {
+      "text": "dä",
+      "x": 365,
+      "y": 23,
+      "width": 60,
+      "height": 43
+    },
+    {
+      "text": "IO",
+      "x": 444,
+      "y": 26,
+      "width": 54,
+      "height": 41
+    },
+    {
+      "text": "Ian",
+      "x": 40,
+      "y": 111,
+      "width": 79,
+      "height": 42
+    },
+    {
+      "text": "trong",
+      "x": 138,
+      "y": 115,
+      "width": 141,
+      "height": 50
+    },
+    {
+      "text": "Thé",
+      "x": 295,
+      "y": 96,
+      "width": 98,
+      "height": 57
+    },
+    {
+      "text": "Gidi",
+      "x": 408,
+      "y": 95,
+      "width": 96,
+      "height": 58
+    }
+  ],
+  "db24cda5aa96c987ad7e7b26adacb02e6c445bed4ce41aa28c82e7f85673ed51": [
+    {
+      "text": "Dånh",
+      "x": 75,
+      "y": 34,
+      "width": 211,
+      "height": 79
+    },
+    {
+      "text": "hoang",
+      "x": 318,
+      "y": 41,
+      "width": 261,
+      "height": 90
+    },
+    {
+      "text": "dä",
+      "x": 609,
+      "y": 38,
+      "width": 99,
+      "height": 73
+    },
+    {
+      "text": "10",
+      "x": 740,
+      "y": 45,
+      "width": 90,
+      "height": 67
+    },
+    {
+      "text": "Ian",
+      "x": 66,
+      "y": 185,
+      "width": 133,
+      "height": 71
+    },
+    {
+      "text": "trong",
+      "x": 230,
+      "y": 191,
+      "width": 234,
+      "height": 84
+    },
+    {
+      "text": "Thé",
+      "x": 490,
+      "y": 159,
+      "width": 164,
+      "height": 97
+    },
+    {
+      "text": "Gidi",
+      "x": 680,
+      "y": 159,
+      "width": 160,
+      "height": 97
+    }
+  ],
+  "08019c4959cf10b64445802ea97e77db27f720f362fe699abb80b5510915b28d": [
+    {
+      "text": "Dånh",
+      "x": 90,
+      "y": 41,
+      "width": 253,
+      "height": 94
+    },
+    {
+      "text": "hoang",
+      "x": 381,
+      "y": 49,
+      "width": 314,
+      "height": 108
+    },
+    {
+      "text": "dä",
+      "x": 731,
+      "y": 46,
+      "width": 119,
+      "height": 88
+    },
+    {
+      "text": "10",
+      "x": 888,
+      "y": 54,
+      "width": 107,
+      "height": 81
+    },
+    {
+      "text": "Ian",
+      "x": 80,
+      "y": 222,
+      "width": 159,
+      "height": 85
+    },
+    {
+      "text": "trong",
+      "x": 275,
+      "y": 230,
+      "width": 282,
+      "height": 99
+    },
+    {
+      "text": "Thé",
+      "x": 589,
+      "y": 192,
+      "width": 196,
+      "height": 114
+    },
+    {
+      "text": "Gidi",
+      "x": 816,
+      "y": 191,
+      "width": 192,
+      "height": 115
+    }
+  ],
+  "5882b8842822c8306be3e79d859667553496a93a2bf7dfe05cf6ab8a909d71c4": [
+    {
+      "text": "Nhån",
+      "x": 122,
+      "y": 16,
+      "width": 102,
+      "height": 41
+    }
+  ],
+  "cede6ef350905626e1bdba49aa8c9aa0944e1703e445e5d71a7d9fcd2dc50ef3": [
+    {
+      "text": ".Nhån,",
+      "x": 164,
+      "y": 22,
+      "width": 192,
+      "height": 66
+    }
+  ],
+  "f780f0310a77de7e570d25c65366a32c900bd32df92f98f8f48438724dd2fdc6": [],
+  "2265a5a502870dd9132036342ea3b3ec45739680cd2a5bdd7353dd7d94900c77": [],
+  "5978a04db86bba02f4dd8fcb1769dbb447c9cb831292a33efd8e717c60095436": [
+    {
+      "text": "10",
+      "x": 290,
+      "y": 44,
+      "width": 78,
+      "height": 61
+    },
+    {
+      "text": "10",
+      "x": 403,
+      "y": 36,
+      "width": 77,
+      "height": 60
+    }
+  ],
+  "081a37e0bc432a167bfeaea0841da4032f4c7155e3bc2fe35336ecdfb7e93fd8": [
+    {
+      "text": "10",
+      "x": 366,
+      "y": 53,
+      "width": 97,
+      "height": 70
+    },
+    {
+      "text": "10",
+      "x": 506,
+      "y": 52,
+      "width": 97,
+      "height": 71
+    }
+  ],
+  "ae637fc6d50ba3c11024fe1adf6dfa6b2abc5d941f439ee860aa2e983e40a3d7": [
+    {
+      "text": "(10/10)",
+      "x": 200,
+      "y": 29,
+      "width": 179,
+      "height": 53
+    }
+  ],
+  "e1fb930ae31e38cb352beb1e2c4538f5001fadc0ba7e5c91cf4335cb5826bf6c": [
+    {
+      "text": "(10/10)",
+      "x": 267,
+      "y": 39,
+      "width": 238,
+      "height": 70
+    }
+  ],
+  "c90734fe9217e8ed58d3be6a6adc31c3eb23f7b2391333a4a98b8f6bbf03c969": [
+    {
+      "text": "Thu",
+      "x": 13,
+      "y": 17,
+      "width": 29,
+      "height": 13
+    },
+    {
+      "text": "thip",
+      "x": 48,
+      "y": 13,
+      "width": 38,
+      "height": 22
+    },
+    {
+      "text": "tåi",
+      "x": 92,
+      "y": 16,
+      "width": 20,
+      "height": 14
+    },
+    {
+      "text": "nguyin",
+      "x": 119,
+      "y": 16,
+      "width": 60,
+      "height": 18
+    },
+    {
+      "text": "bät",
+      "x": 40,
+      "y": 40,
+      "width": 27,
+      "height": 16
+    },
+    {
+      "text": "100000",
+      "x": 98,
+      "y": 44,
+      "width": 55,
+      "height": 12
+    }
+  ],
+  "23921143f4e2d0cab1c269952c87cdce2aca907d609dfc270334d491902904df": [
+    {
+      "text": "Thu",
+      "x": 25,
+      "y": 33,
+      "width": 59,
+      "height": 28
+    },
+    {
+      "text": "thöp",
+      "x": 95,
+      "y": 25,
+      "width": 78,
+      "height": 46
+    },
+    {
+      "text": "tåi",
+      "x": 184,
+      "y": 31,
+      "width": 41,
+      "height": 30
+    },
+    {
+      "text": "nguyén",
+      "x": 237,
+      "y": 31,
+      "width": 122,
+      "height": 38
+    },
+    {
+      "text": "bät",
+      "x": 79,
+      "y": 80,
+      "width": 56,
+      "height": 33
+    },
+    {
+      "text": "100000",
+      "x": 195,
+      "y": 87,
+      "width": 112,
+      "height": 26
+    }
+  ],
+  "7ac1babf535007e777a29210c31d575360ca6cba353cf2d4d56c8bfa3622e46e": [
+    {
+      "text": "Thu",
+      "x": 6,
+      "y": 13,
+      "width": 58,
+      "height": 27
+    },
+    {
+      "text": "thöp",
+      "x": 75,
+      "y": 6,
+      "width": 78,
+      "height": 44
+    },
+    {
+      "text": "tåi",
+      "x": 164,
+      "y": 10,
+      "width": 41,
+      "height": 30
+    },
+    {
+      "text": "nguyén",
+      "x": 217,
+      "y": 10,
+      "width": 121,
+      "height": 38
+    },
+    {
+      "text": "bät",
+      "x": 60,
+      "y": 59,
+      "width": 54,
+      "height": 34
+    },
+    {
+      "text": "ky",
+      "x": 126,
+      "y": 63,
+      "width": 37,
+      "height": 37
+    },
+    {
+      "text": "100000",
+      "x": 175,
+      "y": 66,
+      "width": 111,
+      "height": 27
+    }
+  ],
+  "cbd838b6e8ac7081299cf3a9d38756cff0fc313c56550187d8fd58e9cd4613f5": [
+    {
+      "text": "Thu",
+      "x": 9,
+      "y": 20,
+      "width": 87,
+      "height": 41
+    },
+    {
+      "text": "thöp",
+      "x": 112,
+      "y": 9,
+      "width": 118,
+      "height": 66
+    },
+    {
+      "text": "tåi",
+      "x": 246,
+      "y": 15,
+      "width": 62,
+      "height": 46
+    },
+    {
+      "text": "nguyén",
+      "x": 326,
+      "y": 15,
+      "width": 181,
+      "height": 57
+    },
+    {
+      "text": "bät",
+      "x": 90,
+      "y": 89,
+      "width": 82,
+      "height": 50
+    },
+    {
+      "text": "ky",
+      "x": 189,
+      "y": 94,
+      "width": 55,
+      "height": 56
+    },
+    {
+      "text": "100000",
+      "x": 263,
+      "y": 100,
+      "width": 167,
+      "height": 39
+    }
+  ],
+  "047640420ef270e02f52bc7dd9f70d0d0ff7fe7fdc5ce640554696edd0a17cc1": [
+    {
+      "text": "Den",
+      "x": 133,
+      "y": 26,
+      "width": 77,
+      "height": 31
+    }
+  ],
+  "b55b9fa2512b11bcdd36f471fc43839112b3738ecda9be4c3ceb558e0b2fd7e7": [
+    {
+      "text": "Dén",
+      "x": 200,
+      "y": 26,
+      "width": 116,
+      "height": 59
+    }
+  ],
+  "75ef08166a0a9426e303a25e590b6e0a6edb93b4c07ca2e8a3aa80c199dffbbf": [
+    {
+      "text": "ox",
+      "x": 171,
+      "y": 53,
+      "width": 38,
+      "height": 26
+    }
+  ],
+  "9435d1731fbbe644ad02c151b7c5e6c2800dc7b5ec1c04f6f855fe66de5c0e92": [
+    {
+      "text": "a",
+      "x": 254,
+      "y": 29,
+      "width": 23,
+      "height": 23
+    },
+    {
+      "text": "uurv",
+      "x": 284,
+      "y": 29,
+      "width": 113,
+      "height": 26
+    }
+  ],
+  "5c4c5d5c6305bf20861d2b5f8074d12eb306e5dd1527cc7795a4f414a74f1b44": [
+    {
+      "text": "0",
+      "x": 264,
+      "y": 50,
+      "width": 36,
+      "height": 53
+    },
+    {
+      "text": "10",
+      "x": 336,
+      "y": 42,
+      "width": 76,
+      "height": 59
+    },
+    {
+      "text": "K",
+      "x": 464,
+      "y": 36,
+      "width": 40,
+      "height": 56
+    }
+  ],
+  "dcfdd2f25c90aa4028298957dfbf16bcb03ec8e2ca26cf2951ea1e1f66badc83": [
+    {
+      "text": "0",
+      "x": 333,
+      "y": 51,
+      "width": 47,
+      "height": 66
+    },
+    {
+      "text": "100K",
+      "x": 422,
+      "y": 53,
+      "width": 208,
+      "height": 74
+    }
+  ],
+  "2abc66cb166c6c32f38bd50595761721d36a98ea94cd40b2957e7be0bbc8daf2": [
+    {
+      "text": "(01100K)",
+      "x": 179,
+      "y": 21,
+      "width": 216,
+      "height": 69
+    }
+  ],
+  "b4d5e53907ed740102adfd270e1c6d0b0982f3a78c72a158d7a672a12c0cb582": [
+    {
+      "text": "(01100K)",
+      "x": 243,
+      "y": 39,
+      "width": 285,
+      "height": 70
+    }
+  ]
+}

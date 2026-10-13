@@ -1,3 +1,35 @@
+## Authorized completion run — IN PROGRESS (2026-10-14)
+
+One frozen instance-first plan, max_concurrency=1, targets4,2,3,5,8,9,10,11.
+Protected0/1/6/7/12 excluded; external-running Chicken preserved. Current task
+explicitly permits only adbDebug=1 for stopped verified targets2/3/9, with exact
+original backups and byte-preserving field edits. Index2 change and explicit
+emulator-5558 verification succeeded; no other config field was changed.
+
+Index4 finished with ten newly VERIFIED rewards (VIP2, BXH1, Shop4, Guild3).
+VIP324 was reconciled from its original free-to-disabled countdown screenshots,
+without redispatch. Mail293 remains POSSIBLE. Event coverage remains PARTIAL:
+original worker predated the qualified collaboration hub and book corrections.
+Index2 is in progress; upper333 VERIFIED, daily334 POSSIBLE (clock OCR did not
+agree). Never replay it. No phase closure or Phase9 is authorized by this note.
+
+Focused corrections: paired functional DRAGONS navigation anchors, completed
+book objectives, exact larger caption OCR for the real 10/10 race-task card,
+VIP disabled-countdown variant, original-action daily receipt reconciliation,
+prior-period VIP scope, and the specifically authorized ADB field writer.
+User confirmed Idle reavailability means NEW ACCUMULATION, never a calendar
+reset. Original empty-panel proof plus verified disk continuity permits a new
+inspection; fresh attention/green accumulation still gates its one-shot claim.
+POSSIBLE, ambiguous disk history and missing original empty proof remain locked.
+
+Targeted regression groups:139 and57 passed (overlap exists);44 Idle/journal
+checks passed; affected Ruff and self-review passed. Full CI/final portable
+handoff follow the cohesive repair batch. Actual live runtime is the qualified
+local production checkout; each account retains its source hashes.
+Plan/results: artifacts/finish-phase8-plan.json and finish-phase8-*-result.json.
+Continue unfinished targets sequentially, then bounded no-duplicate coverage
+review of explicit pending Event branches. Do not replay completed rewards.
+
 ## Pending-scope continuation: PARTIAL (2026-10-13)
 
 Operation ended19:27 ICT. Frozen pending flows only: Idle, VIP, Mail, Events;
