@@ -53,7 +53,7 @@ def claimed_grid_effect(proof,captures,*,reader=read_words):
             return []
         observations.append(dict(identity=list(proof['identity']),capture=str(path),event=proof['event'],
             page=proof['page'],reward=proof['reward'],state='NOT_AVAILABLE',
-            independent_evidence=['same-qualified-task-grid','unique-saved-caption-agreement',
+            independent_evidence=['same-qualified-task-grid','qualified-race-task-grid','unique-saved-caption-agreement',
                                   'explicit-claimed-label','original-green-control-absent','complete-reward-card'],
             caption_confidence=score,receipt_required=False))
     return observations

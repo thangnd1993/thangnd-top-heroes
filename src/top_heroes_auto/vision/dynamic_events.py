@@ -263,14 +263,27 @@ def menu_card_boxes(image):
                           cv2.getStructuringElement(cv2.MORPH_RECT,(5,5)))
     contours,_=cv2.findContours(edges,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
     cards=[]
+    wide=[]
     for contour in contours:
         x,y,bw,bh=cv2.boundingRect(contour)
-        if (.25*w < bw < .55*w and .12*h < bh < .35*h and
+        if ((.25*w < bw < .55*w or .85*w < bw < .98*w) and .12*h < bh < .35*h and
                 region.y <= y and y+bh <= region.y+region.height and
                 cv2.contourArea(contour)/(bw*bh) > .94):
             box=BoundingBox(x,y,bw,bh)
-            if not any(abs(box.x-b.x)<8 and abs(box.y-b.y)<8 for b in cards):
-                cards.append(box)
+            bucket = wide if bw > .85*w else cards
+            if not any(abs(box.x-b.x)<8 and abs(box.y-b.y)<8 for b in bucket):
+                bucket.append(box)
+    # The observed mixed gallery has full-width rows above paired half-width
+    # cards. A large artwork rectangle alone is not a menu: require the same
+    # current closed borders, row height and both outer column boundaries.
+    pairs = [(a,b) for a in cards for b in cards
+             if 0 < b.x-a.x-a.width < w*.04 and abs(a.y-b.y)<5
+             and abs(a.width-b.width)<5 and abs(a.height-b.height)<5]
+    for box in wide:
+        if any(abs(box.x-a.x)<5 and abs(box.x+box.width-b.x-b.width)<5
+               and abs(box.height-a.height)<5 and box.y+box.height<=a.y
+               for a,b in pairs):
+            cards.append(box)
     badges=discover_badges(image,region)
     known=list(cards)
     for badge in badges:

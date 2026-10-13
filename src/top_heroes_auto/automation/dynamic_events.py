@@ -15,6 +15,10 @@ class EventEntryUnstable(SafetyError):
     """No input sent; current Home/runtime still verified. Block only this root."""
 
 
+class EventNavigationRejected(SafetyError):
+    """Visual navigation qualification changed before any input; runtime is intact."""
+
+
 @dataclass(frozen=True)
 class Control:
     identity: str
@@ -119,6 +123,7 @@ class DynamicEventExplorer:
         seek = None
         reentries = set()
         parent_returns=set()
+        failed_root_regions=[]  # Denial only; never identifies or authorizes a target.
         blocker_recoveries = set()
 
         def block(reason, frame):
@@ -134,9 +139,14 @@ class DynamicEventExplorer:
                 if frame.page != 'home' or control.kind != 'event':
                     raise
                 block('EVENT_REACQUISITION_FAILED',frame)
+                failed_root_regions.append(control.box)
                 active, active_seen, pending = None, False, None
                 stack, path, resume, seek = [], [], [], None
                 # Another root requires a NEW verified Home observation.
+            except EventNavigationRejected:
+                block('NAVIGATION_REJECTED_BEFORE_INPUT',frame)
+                if not continue_after_block(frame):
+                    raise
 
         def continue_after_block(frame):
             nonlocal active, active_seen, pending, stack, path, resume, seek, transitions
@@ -197,6 +207,12 @@ class DynamicEventExplorer:
                         continue
                     break
                 render_waits = 0
+                if active and frame.page == 'home' and pending and pending[:2] == ('parent','home'):
+                    # A sent Back is not proof of Home or Event exhaustion.
+                    # Retain the active root until this independent fresh frame.
+                    if report.events[active]['result'] != 'BLOCKED':
+                        report.events[active]['result'] = 'EXHAUSTED'
+                    active, active_seen, pending = None, False, None
                 if active and frame.page == 'home':
                     if not active_seen:
                         block('NO_PROGRESS', frame)
@@ -344,7 +360,21 @@ class DynamicEventExplorer:
                     if len(set(identities)) != len(identities):
                         block('AMBIGUOUS_EVENT_IDENTITY', frame)
                         break
-                    candidate = next((c for c in candidates if report.events[c.identity]['visits'] == 0), None)
+                    eligible=[]
+                    for c in candidates:
+                        denied=any(
+                            min(c.box.x+c.box.width,b.x+b.width)-max(c.box.x,b.x) > .70*max(c.box.width,b.width)
+                            and min(c.box.y+c.box.height,b.y+b.height)-max(c.box.y,b.y) > .70*max(c.box.height,b.height)
+                            for b in failed_root_regions)
+                        if denied:
+                            report.events[c.identity]['result']='BLOCKED'
+                            if 'PRIOR_ROOT_REACQUISITION_FAILED' not in report.events[c.identity]['blockers']:
+                                report.events[c.identity]['blockers'].append('PRIOR_ROOT_REACQUISITION_FAILED')
+                                report.blocked.append(dict(reason='PRIOR_ROOT_REACQUISITION_FAILED',
+                                    event=c.identity,page=frame.page,capture=frame.capture))
+                        else:
+                            eligible.append(c)
+                    candidate = next((c for c in eligible if report.events[c.identity]['visits'] == 0), None)
                     if candidate is None:
                         if any(report.events[c.identity]['result'] != 'EXHAUSTED' for c in candidates):
                             block('UNPROCESSED_EVENT', frame)
@@ -464,10 +494,6 @@ class DynamicEventExplorer:
                         children=[i for i,edge in enumerate(path) if edge[1]=='child']
                         completed_child=(active,path[children[-1]][2]) if children else None
                         path=path[:children[-1]] if children else []
-                        if destination == 'home':
-                            if report.events[active]['result'] != 'BLOCKED':
-                                report.events[active]['result'] = 'EXHAUSTED'
-                            active = None
                         pending = ('parent', destination, frame.fingerprint, completed_child)
                 if control.kind != 'parent':
                     key = active, frame.page, control.identity

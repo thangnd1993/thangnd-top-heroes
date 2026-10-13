@@ -1,3 +1,30 @@
+## Pending-scope continuation: PARTIAL (2026-10-13)
+
+Operation ended19:27 ICT. Frozen pending flows only: Idle, VIP, Mail, Events;
+completed BXH/Shop/Guild were not replayed. Sequential targets5,4,8,10,11.
+New VERIFIED rewards:2 Event claims (312/322) and1 VIP upper gift (319).
+Mail separately:9 VERIFIED actions. Event311/315/318 and Mail309 stay POSSIBLE.
+All288 original journal rows are preserved, including October12's40 rewards and
+15 Mail actions.34 legacy VIP identity sidecars now have original backing-disk
+proof; unresolved originals remain locked without name-based guessing.
+
+2/3/9 were not launched: their indexed configs lack basicSettings.adbDebug;
+persistent config changes still need authorization.10 reached explicit ADB but
+Google Play system blocking prevented Home.8's VIP was actually NOT_AVAILABLE;
+11's daily was visually claimable but blocked by unresolved legacy26, no tap.
+Event coverage remains incomplete: unsupported season-guide/DRAGONS layouts,
+notification geometry and wholly rotating icon art remain explicit blockers.
+No Phase8 PASS and no Phase9.
+
+All processed targets stopped; original selections restored. Protected0/1/6/7/12
+received no commands. Final read-only observation found6/Chicken running after
+workers ended, with cause unproven; it was left untouched. All other instances
+were stopped. Names, identities and Protection flags are unchanged.
+
+Runtime was the authorized locally tested production checkout. Final targeted
+set157 passed; affected Ruff and self-review passed. Full CI and new Desktop
+portable delivery follow this cohesive commit, without replaying any claims.
+See [October13 evidence and exact blockers](CONTINUATION-2026-10-13.md).
 ## Full implemented-scope operation: PARTIAL (2026-10-12)
 
 Operation ended 17:31 ICT. All eight frozen targets were attempted; five reached

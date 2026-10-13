@@ -83,6 +83,7 @@ def test_unstable_root_does_not_cancel_independent_current_home_candidate():
     from top_heroes_auto.automation.dynamic_events import EventEntryUnstable
 
     bad, good, back = control('unstable','event'), control('independent','event'), control('back','parent')
+    good = replace(good,box=replace(BOX,x=200))
     class UnstablePort(Port):
         def navigate(self, f, c):
             if c.identity == 'unstable':

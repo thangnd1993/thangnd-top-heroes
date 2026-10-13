@@ -151,7 +151,7 @@ class DiagnosticRecoveryPort:
                     break
             raise
         detection = self.detector.detect(screen)
-        if not persist and detection.state in DISMISSIBLE | {ScreenState.POPUP_GENERIC, ScreenState.TREO_THUONG, ScreenState.GAME_WORLD, ScreenState.WAR_EMPTY}:
+        if not persist and detection.state in DISMISSIBLE | {ScreenState.POPUP_GENERIC, ScreenState.TREO_THUONG, ScreenState.GAME_WORLD, ScreenState.WAR_EMPTY, ScreenState.EVENT_GALLERY}:
             if self._overlay_samples >= 12:
                 raise SafetyError("Overlay evidence capture bound reached.")
             self._overlay_samples += 1
@@ -237,6 +237,19 @@ class DiagnosticRecoveryPort:
         self.manager.execute(self.index, "tap", values=point, snapshot=self.snapshot,
                              observed_target=target)
         log.info("[%s / #%s] Qualified empty War Back %s", self.name, self.index, point)
+        return point
+
+    def back_from_event_gallery(self, observation):
+        from top_heroes_auto.vision.event_gallery_recovery import gallery_back_point
+
+        if self._overlay_frame is None or self._overlay_frame[2] is not observation.detection:
+            raise SafetyError('Stale Event gallery observation.')
+        target, screen, detection = self._overlay_frame
+        point = gallery_back_point(screen,detection)
+        self.save_tap_geometry(observation,screen,point)
+        self._overlay_frame = None
+        self._after_overlay = True
+        self.manager.execute(self.index,'tap',values=point,snapshot=self.snapshot,observed_target=target)
         return point
 
     def return_from_world(self, observation):

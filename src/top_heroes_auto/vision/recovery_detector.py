@@ -6,6 +6,7 @@ import cv2
 
 from top_heroes_auto.vision.detail_anchor import unique_detail_anchor
 from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
+from top_heroes_auto.vision.event_gallery_recovery import gallery_evidence
 from top_heroes_auto.vision.event_promo import event_promo_evidence
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.hanging_reward import hanging_evidence, qualified_hanging
@@ -108,6 +109,13 @@ class RecoveryScreenDetector:
                 return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
                                evidence=(*detected.evidence,*evidence))
             return replace(detected, state=ScreenState.GAME_LOADING,
+                           confidence=min(e.score for e in evidence),evidence=evidence)
+        evidence = gallery_evidence(screen)
+        if evidence:
+            if detected.state != ScreenState.UNKNOWN or detected.evidence:
+                return replace(detected,state=ScreenState.UNKNOWN,confidence=0,
+                               evidence=(*detected.evidence,*evidence))
+            return replace(detected,state=ScreenState.EVENT_GALLERY,
                            confidence=min(e.score for e in evidence),evidence=evidence)
         return detected
 

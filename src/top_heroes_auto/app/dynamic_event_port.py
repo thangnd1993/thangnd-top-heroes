@@ -8,7 +8,13 @@ import cv2
 from top_heroes_auto.app.event_claim_reconciliation import bind_saved_rewards, reconcile_possible
 from top_heroes_auto.app.event_task_effect import removal_effect
 from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
-from top_heroes_auto.automation.dynamic_events import Control, EventEntryUnstable, EventFrame, overlaps
+from top_heroes_auto.automation.dynamic_events import (
+    Control,
+    EventEntryUnstable,
+    EventFrame,
+    EventNavigationRejected,
+    overlaps,
+)
 from top_heroes_auto.automation.event_journal import dispatch_once
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import (
@@ -40,6 +46,7 @@ from top_heroes_auto.vision.dynamic_events import (
 )
 from top_heroes_auto.vision.event_achievements import achievement_rows, achievement_shell
 from top_heroes_auto.vision.event_competitive import competitive_indicator_contract
+from top_heroes_auto.vision.event_inline_objectives import inline_objective_rows
 from top_heroes_auto.vision.event_paid_modal import paid_modal_navigation
 from top_heroes_auto.vision.event_reacquisition import stable_entry_match
 from top_heroes_auto.vision.event_task_grid import task_grid_rows, task_grid_shell, unresolved_grid_actions
@@ -158,20 +165,25 @@ class DynamicEventPort:
                               task_reward_rows(image,self.task_context,reader=read_words)))
                 context=(None if grid or achievements or shell.get('permission')=='BACK_ONLY' else
                          task_context_box(image,self.task_context))
-                if context is not None or grid or achievements:
-                    if not grid and not achievements:
+                inline = (inline_objective_rows(image,reader=read_words)
+                          if context is None and not grid and not achievements and not shell.get('permission') else ())
+                if inline:
+                    self.rows = inline
+                    page = 'event:'+shell['title']+':inline-objectives'
+                if context is not None or grid or achievements or inline:
+                    if not grid and not achievements and not inline:
                         page = 'event:'+shell['title']+':personal-tasks'
                     self.rows = bind_saved_rewards(image, self.rows,
                         self.session.manager.store.reward_claims(self.session.manager.namespace, self.session.index),
                         persistent_identity=self.session.target['persistent_identity'], index=self.session.index,
-                        family='achievement-cards' if achievements else 'race-task-grid' if grid else 'personal-tasks')
+                        family='inline-objectives' if inline else 'achievement-cards' if achievements else 'race-task-grid' if grid else 'personal-tasks')
                     if any(r['state'] == 'UNKNOWN' for r in self.rows):
                         blocked.append('UNRESOLVED_SAVED_REWARD_IDENTITY')
                     for row in self.rows:
                         if row['state'] != 'NOT_AVAILABLE':
                             self.unavailable_observations.pop(row['identity'], None)
                             continue
-                        if achievements and 'explicit-claimed-label' not in row['evidence']:
+                        if (achievements or inline) and 'explicit-claimed-label' not in row['evidence']:
                             continue  # Unmet objective is not proof of a dispatched claim.
                         proof = dict(identity=list(identity), capture=str(c.source_image),
                             page=page, reward=row['identity'], state='NOT_AVAILABLE',
@@ -197,7 +209,7 @@ class DynamicEventPort:
                             blocked.append('UNQUALIFIED_TASK_GRID_ACTION')
                         controls.append(Control('task-grid-vertical',shell['scroll'],
                             ('functional-tasks-word','qualified-task-grid','outside-task-actions'),'scroll'))
-                    elif len(self.rows)>=2:
+                    elif len(self.rows)>=2 and not inline:
                         first,last=self.rows[0]['row'],self.rows[-1]['row']
                         # Gesture stays wholly within CURRENT complete reward cards,
                         # left of their action column and above the paid refresh bar.
@@ -273,7 +285,7 @@ class DynamicEventPort:
                 page = 'event:'+self.entered+':paid-modal'
                 contract = 'PAID_MODAL_NAVIGATION_ONLY'
                 parent = Control('current-paid-modal-close',paid['close'],
-                    ('paid-modal-navigation-only','unique-red-close','purchase-remaining','explicit-vnd'),
+                    ('paid-modal-navigation-only','unique-red-close','qualified-paid-offer-context','explicit-vnd'),
                     'parent',forbidden=(paid['paid_region'],))
                 blocked.append('UNQUALIFIED_PAID_MODAL_CONTENT')
             if not coverage_known:
@@ -342,9 +354,11 @@ class DynamicEventPort:
             self.current=None
             fresh=self.observe()
             matches=[c for c in fresh.controls if c.kind=='scroll' and c.identity==control.identity]
-            if (runtime_key(fresh.identity)!=runtime_key(frame.identity) or fresh.page!=frame.page or fresh.popup
+            if runtime_key(fresh.identity)!=runtime_key(frame.identity) or fresh.stable_id!=frame.stable_id:
+                raise SafetyError('Event scroll runtime changed on fresh capture; no input or recovery.')
+            if (fresh.page!=frame.page or fresh.popup
                     or not fresh.coverage_known or fresh.blocked or len(matches)!=1):
-                raise SafetyError('Event scroll changed on fresh capture; no input.')
+                raise EventNavigationRejected('Event scroll changed on fresh capture; no input.')
             control=matches[0]
             b=control.box
             from top_heroes_auto.vision.guild_mail import portrait
@@ -569,7 +583,7 @@ class DynamicEventPort:
                 if same and same[0]['state']=='AVAILABLE':
                     return []
                 continue
-            if ('qualified-achievement-cards' in target.evidence
+            if ({'qualified-achievement-cards','qualified-inline-objectives'} & set(target.evidence)
                     and not {'explicit-claimed-label','original-green-control-absent'}.issubset(same[0].get('evidence',()))):
                 continue
             if ('qualified-task-grid' in target.evidence and not receipt
@@ -584,6 +598,37 @@ class DynamicEventPort:
 
 
     def recover_home(self):
+        # An entered Event may have positively qualified parent edges which the
+        # generic Home detector does not model. Consume only those current edges;
+        # this grants no claim permission and never invents Back on UNKNOWN.
+        edges=[]
+        original=None
+        seen=set()
+        try:
+            for _ in range(4):
+                if not self.entered:
+                    break
+                frame=self.observe()
+                binding=(frame.stable_id,runtime_key(frame.identity))
+                if original is None:
+                    original=binding
+                if binding!=original:
+                    raise SafetyError('Event parent recovery identity changed.')
+                parent=frame.parent
+                if (frame.popup or not frame.page.startswith('event:') or parent is None
+                        or parent.kind!='parent'):
+                    break
+                key=(frame.page,parent.identity,parent.box)
+                if key in seen:
+                    break
+                seen.add(key)
+                edges.append(dict(capture=frame.capture,page=frame.page,
+                                  parent=asdict(parent),identity=list(frame.identity)))
+                self.navigate(frame,parent)
+        finally:
+            if edges:
+                with (self.folder/'parent-recovery.jsonl').open('a',encoding='utf-8') as stream:
+                    stream.write(json.dumps(edges)+'\n')
         result, path, _ = self.session.recover()
         self.current = None
         self.entered = None

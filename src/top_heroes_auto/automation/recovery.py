@@ -303,7 +303,7 @@ class HomeRecoveryEngine:
                 self.sleep(self.action_settle)
                 continue
             stable_world = None  # Confirmations must be consecutive current World frames.
-            if detection.state in {ScreenState.TREO_THUONG, ScreenState.WAR_EMPTY}:
+            if detection.state in {ScreenState.TREO_THUONG, ScreenState.WAR_EMPTY, ScreenState.EVENT_GALLERY}:
                 if (hanging_departed or hanging_backs >= 2 or number == self.max_steps
                         or self.clock() - started >= self.max_duration):
                     return finish(RecoveryStatus.LIMIT_REACHED, "Qualified page Back bound reached; no further input.")
@@ -311,7 +311,8 @@ class HomeRecoveryEngine:
                     return finish(RecoveryStatus.CANCELLED)
                 try:
                     navigation_state = detection.state
-                    method = "back_from_war" if navigation_state == ScreenState.WAR_EMPTY else "back_from_hanging"
+                    method = {ScreenState.WAR_EMPTY:'back_from_war',
+                              ScreenState.EVENT_GALLERY:'back_from_event_gallery'}.get(navigation_state,'back_from_hanging')
                     point = getattr(port, method)(observation)
                 except (CommandError, OSError, SafetyError, ValueError) as exc:
                     return finish(RecoveryStatus.ACTION_FAILED, str(exc))

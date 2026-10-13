@@ -63,7 +63,7 @@ def paid_modal_navigation(image):
     remaining = _match(brown, "purchase-remaining")
     vnd = _match(white, "vnd-word")
     if not all((close, remaining, vnd)):
-        return None
+        return multi_offer_navigation(image,red,brown,white)
     h, w = image.shape[:2]
     edge = cv2.morphologyEx(cv2.Canny(image, 40, 120), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
     panels = []
@@ -121,3 +121,60 @@ def paid_modal_navigation(image):
         coverage_known=False,
         claim_authorized=False,
     )
+
+
+def _all_glyphs(mask,name):
+    ref=cv2.imread(str(template_folder().parent/'tasks/phase8/paid-modal'/f'{name}.png'),0)
+    if ref is None or any(a>b for a,b in zip(ref.shape,mask.shape)):
+        return ()
+    scores=cv2.matchTemplate(mask,ref,cv2.TM_CCOEFF_NORMED)
+    h,w=ref.shape
+    boxes=[]
+    for _ in range(8):
+        _,score,_,(x,y)=cv2.minMaxLoc(scores)
+        if not np.isfinite(score) or score<.995:
+            return tuple(boxes)
+        boxes.append(BoundingBox(x,y,w,h))
+        scores[max(0,y-h//2):y+h//2+1,max(0,x-w//2):x+w//2+1]=-1
+    return ()  # Repeated/unbounded texture is not a qualified offer layout.
+
+
+def multi_offer_navigation(image,red,brown,white):
+    """Only X: functional paid-offer label + explicit currency + owned panel."""
+    close,ambiguous=_match_variant(red,'multi-close')
+    labels=_all_glyphs(brown,'multi-offer-label')
+    currency=(*_all_glyphs(white,'multi-vnd-word'),*_all_glyphs(white,'multi-vnd-old'))
+    if close is None or ambiguous or not labels or not currency:
+        return None
+    for name in ('close-red-core','close-red-core-raster'):
+        other,conflict=_match_variant(red,name)
+        if conflict or (other is not None and
+                       (abs(other.center[0]-close.center[0])>close.width*.25 or
+                        abs(other.center[1]-close.center[1])>close.height*.25)):
+            return None
+    h,w=image.shape[:2]
+    labels=sorted(labels,key=lambda b:b.y)
+    if (max(b.x for b in labels)-min(b.x for b in labels)>5
+            or any(not .10*h<b.y-a.y<.20*h for a,b in zip(labels,labels[1:]))):
+        return None
+    edge=cv2.morphologyEx(cv2.Canny(image,40,120),cv2.MORPH_CLOSE,np.ones((3,3),np.uint8))
+    panels=[]
+    for contour in cv2.findContours(edge,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)[0]:
+        x,y,bw,bh=cv2.boundingRect(contour)
+        panel=BoundingBox(x,y,bw,bh)
+        if (bw>w*.85 and h*.60<bh<h*.90 and cv2.contourArea(contour)/(bw*bh)>.90
+                and all(contains(panel,b) for b in (close,*labels,*currency))):
+            panels.append(panel)
+    if len(panels)!=1:
+        return None
+    panel=panels[0]
+    if (close.x<panel.x+panel.width*.80 or close.y>panel.y+panel.height*.12
+            or labels[0].y<panel.y+panel.height*.35
+            or any(b.x>panel.x+panel.width*.30 for b in labels)
+            or not all(any(c.x>label.x+panel.width*.45 and
+                              .04*h<c.y-label.y<.12*h for label in labels) for c in currency)):
+        return None
+    # Exclude the entire content, including the unqualified upper gift.
+    top=close.y+close.height+5
+    return dict(close=close,paid_region=BoundingBox(panel.x,top,panel.width,panel.y+panel.height-top),
+                permission='NAVIGATION_ONLY',coverage_known=False,claim_authorized=False)

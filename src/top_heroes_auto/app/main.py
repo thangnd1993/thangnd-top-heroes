@@ -14,6 +14,16 @@ def data_directory() -> Path:
 
 def main(argv: list[str] | None = None):
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == 'journal-identity-reconcile':
+        if len(argv) != 2 or not argv[1].isdigit():
+            raise ValueError('Identity reconciliation requires one explicit journal ID.')
+        from top_heroes_auto.app.bxh_shop_acceptance import progress
+        from top_heroes_auto.app.diagnostic import _manager
+        from top_heroes_auto.app.journal_identity_reconcile import reconcile
+
+        result = reconcile(_manager(data_directory()), int(argv[1]))
+        progress(f"Journal {result['claim_id']}: {result['result']}; original action unchanged, no input.")
+        return 0
     if argv and argv[0] == 'event-attach-acceptance':
         from argparse import ArgumentParser
 
