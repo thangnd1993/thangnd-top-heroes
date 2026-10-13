@@ -25,7 +25,9 @@ For each substantial task, the single agent follows this sequence:
   Successful test claims count toward acceptance and must never be repeated.
 - After implementation and passing CI, use the fresh artifact and a new explicit
   snapshot of all authorized non-Protected accounts for full phase acceptance.
-  Process sequentially, max_concurrency = 1, and finish unaffected accounts.
+  Default to max_concurrency = 1. The October14 continuation explicitly permits
+  max_concurrency = 2, under one fleet lease with independent account Managers.
+  Each account still finishes its frozen feature plan and cleanup once.
 - Record original selection/running state and excluded Protected accounts.
   Re-check protection before each action, including cleanup; never override it.
 - Restore each target's selection and only stop instances owned by this run.

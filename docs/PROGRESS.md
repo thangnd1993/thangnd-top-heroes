@@ -1,3 +1,18 @@
+## Two-account continuation amendment — IN PROGRESS (2026-10-14)
+
+User explicitly requested two accounts collecting concurrently. Original frozen
+targets, features and journal locks stay unchanged. The old waiting serial queue
+was stopped without interrupting active target2. Production orchestration now
+accepts explicit max_concurrency=2 (default1), with separate Manager/ADB/session
+state under ONE inherited kernel lease. Fleet report writes stay on the parent
+thread; account evidence/journals remain separate. Bound peer runtime changes
+are distinguished from replacement/missing/unrelated inventory changes.
+
+Target2 is still executing. Remaining original targets3,5,8,9,10,11 will use the
+two-account pool after that worker releases ownership. No claim is repeated to
+test concurrency. Earlier target4 pending Event coverage remains separate.
+No claim success or phase completion is implied by these scheduler checks.
+
 ## Authorized completion run — IN PROGRESS (2026-10-14)
 
 One frozen instance-first plan, max_concurrency=1, targets4,2,3,5,8,9,10,11.
@@ -27,7 +42,7 @@ checks passed; affected Ruff and self-review passed. Full CI/final portable
 handoff follow the cohesive repair batch. Actual live runtime is the qualified
 local production checkout; each account retains its source hashes.
 Plan/results: artifacts/finish-phase8-plan.json and finish-phase8-*-result.json.
-Continue unfinished targets sequentially, then bounded no-duplicate coverage
+Continue unfinished targets with the explicitly amended concurrency above, then bounded no-duplicate coverage
 review of explicit pending Event branches. Do not replay completed rewards.
 
 ## Pending-scope continuation: PARTIAL (2026-10-13)

@@ -1,3 +1,12 @@
+## Current concurrency authorization (2026-10-14)
+
+The user changed the outstanding operation to at most TWO active account workers.
+Use the same frozen instance-first plan, separate Managers and a single parent
+kernel lease. Do not run two competing fleet processes or weaken ownership.
+Keep all prior VERIFIED/POSSIBLE locks, Protected exclusions, original selections
+and external-running ownership. Finish each account's flows then cleanup once.
+This supersedes historical max1 wording below for this continuation only.
+
 ## Full implemented-scope operation (2026-10-12)
 
 Final operational outcome: PARTIAL. Eight targets attempted;40 new reward actions

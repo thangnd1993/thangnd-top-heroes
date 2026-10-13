@@ -33,8 +33,11 @@ preferred name. Use another eligible account for additional cross-account checks
 never repeat a successful claim for coverage.
 
 When full phase acceptance is authorized, use the fresh passing CI artifact and
-an explicit snapshot of ALL currently non-Protected targets, sequentially
-(`max_concurrency = 1`). A successful random test or availability scan does not
+an explicit snapshot of ALL currently non-Protected targets. Default concurrency
+is one; the user's October14 instruction explicitly authorizes two concurrent
+account workers for the current continuation. Use one fleet lease and separate
+Managers/sessions; never launch independent competing fleet processes.
+A successful random test or availability scan does not
 finish acceptance. Preserve same-period claim locks, original selections and
 external running instances. Normal application Run Selected scope is unchanged.
 

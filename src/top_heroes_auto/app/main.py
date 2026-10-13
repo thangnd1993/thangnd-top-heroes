@@ -47,6 +47,7 @@ def main(argv: list[str] | None = None):
         scope.add_argument('--random-test', action='store_true')
         scope.add_argument('--confirm-non-protected', action='store_true')
         parser.add_argument('--preserve-possible', type=int, action='append', default=[])
+        parser.add_argument('--max-concurrency', type=int, choices=(1, 2), default=1)
         parser.add_argument('--resume-index', type=int, action='append', default=[])
         parser.add_argument('--resume-flow', action='append', default=[])
         parser.add_argument('--refresh-flow', action='append', default=[])
@@ -79,6 +80,7 @@ def main(argv: list[str] | None = None):
             enabled = {name: name in options.development_flow for name in ids}
         data = data_directory()
         run(_manager(data), data, random_test=options.random_test, resume_report=options.resume_report,
+            max_concurrency=options.max_concurrency,
             preserve_possible=tuple(options.preserve_possible),
             **(dict(exclude=tuple(options.exclude_tested_index)) if options.exclude_tested_index else {}),
             **(dict(only_flows=('events',)) if options.only_flow else {}),

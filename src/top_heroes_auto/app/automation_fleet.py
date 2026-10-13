@@ -1,5 +1,7 @@
 """Global instance-first scheduler: snapshot flows, exhaust each, cleanup once."""
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -27,7 +29,7 @@ def blocked(error):
 
 def execute_instance(manager, data, target, folder, registry, *, prior=None, enabled=None,
                      session_factory=InstanceSession, identity_reader=persistent_identity,
-                     temporary_selection=True, cancelled=lambda: False, preserve_possible=(), resume_flows=(), refresh_flows=(), only_flows=()):
+                     temporary_selection=True, cancelled=lambda: False, preserve_possible=(), resume_flows=(), refresh_flows=(), only_flows=(), peer_identities=()):
     prior = prior or {}
     full_plan = registry.snapshot(enabled)
     plan = tuple(f for f in full_plan if (not resume_flows or f.id in resume_flows)
@@ -63,6 +65,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
         return row
     session = session_factory(manager, data, target, folder, identity_reader=identity_reader,
         temporary_selection=temporary_selection, cancelled=cancelled, execution_plan=plan)
+    session.fleet_peer_identities = dict(peer_identities)
     started = False
     if all(not f.enabled for f in plan):
         row['recovery_ok'] = True
@@ -178,12 +181,15 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
 @exclusive_automation
 def run(manager, data, *, random_test=False, resume_report=None, registry=None, enabled=None,
         identity_reader=persistent_identity, session_factory=InstanceSession, targets=None,
-        temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=(), resume_flows=(), refresh_flows=(), only_flows=()):
+        temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=(), resume_flows=(), refresh_flows=(), only_flows=(),
+        max_concurrency=1, manager_factory=None):
+    if type(max_concurrency) is not int or max_concurrency not in (1, 2):
+        raise SafetyError('Explicit concurrency must be one or two accounts.')
     registry = registry or production_registry()
     name_writes_before = name_write_attempts()
     before = inventory(manager)
     previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
-    if previous and (previous.get('schema') != 'instance-first-v1' or previous.get('max_concurrency') != 1):
+    if previous and (previous.get('schema') != 'instance-first-v1' or previous.get('max_concurrency') not in (1, 2)):
         raise SafetyError('Resume requires an original global instance-first snapshot.')
     if previous and (random_test or targets is not None):
         raise SafetyError('Cannot widen a resumed fleet snapshot.')
@@ -254,7 +260,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
     folder = data/'diagnostics/tasks/automation'/stamp
     folder.mkdir(parents=True, exist_ok=False)
     report = dict(schema='instance-first-v1', mode='resume' if previous else 'random-test' if random_test else 'fleet',
-        max_concurrency=1, before_instances=before, targets=targets,
+        max_concurrency=max_concurrency, before_instances=before, targets=targets,
         automation_ownership=ownership_evidence(),
         required_rewards=[r for f in execution_plan for r in f.rewards],
         execution_flows=[f.id for f in execution_plan],
@@ -271,7 +277,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
                 raise SafetyError('Original target is missing or Protected.')
             target['preflight_running'] = live[0]['status'] == 'running'
             identity = identity_reader(manager, target['index'])
-            if previous and target.get('persistent_identity') != identity:
+            if target.get('persistent_identity') and target['persistent_identity'] != identity:
                 raise SafetyError('Original persistent identity changed.')
             if live[0]['name'] != target['name']:
                 # User-owned display labels can change between sessions. Only
@@ -295,6 +301,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
     report['acceptance_exceptions'] = list(exceptions.values())
     write(path, report)
     old = {r['index']: r for r in previous['accounts']} if previous else {}
+    pending = []
     for target in targets:
         if resume_indexes and target['index'] not in resume_indexes:
             row = dict(old[target['index']], name=target['name'], new_claims=0,
@@ -305,20 +312,61 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
             report['accounts'].append(row)
             write(path, report)
             continue  # No session, selection, recovery, feature or lifecycle for retained accounts.
+        pending.append(target)
+
+    # A Manager owns mutable active transport/lifecycle state. Never share it
+    # between concurrent accounts, even though its individual methods lock.
+    workers = [manager] * len(pending)
+    if max_concurrency == 2:
+        factory = manager_factory or manager.fork_worker
+        workers = [factory() for _ in pending]
+        if (len({id(m) for m in [manager, *workers]}) != len(workers) + 1
+                or any(m.namespace != manager.namespace
+                       or m.store.path.resolve() != manager.store.path.resolve() for m in workers)):
+            raise SafetyError('Concurrent workers require separate Managers in the same fleet/store.')
+
+    def execute(worker, target):
+        started_at = datetime.now(timezone.utc).isoformat()
         progress(f"INSTANCE START #{target['index']} / {target['name']}")
-        row = execute_instance(manager, data, target, folder/str(target['index']), registry,
+        current = dict(target)
+        if cancelled():
+            current['identity_error'] = 'Run cancelled before account dispatch.'
+        row = execute_instance(worker, data, current, folder/str(target['index']), registry,
             prior=old.get(target['index']), enabled=enabled, session_factory=session_factory,
             identity_reader=identity_reader, temporary_selection=temporary_selection, cancelled=cancelled,
             preserve_possible=tuple(cid for cid, proof in exceptions.items() if proof['index'] == target['index']),
-            resume_flows=resume_flows, refresh_flows=refresh_flows, only_flows=only_flows)
-        report['accounts'].append(row)
-        write(path, report)
+            resume_flows=resume_flows, refresh_flows=refresh_flows, only_flows=only_flows,
+            peer_identities=tuple((t['index'], t['persistent_identity']) for t in pending
+                                  if max_concurrency == 2 and t['index'] != target['index']
+                                  and not t.get('identity_error')))
+        row.update(worker_started_at=started_at, worker_finished_at=datetime.now(timezone.utc).isoformat(),
+                   automation_ownership=ownership_evidence())
+        write(folder/str(target['index'])/'account-report.json', row)
         progress(f"INSTANCE END #{target['index']}: {row['result']}")
-        # execute_instance is synchronous and closes its session in finally.
-        # Deferred cleanup never authorizes another command to that old target.
+        return row
+
+    def record(row):
+        # Only the owning thread writes the fleet report. Account evidence is
+        # isolated in its indexed folder and the existing journal transactions.
+        report['accounts'].append(row)
+        positions = {t['index']: i for i, t in enumerate(targets)}
+        report['accounts'].sort(key=lambda r: positions[r['index']])
         if row['cleanup'] in {'OWNERSHIP_UNKNOWN', 'DEFERRED_OWNERSHIP_UNPROVEN'}:
-            report.setdefault('deferred_cleanup_indexes', []).append(target['index'])
-            write(path, report)
+            report.setdefault('deferred_cleanup_indexes', []).append(row['index'])
+        write(path, report)
+
+    if max_concurrency == 1:
+        for worker, target in zip(workers, pending, strict=True):
+            record(execute(worker, target))
+    else:
+        # The parent retains ONE kernel fleet lease until all worker cleanup
+        # finishes. Each task receives its own context with that same live lease,
+        # following the existing lifecycle queue's ownership propagation.
+        with ThreadPoolExecutor(max_workers=2, thread_name_prefix='automation-account') as pool:
+            futures = [pool.submit(copy_context().run, execute, worker, target)
+                       for worker, target in zip(workers, pending, strict=True)]
+            for future in as_completed(futures):
+                record(future.result())
     # A preserved journal must remain byte-for-byte unchanged throughout the run.
     final_exceptions = preserved_claims(manager, previous, targets, preserve_possible)
     report['preserved_journals_unchanged'] = final_exceptions == exceptions

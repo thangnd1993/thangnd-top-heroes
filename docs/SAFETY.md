@@ -1,5 +1,16 @@
 # Permanent no-rename invariant — all phases
 
+## Authorized two-account continuation — 2026-10-14
+
+Explicit user authorization raises current account-worker concurrency to two.
+One parent retains the global kernel lease through both workers and cleanup;
+each worker uses a separate Manager, active snapshot, ADB client and lifecycle
+record. Target index + durable disk + current runtime checks are unchanged.
+Only frozen peer disks may explain overlapping runtime inventory changes; a
+replacement or missing peer never passes through an index-only exception.
+No global lifecycle/ADB operations, journal resets or Protected actions follow
+from concurrency. Default acceptance concurrency remains one unless requested.
+
 ## Qualified World view navigation and purchase-modal closure — 2026-10-06
 
 World return permits only the current Về Thành castle control, with four unique

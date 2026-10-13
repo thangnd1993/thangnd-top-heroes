@@ -30,9 +30,14 @@ def _state(instances):
     return {item.index: (item.stable_id, item.running, item.android_started) for item in instances}
 
 
-def _only_target_changed(before, after, target: int):
+def _only_target_changed(before, after, target: int, *, peer_identities=None):
     changed = {index for index in set(before) | set(after) if before.get(index) != after.get(index)}
-    unexpected = changed - {target}
+    # Concurrent workers may change only runtime state of their frozen disks.
+    # Missing/replaced peers are not hidden by an index-only allowlist.
+    peers = {index for index, identity in (peer_identities or {}).items()
+             if identity and before.get(index, (None,))[0] == identity
+             and after.get(index, (None,))[0] == identity}
+    unexpected = changed - {target} - peers
     if unexpected:
         raise SafetyError(f"Isolation failure: unrelated instances changed: {sorted(unexpected)}")
     return sorted(changed)

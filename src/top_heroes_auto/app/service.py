@@ -17,7 +17,7 @@ from top_heroes_auto.adb.client import (
     validate_serial,
 )
 from top_heroes_auto.app.automation_ownership import exclusive_command
-from top_heroes_auto.app.process import CommandError, decode
+from top_heroes_auto.app.process import CommandError, Process, decode
 from top_heroes_auto.automation.guard import (
     RunSnapshot,
     SafetyError,
@@ -127,6 +127,11 @@ class Manager:
         self._lock = threading.RLock()
         self._active: RunSnapshot | None = None
         self._last_lifecycle_attempt: LifecycleAttempt | None = None
+
+    def fork_worker(self):
+        """Independent transport, snapshot and lifecycle state; shared durable store."""
+        return Manager(LDPlayer(self.ld.installation, Process()), self.store, self.data_dir,
+                       identity_reader=self.identity_reader)
 
     @property
     def last_lifecycle_attempt(self) -> LifecycleAttempt | None:
