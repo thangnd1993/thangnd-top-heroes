@@ -59,6 +59,7 @@ def test_scroll_reveals_tab_but_does_not_select_page(detector, monkeypatch, rout
         visible.anchors[f'{route}-tab'], matched=False, device_box=None)})
     actions = []
     port = object.__new__(FixedRewardPort)
+    port.cancelled = lambda: False
     port.detector = detector
     port.dispatch = lambda obs, action, values:actions.append((action, values))
     port.observe_settled = lambda:visible

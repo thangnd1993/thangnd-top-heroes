@@ -86,6 +86,7 @@ def test_navigation_waits_only_for_original_dispatch(monkeypatch,after_pages,exp
     origin = SimpleNamespace(page='guild',box=lambda _:BoundingBox(1,1,10,10),anchors={'guild-territory':'anchor'})
     observations = iter(SimpleNamespace(page=p) for p in after_pages)
     port = object.__new__(GuildMailPort)
+    port.cancelled = lambda: False
     port.observe_settled = lambda:next(observations)
     inputs = []
     port.tap = lambda *a:inputs.append(a)
