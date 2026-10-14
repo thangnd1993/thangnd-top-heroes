@@ -2,6 +2,7 @@
 import json
 import time
 
+from top_heroes_auto.automation.timing import pause
 from top_heroes_auto.vision.fixed_rewards import ALL_REWARDS as REWARDS
 from top_heroes_auto.vision.fixed_rewards import claim_geometry
 
@@ -14,7 +15,7 @@ def observe_reward(port, frame, reward):
     for _ in range(4 if announced else 2):
         if state != 'UNKNOWN' or frame.page == 'UNKNOWN':
             break
-        time.sleep(1 if announced else .4)
+        pause(time.sleep, 1 if announced else .4)
         frame = port.observe_settled()
         state, core, badge = port.detector.availability(frame, reward)
     return frame, state, core, badge

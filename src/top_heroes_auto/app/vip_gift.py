@@ -9,6 +9,7 @@ from top_heroes_auto.automation.free_rewards import FreeRewardGuard
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.phase6_visual import RewardRule
 from top_heroes_auto.automation.reward_journal import evidence_json
+from top_heroes_auto.automation.timing import pause
 from top_heroes_auto.automation.vip_period import current_attempts, cycle_key
 from top_heroes_auto.vision.detector import load_anchors
 from top_heroes_auto.vision.models import ScreenState
@@ -74,7 +75,7 @@ def run_upper_gift(manager, snapshot, index, name, profile, folder, entry, task_
         if gift_state(before) != "UNKNOWN" or before.detection.state != ScreenState.FREE_REWARD_PAGE:
             break
         # The gift pulses. Observe only; never tap an unqualified phase of the icon.
-        time.sleep(.5)
+        pause(time.sleep, .5)
         before = port.observe()
         guard.observe(before)
         row["qualification_captures"].append(before.capture_id)

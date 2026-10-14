@@ -10,7 +10,9 @@ def terminal_plan(plan, details, rewards):
         skipped = detail.get('result') in {'DISABLED', 'NOT_APPLICABLE', 'ALREADY_COMPLETED'}
         # Explicit pre-feature failures are genuine blockers. A returned feature
         # must supply its own terminal evidence; no placeholder can stand for scan.
-        qualified = skipped or flow.terminal_evidence(detail)
+        cancelled = (detail.get('blocking_stage') == 'cancelled' and detail.get('no_input') is True
+                     and bool(detail.get('error')))
+        qualified = skipped or cancelled or flow.terminal_evidence(detail)
         checks[flow.id] = dict(terminal=bool(explicit and qualified), evidence=detail)
     return dict(terminal=bool(plan) and all(c['terminal'] for c in checks.values()), flows=checks)
 

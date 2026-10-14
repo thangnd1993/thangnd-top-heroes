@@ -25,6 +25,7 @@ from top_heroes_auto.automation.guard import (
     require_run_member,
     require_selected,
 )
+from top_heroes_auto.automation.timing import measured, pause
 from top_heroes_auto.ldplayer.client import IndexedSerialUnavailable, Instance, LDPlayer
 from top_heroes_auto.ldplayer.identity import disk_identity
 from top_heroes_auto.storage.store import Store
@@ -127,6 +128,11 @@ class Manager:
         self._lock = threading.RLock()
         self._active: RunSnapshot | None = None
         self._last_lifecycle_attempt: LifecycleAttempt | None = None
+        self.cancelled = lambda: False
+
+    def check_cancelled(self):
+        if self.cancelled():
+            raise SafetyError('Run cancelled before command dispatch.')
 
     def fork_worker(self):
         """Independent transport, snapshot and lifecycle state; shared durable store."""
@@ -200,7 +206,7 @@ class Manager:
             if remaining <= 0:
                 state = "Android khởi động" if started else "giả lập dừng"
                 raise SafetyError(f"[#{index}] Hết thời gian chờ {state}; hủy riêng thao tác này.")
-            time.sleep(min(self.POLL_INTERVAL, remaining))
+            pause(time.sleep, min(self.POLL_INTERVAL, remaining))
 
     def _stop(self, index: int):
         instance = self._check(index)
@@ -231,6 +237,7 @@ class Manager:
                 # Mark immediately before the indexed command. If the process
                 # raises after writing to LDPlayer, ownership is UNKNOWN and
                 # callers must never infer a safe quit from the state delta.
+                self.check_cancelled()
                 dispatch.attempted = True
                 dispatch.outcome = LIFECYCLE_UNKNOWN
                 if attempt is not None:
@@ -297,7 +304,7 @@ class Manager:
                     raise
                 log.warning('[#%s] Transient identity probe; bounded retry %s/%s',
                             index, attempt + 1, self.IDENTITY_PROBE_ATTEMPTS)
-                time.sleep(self.IDENTITY_PROBE_DELAY)
+                pause(time.sleep, self.IDENTITY_PROBE_DELAY)
                 continue
             self._same_runtime(index, original)
             return value
@@ -325,7 +332,7 @@ class Manager:
                     raise SafetyError(
                         'Indexed ADB serial unavailable within bounded resolution.'
                     ) from exc
-                time.sleep(self.POLL_INTERVAL)
+                pause(time.sleep, self.POLL_INTERVAL)
                 continue
             except ValueError as exc:
                 raise SafetyError(
@@ -389,7 +396,7 @@ class Manager:
                     f"LDPlayer xác định ADB {serial} cho #{index}, nhưng target không sẵn sàng; "
                     "kiểm tra ADB debugging của đúng instance."
                 )
-            time.sleep(self.POLL_INTERVAL)
+            pause(time.sleep, self.POLL_INTERVAL)
 
     def _capture_ready(self, index: int) -> Instance:
         """Retry readiness read-only on the same running process, never restart."""
@@ -405,7 +412,7 @@ class Manager:
             if current.android_started:
                 return current
             if attempt < 2:
-                time.sleep(self.IDENTITY_PROBE_DELAY)
+                pause(time.sleep, self.IDENTITY_PROBE_DELAY)
                 current = self._check(index)
         raise SafetyError('Android readiness remained unavailable on the exact running target.')
 
@@ -422,7 +429,9 @@ class Manager:
             raise SafetyError('Observed screenshot boot changed before input.')
         return Target(index, instance.name, observed.serial, boot, instance.stable_id)
 
-    def capture_verified(self, index: int, snapshot: RunSnapshot | None = None) -> tuple[Target, bytes]:
+    @measured('capture_and_identity')
+    def capture_verified(self, index: int, snapshot: RunSnapshot | None = None,
+                         *, observed_target: Target | None = None) -> tuple[Target, bytes]:
         """Capture exactly one PNG through a freshly verified explicit target."""
         with self._lock:
             current = self.refresh()
@@ -436,7 +445,8 @@ class Manager:
             )
             try:
                 capture_runtime = self._capture_ready(index)
-                target = self._resolve(index)
+                target = (self._verify_observed(index, observed_target)
+                          if observed_target is not None else self._resolve(index))
                 self._same_runtime(index, capture_runtime)
                 if self._probe_identity(index, lambda: self.adb.boot_id(target.serial),
                                         instance=capture_runtime) != target.boot_id:
@@ -478,6 +488,8 @@ class Manager:
         }
         if action not in allowed:
             raise SafetyError("Thao tác không được hỗ trợ.")
+        if action != 'quit':
+            self.check_cancelled()
         if observed_target is not None and action not in {"tap", "swipe", "keyevent"}:
             raise SafetyError("Screenshot-bound identity is only valid for evidence-guarded input.")
         if before_input is not None and (action != 'tap' or observed_target is None):
@@ -624,6 +636,7 @@ class Manager:
                         package,
                     )
                 if action in {"open_game", "close_game"}:
+                    self.check_cancelled()
                     package = validate_package(package)
                     if action == "open_game":
                         return self.adb._shell(
@@ -650,6 +663,7 @@ class Manager:
                     count = {"tap": 2, "swipe": 5, "keyevent": 1}[action]
                     if len(values) != count or any(type(v) is not int or v < 0 for v in values):
                         raise SafetyError("Tham số input không hợp lệ.")
+                    self.check_cancelled()
                     if before_input is not None:
                         before_input()
                     return self.adb._shell(target.serial, "input", action, *(str(v) for v in values))

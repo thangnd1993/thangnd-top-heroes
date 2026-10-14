@@ -8,6 +8,7 @@ from typing import Callable
 import cv2
 
 from top_heroes_auto.adb.client import Target
+from top_heroes_auto.automation.timing import measured
 from top_heroes_auto.vision.image_normalizer import ImageNormalizer
 from top_heroes_auto.vision.models import CapturedScreen
 
@@ -19,6 +20,7 @@ class ScreenshotService:
         self.capture = capture
         self.normalizer = normalizer or ImageNormalizer()
 
+    @measured('image_decode_and_disk')
     def take(self, target: Target, folder: Path | None = None, tag: str = "capture") -> CapturedScreen:
         image, device_size, rotated_from_portrait = self.normalizer.decode_with_orientation(
             self.capture(target.serial)

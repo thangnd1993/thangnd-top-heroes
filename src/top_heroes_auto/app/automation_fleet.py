@@ -21,6 +21,7 @@ from top_heroes_auto.app.bxh_shop_acceptance import (
 from top_heroes_auto.app.flow_registry import COMPLETE, FlowRegistry, production_registry
 from top_heroes_auto.app.instance_session import InstanceSession
 from top_heroes_auto.app.resume_exception import preserved_claims
+from top_heroes_auto.automation import timing
 from top_heroes_auto.automation.execution_plan import terminal_plan
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.ldplayer.name_safety import name_write_attempts
@@ -33,6 +34,7 @@ def blocked(error):
 def execute_instance(manager, data, target, folder, registry, *, prior=None, enabled=None,
                      session_factory=InstanceSession, identity_reader=persistent_identity,
                      temporary_selection=True, cancelled=lambda: False, preserve_possible=(), resume_flows=(), refresh_flows=(), only_flows=(), peer_identities=()):
+    timing.reset()
     prior = prior or {}
     full_plan = registry.snapshot(enabled)
     plan = tuple(f for f in full_plan if (not resume_flows or f.id in resume_flows)
@@ -76,6 +78,13 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
     start_error = target.get('identity_error')
     try:
         for flow in plan:
+            if cancelled():
+                row['flows'][flow.id] = dict(result='BLOCKED', blocking_stage='cancelled',
+                    error='Run cancelled before feature dispatch.', no_input=True)
+                for reward in flow.rewards:
+                    row['rewards'].setdefault(reward, blocked('Run cancelled before feature dispatch.'))
+                persist()
+                continue
             try:
                 status = ('DISABLED' if not flow.enabled else 'NOT_APPLICABLE' if not flow.applicable(target)
                           else 'BLOCKED' if not flow.supported else None)
@@ -187,6 +196,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
         row['result'] = 'COMPLETE' if (summary['terminal'] and not row.get('error') and row['recovery_ok']
             and row['cleanup'] in {'SUCCESS', 'NOT_REQUIRED'} and row['selection_restored']
             and all(complete(row['rewards'][r]) for r in required)) else 'PARTIAL'
+        row['operation_metrics'] = timing.snapshot()
         persist()
     return row
 

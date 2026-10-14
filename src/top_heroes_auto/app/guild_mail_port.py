@@ -7,6 +7,7 @@ import cv2
 from top_heroes_auto.app.fixed_reward_port import FixedRewardPort
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, dismiss_overlay_bottom_left
+from top_heroes_auto.automation.timing import measure, measured, pause, poll, wait
 from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.guild_mail import GuildMailDetector, portrait
 from top_heroes_auto.vision.screenshot import ScreenshotService
@@ -24,7 +25,8 @@ class GuildMailPort(FixedRewardPort):
 
     def observe(self):
         self.check()
-        target, payload = self.manager.capture_verified(self.index,self.snapshot)
+        target, payload = self.manager.capture_verified(self.index,self.snapshot,
+            **({'observed_target': self.target} if self.target is not None else {}))
         if runtime_key((target.index,target.name)) != runtime_key((self.index,self.name)):
             raise SafetyError('Guild/Mail capture identity changed.')
         if self.target and (target.serial,target.boot_id) != (self.target.serial,self.target.boot_id):
@@ -32,7 +34,8 @@ class GuildMailPort(FixedRewardPort):
         self.target = target
         captured = ScreenshotService(lambda serial: payload if serial == target.serial else b'').take(
             target,self.folder,'guild-mail')
-        self.last = self.detector.observe(captured)
+        with measure('detection'):
+            self.last = self.detector.observe(captured)
         captured.source_image.with_suffix('.evidence.json').write_text(
             json.dumps(self.last.evidence(), ensure_ascii=False, indent=2), encoding='utf-8')
         self.qualified = None
@@ -50,10 +53,12 @@ class GuildMailPort(FixedRewardPort):
                 self.dismissals += 1
             elif frame.page != 'UNKNOWN':
                 return frame
-            time.sleep(.6)
+            if frame.overlay.state not in DISMISSIBLE:
+                wait(.3, cancelled=self.cancelled)
             frame = self.observe()
         return frame
 
+    @measured('navigation')
     def navigate(self, frame, role, expected):
         edges = {
             ('home','home-guild'):{'guild'}, ('home','home-mail'):{'mail'},
@@ -78,7 +83,7 @@ class GuildMailPort(FixedRewardPort):
         for _ in range(2):
             if frame.box(role):
                 break
-            time.sleep(.4)
+            pause(time.sleep, .4)
             frame = self.observe_settled()
             if frame.page != origin:
                 raise SafetyError('Page changed while waiting for navigation control.')
@@ -90,15 +95,8 @@ class GuildMailPort(FixedRewardPort):
                 raise SafetyError('Feature already entered; no silent re-entry.')
             self.entries[feature] += 1
         self.tap(frame,frame.anchors[role])
-        time.sleep(.4)
-        after = self.observe_settled()
-        # A dispatched navigation may precede the first visible page change.
-        # Only reobserve the unchanged origin; never send that navigation twice.
-        for _ in range(2):
-            if after.page != origin or after.page in destinations:
-                break
-            time.sleep(.4)
-            after = self.observe_settled()
+        after = poll(self.observe_settled, lambda f: f.page in destinations or f.page != origin,
+                     attempts=3, cancelled=self.cancelled)
         if after.page not in destinations:
             raise SafetyError(f'Navigation expected {destinations}; found {after.page}.')
         return after
@@ -127,7 +125,7 @@ class GuildMailPort(FixedRewardPort):
                 return frame  # No tab navigation without a numbered red badge.
             if entry['selected'] is not True:
                 self.dispatch(frame,'tap',entry['box'].center)
-                time.sleep(.4)
+                pause(time.sleep, .4)
                 frame = self.observe_settled()
                 current = self.detector.mail_tabs(frame).get(tab)
                 if not current or current['selected'] is not True:

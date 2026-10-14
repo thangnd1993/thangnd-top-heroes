@@ -9,6 +9,7 @@ import cv2
 from top_heroes_auto.automation.fixed_reward_claims import observe_reward
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, OverlayBudget, dismiss_overlay_bottom_left
+from top_heroes_auto.automation.timing import measure, measured, pause, poll, wait
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.fixed_rewards import SHOP_PAGES, SHOP_ROUTES, FixedRewardDetector
 from top_heroes_auto.vision.screenshot import ScreenshotService
@@ -67,7 +68,8 @@ class FixedRewardPort:
 
     def observe(self):
         self.check()
-        target, payload = self.manager.capture_verified(self.index, self.snapshot)
+        target, payload = self.manager.capture_verified(self.index, self.snapshot,
+            **({'observed_target': self.target} if self.target is not None else {}))
         if target.index != self.index:
             raise SafetyError('Fixed-flow capture identity changed.')
         if self.target and (target.serial, target.boot_id) != (self.target.serial, self.target.boot_id):
@@ -75,7 +77,8 @@ class FixedRewardPort:
         self.target = target
         captured = ScreenshotService(lambda serial: payload if serial == target.serial else b'').take(
             target, self.folder, 'bxh-shop')
-        self.last = self.detector.observe(captured)
+        with measure('detection'):
+            self.last = self.detector.observe(captured)
         if self.last.page in SHOP_PAGES:
             state = self.shop_state()
             state.current_tab = self.last.page
@@ -91,6 +94,7 @@ class FixedRewardPort:
         strip = image[round(image.shape[0]*.92):, round(image.shape[1]*.22):]
         return hashlib.sha256(cv2.resize(strip, (128, 16)).tobytes()).hexdigest()
 
+    @measured('input_dispatch')
     def dispatch(self, observation, action, values, before_input=None):
         self.check()
         if observation is not self.last or self.target is None:
@@ -112,6 +116,7 @@ class FixedRewardPort:
 
         return write_device_tap(captured, point, captured.source_image.with_suffix('.tap-point.png'))
 
+    @measured('disk_log')
     def save_events(self):
         (self.folder / 'actions.json').write_text(json.dumps(self.events, indent=2), encoding='utf-8')
 
@@ -128,7 +133,6 @@ class FixedRewardPort:
                 self.overlay_budget.reserve(observation.overlay)
                 point = dismiss_overlay_bottom_left(observation.captured, observation.overlay)
                 self.dispatch(observation, 'tap', point)
-                time.sleep(.6)
                 observation = self.observe()  # Fresh even after the last allowed dismissal.
             elif observation.page != 'UNKNOWN':
                 return observation
@@ -140,13 +144,14 @@ class FixedRewardPort:
                     title = next(a for a in self.detector.recovery.receipt_anchors if a.id == 'receipt-title')
                     if not unique_current_anchor(observation.captured, title).matched:
                         break
-                time.sleep(.6)
+                wait(.3, cancelled=self.cancelled)
                 observation = self.observe()
         return observation
 
     def observe_settled(self):
         return self.settle(self.observe())
 
+    @measured('navigation')
     def navigate(self, observation, role, expected):
         permitted = {
             ('home', 'avatar-frame'): 'profile', ('profile', 'profile-bxh'): 'ranking',
@@ -170,8 +175,9 @@ class FixedRewardPort:
                 raise SafetyError('Unexpected Shop exit: re-entry requires documented recovery; no automatic reopening.')
             state.entries += 1  # Count uncertain entry dispatch too; never repeat blindly.
         self.tap(observation, observation.anchors[role])
-        time.sleep(.4)
-        after = self.observe_settled()
+        after = poll(self.observe_settled,
+            lambda f: f.page == expected or (role=='home-shop-entry' and f.page in SHOP_PAGES),
+            cancelled=self.cancelled)
         if role == 'home-shop-entry' and after.page in SHOP_PAGES:
             self.shop_state().current_tab = after.page
             return after  # Shop may remember its last positively recognized tab.
@@ -216,7 +222,7 @@ class FixedRewardPort:
                 raise SafetyError('Bottom tab bar geometry is not qualified.')
             self.dispatch(observation, 'swipe', (round(width*start), y, round(width*end), y, 400))
             state.swipes += 1
-            time.sleep(.4)
+            pause(time.sleep, .4)
             observation = self.observe_settled()
         raise TabNotFound('TAB_NOT_FOUND: bounded tab-strip search exhausted.')
 

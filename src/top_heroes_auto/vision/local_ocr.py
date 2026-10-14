@@ -4,16 +4,41 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
+from collections import OrderedDict
+from copy import deepcopy
+from hashlib import sha256
 from pathlib import Path
 
 import cv2
 
+from top_heroes_auto.automation.timing import measure
 from top_heroes_auto.vision.resources import template_folder
+
+_cache = threading.local()
 
 
 def read_words(image):
     if sys.platform != 'win32' or image.size == 0:
         return []
+    # Exact bytes only: never reuse an old frame, approximate glyph or result
+    # from another worker. Cache contains OCR text, never availability/permission.
+    key = (image.shape, image.dtype.str, sha256(image.tobytes()).digest())
+    if not hasattr(_cache, 'words'):
+        _cache.words = OrderedDict()
+    if key in _cache.words:
+        _cache.words.move_to_end(key)
+        with measure('ocr_cache_hit'):
+            return deepcopy(_cache.words[key])
+    with measure('ocr'):
+        words = _read_words(image)
+    _cache.words[key] = deepcopy(words)
+    if len(_cache.words) > 256:
+        _cache.words.popitem(last=False)
+    return words
+
+
+def _read_words(image):
     script = template_folder().parent / 'tools/read-image-text.ps1'
     with tempfile.TemporaryDirectory(prefix='top-heroes-ocr-') as temp:
         path = Path(temp) / 'counter.png'

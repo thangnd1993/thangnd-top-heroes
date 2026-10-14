@@ -1,9 +1,144 @@
 """Qualified free expedition dispatch; paid refresh controls are excluded."""
+import re
+
 import cv2
+import numpy as np
 
 from top_heroes_auto.vision.dynamic_events import task_context_box
 from top_heroes_auto.vision.models import BoundingBox
 from top_heroes_auto.vision.resources import template_folder
+
+
+def running_timer_shape(ink):
+    """Six green numeric cells separated by two paired-dot colon cells.
+
+    This proves timer UI, not an OCR duration or a claim permission. The caller
+    additionally requires an owned clock, complete expedition card and context.
+    """
+    xs = np.flatnonzero(np.any(ink, axis=0))
+    if not len(xs):
+        return False
+    groups = [g for g in np.split(xs, np.flatnonzero(np.diff(xs)>1)+1) if len(g)]
+    if len(groups)!=8:
+        return False
+    tops=[]
+    for i,g in enumerate(groups):
+        glyph=ink[:,g[0]:g[-1]+1]
+        _,y,w,h=cv2.boundingRect(cv2.findNonZero(glyph))
+        if i in {2,5}:
+            n,_,stats,_=cv2.connectedComponentsWithStats(glyph)
+            dots=[s for s in stats[1:] if s[cv2.CC_STAT_AREA]>=3]
+            if n!=3 or len(dots)!=2 or not (2<=w<=5 and 8<=h<=16):
+                return False
+            if any(not 2<=s[cv2.CC_STAT_HEIGHT]<=5 for s in dots):
+                return False
+        else:
+            if not (6<=w<=13 and 12<=h<=20 and .25<np.mean(glyph[y:y+h]>0)<.9):
+                return False
+            tops.append(y)
+    return max(tops)-min(tops)<=3
+
+
+def mission_rows(image, context_template, *, reader):
+    """Read complete expedition cards, including running timers (never inputs).
+
+    A running timer is a positive WAITING state, not an unavailable reward button.
+    Card geometry and its stable title/items are retained for same-visit matching.
+    No date, display name or position is a mission occurrence identifier.
+    """
+    context = task_context_box(image, context_template)
+    if context is None or quick_send(image, context_template, reader=reader) is None:
+        return ()
+    h, w = image.shape[:2]
+    edges = cv2.morphologyEx(cv2.Canny(image, 40, 120), cv2.MORPH_CLOSE,
+                             np.ones((3, 3), np.uint8))
+    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    rows = []
+    for contour in contours:
+        x, y, bw, bh = cv2.boundingRect(contour)
+        if not (.90*w < bw < .97*w and .10*h < bh < .15*h
+                and context.y+context.height < y and y+bh < h*.82
+                and cv2.contourArea(contour)/(bw*bh) > .97):
+            continue
+        if any(abs(y-r['row'].y) < 5 for r in rows):
+            continue
+        row = BoundingBox(x, y, bw, bh)
+        column = image[y+round(bh*.30):y+round(bh*.95),
+                       x+round(bw*.76):x+round(bw*.99)]
+        hsv = cv2.cvtColor(column, cv2.COLOR_BGR2HSV)
+        ink = cv2.inRange(hsv, (25, 90, 45), (85, 255, 220))
+        shape = running_timer_shape(ink)
+        readings = (['', ''] if shape else [' '.join(q['text'] for q in reader(cv2.resize(
+            column, None, fx=s, fy=s))).strip() for s in (1, 2)])
+        from top_heroes_auto.vision.dynamic_events import folded
+
+        labels = [folded(t) for t in readings]
+        points = cv2.findNonZero(ink)
+        timer_texts = []
+        if not shape and points is not None and np.mean(ink > 0) < .15:
+            tx, ty, tw, th = cv2.boundingRect(points)
+            if tw > 60 and 10 < th < 40:
+                # Preserve whitespace around the clock/text. Tight glyph crops
+                # are rejected by Windows OCR on these small game numerals.
+                glyph = cv2.cvtColor(255-ink, cv2.COLOR_GRAY2BGR)
+                timer_texts = [''.join(q['text'] for q in reader(rendered)) for rendered in (
+                    cv2.resize(column, None, fx=4, fy=4, interpolation=cv2.INTER_CUBIC),
+                    cv2.resize(glyph, None, fx=3, fy=3))]
+                if sum(bool(re.fullmatch(r'\d{2}:[0-5]\d:[0-5]\d', t)) for t in timer_texts) < 2:
+                    timer_texts.append(''.join(q['text'] for q in reader(cv2.resize(
+                        column, None, fx=5, fy=5, interpolation=cv2.INTER_CUBIC))))
+                timer_texts.extend(re.sub(r'\s', '', t) for t in readings)
+        timers = [re.fullmatch(r'(\d{2}):([0-5]\d):([0-5]\d)', t)
+                  for t in timer_texts]
+        recognized = [t for t in timers if t]
+        state, seconds = 'UNKNOWN', None
+        if shape or (recognized and len({t.group() for t in recognized}) == 1):
+            if recognized and len({t.group() for t in recognized}) == 1:
+                hours, minutes, secs = map(int, recognized[0].groups())
+                seconds = hours*3600+minutes*60+secs
+            # A timer also needs its own clock: circular gold rim in the same column.
+            mask = cv2.inRange(cv2.cvtColor(column, cv2.COLOR_BGR2HSV),
+                               (10, 80, 100), (40, 255, 255))
+            rings, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            clocks = [c for c in rings if 15 < cv2.boundingRect(c)[2] < 42
+                      and .8 < cv2.boundingRect(c)[2]/max(1, cv2.boundingRect(c)[3]) < 1.2]
+            if (shape or (seconds is not None and seconds > 0)) and len(clocks) == 1:
+                state = 'WAITING'
+        elif labels == ['den', 'den']:
+            state = 'DISPATCHABLE'
+        elif labels in (['nhan', 'nhan'], ['nhan nhanh', 'nhan nhanh']):
+            state = 'COMPLETED'
+        rows.append(dict(row=row, state=state, seconds=seconds,
+                         timer_confirmed=state=='WAITING' and (shape or len(recognized)>=2)))
+    return tuple(sorted(rows, key=lambda r: r['row'].y))
+
+
+def dispatch_transition(before, after, before_rows, after_rows):
+    """Prove at least one particular available card entered running state.
+
+    No scroll is permitted between these captures. Pair unique stable card
+    title/item regions; timers must be new, rather than merely present somewhere.
+    Partial/hidden cards are not counted as verified missions.
+    """
+    changed = []
+    for old in before_rows:
+        if old['state'] != 'DISPATCHABLE':
+            continue
+        b = old['row']
+        reference = before[b.y+6:b.y+b.height-6, b.x+8:b.x+round(b.width*.72)]
+        matches = []
+        for new in after_rows:
+            c = new['row']
+            crop = after[c.y+6:c.y+c.height-6, c.x+8:c.x+round(c.width*.72)]
+            if crop.shape == reference.shape and abs(c.y-b.y) <= 3:
+                score = float(cv2.matchTemplate(crop, reference, cv2.TM_CCOEFF_NORMED)[0, 0])
+                if np.isfinite(score) and score >= .995:
+                    matches.append(new)
+        if (len(matches) == 1 and matches[0]['state'] == 'WAITING'
+                and matches[0].get('timer_confirmed')):
+            changed.append(dict(before='DISPATCHABLE', after='WAITING',
+                                seconds=matches[0]['seconds'], row=b))
+    return changed
 
 
 def quick_send(image, context_template, *, reader):

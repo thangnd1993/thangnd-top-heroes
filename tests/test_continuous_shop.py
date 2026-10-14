@@ -155,6 +155,7 @@ def test_only_known_receipt_title_allows_two_more_waits(monkeypatch,known_title)
     monkeypatch.setattr('top_heroes_auto.app.fixed_reward_port.unique_current_anchor',
                         lambda *a:SimpleNamespace(matched=known_title))
     port=object.__new__(FixedRewardPort)
+    port.cancelled = lambda: False
     port.detector=SimpleNamespace(recovery=SimpleNamespace(receipt_anchors=[SimpleNamespace(id='receipt-title')]))
     frame=SimpleNamespace(page='UNKNOWN',overlay=SimpleNamespace(state=ScreenState.UNKNOWN),captured=object())
     calls=[]

@@ -9,6 +9,7 @@ from typing import Protocol
 
 from top_heroes_auto.app.process import CommandError
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.automation.timing import measured
 from top_heroes_auto.vision.image_normalizer import ScreenshotInvalid
 from top_heroes_auto.vision.models import ScreenDetection, ScreenState
 
@@ -115,7 +116,7 @@ class IdleRewardTask:
         self.observe_retries = observe_retries
         self.settle_seconds = settle_seconds
         self.clock = clock
-        self.sleep = sleep
+        self.sleep = measured('deliberate_wait')(sleep)
 
     def run(
         self,

@@ -26,6 +26,7 @@ from top_heroes_auto.automation.overlays import (
     dismiss_overlay_bottom_left,
     overlay_signature,
 )
+from top_heroes_auto.automation.timing import measured
 from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.models import CapturedScreen, ScreenDetection, ScreenState, VisualAnchor
@@ -189,7 +190,7 @@ class GuardedEntryNavigator:
         self.home_detector = home_detector
         self.destination_observations = destination_observations
         self.destination_wait_seconds = destination_wait_seconds
-        self.sleep = sleep
+        self.sleep = measured('deliberate_wait')(sleep)
         self._identity: tuple[int, str, str, str] | None = None
         self._overlay_budget = OverlayBudget()
 

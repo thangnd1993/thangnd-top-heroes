@@ -46,7 +46,9 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index, famil
                          'exact-no-cost-blue-confirm'} if action == 'relic-expedition-confirm-send' else None)
             if (not required or not required.issubset(markers)
                     or 'user-authorized-free-mission' not in markers
-                    or claim['reward_id'] != reward_key(proof['event'], proof.get('page'), action)
+                    or claim['reward_id'] not in {
+                        reward_key(proof['event'], proof.get('page'), action),
+                        reward_key(proof['event']+':DISPATCH', proof.get('page'), action)}
                     or set(proof.get('possible_affected_rewards', ())) - {action}):
                 raise SafetyError('Unqualified saved mission identity; keep claim locks.')
             # Mission/open-menu records are not reward-card captions. Keep their

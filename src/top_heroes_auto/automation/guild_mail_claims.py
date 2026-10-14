@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.automation.timing import pause
 from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.guild_mail import GUILD_REWARDS, MAIL_REWARDS
 
@@ -184,7 +185,7 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
                 persist()
                 if qualified_progress(frame,view,after_frame,after) or attempt == 2:
                     break
-                time.sleep(.4)
+                pause(time.sleep, .4)
                 after_frame, after = port.opportunity(reward)
             confirmation_frame, confirmation = port.opportunity(reward)
             action['after'] = dict(frame=after_frame.evidence(),opportunity=after.evidence())

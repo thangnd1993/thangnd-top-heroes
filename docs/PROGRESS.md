@@ -1,4 +1,49 @@
-## Standalone Start run 5 — IN PROGRESS (2026-10-14)
+## October14 repair continuation — old run settled, repair in progress
+
+Run5 finished PARTIAL at12:29UTC. A fresh13:30UTC process/window check found
+no TopHeroes or Python worker process; SQL has no running/queued accounts.
+Final original-build results:58 VERIFIED reward actions,13 VERIFIED Mail actions;
+9 uncertain records remain locked, including expedition dispatch479. All380
+baseline journals are unchanged. Targets2/3/4/5/8/9 cleaned up/restored selections.
+10 lost runtime ownership;11 lacked terminal Event evidence. Both were observed
+stopped in the final report but selections were not restored. Protected6 changed
+to running externally/unattributed; no remediation is authorized. Do not claim
+that all final states were unchanged or that these two cleanups succeeded.
+
+Current request: repair COLLECT/DISPATCH semantics, mission occurrence journals,
+completeness, measured delays and Stop; then fresh-CI standalone normal Start,
+two independent application workers, live non-Protected scope. Preserve original
+claims and uncertainty; no Phase9. Evidence:artifacts/standalone-actual-summary.json.
+
+Repair batch (offline, no new gameplay): expedition pages now retain completed,
+dispatchable and positively clock-qualified running rows. One bounded visit
+collects visible/hidden rewards before opening normal quick-send, verifies an
+available-card → running-timer transition in TWO fresh same-runtime frames, then
+inspects remaining rows. Unknown/remaining unqualified batches stay BLOCKED.
+Dispatch and collection have separate typed journal keys; only a later independently
+VERIFIED contextual occurrence may renew a VERIFIED predecessor. POSSIBLE479 and
+all other uncertain records remain locked. Dates/coordinates/names do not renew.
+
+Stop is checked immediately before transport and journal intent, cancelled pending
+flows receive explicit no-input terminal evidence. Own selection restoration uses
+same backing disk plus revision CAS, independent of an externally ended runtime.
+Capture reuses the verified explicit session transport with current disk/serial/boot
+checks; exact-byte worker-local OCR caching avoids repeated identical OCR processes.
+Ordinary navigation captures immediately and polls only unmet state. Monotonic
+worker reports include deliberate waits, OCR/detection, navigation, input,
+postcondition and disk work (overlapping categories are not additive).
+
+Targeted batch:463 passed, four failures isolated to three test doubles missing
+cancellation initialization and one sandbox-only native OCR permission failure.
+All four passed in the repaired 28-test focused group with native OCR access;
+94 expedition/traversal/Stop/timing tests passed after final bounded inspection.
+Earlier143/72/125 groups overlap; do not sum as unique tests. Ruff/diff check pass.
+OCR-only measurement: first identical crop0.448s, cached0.000184/0.000089s;
+no whole-run speedup is claimed. Full CI and final standalone Start still pending.
+Three normalized game-only expedition fixtures and recorded crop OCR contain no
+credentials; they preserve old evidence without changing its journal state.
+
+## Standalone Start run 5 — historical execution (2026-10-14)
 
 6f1d741 CI38536229794 passed Ruff,1901 pytest (26 skipped), Windows build,
 smoke and artifact upload. Verified Desktop EXE PID19940 started through normal

@@ -23,6 +23,7 @@ from top_heroes_auto.automation.overlays import (
     dismiss_overlay_bottom_left,
     overlay_signature,
 )
+from top_heroes_auto.automation.timing import measured, pause, poll
 from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.dynamic_events import (
     achievement_navigation,
@@ -69,6 +70,7 @@ class DynamicEventPort:
         self.entered = None
         self.overlay_budget = OverlayBudget()
         self.rows = ()
+        self.mission_rows = ()
         self.home_icon_cores = {}
         self.menu_icon_cores = {}
         self.event_title = None
@@ -78,9 +80,10 @@ class DynamicEventPort:
             if r['status'] == 'RESERVED' and r['dispatch_state'] == 'POSSIBLE'}
         self.task_context = cv2.imread(str(template_folder().parent/'tasks/phase8/personal-task-tab.png'))
 
+    @measured('event_observation')
     def observe(self):
         if self.current is not None and self.current.render_pending:
-            time.sleep(.75)  # Only the explorer's bounded capture-only settling path.
+            pause(time.sleep, .75)  # Only the explorer's bounded capture-only settling path.
         observed = self.transport.observe()
         c = observed.captured
         identity = (c.index, self.session.target['persistent_identity'], c.serial, c.boot_id)
@@ -98,6 +101,7 @@ class DynamicEventPort:
         coverage_known = False
         event_scan_performed = False
         self.rows = ()
+        self.mission_rows = ()
         # The Home detector and current Shop anchor jointly qualify the sidebar.
         # The ROI is a semantic UI surface, not a list of icon/tap coordinates.
         shop = observed.box('home-shop-entry')
@@ -212,8 +216,17 @@ class DynamicEventPort:
                                 BoundingBox(0,0,w,b.y),BoundingBox(0,b.y+b.height,w,h-b.y-b.height),
                                 BoundingBox(0,b.y,b.x,b.height),BoundingBox(b.x+b.width,b.y,w-b.x-b.width,b.height)
                             ) if q.width>0 and q.height>0)
+                            period='unknown-period'
+                            from top_heroes_auto.vision.relic_expedition import quick_send
+
+                            if quick_send(image,self.task_context,reader=None):
+                                from top_heroes_auto.automation.expedition_journal import collection_period
+
+                                period=collection_period(self.session.manager.store.reward_claims(
+                                    self.session.manager.namespace,self.session.index),
+                                    self.session.target['persistent_identity'],image,row)
                             controls.append(Control(row['identity'],row['box'],row['evidence'],
-                                'reward',cost='FREE',available=True,forbidden=forbidden))
+                                'reward',cost='FREE',available=True,forbidden=forbidden,period=period))
                     if grid:
                         if unresolved_grid_actions(image,shell,self.rows):
                             blocked.append('UNQUALIFIED_TASK_GRID_ACTION')
@@ -231,10 +244,12 @@ class DynamicEventPort:
                         controls.append(Control('task-list-vertical',surface,
                             ('selected-task-context','complete-card-list','outside-action-column'),'scroll'))
                 if context is not None:
-                    from top_heroes_auto.vision.relic_expedition import quick_send
+                    from top_heroes_auto.vision.relic_expedition import mission_rows, quick_send
 
                     send = quick_send(image,self.task_context,reader=read_words)
-                    if send:
+                    self.mission_rows = mission_rows(image,self.task_context,reader=read_words) if send else ()
+                    if send and any(r['state']=='DISPATCHABLE' for r in self.mission_rows) and not any(
+                            r['state'] in {'COMPLETED','UNKNOWN'} for r in self.mission_rows):
                         controls.append(Control('relic-expedition-quick-send',send['box'],
                             send['evidence'],'mission',cost='FREE',available=True,forbidden=send['forbidden']))
                 if shell.get('permission')=='BACK_ONLY':
@@ -247,6 +262,16 @@ class DynamicEventPort:
                     contract='MISSION_CONFIRM'
                     controls.append(Control('relic-expedition-confirm-send',mission_modal['box'],
                         mission_modal['evidence'],'mission',cost='FREE',available=True))
+                if self.mission_rows:
+                    contract='RELIC_MISSIONS'
+                    if any(r['state']=='UNKNOWN' for r in self.mission_rows):
+                        blocked.append('UNQUALIFIED_MISSION_STATE')
+                    if len(self.mission_rows)>=2 and not any(c.kind=='scroll' for c in controls):
+                        first,last=self.mission_rows[0]['row'],self.mission_rows[-1]['row']
+                        controls.append(Control('task-list-vertical',BoundingBox(
+                            first.x+round(first.width*.20),first.y+20,round(first.width*.40),
+                            last.y+last.height-first.y-40),
+                            ('selected-task-context','complete-card-list','outside-action-column'),'scroll'))
                 if book:
                     contract='BOOK_OBJECTIVES'
                     blocked.append('BOOK_MILESTONES_AND_UNQUALIFIED_CONTROLS')
@@ -326,6 +351,15 @@ class DynamicEventPort:
             # Clocks/background animation cannot pretend the list made progress.
             fingerprint=hashlib.sha256(json.dumps([(r['identity'],r['state'],r['row'].y)
                 for r in self.rows]).encode()).hexdigest()
+        if self.mission_rows:
+            # View comparison only, never a durable mission/occurrence key.
+            # Exclude timers, ticker and animated artwork from scroll progress.
+            parts=[]
+            for r in self.mission_rows:
+                b=r['row']
+                patch=image[b.y+6:b.y+b.height-6,b.x+8:b.x+round(b.width*.72)]
+                parts.append((r['state'],b.y,hashlib.sha256(patch.tobytes()).hexdigest()))
+            fingerprint=hashlib.sha256(repr(parts).encode()).hexdigest()
         popup = (observed.overlay.state in DISMISSIBLE and
                  (self.entered is None or observed.overlay.state != ScreenState.HOME_OVERLAY))
         if dialog:
@@ -335,6 +369,9 @@ class DynamicEventPort:
         self.current = EventFrame(str(c.source_image),identity,page,fingerprint,tuple(controls),
                                   coverage_known=coverage_known, parent=parent, popup=popup, blocked=tuple(blocked),
                                   stable_id=self.session.target['persistent_identity'], event_scan_performed=event_scan_performed,
+                                  mission_states=tuple({**r,'row':asdict(r['row'])} for r in self.mission_rows),
+                                  mission_at_top=bool(self.mission_rows and context is not None and
+                                      self.mission_rows[0]['row'].y-context.y-context.height < image.shape[0]*.04),
                                   render_pending=bool(self.entered and page=='UNKNOWN' and
                                                       not popup and not dialog and (blank_event_render(image) or transition is not None)))
         if getattr(self,'pending_entry_proof',None) is not None:
@@ -366,6 +403,35 @@ class DynamicEventPort:
                           (0,255,0) if candidate.qualified else (0,165,255),2)
         c.source_image.with_suffix('.event-overlay.png').write_bytes(cv2.imencode('.png',overlay)[1].tobytes())
         return self.current
+
+    def finish_expedition(self, frame):
+        from top_heroes_auto.automation.expedition import finish_expedition
+
+        def persist(report):
+            (self.folder/'expedition-session.json').write_text(
+                json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+        return finish_expedition(self,frame,persist=persist)
+
+    def scroll_missions(self, frame, *, reverse):
+        """Current qualified card surface, no taps or historical coordinates."""
+        if frame is not self.current or not frame.mission_states or frame.popup:
+            raise SafetyError('No current expedition list to scroll.')
+        fresh=self.observe()
+        if (runtime_key(fresh.identity)!=runtime_key(frame.identity) or fresh.page!=frame.page
+                or fresh.popup or not fresh.mission_states):
+            raise SafetyError('Expedition list changed before scroll.')
+        controls=[c for c in fresh.controls if c.kind=='scroll' and c.identity=='task-list-vertical']
+        if len(controls)!=1:
+            raise SafetyError('Mission scroll surface unqualified.')
+        b=controls[0].box
+        if any(overlaps(b,c.box) for c in fresh.controls if c.kind in {'mission','tab','parent'}):
+            raise SafetyError('Mission scroll intersects navigation or dispatch.')
+        x=b.center[0]
+        start,end=b.y+round(b.height*.75),b.y+round(b.height*.25)
+        if reverse:
+            start,end=end,start
+        self.transport.dispatch(self.transport.last,'swipe',(x,start,x,end,350))
+        self.current=None
 
     def navigate(self, frame, control):
         if frame is not self.current:
@@ -406,7 +472,7 @@ class DynamicEventPort:
             end=b.y+round(b.height*.25)
             self.transport.dispatch(self.transport.last,'swipe',(x,start,x,end,450))
             self.current=None
-            time.sleep(.6)
+            pause(time.sleep, .6)
             return
         if 'paid-modal-navigation-only' in control.evidence:
             if control.kind!='parent' or control is not frame.parent or not frame.page.endswith(':paid-modal'):
@@ -419,14 +485,14 @@ class DynamicEventPort:
                 raise SafetyError('Purchase modal changed on fresh capture; no input.')
             self.current = None  # Consume before dispatch; never retry uncertain input.
             self.transport.dispatch(self.transport.last,'tap',fresh.parent.box.center)
-            time.sleep(.5)
+            pause(time.sleep, .5)
             return
         if control.kind in {'tab','parent','child'}:
             if not frame.page.startswith('event:') or control not in (*frame.controls,frame.parent):
                 raise SafetyError('No qualified event tab/parent edge.')
             self.transport.dispatch(self.transport.last,'tap',control.box.center)
             self.current = None
-            time.sleep(.5)
+            pause(time.sleep, .5)
             return
         if (frame.page != 'home' or frame.popup or not frame.event_scan_performed or control not in frame.controls or
                 control.kind != 'event' or self.entered is not None):
@@ -436,7 +502,7 @@ class DynamicEventPort:
         attempts = []
         for _ in range(3):
             self.current = None
-            time.sleep(.35)
+            pause(time.sleep, .35)
             fresh = self.observe()
             if (fresh.page != 'home' or fresh.popup or not fresh.event_scan_performed
                     or fresh.stable_id != before.stable_id
@@ -471,7 +537,7 @@ class DynamicEventPort:
             self.transport.dispatch(self.transport.last,'tap',point)
             self.entered = control.identity
             self.pending_entry_proof=proof
-            time.sleep(.5)
+            pause(time.sleep, .5)
             # The shared explorer captures afresh and verifies event: context
             # before any nested navigation or independent reward evaluation.
             return
@@ -490,6 +556,11 @@ class DynamicEventPort:
             raise SafetyError('Expedition send changed; no input.')
         # Reuse the durable one-shot boundary; report separately from reward claims.
         action = replace(control,kind='reward')
+        if control.identity=='relic-expedition-confirm-send':
+            from top_heroes_auto.automation.expedition_journal import dispatch_period
+
+            action=replace(action,period=dispatch_period(self.session.manager.store.reward_claims(
+                self.session.manager.namespace,self.session.index),self.session.target['persistent_identity']))
         proof = replace(fresh,controls=(action,))
         if control.identity == 'relic-expedition-quick-send':
             # This opens the qualified selection modal; it sends no expedition.
@@ -497,10 +568,12 @@ class DynamicEventPort:
             from top_heroes_auto.automation.dynamic_events import free_geometry
 
             point = free_geometry(action)
+            if hasattr(self, 'navigation_image') and getattr(self, 'mission_rows', ()):
+                self.dispatch_origin = (fresh, self.navigation_image.copy(), tuple(self.mission_rows))
             self.current = None
             self.transport.dispatch(self.transport.last,'tap',point)
-            time.sleep(.5)
-            after = self.observe()
+            after = poll(self.observe, lambda f: f.page=='event:relic-expedition:confirm',
+                         cancelled=getattr(self.session,'cancelled',lambda:False))
             opened = (runtime_key(after.identity) == runtime_key(frame.identity)
                       and after.page == 'event:relic-expedition:confirm' and not after.popup
                       and any(c.identity == 'relic-expedition-confirm-send' for c in after.controls))
@@ -521,9 +594,9 @@ class DynamicEventPort:
             self.current = None
         result = dispatch_once(store,task,self.session.manager.namespace,proof,action,
             event_identity='relic-expedition-mission',persistent_identity=self.session.target['persistent_identity'],
-            dispatch=dispatch,postcondition=lambda *a: [],persist=persist)
+            dispatch=dispatch,postcondition=self._mission_postcondition,persist=persist,action_type='DISPATCH')
         if result.get('claim_dispatched'):
-            after = self.observe()
+            after = self.current or self.observe()
             result['first_post_capture'] = after.capture
             result['first_post_page'] = after.page
         result['mission_dispatched'] = result.pop('claim_dispatched',False)
@@ -531,6 +604,40 @@ class DynamicEventPort:
         persist(result)
         store.finish_task_run(task,result['result'],report_path=str(path))
         return result
+
+    @measured('postcondition_verification')
+    def _mission_postcondition(self, before, target):
+        """Fresh same-visit available-card -> timer proof; no receipt required."""
+        from top_heroes_auto.vision.relic_expedition import dispatch_transition
+
+        origin = getattr(self, 'dispatch_origin', None)
+        if not origin or runtime_key(origin[0].identity) != runtime_key(before.identity):
+            return []
+        observations = []
+        matched = None
+        for _ in range(4):
+            after = self.observe()
+            if runtime_key(after.identity) != runtime_key(before.identity) or after.popup:
+                return []
+            if after.page != origin[0].page:
+                if after.page in {'UNKNOWN', before.page}:
+                    continue
+                return []
+            changes = dispatch_transition(origin[1], self.navigation_image,
+                                           origin[2], self.mission_rows)
+            keys = {(r['row'].x,r['row'].y,r['row'].width,r['row'].height) for r in changes}
+            if not keys or (matched is not None and keys != matched):
+                return []
+            matched = keys
+            observations.append(dict(identity=list(after.identity), capture=after.capture,
+                event='relic-expedition-mission',page=before.page,reward=target.identity,
+                state='RUNNING',actual_page=after.page,origin_capture=origin[0].capture,
+                visible_missions_started=len(changes), transitions=[{**r,'row':asdict(r['row'])} for r in changes],
+                independent_evidence=['same-mission-card-title-and-items',
+                                      'available-control-replaced-by-positive-running-timer']))
+            if len(observations)==2:
+                return observations
+        return []
 
     def claim(self, frame, control):
         if control is None or frame is not getattr(self,'current',None) or control not in frame.controls or control.kind!='reward':
@@ -569,6 +676,7 @@ class DynamicEventPort:
             store.finish_task_run(task,'BLOCKED',error=str(exc),report_path=str(path))
             raise
 
+    @measured('postcondition_verification')
     def _claim_postcondition(self,before,target,title):
         """Five settling captures; a qualified receipt reserves two underlying captures."""
         observations=[]
@@ -578,7 +686,8 @@ class DynamicEventPort:
         for number in range(7):
             if number>=capture_limit:
                 return []
-            time.sleep(.5)
+            if number:
+                pause(time.sleep, .3)
             after=self.observe()  # First post-action capture is always retained.
             if runtime_key(after.identity) != runtime_key(before.identity):
                 return []
@@ -676,4 +785,4 @@ class DynamicEventPort:
         else:
             self.transport.dispatch(observed,'tap',point)
         self.current = None
-        time.sleep(.5)
+        pause(time.sleep, .5)

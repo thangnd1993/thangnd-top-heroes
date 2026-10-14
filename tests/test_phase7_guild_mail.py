@@ -505,6 +505,7 @@ def test_navigation_waits_for_tab_without_replaying_entry(monkeypatch):
     captures = iter([ready,after])
     taps = []
     port = object.__new__(GuildMailPort)
+    port.cancelled = lambda: False
     port.observe_settled = lambda:next(captures)
     port.tap = lambda frame,anchor:taps.append((frame,anchor))
     assert port.navigate(missing,'relic-tab','relic') is after

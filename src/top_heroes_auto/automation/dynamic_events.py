@@ -46,6 +46,8 @@ class EventFrame:
     render_pending: bool = False
     stable_id: str = ''
     event_scan_performed: bool = False
+    mission_states: tuple[dict, ...] = ()
+    mission_at_top: bool = False
 
 
 @dataclass(frozen=True)
@@ -125,6 +127,7 @@ class DynamicEventExplorer:
         parent_returns=set()
         failed_root_regions=[]  # Denial only; never identifies or authorizes a target.
         blocker_recoveries = set()
+        expedition_visits = set()
 
         def block(reason, frame):
             report.blocked.append(dict(reason=reason, event=active, page=frame.page, capture=frame.capture))
@@ -398,8 +401,20 @@ class DynamicEventExplorer:
                         break
                     if not frame.coverage_known:
                         block('UNQUALIFIED_CONTENT', frame)
+                    visit = active, frame.page
+                    if frame.mission_states and visit not in expedition_visits and hasattr(port,'finish_expedition'):
+                        expedition_visits.add(visit)
+                        result = port.finish_expedition(frame)
+                        report.actions.extend(result['actions'])
+                        report.rewards.extend(result['rewards'])
+                        report.events[active]['reward_results'].extend(result['rewards'])
+                        report.events[active].setdefault('missions',[]).append(result)
+                        for failure in result['blocked']:
+                            block(failure['reason'],frame)
+                        persist(asdict(report))
+                        continue
                     control = None
-                    for reward in (c for c in frame.controls if c.kind == 'reward'):
+                    for reward in (c for c in frame.controls if c.kind == 'reward' and visit not in expedition_visits):
                         key = active, frame.page, reward.identity, reward.period
                         if key in attempted:
                             continue
@@ -425,7 +440,7 @@ class DynamicEventExplorer:
                         break
                     if control:
                         continue  # Claims consume the frame; never navigate on it.
-                    for mission in (c for c in frame.controls if c.kind == 'mission'):
+                    for mission in (c for c in frame.controls if c.kind == 'mission' and not any(v[0]==active for v in expedition_visits)):
                         key = active, frame.page, mission.identity, mission.period
                         if key in attempted:
                             continue
@@ -474,7 +489,7 @@ class DynamicEventExplorer:
                             stack.append(frame.page)
                             control = c
                             break
-                        if c.kind == 'scroll' and key not in exhausted_scrolls:
+                        if c.kind == 'scroll' and key not in exhausted_scrolls and visit not in expedition_visits:
                             if scroll_counts.get(key, 0) >= self.limits.scrolls:
                                 block('SCROLL_LIMIT', frame)
                                 exhausted_scrolls.add(key)

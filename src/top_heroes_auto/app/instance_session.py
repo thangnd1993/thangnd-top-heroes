@@ -15,6 +15,7 @@ class InstanceSession:
         self.manager, self.data, self.target, self.folder = manager, data, target, folder
         self.index, self.name = target['index'], target['name']
         self.identity_reader, self.cancelled = identity_reader, cancelled
+        self.manager.cancelled = cancelled
         self.temporary_selection, self.recovery_runner = temporary_selection, recovery_runner
         self.snapshot = bound_snapshot(manager.store, manager.namespace, ((self.index, self.name),), True)
         self.selected_before = None
@@ -139,7 +140,13 @@ class InstanceSession:
                 self.report['cleanup'] = f'FAILED: {exc}'
         try:
             if self.changed_selection:
-                self.check(selected=False, running=False)
+                # Selection belongs to the stable disk, not a now-ended runtime.
+                # Restore only our revision; never stop/restart a changed owner.
+                _instance(self.manager, self.index, self.name)
+                meta = self.manager.store.metadata(self.manager.namespace, self.index)
+                if (meta.protected
+                        or self.identity_reader(self.manager, self.index) != self.target['persistent_identity']):
+                    raise SafetyError('Selection restoration identity/protection changed.')
                 restored = self.manager.select(self.index, self.selected_before, expected_revision=self.selection_revision)
                 self.report['newer_selection_preserved'] = restored is None
             self.report['selection_restored'] = (
