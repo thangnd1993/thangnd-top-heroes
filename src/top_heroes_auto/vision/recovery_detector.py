@@ -31,6 +31,7 @@ class RecoveryScreenDetector:
         self.detector = ScreenDetector(self.anchors)
         self.receipt_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "overlays")
         self.notice_anchors = load_anchors(templates.parent / 'tasks/phase8/notice-overlays')
+        self.territory_notice_anchors = load_anchors(templates.parent / 'tasks/phase8/territory-notice')
         self.event_anchors = load_anchors(templates.parent / 'tasks/phase6/event-overlays')
         self.home_overlay_anchors = load_anchors(templates.parent / 'tasks/phase6/home-overlays')
         promo_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "promo")
@@ -133,6 +134,16 @@ class RecoveryScreenDetector:
             event_qualified = layout
         notice = tuple(unique_current_anchor(screen, a) for a in self.notice_anchors)
         notice_visible = len(notice) == 3 and all(e.matched for e in notice)
+        territory = tuple(unique_current_anchor(screen, a) for a in self.territory_notice_anchors)
+        close = next((e for e in notice if e.anchor_id == 'match-notice-close'), None)
+        territory_visible = len(territory) == 2 and all(e.matched for e in territory) and close and close.matched
+        if territory_visible:
+            if notice_visible:
+                return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
+                               evidence=(*detected.evidence, *notice, *territory))
+            # Reuse the exact known close and layout guard, never the blue Go CTA.
+            notice = (*territory, close)
+            notice_visible = True
         groups = {}
         for anchor in self.receipt_anchors:
             groups.setdefault(anchor.variant, []).append(unique_current_anchor(screen, anchor))
@@ -185,8 +196,8 @@ class RecoveryScreenDetector:
                            confidence=min(e.score for e in receipt), evidence=receipt)
         if notice_visible:
             boxes = {e.anchor_id: e.device_box for e in notice}
-            title, preparing, close = (boxes[k] for k in
-                ('match-notice-title', 'match-notice-preparing', 'match-notice-close'))
+            title, preparing, close = (next(b for k,b in boxes.items() if k.endswith('-'+role))
+                                       for role in ('title', 'preparing', 'close'))
             width, height = screen.device_size or screen.original_size
             layout = (title.y+title.height < preparing.y < close.y and title.y < height*.15
                       and close.y > height*.85 and all(abs(b.center[0]-width*.5) < width*.12

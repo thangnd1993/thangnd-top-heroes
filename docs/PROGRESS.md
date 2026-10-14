@@ -19,6 +19,17 @@ self-review checked duplicate input, runtime replacement and unbounded renewal.
 Fresh CI and unfinished-target real acceptance remain required.
 Never replay VERIFIED or uncertain dispatched actions from active run5.
 
+Same startup transition, second observed variant: index8 reached Home, then the
+territory-preparation notice appeared. Its foreground text differs from the old
+match-success notice; underlying dim Home anchors alone did not qualify. Added
+paired stable title/preparation anchors, reusing the exact existing close/layout
+guard. Real saved index3 and8 frames both score>=.999999; no timer/artwork/map/name
+dependency, Go/claim permission, global threshold change or new popup route.
+73 targeted notice/receipt/overlay/loading tests passed. New game-only images were
+visually inspected (no credentials/private files); PNG chunks contain no text
+metadata. Assets are packaged normally. Resume only unfinished affected targets
+with a fresh passing build AFTER run5 workers end; do not replay the full fleet.
+
 ## Standalone two-worker Start — awaiting CI/real acceptance (2026-10-14)
 
 Current authorization: ALL live non-Protected targets, full registered reward

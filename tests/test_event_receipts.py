@@ -66,8 +66,9 @@ def test_task_page_does_not_become_receipt():
     assert RecoveryScreenDetector().detect(screen).state != ScreenState.REWARD_RECEIPT
 
 
-def test_known_match_notice_qualifies_dismissal_without_go_permission():
-    payload = (Path(__file__).parent/'fixtures/phase8/match-notice.png').read_bytes()
+@pytest.mark.parametrize('fixture', ['match-notice', 'territory-notice'])
+def test_known_match_notice_qualifies_dismissal_without_go_permission(fixture):
+    payload = (Path(__file__).parent/f'fixtures/phase8/{fixture}.png').read_bytes()
     screen = ScreenshotService(lambda _: payload).take(Target(3, 'fixture', 'explicit', 'boot'))
     detector = RecoveryScreenDetector()
     detection = detector.detect(screen)
