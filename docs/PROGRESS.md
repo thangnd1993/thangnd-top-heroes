@@ -1,3 +1,24 @@
+## Standalone Start run 5 — IN PROGRESS (2026-10-14)
+
+6f1d741 CI38536229794 passed Ruff,1901 pytest (26 skipped), Windows build,
+smoke and artifact upload. Verified Desktop EXE PID19940 started through normal
+UI Start at10:00:03UTC, all live non-Protected2/3/4/5/8/9/10/11, max2.
+Protected0/1/6/7/12 excluded. External Codex game-control actions remain ZERO.
+Run evidence: diagnostics/tasks/automation/20261014-100004-093230Z-63e9e9d6.
+Do not start another fleet or interrupt active workers to deploy a patch.
+
+First failed transition: index3 loaded, positively recognized EVENT_PROMO at148s,
+dismissed it, then saw a second known HOME_OVERLAY at181s; global recovery budget
+expired. No claim sent. Its slot immediately continued index4 while index2 ran.
+Focused correction grants ONE <=60s navigation window after same-boot loading
+transitions to a paired qualified overlay. No extra UNKNOWN/loading time, renewed
+popup windows, extra dismissals, relaxed thresholds or lifecycle retries. A sent
+overlay input always gets one fresh verification capture; expired time prohibits
+any further input.167 targeted recovery/loading/navigation tests and Ruff passed;
+self-review checked duplicate input, runtime replacement and unbounded renewal.
+Fresh CI and unfinished-target real acceptance remain required.
+Never replay VERIFIED or uncertain dispatched actions from active run5.
+
 ## Standalone two-worker Start — awaiting CI/real acceptance (2026-10-14)
 
 Current authorization: ALL live non-Protected targets, full registered reward

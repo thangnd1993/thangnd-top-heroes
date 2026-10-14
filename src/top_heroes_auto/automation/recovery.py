@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -194,6 +195,9 @@ class HomeRecoveryEngine:
         capture_after_back = False
         progress_seen = False
         duration_limit = self.max_duration
+        loading_identity = None
+        overlay_deadline = None
+        capture_after_overlay = False
 
         def finish(status: RecoveryStatus, error: str | None = None):
             result.status = status
@@ -204,10 +208,12 @@ class HomeRecoveryEngine:
         for number in range(1, self.max_steps + 1):
             if cancelled():
                 return finish(RecoveryStatus.CANCELLED)
-            if self.clock() - started >= duration_limit and not capture_after_back:
+            if self.clock() - started >= duration_limit and not (capture_after_back or capture_after_overlay):
                 return finish(RecoveryStatus.LIMIT_REACHED, "Recovery exceeded max duration.")
             following_back = capture_after_back
+            following_overlay = capture_after_overlay
             capture_after_back = False
+            capture_after_overlay = False
             try:
                 observation = port.observe(number)
             except ScreenshotInvalid as exc:
@@ -246,11 +252,16 @@ class HomeRecoveryEngine:
             except (CommandError, OSError, SafetyError, ValueError) as exc:
                 return finish(RecoveryStatus.ADB_ERROR, str(exc))
             detection = observation.detection
+            identity = observation.adb_target, observation.boot_id
+            if following_overlay and identity != (result.adb_target, result.boot_id):
+                return finish(RecoveryStatus.ADB_ERROR, 'Runtime changed after overlay input; no further input.')
+            if detection.state in {ScreenState.GAME_LOADING, ScreenState.PROMO_LOADING}:
+                loading_identity = identity
             result.adb_target = observation.adb_target
             result.boot_id = observation.boot_id
             # A newly qualified functional loading stage is independent evidence
             # of progress. Grant one bounded wait window, never for UNKNOWN/art.
-            if progressing_stage(detection) and not progress_seen:
+            if progressing_stage(detection) and not progress_seen and overlay_deadline is None:
                 progress_seen = True
                 if loading_started is not None:
                     loading_started = self.clock()
@@ -327,7 +338,24 @@ class HomeRecoveryEngine:
                 continue  # Fresh qualified observation required before any next input.
             if detection.state == ScreenState.GAME_HOME:
                 return finish(RecoveryStatus.SUCCESS if result.actions else RecoveryStatus.ALREADY_HOME)
+            if following_overlay and self.clock() - started >= duration_limit:
+                return finish(RecoveryStatus.LIMIT_REACHED, 'Post-overlay capture completed after deadline; no further input.')
             if detection.state in DISMISSIBLE:
+                # Real Oct14 evidence: loading ended at 148s, then a second
+                # qualified Home overlay appeared at 181s. Give navigation its
+                # own ONE bounded window only after proven loading -> overlay.
+                # Changing overlays cannot renew it; UNKNOWN never earns time.
+                if (overlay_deadline is None and loading_identity == identity
+                        and all(identity) and self.clock() - started < duration_limit
+                        and math.isfinite(detection.confidence) and detection.confidence >= .96
+                        and len(detection.evidence) >= 2 and all(
+                            e.matched and e.device_box is not None and math.isfinite(e.score)
+                            and e.score >= max(.96, e.threshold) for e in detection.evidence)):
+                    overlay_deadline = min(self.clock() - started + 60.0, duration_limit + 60.0)
+                    duration_limit = max(duration_limit, overlay_deadline)
+                    result.actions.append('qualified_post_loading_overlay_window')
+                if self.clock() - started >= duration_limit:
+                    return finish(RecoveryStatus.LIMIT_REACHED, 'Overlay capture crossed deadline; no input.')
                 # Positive overlay evidence ends the loading stage even before
                 # the second stable frame permits input. A transient next frame
                 # must not inherit an already-expired loading timer.
@@ -358,6 +386,7 @@ class HomeRecoveryEngine:
                 result.actions.append(action)
                 result.steps[-1] = RecoveryStep(number, detection.state, detection.confidence,
                                                observation.screenshot, action)
+                capture_after_overlay = True  # Always independently capture after a sent input.
                 loading_started = None
                 self.sleep(self.action_settle)
                 continue  # Next iteration always captures and classifies a fresh frame.
