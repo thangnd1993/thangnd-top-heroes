@@ -10,6 +10,7 @@ from top_heroes_auto.automation.guard import SafetyError, bound_snapshot
 from top_heroes_auto.automation.overlays import OverlayBudget, dismiss_overlay_bottom_left
 from top_heroes_auto.automation.phase6_visual import FrameRewardAdapter, ManagerRewardPort
 from top_heroes_auto.automation.recovery import HomeRecoveryEngine, RecoveryObservation, RecoveryStatus
+from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.models import ScreenState
 from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
 from top_heroes_auto.vision.screenshot import ScreenshotService
@@ -298,6 +299,9 @@ def test_promo_after_entry_tap_only_retries_navigation_on_fresh_home(home_after)
     popup,known=receipt()
     home=screen('index2-home.png')
     vip=screen('index2-vip-claimable.png')
+    entry=unique_current_anchor(home,route.first_anchor)
+    assert entry.matched and entry.device_box is not None
+    entry_point=entry.device_box.center
     images=[home,popup,popup,home if home_after else popup,vip]
     frames=iter(EntryFrame(TARGET,replace(image,timestamp=str(i))) for i,image in enumerate(images))
     taps=[]
@@ -311,10 +315,10 @@ def test_promo_after_entry_tap_only_retries_navigation_on_fresh_home(home_after)
     result=GuardedEntryNavigator(Port(),route,detect,sleep=lambda _:None).run()
     if home_after:
         assert result.status==NavigationStatus.SUCCESS
-        assert taps==[(67,183),(58,1203),(67,183)]
+        assert taps==[entry_point,(58,1203),entry_point]
     else:
         assert result.status!=NavigationStatus.SUCCESS
-        assert taps==[(67,183),(58,1203)]
+        assert taps==[entry_point,(58,1203)]
 
 
 @pytest.mark.parametrize('variant',['gift-pulse.png','gift-rocking.png'])
