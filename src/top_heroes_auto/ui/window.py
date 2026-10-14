@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from top_heroes_auto.app.automation_controller import AutomationController
 from top_heroes_auto.app.free_reward_tasks import (
     PHASE6_TARGET,
     run_free_reward_task,
@@ -54,7 +55,6 @@ from top_heroes_auto.app.phase6_vip_survey_tasks import (
 from top_heroes_auto.app.process import Process
 from top_heroes_auto.app.recovery_cli import run_home_recovery
 from top_heroes_auto.app.registered_tasks import run_registered_selected
-from top_heroes_auto.app.run_queue import RunController
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.app.task_cli import run_idle_reward_diagnostic
 from top_heroes_auto.ldplayer.client import LDPlayer, discover, inspect_folder
@@ -216,6 +216,14 @@ class Window(QMainWindow):
         self.button(status, "Kiểm tra lại", self.discover_ld)
         self.button(status, "Chọn thư mục LDPlayer", self.pick_folder)
         auto = self.group(panels, "Điều khiển tự động")
+        self.run_scope = QComboBox()
+        self.run_scope.addItems(['Các tài khoản đã chọn', 'Tất cả tài khoản không bảo vệ'])
+        self.run_scope.setAccessibleName('Phạm vi chạy tự động')
+        self.run_scope.currentIndexChanged.connect(lambda _: self.render())
+        auto.addWidget(self.run_scope)
+        scope_note = QLabel('Idle · VIP · BXH · Tiệm · Hội · Thư · Event\nChỉ nhận quà đủ điều kiện; giữ khóa chống nhận lặp.')
+        scope_note.setWordWrap(True)
+        auto.addWidget(scope_note)
         self.auto_start = self.button(auto, "Bắt đầu tự động (0)", self.start_selected)
         self.auto_stop = self.button(auto, "Dừng tự động", self.stop_run)
         self.auto_pause = self.button(auto, "Tạm dừng", self.pause_run)
@@ -317,11 +325,12 @@ class Window(QMainWindow):
         options = self.group(panels, "Tùy chọn thực thi")
         options.addWidget(QLabel("Số giả lập chạy đồng thời"))
         self.concurrency = QSpinBox()
-        self.concurrency.setRange(1, 4)
-        self.concurrency.setValue(int(self.store.get("max_concurrency", "1")))
+        self.concurrency.setRange(1, 2)
+        self.concurrency.setAccessibleName('Số tài khoản chạy đồng thời')
+        self.concurrency.setValue(int(self.store.get("max_concurrency", "2")))
         self.concurrency.valueChanged.connect(lambda value: self.store.set("max_concurrency", str(value)))
         options.addWidget(self.concurrency)
-        options.addWidget(QLabel("Phase 2 chỉ kiểm tra lifecycle; không mở game."))
+        options.addWidget(QLabel("Mỗi tài khoản chạy hết kế hoạch rồi mới chuyển tài khoản tiếp theo."))
         panels.addStretch()
         scroll.setWidget(right)
         splitter.addWidget(scroll)
@@ -402,8 +411,10 @@ class Window(QMainWindow):
             self.phase6_cancelled.clear()
         if self.mode == "run":
             self.retry_failed.setEnabled(True)
+            self.run_scope.setEnabled(True)
+            self.concurrency.setEnabled(True)
         self.statusBar().showMessage("Sẵn sàng")
-        if self.mode in {"launch", "quit", "reboot", "idle-reward", "phase6"}:
+        if self.mode in {"launch", "quit", "reboot", "idle-reward", "phase6", "run"}:
             QTimer.singleShot(0, self.refresh)
         self.target_changed()
 
@@ -548,6 +559,9 @@ class Window(QMainWindow):
             self.logs.appendPlainText(
                 f"RUN {run_id}: Thành công {counts['SUCCESS']} · Lỗi {counts['FAILED']} · Đã hủy {counts['CANCELLED']}"
             )
+            report = self.store.get(f'automation-report:{run_id}')
+            if report:
+                self.logs.appendPlainText(f'Báo cáo chi tiết: {report}')
             self.render()
         else:
             self.logs.appendPlainText(str(result) or "Đã gửi lệnh.")
@@ -645,8 +659,10 @@ class Window(QMainWindow):
                 self.target.setCurrentIndex(previous_index)
         self.target.blockSignals(False)
         self.summary.setText(f"{len(self.instances)} giả lập · {count} được chọn · Giả lập mới luôn bỏ chọn")
-        self.auto_start.setText(f"Bắt đầu tự động ({count})")
-        self.auto_start.setEnabled(self.manager is not None and self.worker is None and count > 0)
+        run_count = (sum(not self.store.metadata(self.manager.namespace, i.index).protected for i in self.instances)
+                     if self.manager and self.run_scope.currentIndex() == 1 else count)
+        self.auto_start.setText(f"Bắt đầu tự động ({run_count})")
+        self.auto_start.setEnabled(self.manager is not None and self.worker is None and run_count > 0)
         self.target_changed()
 
     def target_changed(self):
@@ -921,16 +937,20 @@ class Window(QMainWindow):
         if not self.manager or self.worker:
             return
         self.run_states = {}
-        self.run_controller = RunController(self.store, self._queue_factory, self.run_progress.emit)
+        self.run_controller = AutomationController(self.store, self._queue_factory, self.run_progress.emit)
+        concurrency = self.concurrency.value()
+        all_non_protected = self.run_scope.currentIndex() == 1
 
         def work():
-            run = self.run_controller.create(self.manager, self.concurrency.value())
+            run = self.run_controller.create(self.manager, concurrency, all_non_protected=all_non_protected)
             self.current_run_id = run.id
             return run.id, self.run_controller.execute(run)
 
         self.auto_start.setEnabled(False)
         self.auto_stop.setEnabled(True)
         self.auto_pause.setEnabled(True)
+        self.run_scope.setEnabled(False)
+        self.concurrency.setEnabled(False)
         self.run_job("run", work)
 
     def stop_run(self):
@@ -948,13 +968,19 @@ class Window(QMainWindow):
     def retry_run(self):
         if not self.manager or self.worker or not hasattr(self, "current_run_id"):
             return
-        self.run_controller = RunController(self.store, self._queue_factory, self.run_progress.emit)
+        self.run_controller = AutomationController(self.store, self._queue_factory, self.run_progress.emit)
+        concurrency = self.concurrency.value()
 
         def work():
-            run = self.run_controller.retry_failed(self.manager, self.current_run_id, self.concurrency.value())
+            run = self.run_controller.retry_failed(self.manager, self.current_run_id, concurrency)
             self.current_run_id = run.id
             return run.id, self.run_controller.execute(run)
 
+        self.auto_start.setEnabled(False)
+        self.auto_stop.setEnabled(True)
+        self.auto_pause.setEnabled(True)
+        self.run_scope.setEnabled(False)
+        self.concurrency.setEnabled(False)
         self.run_job("run", work)
 
     @Slot(int, int, object, str)
@@ -1010,9 +1036,9 @@ class Window(QMainWindow):
         QMessageBox.information(
             self,
             "Giới thiệu",
-            "Top Heroes Auto Manager\nV0.1.0 — Phase 1\n"
+            "Top Heroes Auto Manager\nTự động nhận quà — tối đa 2 tài khoản đồng thời\n"
             "Phát triển bởi Thang Nguyen\n\nMột giả lập = một tài khoản.\n"
-            "Chưa triển khai gameplay automation.\n\nDữ liệu: " + str(self.data_dir),
+            "Idle, VIP, BXH, Tiệm, Hội, Thư và Event.\n\nDữ liệu: " + str(self.data_dir),
         )
 
     def closeEvent(self, event: QCloseEvent):

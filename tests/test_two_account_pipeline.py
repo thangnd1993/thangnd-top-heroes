@@ -188,6 +188,25 @@ def test_production_worker_has_independent_transport_state(rig):
     assert worker._active is None and worker.last_lifecycle_attempt is None
 
 
+def test_session_construction_failure_does_not_abort_other_accounts(rig, tmp_path):
+    manager, process, _ = rig
+    process.listing += '13,peer,0,0,0,-1,-1\n'
+    calls = []
+    registry, session, _ = setup(calls)
+
+    def create(worker, data, target, folder, **kw):
+        if target['index'] == 7:
+            raise SafetyError('live target binding revoked before session')
+        return session(worker, data, target, folder, **kw)
+
+    result = fleet.run(manager, tmp_path, registry=registry, session_factory=create,
+        identity_reader=lambda m, i: f'fixture-disk-{i}', max_concurrency=2, manager_factory=factory(manager))
+    assert [r['result'] for r in result['accounts']] == ['PARTIAL', 'COMPLETE']
+    assert result['accounts'][0]['worker_terminated']
+    assert not any(c[0] == 7 for c in calls)
+    assert (13, 'cleanup') in calls
+
+
 def test_cli_concurrency_is_explicit_and_bounded(monkeypatch):
     from top_heroes_auto.app import diagnostic, main
     calls = []

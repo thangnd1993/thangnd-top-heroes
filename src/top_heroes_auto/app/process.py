@@ -3,6 +3,7 @@
 import locale
 import os
 import subprocess
+import time
 
 from top_heroes_auto.ldplayer.name_safety import guard_command
 
@@ -12,6 +13,9 @@ class CommandError(RuntimeError):
 
 
 class Process:
+    def __init__(self):
+        self.metrics = {}
+
     def run(self, args: list[str], timeout: int = 20) -> bytes:
         executable = args[0].replace("\\", "/").rsplit("/", 1)[-1].casefold() if args else ""
         if executable in {"ldconsole.exe", "dnconsole.exe", "ldconsole", "dnconsole"}:
@@ -29,6 +33,10 @@ class Process:
                     raise ValueError('Explicit indexed LDPlayer command shape required; no target fallback.')
             except ValueError as exc:
                 raise CommandError(str(exc)) from exc
+        category = ('capture' if 'screencap' in args else 'input' if 'input' in args else
+                    'inventory' if 'list2' in args else 'startup' if 'launch' in args else
+                    'cleanup' if 'quit' in args else 'identity_or_other')
+        started = time.perf_counter()
         try:
             result = subprocess.run(
                 args,
@@ -39,6 +47,10 @@ class Process:
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise CommandError(f"Không thực thi được lệnh: {exc}") from exc
+        finally:
+            metric = self.metrics.setdefault(category, dict(calls=0, seconds=0.0))
+            metric['calls'] += 1
+            metric['seconds'] += time.perf_counter()-started
         if result.returncode:
             raise CommandError(f"Lệnh thất bại ({result.returncode}): {decode(result.stderr)[:500]}")
         return result.stdout

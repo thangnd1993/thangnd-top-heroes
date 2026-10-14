@@ -167,11 +167,11 @@ class Manager:
         with self._lock:
             return self._inventory()
 
-    def select(self, index: int, selected: bool):
+    def select(self, index: int, selected: bool, *, expected_revision=None):
         with self._lock:
             live = self.query(index)
             self.store.require_identity(self.namespace, index, live.stable_id)
-            self.store.select(self.namespace, index, selected)
+            return self.store.select(self.namespace, index, selected, expected_revision=expected_revision)
 
     def protect(self, index: int, protected: bool):
         with self._lock:
@@ -409,6 +409,19 @@ class Manager:
                 current = self._check(index)
         raise SafetyError('Android readiness remained unavailable on the exact running target.')
 
+    def _verify_observed(self, index, observed):
+        """Reverify fresh screenshot transport without global discovery/start-server."""
+        instance = self._capture_ready(index)
+        if observed.index != index or observed.stable_id != instance.stable_id:
+            raise SafetyError('Observed screenshot belongs to another stable instance.')
+        serial = self._probe_identity(index, lambda: validate_serial(self.ld.adb_serial(index)), instance=instance)
+        if observed.serial not in {serial, self._local_endpoint(serial)}:
+            raise SafetyError('Current indexed serial differs from the screenshot.')
+        boot = self._probe_identity(index, lambda: valid_boot_id(self.ld.boot_id(index)), instance=instance)
+        if boot != observed.boot_id:
+            raise SafetyError('Observed screenshot boot changed before input.')
+        return Target(index, instance.name, observed.serial, boot, instance.stable_id)
+
     def capture_verified(self, index: int, snapshot: RunSnapshot | None = None) -> tuple[Target, bytes]:
         """Capture exactly one PNG through a freshly verified explicit target."""
         with self._lock:
@@ -506,7 +519,7 @@ class Manager:
                 if action in {"launch", "reboot"}:
                     self._start(index)
                 try:
-                    target = self._resolve(index)
+                    target = self._verify_observed(index, observed_target) if observed_target is not None else self._resolve(index)
                 except TransportResolutionError:
                     if action not in {"launch", "reboot"} or not allow_lifecycle_retry:
                         raise

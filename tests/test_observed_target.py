@@ -37,6 +37,9 @@ def test_visual_input_uses_exact_verified_observed_target(rig):
     inputs = [call for call in process.calls if "input" in call]
     assert len(inputs) == 1
     assert inputs[0][1:3] == ["-s", target.serial]
+    assert not any(call[1:] in (["start-server"], ["devices"]) for call in process.calls)
+    assert any(call[-1] == 'get-serialno' for call in process.calls)
+    assert any(call[1:3] == ['-s', target.serial] and call[-1].endswith('boot_id') for call in process.calls)
 
 
 def test_screenshot_identity_cannot_authorize_lifecycle(rig):

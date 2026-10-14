@@ -91,7 +91,7 @@ def test_cli_requires_resume_and_explicit_exception_ids(monkeypatch,tmp_path):
         main.main(['automation-acceptance','--resume-report',str(tmp_path),'--force'])
     assert not calls
     main.main(['automation-acceptance','--resume-report',str(tmp_path),'--preserve-possible','138'])
-    assert calls == [dict(random_test=False,resume_report=tmp_path,preserve_possible=(138,))]
+    assert calls == [dict(random_test=False,resume_report=tmp_path,max_concurrency=1,preserve_possible=(138,))]
 
 
 def test_readonly_user_rename_rebinds_same_disk_and_preserves_lock(rig,tmp_path):

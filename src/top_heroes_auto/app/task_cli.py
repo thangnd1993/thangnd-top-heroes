@@ -336,8 +336,12 @@ def run_idle_reward_diagnostic(
     inventory_error = None
     try:
         after = _state(manager.list_readonly())
-        isolation_changes = _only_target_changed(before, after, index,
-            peer_identities=getattr(session, 'fleet_peer_identities', {}) if session is not None else {})
+        if session is not None:
+            # Bound session verifies its own disk/runtime before every action.
+            # Other user-owned instances may change independently during a fleet.
+            isolation_changes = sorted(i for i in set(before) | set(after) if before.get(i) != after.get(i))
+        else:
+            isolation_changes = _only_target_changed(before, after, index)
     except (OSError, RuntimeError, ValueError) as exc:
         after = None
         isolation_changes = None

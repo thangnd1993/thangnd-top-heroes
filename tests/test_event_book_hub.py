@@ -4,9 +4,27 @@ import cv2
 import numpy as np
 
 from top_heroes_auto.vision.event_book_objectives import book_context, book_rows
-from top_heroes_auto.vision.event_collaboration_hub import collaboration_hub
+from top_heroes_auto.vision.event_collaboration_hub import collaboration_hub, collaboration_training
 
 FIXTURES=Path(__file__).parent/'fixtures/phase8'
+
+
+def test_training_map_qualifies_only_current_exit_not_rewards():
+    image = cv2.imread(str(FIXTURES/'collaboration-training.png'))
+    result = collaboration_training(image)
+    assert result['permission'] == 'KNOWN_BLOCKER_EXIT'
+    assert not result['tabs'] and not result['selected']
+    assert result['back'].center == (64, 1233)
+    assert 'rewards' not in result and 'children' not in result
+    image[20:68, 190:531] = 0
+    assert collaboration_training(image) is None
+
+
+def test_training_exit_rejects_other_page_and_duplicate_back():
+    assert collaboration_training(cv2.imread(str(FIXTURES/'collaboration-hub.png'))) is None
+    image = cv2.imread(str(FIXTURES/'collaboration-training.png'))
+    image[900:955, 36:93] = image[1206:1261, 36:93]
+    assert collaboration_training(image) is None
 
 
 def test_hub_is_navigation_only_with_four_indicated_edges():

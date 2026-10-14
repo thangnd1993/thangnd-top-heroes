@@ -1,3 +1,34 @@
+## Standalone two-worker Start — awaiting CI/real acceptance (2026-10-14)
+
+Current authorization: ALL live non-Protected targets, full registered reward
+plan, max_concurrency=2 inside the application. Normal UI Start now invokes the
+production fleet with selected-only or explicit all-non-Protected scope. Each
+worker keeps its own Manager, cancellation and journal context under one lease.
+The entire registry is frozen before start; one target failure cannot abort peers.
+
+Earlier source runs4/2 and pool3/5/8/9/10/11 FINISHED, PARTIAL. Results remain in
+artifacts/finish-phase8-*-result.json. They are NOT standalone acceptance.
+fb2c864 CI failed one stale CLI keyword expectation, corrected in this batch.
+
+Focused changes: current screenshot inputs retain indexed serial/boot/disk/live
+authority checks without redundant global ADB discovery. Selection restoration
+uses atomic revision checks to preserve newer user intent. Nonterminal plans
+report PREMATURE_CLEANUP and cannot stop owned instances. Bound Idle sessions
+record independent manual inventory activity without invalidating their own target.
+Reports now include executable provenance, worker intervals/peak, flow elapsed
+times and transport counts/times.
+
+VIP entry uses stable Vip lettering excluding level digit/badge, qualified on
+real VIP6/VIP7. DRAGONS training map has paired-title/current-Back recognition
+for EXIT ONLY; map chests remain explicitly unqualified. No lower claim threshold.
+New fixtures/anchors contain game UI only, no credentials or unrelated private data.
+
+Targeted groups:204 safety,87 VIP/navigation/controller,153 integration passed
+(overlap exists); affected Ruff and diff whitespace review passed. Logs under
+artifacts/standalone-*.log. Next full CI/build, verified Desktop delivery, then
+normal EXE Start/all current non-Protected/concurrency2. External Codex game
+navigation must be zero during final acceptance. No Phase9; no claimed PASS yet.
+
 ## Two-account continuation amendment — IN PROGRESS (2026-10-14)
 
 User explicitly requested two accounts collecting concurrently. Original frozen

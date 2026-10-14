@@ -46,7 +46,7 @@ from top_heroes_auto.vision.dynamic_events import (
 )
 from top_heroes_auto.vision.event_achievements import achievement_rows, achievement_shell
 from top_heroes_auto.vision.event_book_objectives import book_context, book_rows
-from top_heroes_auto.vision.event_collaboration_hub import collaboration_hub
+from top_heroes_auto.vision.event_collaboration_hub import collaboration_hub, collaboration_training
 from top_heroes_auto.vision.event_competitive import competitive_indicator_contract
 from top_heroes_auto.vision.event_inline_objectives import inline_objective_rows
 from top_heroes_auto.vision.event_paid_modal import paid_modal_navigation
@@ -158,6 +158,8 @@ class DynamicEventPort:
                 shell=achievement_shell(image)
             if shell is None:
                 shell=collaboration_hub(image)
+            if shell is None:
+                shell=collaboration_training(image)
             if shell:
                 page = shell['page']
                 self.event_title = shell['title']
@@ -165,9 +167,9 @@ class DynamicEventPort:
                 achievements=shell.get('permission')=='ACHIEVEMENTS'
                 self.rows = (achievement_rows(image,shell,reader=read_words) if achievements else
                              task_grid_rows(image,shell,reader=read_words) if grid else
-                             (() if shell.get('permission')=='BACK_ONLY' else
+                             (() if shell.get('permission') in {'BACK_ONLY', 'KNOWN_BLOCKER_EXIT'} else
                               task_reward_rows(image,self.task_context,reader=read_words)))
-                context=(None if grid or achievements or shell.get('permission')=='BACK_ONLY' else
+                context=(None if grid or achievements or shell.get('permission') in {'BACK_ONLY', 'KNOWN_BLOCKER_EXIT'} else
                          task_context_box(image,self.task_context))
                 inline = (inline_objective_rows(image,reader=read_words)
                           if context is None and not grid and not achievements and not shell.get('permission') else ())
@@ -252,9 +254,12 @@ class DynamicEventPort:
                     contract='NAVIGATION_HUB'
                     for key,box in shell['children']:
                         controls.append(Control(key,box,shell['evidence'],'child'))
+                if shell.get('permission')=='KNOWN_BLOCKER_EXIT':
+                    contract='UNSUPPORTED'
+                    blocked.append('TRAINING_MAP_REWARDS_UNQUALIFIED')
                 coverage_known=contract!='UNSUPPORTED'
                 achievement = achievement_navigation(image)
-                if achievement and shell.get('permission') != 'BACK_ONLY':
+                if achievement and shell.get('permission') not in {'BACK_ONLY', 'KNOWN_BLOCKER_EXIT'}:
                     controls.append(Control('functional-achievements', achievement['box'],
                         achievement['evidence'], 'child'))
                 if contract=='REPUTATION_INFORMATION':
@@ -290,7 +295,7 @@ class DynamicEventPort:
                     controls.append(Control('menu-list-vertical',surface,
                         ('event-shell','qualified-menu-grid','current-card-list'),'scroll'))
                 parent = Control('current-back',shell['back'],
-                    (*shell['evidence'],'current-exit-control') if shell.get('permission')=='NAVIGATION_HUB' else
+                    (*shell['evidence'],'current-exit-control') if shell.get('permission') in {'NAVIGATION_HUB', 'KNOWN_BLOCKER_EXIT'} else
                     ('achievement-title','qualified-achievement-cards','current-modal-close') if achievements else
                     ('functional-tasks-word','qualified-grid','current-modal-close') if grid else
                     (('functional-competition-chrome','paired-glyph-anchors','back-anchor')

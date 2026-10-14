@@ -237,8 +237,10 @@ def test_session_protection_revocation_blocks_cleanup_and_selection(rig, tmp_pat
         tmp_path,
         identity_reader=lambda *a: "disk",
         recovery_runner=lambda *a, **kw: (RecoveryResult(RecoveryStatus.SUCCESS), tmp_path / "r", True),
+        execution_plan=(Flow("fixture", ("reward",), lambda *a: None),),
     )
     session.start()
+    session.finish_plan({"fixture": dict(result="BLOCKED", error="revoked")}, {"reward": dict(result="BLOCKED")})
     manager.protect(7, True)
     with pytest.raises(SafetyError):
         session.recover()
@@ -462,8 +464,9 @@ def test_confirmed_indexed_start_adb_failure_cleanup_is_independent(rig,tmp_path
     identity=['fixture-disk-7']
     session=InstanceSession(manager,tmp_path,dict(index=7,name='Farm-007',
         persistent_identity=identity[0],preflight_running=False),tmp_path,
-        identity_reader=lambda *a:identity[0])
+        identity_reader=lambda *a:identity[0], execution_plan=(Flow("fixture", ("reward",), lambda *a: None),))
     session.start()
+    session.finish_plan({"fixture": dict(result="BLOCKED", error="ADB_ERROR")}, {"reward": dict(result="BLOCKED")})
     assert session.started and session.initial[0].status==RecoveryStatus.ADB_ERROR
     assert session.initial[0].launch_attempt['confirmed_runtime']==(201,202)
     if conflict=='protected':

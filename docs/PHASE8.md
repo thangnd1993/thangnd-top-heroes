@@ -1,3 +1,12 @@
+## Standalone delivery gate (2026-10-14)
+
+See the latest PROGRESS checkpoint. Normal Start now uses the complete production
+registry with an explicit all-non-Protected scope and max2. Focused offline tests
+passed; full CI and actual Desktop EXE acceptance are still required. Earlier
+source-run results are PARTIAL and finished, never evidence of standalone PASS.
+Preserve all journals. VIP6/7 entry and known training-map exit were qualified
+offline; unknown map rewards remain blocked. No Phase9.
+
 ## Current concurrency authorization (2026-10-14)
 
 The user changed the outstanding operation to at most TWO active account workers.

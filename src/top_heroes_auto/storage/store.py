@@ -222,10 +222,16 @@ class Store:
             raise ValueError('IDENTITY_CHANGED: snapshot backing disk differs.')
         return metadata.stable_id
 
-    def select(self, namespace: str, index: int, selected: bool):
+    def select(self, namespace: str, index: int, selected: bool, *, expected_revision=None):
         if self.metadata(namespace, index).identity_state == 'IDENTITY_CHANGED':
             raise ValueError('IDENTITY_CHANGED: selection requires explicit app-side reconciliation.')
         with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            key = f'selection-revision:{namespace}:{index}'
+            previous = db.execute('SELECT value FROM settings WHERE key=?', (key,)).fetchone()
+            revision = int(previous[0]) if previous else 0
+            if expected_revision is not None and revision != expected_revision:
+                return None  # A newer user decision owns selection now.
             cursor = db.execute(
                 """UPDATE instances SET selected=?
                 WHERE namespace=? AND idx=? AND present=1 AND (protected=0 OR ?=0)""",
@@ -233,16 +239,22 @@ class Store:
             )
             if cursor.rowcount != 1:
                 raise ValueError("Giả lập được bảo vệ hoặc không còn tồn tại.")
+            db.execute('INSERT OR REPLACE INTO settings(key,value) VALUES (?,?)', (key, str(revision+1)))
+            return revision+1
 
     def protect(self, namespace: str, index: int, protected: bool):
         if self.metadata(namespace, index).identity_state == 'IDENTITY_CHANGED':
             raise ValueError('IDENTITY_CHANGED: protection requires explicit app-side reconciliation.')
         with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
             db.execute(
                 """UPDATE instances SET protected=?, selected=CASE WHEN ? THEN 0 ELSE selected END
                        WHERE namespace=? AND idx=? AND present=1""",
                 (protected, protected, namespace, index),
             )
+            key = f'selection-revision:{namespace}:{index}'
+            db.execute('INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) '
+                       'DO UPDATE SET value=CAST(value AS INTEGER)+1', (key, '1'))
 
     def create_run(self, namespace: str, members: tuple[tuple[int, str], ...], max_concurrency: int) -> int:
         if max_concurrency not in (1, 2, 3, 4):

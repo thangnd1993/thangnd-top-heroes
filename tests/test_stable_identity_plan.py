@@ -140,17 +140,17 @@ def session(rig, tmp_path, *, external=False):
 
 
 @pytest.mark.parametrize('submitted', [False, True])
-def test_owned_home_without_event_scan_aborts_plan_but_cleans_up(rig, tmp_path, submitted):
+def test_owned_home_without_event_scan_preserves_instance_and_reports_premature_cleanup(rig, tmp_path, submitted):
     owner = session(rig, tmp_path)
     if submitted:
         owner.finish_plan({'events': event_detail(scanned=False)}, {'event-rewards': dict(result='NOT_AVAILABLE')})
     result = owner.close()
-    assert result['cleanup'] == 'SUCCESS'
+    assert result['cleanup'] == 'PREMATURE_CLEANUP'
     assert result['execution_status'] == 'ABORTED'
     assert not result['execution_plan_terminal']
-    assert sum(c[1] == 'quit' for c in rig[1].calls) == 1
+    assert sum(c[1] == 'quit' for c in rig[1].calls) == 0
     assert result['selection_restored']
-    assert not rig[0].query(7).running
+    assert rig[0].query(7).running
 
 
 @pytest.mark.parametrize('external', [False, True])

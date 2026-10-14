@@ -50,3 +50,19 @@ def collaboration_hub(image):
     return dict(page='event:collaboration-hub',title='collaboration-hub',permission='NAVIGATION_HUB',
         back=scaled(exit_box),tabs=[],selected=[],children=[(n,scaled(b)) for n,b in controls],
         evidence=('paired-exit-preview-glyphs','multiple-current-menu-labels','unique-associated-notification'))
+
+
+def collaboration_training(image):
+    """Known combat map: only its explicit exit is qualified, never map chests."""
+    h, w = image.shape[:2]
+    view = cv2.resize(image, (720, 1280))
+    title, stage, back = (_unique(view, n) for n in
+                         ('training-page-title', 'training-stage-caption', 'training-back'))
+    if (not all((title, stage, back)) or title.y > 90 or not title.y+title.height < stage.y < 190
+            or back.y < 1150 or back.x > 140):
+        return None
+    exit_box = BoundingBox(round(back.x*w/720), round(back.y*h/1280),
+                           round(back.width*w/720), round(back.height*h/1280))
+    return dict(page='event:collaboration-training', title='collaboration-training',
+                permission='KNOWN_BLOCKER_EXIT', back=exit_box, tabs=[], selected=[],
+                evidence=('training-page-title', 'training-stage-caption', 'unique-training-back'))

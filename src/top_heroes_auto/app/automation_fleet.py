@@ -1,5 +1,8 @@
 """Global instance-first scheduler: snapshot flows, exhaust each, cleanup once."""
 import json
+import sys
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextvars import copy_context
 from datetime import datetime, timezone
@@ -15,7 +18,7 @@ from top_heroes_auto.app.bxh_shop_acceptance import (
     progress,
     write,
 )
-from top_heroes_auto.app.flow_registry import COMPLETE, production_registry
+from top_heroes_auto.app.flow_registry import COMPLETE, FlowRegistry, production_registry
 from top_heroes_auto.app.instance_session import InstanceSession
 from top_heroes_auto.app.resume_exception import preserved_claims
 from top_heroes_auto.automation.execution_plan import terminal_plan
@@ -40,6 +43,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
         plan=[dict(flow=f.id, rewards=list(f.rewards), enabled=f.enabled, supported=f.supported) for f in plan],
         rewards=dict(prior.get('rewards', {})), flows={},
         cleanup='NOT_REQUIRED', selection_restored=True, recovery_ok=prior.get('recovery_ok', False), new_claims=0)
+    row['timing_seconds'] = dict(startup_and_initial_home=0.0, flows={}, cleanup=0.0)
     exceptions = preserved_claims(manager, {'accounts': [prior]}, [target], preserve_possible)
     by_reward = {proof['reward']: proof for proof in exceptions.values()}
     if set(by_reward)-set(required):
@@ -114,15 +118,22 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                     raise SafetyError(start_error)
                 if not started:
                     started = True
+                    startup_clock = time.perf_counter()
                     try:
                         session.start()
                     except Exception as exc:
                         start_error = str(exc)
                         raise
+                    finally:
+                        row['timing_seconds']['startup_and_initial_home'] = round(time.perf_counter()-startup_clock, 3)
                 session.check()
                 flow_folder = folder/flow.id
                 flow_folder.mkdir(exist_ok=True)
-                detail = flow.run(session, flow_folder, pending)
+                flow_clock = time.perf_counter()
+                try:
+                    detail = flow.run(session, flow_folder, pending)
+                finally:
+                    row['timing_seconds']['flows'][flow.id] = round(time.perf_counter()-flow_clock, 3)
                 outcomes = detail.get('rewards', {})
                 detail['omitted_rewards'] = [r for r in pending if r not in outcomes]
                 # Silent omissions never become successful/exhausted features.
@@ -162,7 +173,9 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
         row['execution_plan_summary'] = summary
         if started:
             session.finish_plan(row['flows'], row['rewards'])
+            cleanup_clock = time.perf_counter()
             lifecycle = session.close()
+            row['timing_seconds']['cleanup'] = round(time.perf_counter()-cleanup_clock, 3)
             row.update(session=lifecycle, cleanup=lifecycle['cleanup'], selection_restored=lifecycle['selection_restored'],
                        ldplayer_name_write_attempts=lifecycle.get('ldplayer_name_write_attempts', 0),
                        starting_display_label=lifecycle.get('starting_display_label', target['name']),
@@ -182,10 +195,14 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
 def run(manager, data, *, random_test=False, resume_report=None, registry=None, enabled=None,
         identity_reader=persistent_identity, session_factory=InstanceSession, targets=None,
         temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=(), resume_flows=(), refresh_flows=(), only_flows=(),
-        max_concurrency=1, manager_factory=None):
+        max_concurrency=1, manager_factory=None, account_started=lambda target: None,
+        account_finished=lambda row: None, cancellation_factory=None):
     if type(max_concurrency) is not int or max_concurrency not in (1, 2):
         raise SafetyError('Explicit concurrency must be one or two accounts.')
-    registry = registry or production_registry()
+    source_registry = registry or production_registry()
+    registry = FlowRegistry()
+    for flow in source_registry.snapshot():
+        registry.register(flow)  # Freeze once before any worker starts.
     name_writes_before = name_write_attempts()
     before = inventory(manager)
     previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
@@ -270,6 +287,8 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         excluded_random_indexes=excluded_random_indexes,
         resumed_from=str(resume_report) if previous else None, accounts=[])
     path = folder/'fleet-report.json'
+    report['report_path'] = str(path)
+    report['runtime'] = dict(executable=sys.executable, standalone=bool(getattr(sys, 'frozen', False)))
     for target in targets:
         try:
             live = [r for r in before if r['index'] == target['index']]
@@ -327,20 +346,34 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
 
     def execute(worker, target):
         started_at = datetime.now(timezone.utc).isoformat()
+        started_clock = time.perf_counter()
+        target_cancelled = cancellation_factory(target['index']) if cancellation_factory else cancelled
+        account_started(target)
         progress(f"INSTANCE START #{target['index']} / {target['name']}")
         current = dict(target)
-        if cancelled():
+        if target_cancelled():
             current['identity_error'] = 'Run cancelled before account dispatch.'
-        row = execute_instance(worker, data, current, folder/str(target['index']), registry,
-            prior=old.get(target['index']), enabled=enabled, session_factory=session_factory,
-            identity_reader=identity_reader, temporary_selection=temporary_selection, cancelled=cancelled,
-            preserve_possible=tuple(cid for cid, proof in exceptions.items() if proof['index'] == target['index']),
-            resume_flows=resume_flows, refresh_flows=refresh_flows, only_flows=only_flows,
-            peer_identities=tuple((t['index'], t['persistent_identity']) for t in pending
-                                  if max_concurrency == 2 and t['index'] != target['index']
-                                  and not t.get('identity_error')))
+        try:
+            row = execute_instance(worker, data, current, folder/str(target['index']), registry,
+                prior=old.get(target['index']), enabled=enabled, session_factory=session_factory,
+                identity_reader=identity_reader, temporary_selection=temporary_selection, cancelled=target_cancelled,
+                preserve_possible=tuple(cid for cid, proof in exceptions.items() if proof['index'] == target['index']),
+                resume_flows=resume_flows, refresh_flows=refresh_flows, only_flows=only_flows,
+                peer_identities=tuple((t['index'], t['persistent_identity']) for t in pending
+                                      if max_concurrency == 2 and t['index'] != target['index']
+                                      and not t.get('identity_error')))
+        except Exception as exc:  # noqa: BLE001 - target worker exits; other bound workers remain independent
+            account_path = folder/str(target['index'])/'account-report.json'
+            row = json.loads(account_path.read_text(encoding='utf-8')) if account_path.is_file() else dict(
+                index=target['index'], name=target['name'], rewards={}, flows={}, new_claims=0)
+            row.update(result='PARTIAL', error=f'{type(exc).__name__}: {exc}',
+                       cleanup='DEFERRED_OWNERSHIP_UNPROVEN', selection_restored=False,
+                       worker_terminated=True)
+            account_path.parent.mkdir(parents=True, exist_ok=True)
         row.update(worker_started_at=started_at, worker_finished_at=datetime.now(timezone.utc).isoformat(),
-                   automation_ownership=ownership_evidence())
+                   automation_ownership=ownership_evidence(), worker=threading.current_thread().name,
+                   elapsed_seconds=round(time.perf_counter()-started_clock, 3))
+        row['transport_metrics'] = getattr(worker.ld.process, 'metrics', {})
         write(folder/str(target['index'])/'account-report.json', row)
         progress(f"INSTANCE END #{target['index']}: {row['result']}")
         return row
@@ -354,6 +387,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         if row['cleanup'] in {'OWNERSHIP_UNKNOWN', 'DEFERRED_OWNERSHIP_UNPROVEN'}:
             report.setdefault('deferred_cleanup_indexes', []).append(row['index'])
         write(path, report)
+        account_finished(row)
 
     if max_concurrency == 1:
         for worker, target in zip(workers, pending, strict=True):
@@ -380,6 +414,13 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
     report['instance_names_unchanged'] = {r['index']: r['name'] for r in before} == {
         r['index']: r['name'] for r in report['after_instances']}
     report['ldplayer_name_write_attempts'] = name_write_attempts() - name_writes_before
+    intervals = [(r['worker_started_at'], 1) for r in report['accounts'] if r.get('worker_started_at') and not r.get('retained_from')]
+    intervals += [(r['worker_finished_at'], -1) for r in report['accounts'] if r.get('worker_finished_at') and not r.get('retained_from')]
+    active = peak = 0
+    for _, change in sorted(intervals):
+        active += change
+        peak = max(peak, active)
+    report['peak_worker_concurrency'] = peak
     report['result'] = 'PASS' if (targets and all(r['result'] == 'COMPLETE' for r in report['accounts'])
         and report['all_selection_states_restored'] and report['protected_state_unchanged']
         and report['ldplayer_name_write_attempts'] == 0 and report['preserved_journals_unchanged']) else 'PARTIAL'

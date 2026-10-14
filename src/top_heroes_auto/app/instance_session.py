@@ -18,6 +18,7 @@ class InstanceSession:
         self.temporary_selection, self.recovery_runner = temporary_selection, recovery_runner
         self.snapshot = bound_snapshot(manager.store, manager.namespace, ((self.index, self.name),), True)
         self.selected_before = None
+        self.selection_revision = None
         self.execution_terminal = False
         self.plan_summary = {}
         self.execution_plan = tuple(execution_plan)
@@ -62,7 +63,7 @@ class InstanceSession:
         if not self.selected_before:
             if not self.temporary_selection:
                 raise SafetyError('Normal application requires explicit selected target.')
-            self.manager.select(self.index, True)
+            self.selection_revision = self.manager.select(self.index, True)
             self.changed_selection = True
         try:
             self.initial = self.recovery_runner(self.manager, self.data, self.index, self.name,
@@ -123,7 +124,9 @@ class InstanceSession:
         self.report['cleanup_basis'] = 'RUN_OWNERSHIP_AND_LIVE_IDENTITY'
         if not self.execution_terminal:
             self.report['execution_status'] = 'ABORTED'
-        if self.started and not self.cleanup_attempted:
+            if self.started:
+                self.report['cleanup'] = 'PREMATURE_CLEANUP'
+        if self.started and self.execution_terminal and not self.cleanup_attempted:
             self.cleanup_attempted = True
             try:
                 # Cancellation stops new gameplay, but permits owned cleanup.
@@ -137,7 +140,8 @@ class InstanceSession:
         try:
             if self.changed_selection:
                 self.check(selected=False, running=False)
-                self.manager.select(self.index, self.selected_before)
+                restored = self.manager.select(self.index, self.selected_before, expected_revision=self.selection_revision)
+                self.report['newer_selection_preserved'] = restored is None
             self.report['selection_restored'] = (
                 self.manager.store.metadata(self.manager.namespace, self.index).selected == self.selected_before)
         except Exception as exc:  # noqa: BLE001 - identity/protection may revoke restoration
