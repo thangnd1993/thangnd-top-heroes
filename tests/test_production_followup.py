@@ -38,6 +38,37 @@ def test_saved_single_row_keeps_independent_container():
     assert surface(image)['box'] == proof['box']
 
 
+def test_full_card_view_uses_current_panel_tab_and_footer_without_rows():
+    image = cv2.imread(str(ROOT/'relic-full-card-panel.png'))
+    proof = surface(image)
+    assert proof and 'continuous-feature-panel-rim' in proof['evidence']
+    box = proof['box']
+    assert box.y > 468 and box.y+box.height < 1062
+    assert box.x+box.width < 530  # All current right-column claim controls.
+    for top in (505, 674, 843):
+        image[top:top+135, 35:505] = (230, 210, 180)
+    assert surface(image)['box'] == box
+    moved = np.zeros_like(image)
+    moved[8:] = image[:-8]
+    assert surface(moved)['box'].y == box.y+8
+
+
+def test_conflicting_inner_rims_do_not_fall_back_to_outer_panel():
+    image = cv2.imread(str(ROOT/'relic-full-card-panel.png'))
+    image[480:1050, 30:690] = (230, 210, 180)
+    assert surface(image) is None
+
+
+@pytest.mark.parametrize('region', [(0,130,350,190), (0,410,720,472),
+                                   (0,500,30,1020), (690,500,720,1020),
+                                   (480,1050,720,1160), (250,1050,470,1160)])
+def test_full_card_panel_requires_both_sides_context_and_free_paid_footer(region):
+    image = cv2.imread(str(ROOT/'relic-full-card-panel.png'))
+    x,y,r,b = region
+    image[y:b,x:r] = 0
+    assert surface(image) is None
+
+
 @pytest.mark.parametrize('region', [(0,130,350,190), (0,410,720,472),
                                    (0,500,30,1020), (690,500,720,1020),
                                    (480,1050,720,1160)])

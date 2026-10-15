@@ -23,26 +23,60 @@ def mission_list_surface(image, context_template):
     h, w = image.shape[:2]
     edges = cv2.Canny(image, 40, 120)
     joined = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+    contours = cv2.findContours(joined, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
+    def rim_supported(x, y, bw, bh):
+        sides = [np.mean(np.any(edges[y+12:y+bh-12, max(0,s-4):s+5] > 0, axis=1))
+                 for s in (x, x+bw-1)]
+        ends = [np.mean(np.any(edges[max(0,s-5):s+6, x+12:x+bw-12] > 0, axis=0))
+                for s in (y, y+bh-1)]
+        return min(*sides, *ends) >= .85
+
     candidates = []
-    for contour in cv2.findContours(joined, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]:
+    for contour in contours:
         x, y, bw, bh = cv2.boundingRect(contour)
         if not (.90*w < bw < .98*w and .35*h < bh < .55*h
                 and 0 < y-context.y-context.height < .04*h
                 and 0 < footer['box'].y-y-bh < .04*h):
             continue
         # Require continuous enclosing sides, not a box inferred from artwork.
-        sides = [np.mean(np.any(edges[y+12:y+bh-12, max(0,s-4):s+5] > 0, axis=1))
-                 for s in (x, x+bw-1)]
-        ends = [np.mean(np.any(edges[max(0,s-5):s+6, x+12:x+bw-12] > 0, axis=0))
-                for s in (y, y+bh-1)]
-        if min(*sides, *ends) < .85:
+        if not rim_supported(x, y, bw, bh):
             continue
         box = BoundingBox(x, y, bw, bh)
         if not any(abs(x-b.x) < 5 and abs(y-b.y) < 5
                    and abs(bw-b.width) < 8 and abs(bh-b.height) < 8 for b in candidates):
             candidates.append(box)
-    if len(candidates) != 1:
+    if len(candidates) > 1:
         return None
+    if not candidates:
+        # Full-card viewports have no separate closed rim around the list.
+        # Their enclosing feature panel supplies the sides; the current selected
+        # tab and separately qualified send/paid footer bound the vertical span.
+        # This still requires a unique visible enclosure, never inferred rows.
+        panels = []
+        for contour in contours:
+            x, y, bw, bh = cv2.boundingRect(contour)
+            if not (.94*w < bw <= w and .65*h < bh < .95*h
+                    and 0 < y < context.y*.75
+                    and 0 < y+bh-footer['box'].y-footer['box'].height < .04*h
+                    and x <= context.x < context.x+context.width <= x+bw):
+                continue
+            if not rim_supported(x, y, bw, bh):
+                continue
+            if not any(abs(x-b.x) < 5 and abs(y-b.y) < 5
+                       and abs(bw-b.width) < 8 and abs(bh-b.height) < 8 for b in panels):
+                panels.append(BoundingBox(x, y, bw, bh))
+        if len(panels) != 1:
+            return None
+        panel = panels[0]
+        inset = round(h*.0125)
+        top, bottom = context.y+context.height+inset, footer['box'].y-inset
+        if not .35*h < bottom-top < .55*h:
+            return None
+        return dict(container=panel,
+            box=BoundingBox(panel.x+round(panel.width*.20), top, round(panel.width*.40), bottom-top),
+            evidence=('qualified-relic-expedition-title', 'selected-task-context',
+                      'continuous-feature-panel-rim', 'between-selected-tab-and-qualified-footer',
+                      'outside-action-column-and-footer'))
     b = candidates[0]
     # Interior central strip, outside every right-column action and footer.
     return dict(container=b, box=BoundingBox(b.x+round(b.width*.20), b.y+16,

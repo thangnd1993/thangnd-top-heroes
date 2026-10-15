@@ -1,3 +1,39 @@
+## October16 full-panel follow-up — run9 remains autonomous on delivered fa87153
+
+fa87153 passed CI38778685168:1988 tests passed,26 skipped, lint, portable build,
+smoke and artifact11999313830. Desktop delivery verified731 files and EXE SHA256
+8faf4857700d25c802bf200e2f18076a21f151504d045f485d234bd367487bcf. Retained cache
+builds fa87153/42e3c2c only. Normal UI Start created run9 at19:11:22UTC Oct15,
+two workers, frozen non-Protected2/3/4/5/8/9/10/11; Protected0/1/6/7/12 excluded.
+All were initially stopped; original selections2/3 true, others false. No external
+per-step gameplay commands. Evidence:artifacts/production-acceptance-start.json;
+live report diagnostics/tasks/automation/20261015-191123-146862Z-93534204.
+Do not launch a competing run or replace the active EXE. This is not final PASS.
+
+New actual frame on index2 exposed a full-card layout without a separately closed
+list rim. Title, selected personal tab and free/paid footer still qualified.
+The narrow offline follow-up accepts a unique continuously enclosed feature
+panel, using its sides and the CURRENT tab/footer to bound the safe inner strip.
+Conflicting internal rims, missing sides/title/tab/paid footer remain blocked.
+No card-count, account coordinate, claim permission or journal policy change.
+One game-only full-card fixture was visually checked; no credentials/private
+unrelated files. Targeted regression checks:52 passed, Ruff/diff checks passed.
+The normal UI also left Start disabled after refresh completed; re-render after
+worker teardown now restores eligibility without touching selection/Protection.
+The active acceptance required ordinary scope re-selection before its one Start.
+
+Run9 is still ongoing on fa87153 while this follow-up is validated. Index2 has
+already finished PARTIAL with owned cleanup/selection restoration. Its old
+uncertain missions remain locked; no Gửi Nhanh was sent. New Event533 opened a
+season-pass purchase invitation; UNKNOWN stopped further input, no Confirm,
+no spending, no VERIFIED. Do not retry533. Current index4 reached GAME_HOME with
+its explicit indexed ADB despite the peer worker, unlike the prior mapping error.
+The application reconciled old Guild-member358 from its original one-shot receipt
+and two fresh progress frames, without redispatch; count it separately from new
+run9 rewards. Original baseline500 rows and all evidence are preserved locally.
+Journal507 remains disputed, unchanged and locked. Read current run9 reports for
+later results; do not use these interim observations as final counts.
+
 ## October16 production repair — offline verified; fresh EXE acceptance pending
 
 Continue on the existing Phase8 branch; no Phase9. User authorizes the complete

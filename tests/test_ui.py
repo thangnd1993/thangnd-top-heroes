@@ -50,6 +50,28 @@ def test_gui_selection_protection_filters_and_close(rig, tmp_path, monkeypatch):
     window.close()
 
 
+def test_refresh_completion_restores_start_without_toggling_scope(rig, tmp_path, monkeypatch):
+    manager, process, store = rig
+    QApplication.instance() or QApplication([])
+    monkeypatch.setattr(Window, 'discover_ld', lambda self: None)
+    window = Window(store, tmp_path)
+    window.manager = manager
+    window.instances = manager.refresh()
+    window.run_scope.setCurrentIndex(1)
+    window.worker = Worker(lambda: None, window)
+    window.mode = 'refresh'
+    window.render()
+    assert not window.auto_start.isEnabled()
+    before = [(i.index, store.metadata(manager.namespace, i.index)) for i in window.instances]
+    commands = list(process.calls)
+    window.job_finished()
+    assert window.worker is None and window.auto_start.isEnabled()
+    assert window.run_scope.currentIndex() == 1
+    assert before == [(i.index, store.metadata(manager.namespace, i.index)) for i in window.instances]
+    assert process.calls == commands
+    window.close()
+
+
 def test_phase6_shop_survey_button_uses_navigation_runner_and_scope(rig, tmp_path, monkeypatch):
     manager, process, store = rig
     QApplication.instance() or QApplication([])

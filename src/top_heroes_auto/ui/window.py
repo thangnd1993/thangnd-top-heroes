@@ -416,7 +416,9 @@ class Window(QMainWindow):
         self.statusBar().showMessage("Sẵn sàng")
         if self.mode in {"launch", "quit", "reboot", "idle-reward", "phase6", "run"}:
             QTimer.singleShot(0, self.refresh)
-        self.target_changed()
+        # Refresh rendered while its worker was still active. Recompute Start
+        # eligibility now that it has finished, without changing selections.
+        self.render()
 
     @Slot(str)
     def job_error(self, message):
