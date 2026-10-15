@@ -361,15 +361,12 @@ class Manager:
                 # LDPlayer itself reported. Acceptance still requires boot-ID
                 # equality with the indexed channel.
                 try:
-                    before_connect = set(devices)
                     self.adb.connect(endpoint)
                     devices = self.adb.devices()
-                    # The indexed emulator serial can register asynchronously during
-                    # connect. It is already an explicit candidate, still subject
-                    # to the same indexed boot-ID verification below.
-                    unexpected = set(devices) - before_connect - {endpoint, serial}
-                    if unexpected:
-                        raise SafetyError("ADB connect trả về target mới không rõ nguồn gốc.")
+                    # Other workers/manual instances can register concurrently.
+                    # Never probe or select them. Only this index's serial and
+                    # its explicit endpoint are candidates, with boot equality
+                    # and same-runtime checks below still mandatory.
                     candidates.append(endpoint)
                 except SafetyError:
                     raise
@@ -416,15 +413,18 @@ class Manager:
                 current = self._check(index)
         raise SafetyError('Android readiness remained unavailable on the exact running target.')
 
-    def _verify_observed(self, index, observed):
+    def _verify_observed(self, index, observed, *, instance=None):
         """Reverify fresh screenshot transport without global discovery/start-server."""
-        instance = self._capture_ready(index)
+        instance = instance or self._capture_ready(index)
         if observed.index != index or observed.stable_id != instance.stable_id:
             raise SafetyError('Observed screenshot belongs to another stable instance.')
-        serial = self._probe_identity(index, lambda: validate_serial(self.ld.adb_serial(index)), instance=instance)
+        # One read-only indexed proof transaction, bracketed by fresh durable
+        # runtime/protection checks. No input occurs between these two reads.
+        serial, boot = self._probe_identity(index, lambda: (
+            validate_serial(self.ld.adb_serial(index)), valid_boot_id(self.ld.boot_id(index))),
+            instance=instance)
         if observed.serial not in {serial, self._local_endpoint(serial)}:
             raise SafetyError('Current indexed serial differs from the screenshot.')
-        boot = self._probe_identity(index, lambda: valid_boot_id(self.ld.boot_id(index)), instance=instance)
         if boot != observed.boot_id:
             raise SafetyError('Observed screenshot boot changed before input.')
         return Target(index, instance.name, observed.serial, boot, instance.stable_id)
@@ -445,13 +445,14 @@ class Manager:
             )
             try:
                 capture_runtime = self._capture_ready(index)
-                target = (self._verify_observed(index, observed_target)
+                target = (self._verify_observed(index, observed_target, instance=capture_runtime)
                           if observed_target is not None else self._resolve(index))
-                self._same_runtime(index, capture_runtime)
+                # _probe_identity checks the same runtime immediately before
+                # AND after the explicit transport boot read. Do not duplicate
+                # those identical inventories with no intervening operation.
                 if self._probe_identity(index, lambda: self.adb.boot_id(target.serial),
                                         instance=capture_runtime) != target.boot_id:
                     raise SafetyError("ADB target đã thay đổi; hủy chụp màn hình.")
-                self._check(index)
                 return target, self.adb._capture(target.serial)
             except Exception:
                 log.exception("[#%s] Hủy capture đã xác minh", index)

@@ -9,6 +9,48 @@ from top_heroes_auto.vision.models import BoundingBox
 from top_heroes_auto.vision.resources import template_folder
 
 
+def mission_list_surface(image, context_template):
+    """Current list rim between the selected tab and qualified send/paid footer.
+
+    Card count is deliberately irrelevant: toast overlays and partially clipped
+    rows do not remove the enclosing list. All four boundaries must be visible.
+    This is navigation evidence only, never claim or dispatch permission.
+    """
+    context = task_context_box(image, context_template)
+    footer = quick_send(image, context_template, reader=None)
+    if context is None or footer is None:
+        return None
+    h, w = image.shape[:2]
+    edges = cv2.Canny(image, 40, 120)
+    joined = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+    candidates = []
+    for contour in cv2.findContours(joined, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]:
+        x, y, bw, bh = cv2.boundingRect(contour)
+        if not (.90*w < bw < .98*w and .35*h < bh < .55*h
+                and 0 < y-context.y-context.height < .04*h
+                and 0 < footer['box'].y-y-bh < .04*h):
+            continue
+        # Require continuous enclosing sides, not a box inferred from artwork.
+        sides = [np.mean(np.any(edges[y+12:y+bh-12, max(0,s-4):s+5] > 0, axis=1))
+                 for s in (x, x+bw-1)]
+        ends = [np.mean(np.any(edges[max(0,s-5):s+6, x+12:x+bw-12] > 0, axis=0))
+                for s in (y, y+bh-1)]
+        if min(*sides, *ends) < .85:
+            continue
+        box = BoundingBox(x, y, bw, bh)
+        if not any(abs(x-b.x) < 5 and abs(y-b.y) < 5
+                   and abs(bw-b.width) < 8 and abs(bh-b.height) < 8 for b in candidates):
+            candidates.append(box)
+    if len(candidates) != 1:
+        return None
+    b = candidates[0]
+    # Interior central strip, outside every right-column action and footer.
+    return dict(container=b, box=BoundingBox(b.x+round(b.width*.20), b.y+16,
+                round(b.width*.40), b.height-32), evidence=(
+                'qualified-relic-expedition-title', 'selected-task-context',
+                'continuous-list-rim', 'outside-action-column-and-footer'))
+
+
 def running_timer_shape(ink):
     """Six green numeric cells separated by two paired-dot colon cells.
 
@@ -73,6 +115,13 @@ def mission_rows(image, context_template, *, reader):
         from top_heroes_auto.vision.dynamic_events import folded
 
         labels = [folded(t) for t in readings]
+        if labels == ['', 'den']:
+            # Same narrow unavailable Go fallback as task_reward_rows; never
+            # rescue a claim label or conflicting OCR with an extra reading.
+            enlarged = folded(' '.join(q['text'] for q in reader(cv2.resize(
+                column, None, fx=3, fy=3))))
+            if enlarged == 'den':
+                labels[0] = 'den'
         points = cv2.findNonZero(ink)
         timer_texts = []
         if not shape and points is not None and np.mean(ink > 0) < .15:

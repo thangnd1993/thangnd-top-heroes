@@ -315,8 +315,12 @@ class HomeRecoveryEngine:
                 self.sleep(self.action_settle)
                 continue
             stable_world = None  # Confirmations must be consecutive current World frames.
-            if detection.state in {ScreenState.TREO_THUONG, ScreenState.WAR_EMPTY, ScreenState.EVENT_GALLERY}:
-                if (hanging_departed or hanging_backs >= 2 or number == self.max_steps
+            if detection.state in {ScreenState.TREO_THUONG, ScreenState.WAR_EMPTY, ScreenState.EVENT_GALLERY,
+                                    ScreenState.IDLE_REWARD_PANEL, ScreenState.IDLE_ENTRY_AVAILABLE,
+                                    ScreenState.IDLE_ENTRY_NOT_AVAILABLE}:
+                idle_exit = (navigation_state == ScreenState.IDLE_REWARD_PANEL and
+                             detection.state in {ScreenState.IDLE_ENTRY_AVAILABLE, ScreenState.IDLE_ENTRY_NOT_AVAILABLE})
+                if ((hanging_departed and not idle_exit) or hanging_backs >= 2 or number == self.max_steps
                         or self.clock() - started >= self.max_duration):
                     return finish(RecoveryStatus.LIMIT_REACHED, "Qualified page Back bound reached; no further input.")
                 if cancelled():
@@ -324,6 +328,9 @@ class HomeRecoveryEngine:
                 try:
                     navigation_state = detection.state
                     method = {ScreenState.WAR_EMPTY:'back_from_war',
+                              ScreenState.IDLE_REWARD_PANEL:'close_idle_panel',
+                              ScreenState.IDLE_ENTRY_AVAILABLE:'back_from_idle_adventure',
+                              ScreenState.IDLE_ENTRY_NOT_AVAILABLE:'back_from_idle_adventure',
                               ScreenState.EVENT_GALLERY:'back_from_event_gallery'}.get(navigation_state,'back_from_hanging')
                     point = getattr(port, method)(observation)
                 except (CommandError, OSError, SafetyError, ValueError) as exc:

@@ -3,10 +3,11 @@ from __future__ import annotations
 import cv2
 
 from top_heroes_auto.vision.models import AnchorEvidence, BoundingBox, CapturedScreen, VisualAnchor
+from top_heroes_auto.vision.template_cache import read_template
 
 
 def match_anchor(screen: CapturedScreen, anchor: VisualAnchor) -> AnchorEvidence:
-    template = cv2.imread(str(anchor.template), cv2.IMREAD_COLOR)
+    template = read_template(anchor.template)
     if template is None or template.size == 0:
         raise ValueError(f"Template cannot be decoded: {anchor.template}")
     height, width = screen.normalized.shape[:2]

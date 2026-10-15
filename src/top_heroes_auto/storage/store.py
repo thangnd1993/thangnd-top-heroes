@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 
+from top_heroes_auto.automation.timing import measure
 from top_heroes_auto.ldplayer.client import Instance
 
 
@@ -123,12 +124,13 @@ class Store:
 
     @contextmanager
     def connect(self):
-        db = sqlite3.connect(self.path, timeout=10)
-        try:
-            with db:
-                yield db
-        finally:
-            db.close()
+        with measure('journal_database'):
+            db = sqlite3.connect(self.path, timeout=10)
+            try:
+                with db:
+                    yield db
+            finally:
+                db.close()
 
     def get(self, key: str, default: str = "") -> str:
         with self.connect() as db:

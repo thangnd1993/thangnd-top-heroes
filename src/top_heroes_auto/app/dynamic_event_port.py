@@ -53,6 +53,7 @@ from top_heroes_auto.vision.event_inline_objectives import inline_objective_rows
 from top_heroes_auto.vision.event_paid_modal import paid_modal_navigation
 from top_heroes_auto.vision.event_reacquisition import stable_entry_match
 from top_heroes_auto.vision.event_task_grid import task_grid_rows, task_grid_shell, unresolved_grid_actions
+from top_heroes_auto.vision.fixed_rewards import EventNavigationDetector
 from top_heroes_auto.vision.guild_mail import portrait
 from top_heroes_auto.vision.local_ocr import read_words
 from top_heroes_auto.vision.models import BoundingBox, ScreenState
@@ -65,6 +66,7 @@ class DynamicEventPort:
         self.session, self.folder = session, folder
         self.transport = FixedRewardPort(session.manager, session.snapshot, session.index, session.name,
                                          folder, session.check, session.cancelled)
+        self.transport.detector = EventNavigationDetector()
         self.transport.record_tap_geometry = True
         self.current = None
         self.entered = None
@@ -244,10 +246,21 @@ class DynamicEventPort:
                         controls.append(Control('task-list-vertical',surface,
                             ('selected-task-context','complete-card-list','outside-action-column'),'scroll'))
                 if context is not None:
-                    from top_heroes_auto.vision.relic_expedition import mission_rows, quick_send
+                    from top_heroes_auto.vision.relic_expedition import (
+                        mission_list_surface,
+                        mission_rows,
+                        quick_send,
+                    )
 
                     send = quick_send(image,self.task_context,reader=read_words)
                     self.mission_rows = mission_rows(image,self.task_context,reader=read_words) if send else ()
+                    if send:
+                        # Never fall back to card-count geometry on this page.
+                        controls = [c for c in controls if c.identity != 'task-list-vertical']
+                        surface = mission_list_surface(image, self.task_context)
+                        if surface:
+                            controls.append(Control('task-list-vertical', surface['box'],
+                                                    surface['evidence'], 'scroll'))
                     if send and any(r['state']=='DISPATCHABLE' for r in self.mission_rows) and not any(
                             r['state'] in {'COMPLETED','UNKNOWN'} for r in self.mission_rows):
                         controls.append(Control('relic-expedition-quick-send',send['box'],
@@ -266,12 +279,6 @@ class DynamicEventPort:
                     contract='RELIC_MISSIONS'
                     if any(r['state']=='UNKNOWN' for r in self.mission_rows):
                         blocked.append('UNQUALIFIED_MISSION_STATE')
-                    if len(self.mission_rows)>=2 and not any(c.kind=='scroll' for c in controls):
-                        first,last=self.mission_rows[0]['row'],self.mission_rows[-1]['row']
-                        controls.append(Control('task-list-vertical',BoundingBox(
-                            first.x+round(first.width*.20),first.y+20,round(first.width*.40),
-                            last.y+last.height-first.y-40),
-                            ('selected-task-context','complete-card-list','outside-action-column'),'scroll'))
                 if book:
                     contract='BOOK_OBJECTIVES'
                     blocked.append('BOOK_MILESTONES_AND_UNQUALIFIED_CONTROLS')
@@ -413,12 +420,12 @@ class DynamicEventPort:
         return finish_expedition(self,frame,persist=persist)
 
     def scroll_missions(self, frame, *, reverse):
-        """Current qualified card surface, no taps or historical coordinates."""
-        if frame is not self.current or not frame.mission_states or frame.popup:
+        """Current qualified container surface, no historical coordinates."""
+        if frame is not self.current or frame.popup:
             raise SafetyError('No current expedition list to scroll.')
         fresh=self.observe()
         if (runtime_key(fresh.identity)!=runtime_key(frame.identity) or fresh.page!=frame.page
-                or fresh.popup or not fresh.mission_states):
+                or fresh.popup):
             raise SafetyError('Expedition list changed before scroll.')
         controls=[c for c in fresh.controls if c.kind=='scroll' and c.identity=='task-list-vertical']
         if len(controls)!=1:

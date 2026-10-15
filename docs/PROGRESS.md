@@ -1,3 +1,69 @@
+## October16 production repair — offline verified; fresh EXE acceptance pending
+
+Continue on the existing Phase8 branch; no Phase9. User authorizes the complete
+pending registered plan with two independent application workers and normal UI
+Start after the cohesive repair/CI/delivery gate. Keep all prior dispatch locks.
+Fresh read-only inspection also found user/app run8 CANCELLED (finished16:48:39UTC
+Oct15), no active/queued worker or app process. Baseline now contains500 journal
+rows through522; it includes the intervening run, not only run7.
+
+Verification audit:42e3c2c already rejects BOTH saved mismatched507 card pairs;
+its body comparison is unchanged. Journal507 and its original receipt remain
+VERIFIED/POSSIBLE in storage but acceptance is DISPUTED_VERIFICATION. Do not
+count it as independently accepted or redispatch it. Among current affected
+Event receipts483+ only507 used this comparison path. Run7 counts remain26
+reward journals labelled VERIFIED,25 undisputed reward actions,5 Mail actions,
+1 disputed verification,5 uncertain dispatches484/486/487/494/505. Evidence:
+artifacts/production-repair-verification-audit.json. No journal was modified.
+
+Narrow production changes:
+- Tầm Bảo scroll surface comes from the current four-sided list rim between the
+  qualified personal tab and send/paid footer, independent of card count. Fresh
+  page/runtime checks and action/footer exclusions remain. Missing rim fails
+  that gesture. Native-size empty OCR + TWO agreeing enlarged “Đến” readings
+  qualify dispatchable state only, never Nhận. Saved one-row failing frame now
+  keeps its list and recognizes Đến; existing bounded collect→return→send→two
+  running proofs remains the one-visit state machine, with independent journals.
+- Idle modal: paired current title/claim appearance/unique red X grants CLOSE
+  ONLY. Then reuse the existing qualified adventure entry plus current Back to
+  leave; at most two navigation inputs, fresh screenshot after each, no claim.
+- Event transport retains full recovery/overlay veto plus Home/sidebar/Back;
+  unrelated Shop/BXH gift recognition is no longer evaluated on every Event
+  observation. Bounded read-only decoded-template cache invalidates changed
+  assets; screenshot decisions are never cached. No thresholds were lowered.
+- Group read-only indexed serial+boot probes between fresh target checks and
+  remove immediately duplicate inventories. Fake-transport comparison: known
+  target capture11→6 inventory calls; input13→11. Runtime/disk/protection/boot/
+  serial changes still block before capture/input. Global unrelated ADB devices
+  registering during connect no longer block a valid bound target; they are
+  never selected/probed. Same-target indexed mapping and boot equality remain.
+- Timing now reports queue wait separately, nested exclusive durations, command
+  categories and database time. Saved8/9 durations3257/3692s are dominated by
+  detection1304/1390s and inventory926/1021s (overlapping categories). Their
+  largest feature spans are Shop812s/Events1371s. Offline two-worker same-image
+  Event observations compare6.28–7.10s full detector with4.15–4.72s navigation
+  detector. This is NOT a whole-run speed claim. OpenCV thread tuning gave no
+  consistent benefit and was reverted. See production-repair-profile.json.
+
+Other blockers: index4 saved log lacks the raw indexed get-serialno response,
+so exact cause remains unproven; parser now includes bounded response evidence.
+Do not reinterpret later stopped state as owned cleanup. Index5 ANR is a known
+SYSTEM_BLOCKING dialog; no qualified non-destructive action exists, no input.
+Index11 final90% screenshot is already GAME_LOADING under current code after
+its original bounded deadline; no timeout increase or advertisement dismissal.
+Label change to LDPlayer-11 remains unattributed; no config/name writes.
+
+Local targeted checks:179 recovery/identity/performance tests +130 mission/journal
+/navigation tests passed;4 focused concurrent-ADB checks also passed. Ruff and
+diff checks pass. Self-review found no new claim permission, journal downgrade,
+unbounded retry, target fallback, name/config write or Protected action.
+Self-review is followed by one full CI gate, artifact
+verification, Desktop/app replacement and normal Start with concurrency2.
+Four saved game-only regression frames and one clean red-close crop contain no
+credentials/private unrelated data. Preserve source, journals and diagnostics;
+retain at most two verified cache builds and newest Desktop build only.
+No new real gameplay has been sent during this offline repair.
+
 ## October15 standalone run7 — PARTIAL; caption-only proof rejected
 
 Delivered6ce74f1 from passing CI38679127373 (1955 passed,26 skipped, lint,

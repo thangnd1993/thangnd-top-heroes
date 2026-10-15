@@ -50,6 +50,30 @@ class FixedObservation:
                     overlay=self.overlay.as_dict())
 
 
+class EventNavigationDetector:
+    """Event transport needs Home/sidebar, Back and the full recovery veto.
+
+    Event pages and rewards have their own production classifiers. Evaluating
+    unrelated VIP/Shop/Ranking gifts here does not contribute any permission.
+    All recovery conflicts/overlays still run on the fresh captured frame.
+    """
+    def __init__(self):
+        root = template_folder().parent / 'tasks/phase6'
+        self.anchors = {a.id: a for folder in ('fixed-rewards', 'home')
+                        for a in load_anchors(root / folder)
+                        if a.id in {'back', 'home-shop-entry'}}
+        self.recovery = RecoveryScreenDetector()
+
+    def observe(self, captured):
+        anchors = {name: unique_current_anchor(captured, replace(anchor,
+                       expected_region=portrait_region(0, .90, 1, 1) if name == 'back'
+                       else portrait_region(0, 0, 1, .36)))
+                   for name, anchor in self.anchors.items()}
+        recovery = self.recovery.detect(captured)
+        page = 'home' if recovery.state == ScreenState.GAME_HOME else 'UNKNOWN'
+        return FixedObservation(captured, page, anchors, recovery)
+
+
 class FixedRewardDetector:
     def __init__(self):
         root = template_folder().parent / "tasks/phase6"

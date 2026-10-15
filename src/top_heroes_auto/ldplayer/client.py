@@ -87,7 +87,10 @@ def parse_indexed_adb_serial(output: str) -> str:
         match = re.fullmatch(rf"(?:adb\.exe: |error: )?device '({serial_pattern})' not found", lines[0])
         if match:
             return match.group(1)
-    raise ValueError("LDPlayer không cung cấp đúng một ADB serial cho instance được chỉ định.")
+    # Preserve bounded indexed-channel evidence for diagnosis. Multiple GLOBAL
+    # devices are expected; only this index's response is parsed here.
+    raise ValueError("LDPlayer không cung cấp đúng một ADB serial cho instance được chỉ định: "
+                     + repr(output[:300]))
 
 
 @dataclass(frozen=True)

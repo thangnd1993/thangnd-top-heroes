@@ -354,6 +354,8 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
                        or m.store.path.resolve() != manager.store.path.resolve() for m in workers)):
             raise SafetyError('Concurrent workers require separate Managers in the same fleet/store.')
 
+    queued_clock = time.perf_counter()
+
     def execute(worker, target):
         started_at = datetime.now(timezone.utc).isoformat()
         started_clock = time.perf_counter()
@@ -382,7 +384,8 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
             account_path.parent.mkdir(parents=True, exist_ok=True)
         row.update(worker_started_at=started_at, worker_finished_at=datetime.now(timezone.utc).isoformat(),
                    automation_ownership=ownership_evidence(), worker=threading.current_thread().name,
-                   elapsed_seconds=round(time.perf_counter()-started_clock, 3))
+                   elapsed_seconds=round(time.perf_counter()-started_clock, 3),
+                   queue_wait_seconds=round(started_clock-queued_clock, 3))
         row['transport_metrics'] = getattr(worker.ld.process, 'metrics', {})
         write(folder/str(target['index'])/'account-report.json', row)
         progress(f"INSTANCE END #{target['index']}: {row['result']}")

@@ -5,6 +5,7 @@ import os
 import subprocess
 import time
 
+from top_heroes_auto.automation.timing import measure
 from top_heroes_auto.ldplayer.name_safety import guard_command
 
 
@@ -38,13 +39,14 @@ class Process:
                     'cleanup' if 'quit' in args else 'identity_or_other')
         started = time.perf_counter()
         try:
-            result = subprocess.run(
-                args,
-                capture_output=True,
-                timeout=timeout,
-                check=False,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
-            )
+            with measure('command_'+category):
+                result = subprocess.run(
+                    args,
+                    capture_output=True,
+                    timeout=timeout,
+                    check=False,
+                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+                )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise CommandError(f"Không thực thi được lệnh: {exc}") from exc
         finally:

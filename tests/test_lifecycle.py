@@ -239,7 +239,7 @@ def test_connected_endpoint_boot_mismatch_is_rejected(rig):
         manager.execute(7, "verify")
 
 
-def test_connect_rejects_multiple_new_targets(rig):
+def test_connect_ignores_other_new_devices_but_verifies_exact_index_boot(rig):
     manager, process, _ = rig
     process.listing = ONLY_TARGET_RUNNING
     process.devices_output = "List of devices attached\n"
@@ -253,7 +253,11 @@ def test_connect_rejects_multiple_new_targets(rig):
             )
 
     process.hook = hook
-    with pytest.raises(SafetyError, match="không rõ nguồn gốc"):
+    assert '127.0.0.1:5569' in manager.execute(7, "verify")
+    assert not any('-s' in c and 'emulator-9998' in c for c in process.calls)
+    process.devices_output = "List of devices attached\n"
+    process.device_boot = NEW_BOOT
+    with pytest.raises(SafetyError, match="không khớp"):
         manager.execute(7, "verify")
 
 

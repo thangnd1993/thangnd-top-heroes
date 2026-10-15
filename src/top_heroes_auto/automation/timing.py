@@ -9,6 +9,7 @@ _local = threading.local()
 
 def reset():
     _local.metrics = {}
+    _local.stack = []
 
 
 def snapshot():
@@ -17,15 +18,22 @@ def snapshot():
 
 @contextmanager
 def measure(category):
+    if not hasattr(_local, 'metrics'):
+        reset()
+    frame = dict(children=0.0)
+    _local.stack.append(frame)
     started = time.perf_counter()
     try:
         yield
     finally:
-        if not hasattr(_local, 'metrics'):
-            reset()
-        item = _local.metrics.setdefault(category, dict(calls=0, seconds=0.0))
+        elapsed = time.perf_counter()-started
+        _local.stack.pop()
+        if _local.stack:
+            _local.stack[-1]['children'] += elapsed
+        item = _local.metrics.setdefault(category, dict(calls=0, seconds=0.0, exclusive_seconds=0.0))
         item['calls'] += 1
-        item['seconds'] += time.perf_counter()-started
+        item['seconds'] += elapsed
+        item['exclusive_seconds'] += max(0.0, elapsed-frame['children'])
 
 
 def measured(category):

@@ -18,6 +18,7 @@ from top_heroes_auto.vision.models import (
     NormalizedRect,
     VisualAnchor,
 )
+from top_heroes_auto.vision.template_cache import read_template
 
 
 def content_fingerprint(screen: CapturedScreen, regions: tuple[NormalizedRect, ...]) -> str:
@@ -47,7 +48,7 @@ def unique_current_anchor(screen: CapturedScreen, anchor: VisualAnchor) -> Ancho
     template footprint are suppressed so adjacent pixels of one match do not count
     as distinct candidates.
     """
-    template = cv2.imdecode(np.frombuffer(anchor.template.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+    template = read_template(anchor.template)
     if template is None:
         raise ValueError("Anchor template cannot be decoded.")
     height, width = screen.normalized.shape[:2]

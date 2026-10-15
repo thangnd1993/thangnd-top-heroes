@@ -4,12 +4,15 @@ from dataclasses import replace
 
 import cv2
 
+from top_heroes_auto.automation.timing import measured
 from top_heroes_auto.vision.detail_anchor import unique_detail_anchor
 from top_heroes_auto.vision.detector import ScreenDetector, load_anchors
 from top_heroes_auto.vision.event_gallery_recovery import gallery_evidence
 from top_heroes_auto.vision.event_promo import event_promo_evidence
 from top_heroes_auto.vision.exploration import unique_current_anchor
 from top_heroes_auto.vision.hanging_reward import hanging_evidence, qualified_hanging
+from top_heroes_auto.vision.idle_detector import IdleRewardDetector
+from top_heroes_auto.vision.idle_panel_recovery import adventure_back_evidence, idle_panel_evidence
 from top_heroes_auto.vision.loading_progress import loading_progress_evidence
 from top_heroes_auto.vision.local_ocr import read_words
 from top_heroes_auto.vision.models import AnchorEvidence, NormalizedRect, ScreenDetection, ScreenState
@@ -29,6 +32,7 @@ class RecoveryScreenDetector:
         templates = template_folder()
         self.anchors = load_anchors(templates)
         self.detector = ScreenDetector(self.anchors)
+        self.idle_detector = IdleRewardDetector()
         self.receipt_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "overlays")
         self.notice_anchors = load_anchors(templates.parent / 'tasks/phase8/notice-overlays')
         self.territory_notice_anchors = load_anchors(templates.parent / 'tasks/phase8/territory-notice')
@@ -62,6 +66,7 @@ class RecoveryScreenDetector:
             required=True,
         )
 
+    @measured('recovery_detection')
     def detect(self, screen):
         detected = self._detect_existing(screen)
         image=(cv2.rotate(screen.original,cv2.ROTATE_90_COUNTERCLOCKWISE)
@@ -71,6 +76,13 @@ class RecoveryScreenDetector:
             evidence=tuple(AnchorEvidence(dialog['reason'],ScreenState.SYSTEM_BLOCKING,
                                           1,.98,True,device_box=b) for b in dialog['panels'])
             return replace(detected,state=ScreenState.SYSTEM_BLOCKING,confidence=1,evidence=evidence)
+        evidence = idle_panel_evidence(screen)
+        if evidence:
+            if detected.state != ScreenState.UNKNOWN or detected.evidence:
+                return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
+                               evidence=(*detected.evidence, *evidence))
+            return replace(detected, state=ScreenState.IDLE_REWARD_PANEL,
+                           confidence=min(e.score for e in evidence), evidence=evidence)
         evidence = event_promo_evidence(screen)
         if evidence:
             # A foreground promo naturally coexists with a dimmed Home HUD.
@@ -118,6 +130,10 @@ class RecoveryScreenDetector:
                                evidence=(*detected.evidence,*evidence))
             return replace(detected,state=ScreenState.EVENT_GALLERY,
                            confidence=min(e.score for e in evidence),evidence=evidence)
+        if detected.state == ScreenState.UNKNOWN and not detected.evidence:
+            adventure = adventure_back_evidence(screen, self.idle_detector)
+            if adventure is not None:
+                return adventure
         return detected
 
     def _detect_existing(self, screen):
