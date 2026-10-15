@@ -24,7 +24,7 @@ def capture(name='world-map-one'):
         Target(43, 'offline', 'explicit', 'boot'))
 
 
-@pytest.mark.parametrize('name', ['world-map-one', 'world-map-two'])
+@pytest.mark.parametrize('name', ['world-map-one', 'world-map-two', 'world-map-stroke-boundary'])
 def test_saved_world_requires_independent_current_hud_controls(name):
     frame = capture(name)
     found = RecoveryScreenDetector().detect(frame)
@@ -47,6 +47,29 @@ def test_partial_ambiguous_or_weak_world_cannot_authorize_input(role, mode):
     else:
         image[box.y:box.y+box.height, box.x:box.x+box.width] = (
             cv2.GaussianBlur(patch, (15,15), 5) if mode == 'weak' else 0)
+    changed = replace(frame, normalized=image)
+    result = RecoveryScreenDetector().detect(changed)
+    assert result.state != ScreenState.GAME_WORLD
+    with pytest.raises(SafetyError):
+        world_return_point(changed, result)
+
+
+@pytest.mark.parametrize('role', ['world-search', 'world-locator'])
+@pytest.mark.parametrize('mode', ['duplicate', 'missing', 'occluded', 'solid'])
+def test_stroke_core_keeps_negative_space_and_unique_complete_icons(role, mode):
+    frame = capture('world-map-stroke-boundary')
+    found = RecoveryScreenDetector().detect(frame)
+    box = next(e.normalized_box for e in found.evidence if e.anchor_id == role)
+    image = frame.normalized.copy()
+    patch = image[box.y:box.y+box.height, box.x:box.x+box.width].copy()
+    if mode == 'duplicate':
+        image[100:100+box.height, 500:500+box.width] = patch
+    elif mode == 'missing':
+        image[box.y:box.y+box.height, box.x:box.x+box.width] = 0
+    elif mode == 'solid':
+        image[box.y:box.y+box.height, box.x:box.x+box.width] = 255
+    else:
+        image[box.y:box.y+box.height//2, box.x:box.x+box.width] = 0
     changed = replace(frame, normalized=image)
     result = RecoveryScreenDetector().detect(changed)
     assert result.state != ScreenState.GAME_WORLD

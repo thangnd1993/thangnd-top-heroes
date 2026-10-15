@@ -20,8 +20,18 @@ def _hud_icon(screen, anchor):
     image = screen.normalized
     if h > image.shape[0] or w > image.shape[1] or strokes(template).std() < 1:
         return AnchorEvidence(anchor.id, anchor.state, 0, threshold, False)
-    scores = cv2.matchTemplate(strokes(image), strokes(template), cv2.TM_CCOEFF_NORMED)
+    reference = strokes(template)
+    # Antialiased boundary pixels cross the binary luminance threshold as the
+    # underlying map changes. Match the solid stroke AND surrounding negative
+    # space; omit only their one-pixel boundary, not arbitrary missing strokes.
+    kernel = np.ones((3, 3), np.uint8)
+    core = ((cv2.erode(reference, kernel) > 0)
+            | (cv2.erode(255-reference, kernel) > 0)).astype(np.uint8)
+    scores = cv2.matchTemplate(strokes(image), reference, cv2.TM_CCOEFF_NORMED,
+                               mask=core)
+    scores[~np.isfinite(scores)] = -1
     _, score, _, (x, y) = cv2.minMaxLoc(scores)
+    score = min(1.0, score)
     if not np.isfinite(score) or score < threshold:
         return AnchorEvidence(anchor.id, anchor.state, float(score), threshold, False)
     scores[max(0,y-h//2):y+h//2+1, max(0,x-w//2):x+w//2+1] = -1

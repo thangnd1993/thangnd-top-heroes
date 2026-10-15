@@ -1,3 +1,30 @@
+## October15 resume — run6 settled; World recognition follow-up
+
+Run6 used the delivered standalone1c57055 through normal UI Start, concurrency2.
+CI38604615752 passed lint,1946 tests (26 skipped), portable build, smoke and upload.
+User pause ended run6 CANCELLED at2026-10-14T18:54:04UTC (01:54 Oct15 Vietnam).
+Fresh resume inspection at03:53UTC found no app process and no running SQL workers.
+No new reward or dispatch journal was created; all460 baseline records are unchanged.
+All selections restored; Protected inventory unchanged. Index3 owned cleanup succeeded;
+external-running2/4/5 were preserved.8/9/10/11 timed out before Android-ready and
+remain DEFERRED_OWNERSHIP_UNPROVEN, never retroactively infer cleanup ownership.
+Evidence:artifacts/repair-actual-summary.json and the original run6 fleet report.
+
+Exact first blocker on2/4/5: World return label/castle match near1.0, but binary
+search/locator HUD strokes score0.985-0.987 due to8-12 antialiased boundary pixels.
+The focused fix matches solid foreground AND negative-space cores, excluding only
+the one-pixel stroke boundary. Existing thresholds, four unique anchors, relative
+layout, two fresh confirmations and one-shot navigation remain unchanged.
+All three saved frames now qualify offline; missing/occluded/duplicate/solid icons
+remain fail-closed. One clean game-only raw fixture retains device orientation.
+This source follow-up is not in the currently delivered1c57055 EXE yet.
+
+Run6 did not reach Tầm Bảo, so the new real COLLECT/DISPATCH path is NOT proven.
+Index3:1149s total,41.24s deliberate waits,431.67s capture/identity,277.14s detection,
+103.02s input dispatch. These overlapping timings cannot be summed. Most delay is
+not fixed sleep; do not claim a whole-run speedup. No Phase9 or journal reset.
+Next: focused follow-up checks, commit/CI, fresh artifact, normal UI continuation.
+
 ## October14 repair continuation — old run settled, repair in progress
 
 Run5 finished PARTIAL at12:29UTC. A fresh13:30UTC process/window check found
