@@ -1,5 +1,6 @@
 """Read saved claim evidence to preserve locks across caption raster changes."""
 import json
+import math
 from pathlib import Path
 
 import cv2
@@ -11,6 +12,24 @@ from top_heroes_auto.vision.event_achievements import achievement_label_glyph
 from top_heroes_auto.vision.event_book_objectives import book_label_glyph
 from top_heroes_auto.vision.event_inline_objectives import objective_label_glyph
 from top_heroes_auto.vision.models import BoundingBox
+
+
+def _same_card_body(before, old, after, current):
+    """Compare title AND reward items/amounts, excluding the action column.
+
+    Caption aliases preserve locks; they cannot prove a recurring mission is the
+    same reward occurrence. A different tier or quantity must fail this proof.
+    """
+    def body(image, box):
+        return image[box.y+6:box.y+box.height-6,
+                     box.x+8:box.x+round(box.width*.72)]
+
+    reference, candidate = body(before, old), body(after, current)
+    if (not reference.size or candidate.shape != reference.shape
+            or reference.std() < 5 or candidate.std() < 5):
+        return False
+    score = float(cv2.matchTemplate(candidate, reference, cv2.TM_CCOEFF_NORMED)[0, 0])
+    return math.isfinite(score) and score >= .995
 
 
 def bind_saved_rewards(image, rows, claims, *, persistent_identity, index, family="personal-tasks"):
@@ -123,7 +142,18 @@ def bind_saved_rewards(image, rows, claims, *, persistent_identity, index, famil
                 row['evidence'] = (*row['evidence'], 'ambiguous-saved-reward-identity')
         if matches:
             matches[0]['identity'] = proof['reward']
-            matches[0]['evidence'] = (*matches[0]['evidence'], 'unique-saved-caption-agreement')
+            matches[0]['evidence'] = (*(e for e in matches[0]['evidence']
+                                       if e != 'unique-saved-card-body-agreement'),
+                                     'unique-saved-caption-agreement')
+            if family == 'personal-tasks':
+                old_box = BoundingBox(**old[0]['row'])
+                current_matches = [r for r in rows
+                    if _same_card_body(reference, old_box, image, r['row'])]
+                saved_matches = [r for r in saved['reward_rows']
+                    if _same_card_body(reference, old_box, reference, BoundingBox(**r['row']))]
+                if (len(current_matches) == len(saved_matches) == 1
+                        and current_matches[0] is matches[0]):
+                    matches[0]['evidence'] = (*matches[0]['evidence'], 'unique-saved-card-body-agreement')
     return tuple(rows)
 
 
@@ -151,7 +181,7 @@ def reconcile_possible(store, namespace, index, persistent_identity, observation
         if proof.get('persistent_identity') != persistent_identity:
             raise SafetyError('Reconciliation persistent identity changed.')
         required={'unique-saved-caption-agreement','qualified-control-color',
-                  'selected-task-context','complete-reward-card'}
+                  'selected-task-context','complete-reward-card','unique-saved-card-body-agreement'}
         marker=next((m for suffix,m in (
             (':race-task-grid','qualified-race-task-grid'),
             (':achievement-cards','qualified-achievement-cards'),

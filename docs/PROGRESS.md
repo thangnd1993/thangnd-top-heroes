@@ -1,3 +1,48 @@
+## October15 standalone run7 — PARTIAL; caption-only proof rejected
+
+Delivered6ce74f1 from passing CI38679127373 (1955 passed,26 skipped, lint,
+Windows portable build, smoke and upload). Normal UI Start at05:13:23UTC used
+two independent workers across2/3/4/5/8/9/10/11. No external per-step gameplay
+commands. Codex requested normal UI Stop after detecting insufficient same-card
+proof; SQL run7 settled CANCELLED at07:05:39UTC, no active/queued accounts remain.
+Index10 was cancelled during Event traversal; the other seven ended PARTIAL.
+
+Raw new journals:26 reward actions and5 Mail actions VERIFIED; five uncertain
+dispatched actions484/486/487/494/505 stay locked. Of the26 reward records,507
+must NOT be counted as independently qualified acceptance: its original purple
+Rương Mạo Hiểm (71000/151700 items) was aliased to a different gold card
+(98200/210100) using caption alone. The old VERIFIED507 is preserved/never
+replayed; this is an evidence-quality exception, not authorization to unlock it.
+All460 pre-run records are unchanged. Evidence:artifacts/world-followup-actual-summary.json
+and artifacts/world-followup-card-proof-audit.json.
+
+The focused follow-up separates conservative caption aliases (claim locks) from
+post-condition proof. Personal task cards additionally require unique matching
+title/items/amounts in both saved and current frames. Different tiers, duplicate
+bodies and inherited proof markers cannot verify. A removed batch still uses
+the existing independent receipt + counter-decrement path. No journal migration,
+new eligibility, threshold reduction, coordinates or game input is introduced.
+Offline replay rejects both saved507 same-card proofs. CI/delivery pending for
+this follow-up;6ce74f1 remains the actual run7 build, not the new source patch.
+
+Remaining real blockers:3 reached the Idle dialog but detector/recovery stayed
+UNKNOWN;4 had ambiguous indexed ADB and DEFERRED_OWNERSHIP_UNPROVEN;5 Android
+System UI ANR;11 initial recovery timed out.2 VIP/day, Shop/day and relic remain
+uncertain.8/9/10 finished all four Shop routes, but Guild/Mail/Event coverage is
+partial.9 collected once in Tầm Bảo, then failed return-to-top: fresh card count
+dropped from two to one, removing the qualified scroll surface. Zero new mission
+dispatches: the COLLECT→DISPATCH real path is NOT proven. Event tab/root identity
+reacquisition also blocks remaining candidates. Do not label unvisited pages
+exhausted. No additional fleet is authorized by this checkpoint itself.
+
+All selections restored (10/11 true, others false); all final instances observed
+stopped.4 cleanup remains deferred despite its final stopped observation. Protected
+0/1/6/7/12 unchanged; logged commands to them zero.11 label changed Smille→LDPlayer-11
+with cause unproven; app name-write attempts zero, no restoration attempted.
+Per-account elapsed/deliberate waits:2=1949/37s,3=644/54s,4=83/24s,5=277/47s,
+8=3257/58s,9=3692/58s,10=2470/38s,11=265/58s. Detection/capture dominate; overlapping
+metrics cannot be summed and no whole-run speedup is claimed. Phase remains PARTIAL.
+
 ## October15 resume — run6 settled; World recognition follow-up
 
 Run6 used the delivered standalone1c57055 through normal UI Start, concurrency2.

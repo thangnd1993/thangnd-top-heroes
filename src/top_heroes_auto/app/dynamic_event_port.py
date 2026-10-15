@@ -704,7 +704,9 @@ class DynamicEventPort:
             if after.page != before.page:
                 return []
             same=[r for r in self.rows if r['identity']==target.identity]
-            if len(same)!=1 or same[0]['state']!='NOT_AVAILABLE':
+            body_proven = ('selected-task-context' not in target.evidence or
+                           (len(same)==1 and 'unique-saved-card-body-agreement' in same[0].get('evidence',())))
+            if len(same)!=1 or same[0]['state']!='NOT_AVAILABLE' or not body_proven:
                 # A supported task control may remove a whole free prefix.
                 # Verify actual body change AND exact counter decrement,
                 # never a missing row or receipt alone.

@@ -88,6 +88,27 @@ def test_changed_page_is_not_success(monkeypatch):
     assert dismissals == []
 
 
+@pytest.mark.parametrize('body_matches', [True, False])
+def test_personal_caption_alias_alone_is_not_same_reward_proof(monkeypatch, body_matches):
+    evidence = ['unique-saved-caption-agreement']
+    if body_matches:
+        evidence.append('unique-saved-card-body-agreement')
+    rows = [{'identity':'reward','state':'NOT_AVAILABLE','evidence':evidence}]
+    port,target,captures,dismissals = harness(monkeypatch,[frame(n) for n in range(5)],rows)
+    target = replace(target,evidence=('selected-task-context',))
+    result = port._claim_postcondition(frame('before'),target,'current')
+    assert len(result) == (2 if body_matches else 0)
+    assert not dismissals
+
+
+def test_personal_replacement_uses_independent_batch_effect_not_caption(monkeypatch):
+    rows = [{'identity':'reward','state':'NOT_AVAILABLE','evidence':['unique-saved-caption-agreement']}]
+    port,target,_,_ = harness(monkeypatch,[frame(0,popup=True),frame(1),frame(2)],rows)
+    target = replace(target,evidence=('selected-task-context',))
+    monkeypatch.setattr('top_heroes_auto.app.dynamic_event_port.removal_effect',lambda *args: ['counter-and-receipt-proof'])
+    assert port._claim_postcondition(frame('before'),target,'current') == ['counter-and-receipt-proof']
+
+
 @pytest.mark.parametrize('receipt',[True,False])
 def test_grid_needs_receipt_and_two_independent_unavailable_frames(monkeypatch,receipt):
     frames=([frame(0,popup=True)] if receipt else [])+[frame(n) for n in range(1,7)]

@@ -33,6 +33,34 @@ def test_unique_caption_alias_keeps_original_lock_identity_without_coordinates(t
     assert result[0]['identity'] == row['identity']
     assert result[0]['box'].y == row['box'].y+20
     assert 'unique-saved-caption-agreement' in result[0]['evidence']
+    assert 'unique-saved-card-body-agreement' in result[0]['evidence']
+
+
+def test_same_caption_different_reward_items_preserves_lock_but_cannot_verify(tmp_path):
+    image,row,claim = evidence(tmp_path)
+    current = image.copy()
+    b = row['row']
+    # Equivalent to a new tier/quantity beneath the same recurring mission title.
+    current[b.y+round(b.height*.4):b.y+b.height-8,
+            b.x+15:b.x+round(b.width*.65)] = (30, 70, 190)
+    changed = dict(row, identity='different-occurrence', state='NOT_AVAILABLE',
+                   evidence=(*row['evidence'], 'unique-saved-card-body-agreement'))
+    result = bind_saved_rewards(current, [changed], [claim], persistent_identity='disk', index=13)
+    assert result[0]['identity'] == row['identity']  # Conservative lock alias remains.
+    assert 'unique-saved-caption-agreement' in result[0]['evidence']
+    assert 'unique-saved-card-body-agreement' not in result[0]['evidence']
+
+
+def test_duplicate_original_card_body_is_not_independent_identity(tmp_path):
+    image,row,claim = evidence(tmp_path)
+    from pathlib import Path
+    source = Path(json.loads(claim['before_evidence'])['capture']).with_suffix('.event.json')
+    saved = json.loads(source.read_text())
+    saved['reward_rows'].append({**saved['reward_rows'][0], 'identity':'indistinguishable-sibling'})
+    source.write_text(json.dumps(saved))
+    result = bind_saved_rewards(image,[row],[claim],persistent_identity='disk',index=13)
+    assert result[0]['identity'] == row['identity']
+    assert 'unique-saved-card-body-agreement' not in result[0]['evidence']
 
 
 def test_duplicate_saved_caption_fails_closed(tmp_path):
@@ -59,10 +87,19 @@ def pending(tmp_path):
     result = run(store,task,f,r,calls,post=lambda *a: [])
     post = [dict(identity=[*f.identity[:3], 'fresh-verified-boot'], capture=f'fresh-{i}',
         page=f.page, reward=r.identity, state='NOT_AVAILABLE',
-        independent_evidence=['unique-saved-caption-agreement','qualified-control-color',
+        independent_evidence=['unique-saved-caption-agreement','unique-saved-card-body-agreement','qualified-control-color',
                               'selected-task-context','complete-reward-card'])
         for i in range(2)]
     return store,f,r,calls,result,post
+
+
+def test_caption_only_reconciliation_never_promotes_possible(tmp_path):
+    store,_,_,calls,_,post = pending(tmp_path)
+    for observation in post:
+        observation['independent_evidence'].remove('unique-saved-card-body-agreement')
+    assert reconcile_possible(store,'install',13,'disk',post) == []
+    assert store.reward_claims('install',13)[0]['status'] == 'RESERVED'
+    assert len(calls) == 1
 
 
 def test_two_fresh_proofs_reconcile_original_task_without_redispatch(tmp_path):
