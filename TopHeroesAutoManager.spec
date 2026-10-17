@@ -5,7 +5,9 @@ root = Path(SPECPATH)
 a = Analysis([str(root / "run_app.py")], pathex=[str(root / "src")], binaries=[],
              datas=[(str(root / "assets" / "templates"), "assets/templates"),
                     (str(root / "assets" / "tasks"), "assets/tasks"),
-                    (str(root / "assets" / "tools"), "assets/tools")],
+                    (str(root / "assets" / "tools"), "assets/tools")]
+                   + ([(str(root / "assets" / "build-info.json"), "assets")]
+                      if (root / "assets" / "build-info.json").is_file() else []),
              hiddenimports=[], hookspath=[], hooksconfig={}, runtime_hooks=[], excludes=[], noarchive=False)
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="TopHeroesAutoManager",

@@ -4,7 +4,7 @@ import sqlite3
 import threading
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QDateTime, QObject, Qt, QThread, QTimer, Signal, Slot
+from PySide6.QtCore import QByteArray, QDateTime, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QCloseEvent, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -60,6 +60,7 @@ from top_heroes_auto.app.task_cli import run_idle_reward_diagnostic
 from top_heroes_auto.ldplayer.client import LDPlayer, discover, inspect_folder
 from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.storage.store import AccountStatus
+from top_heroes_auto.ui.operational_log import OperationalLogHandler
 from top_heroes_auto.ui.theme import STYLE
 from top_heroes_auto.vision.detector import ScreenDetector
 from top_heroes_auto.vision.resources import template_folder
@@ -80,20 +81,6 @@ class Worker(QThread):
         except Exception as exc:
             logging.getLogger("top_heroes_auto").exception("Thao tác thất bại")
             self.failed.emit(str(exc))
-
-
-class LogBridge(QObject):
-    message = Signal(str)
-
-
-class UILogHandler(logging.Handler):
-    def __init__(self, bridge):
-        super().__init__()
-        self.bridge = bridge
-        self.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s", "%H:%M:%S"))
-
-    def emit(self, record):
-        self.bridge.message.emit(self.format(record))
 
 
 class Window(QMainWindow):
@@ -335,16 +322,29 @@ class Window(QMainWindow):
         scroll.setWidget(right)
         splitter.addWidget(scroll)
         splitter.setSizes([850, 330])
-        layout.addWidget(QLabel("Nhật ký hoạt động"))
+        log_tools = QHBoxLayout()
+        self.run_label = QLabel('Lượt chạy: chưa bắt đầu')
+        with self.store.connect() as db:
+            latest = db.execute('SELECT id,status FROM runs ORDER BY id DESC LIMIT 1').fetchone()
+        if latest:
+            self.run_label.setText(f'Lượt gần nhất {latest[0]}: {latest[1]}')
+        log_tools.addWidget(self.run_label)
+        self.technical_logs = QCheckBox('Chi tiết kỹ thuật')
+        log_tools.addWidget(self.technical_logs)
+        self.button(log_tools, 'Mở logs', self.open_logs)
+        self.button(log_tools, 'Sao chép tóm tắt lượt chạy', self.copy_run_summary)
+        layout.addLayout(log_tools)
         self.logs = QPlainTextEdit()
         self.logs.setReadOnly(True)
         self.logs.setMaximumBlockCount(1500)
         self.logs.setMaximumHeight(155)
         layout.addWidget(self.logs)
-        self.bridge = LogBridge(self)
         self.run_progress.connect(self.update_run_progress)
-        self.bridge.message.connect(self.logs.appendPlainText)
-        self.log_handler = UILogHandler(self.bridge)
+        self.log_handler = OperationalLogHandler()
+        self.technical_logs.toggled.connect(lambda value: setattr(self.log_handler, 'technical', value))
+        self.log_timer = QTimer(self)
+        self.log_timer.timeout.connect(self.flush_logs)
+        self.log_timer.start(250)
         logging.getLogger("top_heroes_auto").addHandler(self.log_handler)
         self.clock = QLabel()
         self.statusBar().addPermanentWidget(self.clock)
@@ -376,6 +376,30 @@ class Window(QMainWindow):
         self.clock.setText(
             QDateTime.currentDateTime().toString("dd/MM/yyyy HH:mm:ss") + "  ·  Phát triển bởi Thang Nguyen"
         )
+
+    def flush_logs(self):
+        messages = self.log_handler.drain()
+        if messages:
+            self.logs.appendPlainText('\n'.join(messages))
+
+    def open_logs(self):
+        folder = self.data_dir / 'logs'
+        folder.mkdir(parents=True, exist_ok=True)
+        os.startfile(str(folder))
+
+    def copy_run_summary(self):
+        from PySide6.QtWidgets import QApplication
+
+        with self.store.connect() as db:
+            run = db.execute('SELECT id,status,started_at,finished_at,max_concurrency FROM runs ORDER BY id DESC LIMIT 1').fetchone()
+        if run is None:
+            text = 'Chưa có lượt chạy.'
+        else:
+            run_id, status, start, end, concurrency = run
+            report = self.store.get(f'automation-report:{run_id}')
+            text = f'Run {run_id}: {status}\nBắt đầu: {start}\nKết thúc: {end}\nWorkers: {concurrency}\nReport: {report}\nLogs: {self.data_dir / "logs"}'
+            self.run_label.setText(f'Lượt chạy {run_id}: {status}')
+        QApplication.clipboard().setText(text)
 
     def run_job(self, mode, function):
         if self.worker is not None:
@@ -958,6 +982,7 @@ class Window(QMainWindow):
     def stop_run(self):
         if self.run_controller:
             self.run_controller.cancel()
+            self.logs.appendPlainText('Đã yêu cầu dừng; đang chờ worker kết thúc an toàn.')
             self.auto_stop.setEnabled(False)
             self.auto_pause.setEnabled(False)
 
@@ -965,6 +990,7 @@ class Window(QMainWindow):
         if self.run_controller:
             paused = self.auto_pause.text() == "Tạm dừng"
             self.run_controller.pause(paused)
+            self.logs.appendPlainText('Đã yêu cầu tạm dừng.' if paused else 'Đã tiếp tục lượt chạy.')
             self.auto_pause.setText("Tiếp tục" if paused else "Tạm dừng")
 
     def retry_run(self):
@@ -987,6 +1013,7 @@ class Window(QMainWindow):
 
     @Slot(int, int, object, str)
     def update_run_progress(self, run_id, index, status, detail):
+        self.run_label.setText(f'Lượt chạy {run_id}')
         labels = {
             AccountStatus.QUEUED: "Đang chờ",
             AccountStatus.STARTING: "Đang khởi động",

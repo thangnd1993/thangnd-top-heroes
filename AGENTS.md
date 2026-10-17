@@ -1,5 +1,24 @@
 # auto-top-heroes workflow
 
+## Current repair / handoff contract (2026-10-17)
+
+Settle existing workers before repairs or executable replacement. Development
+may use randomly selected live non-Protected targets through production services;
+never replay VERIFIED/uncertain actions. After focused checks and one cohesive
+CI/build gate, deliver the newest verified Desktop app and stop developer work at
+READY_FOR_USER_RUN. The USER initiates final normal-UI Start with two workers.
+Read that actual run's logs afterward; developer checks/CI do not establish PASS.
+
+Technology is WOOD ONLY: qualified quick contribution first, or one ordinary
+contribution then quick; no repeated ordinary fallback. Verify actual counter
+consumption and preserve uncertain batches. Monthly upper/bulk completion cannot
+hide independent daily/lower rewards. Unknown or omitted work remains blocked.
+Keep concise Vietnamese operational UI logs and bounded technical detail; retain
+correlated run/worker diagnostics and protected claim evidence. Reward errors
+isolate siblings only with safe current evidence; feature errors recover boundedly;
+target failures isolate that worker; user Stop stops new actions. Measure actual
+capture/detection/ADB/storage/wait costs without weakening guards or skipping work.
+
 **Permanent, all phases:** LDPlayer names are user-owned, display-only, read-only
 labels. Never rename or write/restore LDPlayer config names. Labels are never
 technical authorization, protection, journal, lifecycle, ADB, fleet or resume keys.

@@ -19,11 +19,13 @@ from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
 REWARDS = ("ranking-chest", "shop-daily-gift", "shop-weekly-card-gift")
 SHOP_REWARDS = (*REWARDS[1:], "shop-permanent-privilege-gift", "shop-monthly-privilege-gift")
 MONTHLY_QUICK = 'shop-monthly-quick-collect'
+MONTHLY_DAILY = 'shop-monthly-daily'
 ADS_ROWS = ('energy', 'meat', 'wood', 'stone', 'rune')
-ALL_REWARDS = (REWARDS[0], *SHOP_REWARDS, MONTHLY_QUICK)
+ALL_REWARDS = (REWARDS[0], *SHOP_REWARDS, MONTHLY_QUICK, MONTHLY_DAILY)
 SHOP_ROUTES = dict(zip(SHOP_REWARDS, ("daily", "weekly", "permanent", "monthly"), strict=True))
 PAGES = {REWARDS[0]: "ranking", **{reward: f"shop-{route}" for reward, route in SHOP_ROUTES.items()}}
 PAGES[MONTHLY_QUICK] = 'shop-ad-privileges'
+PAGES[MONTHLY_DAILY] = 'shop-monthly'
 SHOP_PAGES = frozenset(f"shop-{route}" for route in SHOP_ROUTES.values())
 
 
@@ -85,11 +87,32 @@ class FixedRewardDetector:
 
     def observe(self, captured):
         anchors = {}
-        for name, anchor in self.anchors.items():
+        titles = {'profile-title','ranking-title','shop-title','shop-title-reference','daily-title',
+                  'weekly-title','weekly-title-current','permanent-title','monthly-title','ads-title'}
+        # Qualify page titles first. Unrelated controls cannot grant authority;
+        # avoid dozens of full-image gift/pose scans on every other page.
+        ordered = sorted(self.anchors.items(), key=lambda pair: pair[0] not in titles)
+        for name, anchor in ordered:
             if name.startswith('ads-completed') or name in {f'ads-{row}' for row in ADS_ROWS}:
                 continue  # Repeated completion controls need independent row association.
+            if name not in titles:
+                shop = any(anchors.get(k) and anchors[k].matched for k in ('shop-title','shop-title-reference'))
+                relevant = True
+                if name.startswith('ads-'):
+                    relevant = anchors['ads-title'].matched
+                elif name.startswith('ranking-'):
+                    relevant = anchors['ranking-title'].matched
+                elif name == 'profile-bxh':
+                    relevant = anchors['profile-title'].matched
+                elif name not in {'home-shop-entry','back'}:
+                    relevant = shop
+                if not relevant:
+                    anchors[name] = AnchorEvidence(name, ScreenState.UNKNOWN, 0, anchor.threshold, False)
+                    continue
             # Semantic surfaces only. These regions never supply tap coordinates.
-            if name.startswith('ads-'):
+            if name.startswith('monthly-daily-') or name == 'monthly-owned-label':
+                region = portrait_region(0, .60, 1, .92)
+            elif name.startswith('ads-'):
                 region = portrait_region(0, 0, 1, 1)
             elif name in {'permanent-active-current', 'permanent-tab-current', 'permanent-selected-icon', 'monthly-selected-icon', 'monthly-tab-notice'}:
                 region = portrait_region(0, .90, 1, 1)
@@ -324,6 +347,10 @@ class FixedRewardDetector:
     def availability(self, observation, reward):
         if reward not in PAGES or observation.page != PAGES[reward]:
             return "UNKNOWN", None, None
+        if reward == MONTHLY_DAILY:
+            from top_heroes_auto.vision.monthly import daily_availability
+
+            return daily_availability(self, observation)
         if reward == MONTHLY_QUICK:
             core = observation.anchors['ads-quick']
             completed = [observation.box(f'ads-done-{row}') for row in ADS_ROWS]
@@ -433,6 +460,10 @@ def claim_geometry(observation, reward, core):
         raise ValueError("Claim needs a uniquely recognized gift on its exact page.")
     box = core.device_box
     width, height = observation.captured.device_size or observation.captured.original_size
+    if reward == MONTHLY_DAILY:
+        from top_heroes_auto.vision.monthly import daily_geometry
+
+        return daily_geometry(observation, core)
     if reward == MONTHLY_QUICK:
         title, banner, close = (observation.box(r) for r in ('ads-title', 'ads-banner', 'ads-close'))
         if not all((title, banner, close)) or core is not observation.anchors.get('ads-quick'):

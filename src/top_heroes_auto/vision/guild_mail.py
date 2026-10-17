@@ -142,6 +142,13 @@ class GuildMailDetector:
             'home-guild': (.65,.45,1,.9), 'home-mail': (.65,.45,1,.9),
             'back': (0,.88,.23,1), 'technology-like': (0,.20,1,.88),
             'modal-close': (.3,.82,.7,1),
+            'donation-heading': (0,.40,1,.62),
+            'donation-counter-label': (0,.65,1,.85),
+            'donation-count-suffix': (0,.65,1,.85),
+            'donation-green': (0,.55,1,.83),
+            'donation-green-current': (0,.55,1,.83),
+            'donation-paid': (0,.55,1,.83),
+            'donation-quick': (0,.50,1,.78),
         }
         anchors = {r: AnchorEvidence(r,ScreenState.UNKNOWN,0,self.thresholds[r],False)
                    for r in self.templates}
@@ -188,7 +195,7 @@ class GuildMailDetector:
                             'gifts-quick','gift-claim','loot-row-title','member-row-title','back'),
             'technology-title': ('technology-contribution','technology-like','back'),
             'donation-heading': ('donation-counter-label','donation-count-suffix','donation-green',
-                                'donation-paid','donation-wood','donation-diamond','donation-stone','modal-close'),
+                                'donation-paid','donation-quick','modal-close'),
             'mail-title': ('modal-close','mail-war-selected','mail-war-inactive','mail-guild-selected',
                           'mail-guild-inactive','mail-system','mail-reports','mail-collection',
                           'mail-empty-label','mail-read','mail-delete-forbidden'),
@@ -229,6 +236,16 @@ class GuildMailDetector:
         page = pages[0] if len(pages) == 1 and not conflict else 'UNKNOWN'
         frame = GuildObservation(captured, page, anchors, overlay)
         if page == 'technology':
+            marker = anchors['technology-like']
+            if not marker.matched and .94 <= marker.score < marker.threshold:
+                from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
+
+                # Same existing icon, strict raster alignment; do not rescue a
+                # duplicate or lower the qualification threshold for the node.
+                anchors['technology-like'] = unique_subpixel_anchor(captured, VisualAnchor(
+                    'technology-like', ScreenState.FREE_REWARD_PAGE,
+                    self.folder/'technology-like.png', portrait_region(0,.20,1,.88), .98),
+                    antialias=True)
             anchors['technology-node'] = self.tech_node(frame)
         return frame
 
@@ -386,6 +403,21 @@ class GuildMailDetector:
             return 'UNKNOWN', None, remaining
         if self.donation_resource(frame,green) != 'WOOD':
             return 'RESOURCE_NOT_AUTHORIZED', None, remaining
+        quick = self.control(frame, 'donation-quick', 'green')
+        if quick:
+            # The real quick control is attached ABOVE the current wood button.
+            # A green control elsewhere never inherits the wood authorization.
+            if (not self.green_enabled(frame, quick) or intersects(quick, paid)
+                    or not green.x <= quick.center[0] <= green.x+green.width
+                    or not 0 <= green.y-(quick.y+quick.height) <= green.height
+                    or quick.width >= green.width):
+                return 'UNKNOWN', None, remaining
+            frame.values['donation_action'] = 'QUICK'
+            return 'AVAILABLE', quick, remaining
+        candidate = frame.anchors.get('donation-quick')
+        if candidate and candidate.score >= candidate.threshold:
+            return 'UNKNOWN', None, remaining
+        frame.values['donation_action'] = 'ORDINARY'
         return 'AVAILABLE', green, remaining
 
     def tech_node(self, frame):
@@ -511,7 +543,8 @@ class GuildMailDetector:
         if reward == 'guild-technology':
             state, box, remaining = self.donation(frame)
             paid = self.control(frame,'donation-paid','orange')
-            return Opportunity(reward,state,'donation-green',box,remaining,reward,(paid,) if paid else ())
+            role = 'donation-quick' if frame.values.get('donation_action') == 'QUICK' else 'donation-green'
+            return Opportunity(reward,state,role,box,remaining,reward,(paid,) if paid else ())
         if reward == 'guild-relic':
             core = frame.box('relic-gift')
             if frame.page != 'relic':

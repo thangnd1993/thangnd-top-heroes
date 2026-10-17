@@ -1,5 +1,18 @@
 # Permanent no-rename invariant — all phases
 
+## October17 user-run repair scope
+
+Technology may use the qualified Cống Hiến Nhanh attached to the current verified
+WOOD control. Prefer quick immediately; otherwise at most one ordinary input,
+then quick. Ordinary proof remains exactly one decrement; quick proof requires
+two fresh agreeing exhausted remaining counters. Unknown confirmation/cost or
+uncertain dispatch stays locked, with no ordinary fallback. No other spending
+exception is granted. Monthly upper/bulk and lower owned daily reward are separate
+actions and journals; incomplete row coverage cannot complete the route.
+Final full acceptance is USER-initiated Start on the delivered CI-passing app,
+with two workers. Developer checks are focused, random, production-service checks;
+no automatic full-fleet run after delivery and no Phase9.
+
 ## Authorized two-account continuation — 2026-10-14
 
 Explicit user authorization raises current account-worker concurrency to two.

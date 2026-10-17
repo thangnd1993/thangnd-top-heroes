@@ -83,7 +83,9 @@ class AutomationController(RunController):
             controller.report = run_fleet(manager, data, targets=targets, max_concurrency=run.max_concurrency,
                 manager_factory=controller.manager_factory,
                 temporary_selection=store.get(f'automation-temporary-selection:{run.id}', '0') == '1',
-                account_started=started, account_finished=finished, cancellation_factory=cancelled)
+                account_started=started, account_finished=finished, cancellation_factory=cancelled,
+                run_id=run.id, origin='normal-ui-start',
+                report_created=lambda path: store.set(f'automation-report:{run.id}', path))
             store.set(f'automation-report:{run.id}', controller.report['report_path'])
         except BaseException:
             for i, _, status, *_ in store.run_accounts(run.id):
@@ -97,4 +99,10 @@ class AutomationController(RunController):
         return store.run_accounts(run.id)
 
     def _execute_owned(self, manager, run):
-        return self._dispatch(manager, manager.data_dir, controller=self, run=run)
+        from top_heroes_auto.app.log_context import run_id
+
+        token = run_id.set(run.id)
+        try:
+            return self._dispatch(manager, manager.data_dir, controller=self, run=run)
+        finally:
+            run_id.reset(token)

@@ -168,7 +168,7 @@ def test_only_known_receipt_title_allows_two_more_waits(monkeypatch,known_title)
     assert len(calls)==(5 if known_title else 3)
 
 
-def test_monthly_rocking_entry_waits_for_fresh_qualified_frame(monkeypatch):
+def test_monthly_tab_entry_does_not_skip_the_independent_parent_reward(monkeypatch):
     monkeypatch.setattr('top_heroes_auto.automation.fixed_reward_claims.time.sleep',lambda _:None)
     port=object.__new__(FixedRewardPort)
     first=SimpleNamespace(page='shop-monthly',box=lambda _:False)
@@ -177,5 +177,5 @@ def test_monthly_rocking_entry_waits_for_fresh_qualified_frame(monkeypatch):
     port.observe_settled=lambda:fresh
     calls=[]
     port.navigate=lambda frame,role,expected:calls.append((frame,role,expected)) or frame
-    port.open_shop_reward(first,'shop-monthly-privilege-gift')
-    assert calls==[(fresh,'monthly-gift','shop-ad-privileges')]
+    assert port.open_shop_reward(first,'shop-monthly-privilege-gift') is first
+    assert calls == []  # Monthly adapter inspects both children in the same visit.

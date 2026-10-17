@@ -1,8 +1,9 @@
 """Global instance-first scheduler: snapshot flows, exhaust each, cleanup once."""
 import json
-import sys
+import logging
 import threading
 import time
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextvars import copy_context
 from datetime import datetime, timezone
@@ -10,6 +11,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from top_heroes_auto.app.automation_ownership import exclusive_automation, ownership_evidence
+from top_heroes_auto.app.build_identity import build_identity
 from top_heroes_auto.app.bxh_shop_acceptance import (
     candidates,
     choose_random,
@@ -35,6 +37,9 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                      session_factory=InstanceSession, identity_reader=persistent_identity,
                      temporary_selection=True, cancelled=lambda: False, preserve_possible=(), resume_flows=(), refresh_flows=(), only_flows=(), peer_identities=()):
     timing.reset()
+    from top_heroes_auto.app.log_context import instance_index
+
+    instance_index.set(target['index'])
     prior = prior or {}
     full_plan = registry.snapshot(enabled)
     plan = tuple(f for f in full_plan if (not resume_flows or f.id in resume_flows)
@@ -46,6 +51,11 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
         rewards=dict(prior.get('rewards', {})), flows={},
         cleanup='NOT_REQUIRED', selection_restored=True, recovery_ok=prior.get('recovery_ok', False), new_claims=0)
     row['timing_seconds'] = dict(startup_and_initial_home=0.0, flows={}, cleanup=0.0)
+    monthly = row['rewards'].get('shop-monthly-privilege-gift')
+    if monthly and monthly.get('result') in COMPLETE and 'shop-monthly-daily' not in monthly.get('children', {}):
+        row['rewards']['shop-monthly-privilege-gift'] = dict(monthly,
+            prior_result=monthly['result'], result='LEGACY_COVERAGE_INCOMPLETE',
+            error='Legacy upper/bulk result did not inspect the independent lower daily reward.')
     exceptions = preserved_claims(manager, {'accounts': [prior]}, [target], preserve_possible)
     by_reward = {proof['reward']: proof for proof in exceptions.values()}
     if set(by_reward)-set(required):
@@ -59,6 +69,13 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
             outcome.get('reward') in by_reward and outcome == by_reward[outcome['reward']])
 
     folder.mkdir(parents=True, exist_ok=True)
+    row['transitions'] = []
+    def event(flow, state, message):
+        row['transitions'].append(dict(time=datetime.now(timezone.utc).isoformat(),
+            monotonic=time.perf_counter(), worker=threading.current_thread().name,
+            flow=flow, state=state, message=message))
+        logging.getLogger('top_heroes_auto').info('[%s / #%s] %s', target['name'], target['index'], message,
+                                                extra={'category': 'operation'})
     def persist():
         write(folder/'account-report.json', row)
     persist()  # The execution plan is durable BEFORE selection/lifecycle mutation.
@@ -125,6 +142,17 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
             try:
                 if start_error:
                     raise SafetyError(start_error)
+                if getattr(session, 'navigation_blocked', None):
+                    for reward in pending:
+                        row['rewards'][reward] = dict(blocked(session.navigation_blocked), result='NOT_RUN_TARGET_BLOCKED')
+                    row['flows'][flow.id] = dict(result='NOT_RUN_TARGET_BLOCKED', error=session.navigation_blocked,
+                                                no_input=True)
+                    recoveries = getattr(session, 'report', {}).get('recoveries', [])
+                    if recoveries:
+                        row['flows'][flow.id].update(blocking_stage='before_home',
+                            recovery=recoveries[-1]['status'], recovery_report=recoveries[-1]['report'])
+                    persist()
+                    continue
                 if not started:
                     started = True
                     startup_clock = time.perf_counter()
@@ -139,6 +167,9 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                 flow_folder = folder/flow.id
                 flow_folder.mkdir(exist_ok=True)
                 flow_clock = time.perf_counter()
+                label = {'guild':'Hội', 'mail':'Thư', 'shop':'Tiệm', 'ranking':'BXH',
+                         'vip':'VIP', 'idle':'quà tích lũy', 'events':'Sự kiện'}.get(flow.id, flow.id)
+                event(flow.id, 'STARTED', f'Đang xử lý {label}.')
                 try:
                     detail = flow.run(session, flow_folder, pending)
                 finally:
@@ -150,12 +181,16 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
                     row['rewards'][reward] = outcomes.get(reward, blocked('Enabled reward omitted by flow.'))
                 detail['result'] = 'COMPLETE' if all(complete(row['rewards'][r]) for r in flow.rewards) else 'BLOCKED'
                 row['flows'][flow.id] = detail
+                event(flow.id, detail['result'], f"{flow.id}: {detail['result']}; kết quả đã lưu.")
                 row['new_claims'] += sum(outcomes.get(r, {}).get('claim_count', int(bool(outcomes.get(r, {}).get('claim_dispatched')))) for r in pending)
                 row['recovery_ok'] = detail.get('return_home') == 'SUCCESS'
                 if 'shop_traversal' in detail:
                     row['shop_traversal'] = detail['shop_traversal']
             except Exception as exc:  # noqa: BLE001 - every independent flow still gets a terminal result
-                row['flows'][flow.id] = dict(result='BLOCKED', error=f'{type(exc).__name__}: {exc}')
+                row['flows'][flow.id] = dict(result='BLOCKED', error=f'{type(exc).__name__}: {exc}',
+                    error_source=[dict(file=Path(f.filename).name, line=f.lineno, function=f.name)
+                                  for f in traceback.extract_tb(exc.__traceback__)[-5:]])
+                event(flow.id, 'BLOCKED', f'{flow.id}: bị chặn ({exc}); kiểm tra an toàn trước mục tiếp theo.')
                 recoveries = session.report.get('recoveries', []) if hasattr(session, 'report') else []
                 if recoveries and recoveries[-1]['status'] not in {'SUCCESS', 'ALREADY_HOME'}:
                     row['flows'][flow.id].update(blocking_stage='before_home', recovery=recoveries[-1]['status'],
@@ -206,7 +241,8 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         identity_reader=persistent_identity, session_factory=InstanceSession, targets=None,
         temporary_selection=True, cancelled=lambda: False, exclude=(), preserve_possible=(), resume_indexes=(), resume_flows=(), refresh_flows=(), only_flows=(),
         max_concurrency=1, manager_factory=None, account_started=lambda target: None,
-        account_finished=lambda row: None, cancellation_factory=None):
+        account_finished=lambda row: None, cancellation_factory=None,
+        run_id=None, origin='development', report_created=lambda path: None):
     if type(max_concurrency) is not int or max_concurrency not in (1, 2):
         raise SafetyError('Explicit concurrency must be one or two accounts.')
     source_registry = registry or production_registry()
@@ -298,7 +334,10 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         resumed_from=str(resume_report) if previous else None, accounts=[])
     path = folder/'fleet-report.json'
     report['report_path'] = str(path)
-    report['runtime'] = dict(executable=sys.executable, standalone=bool(getattr(sys, 'frozen', False)))
+    report['runtime'] = build_identity()
+    report.update(run_id=run_id, origin=origin, started_at=datetime.now(timezone.utc).isoformat())
+    write(path, report)
+    report_created(str(path))  # Available after interruption, before any account starts.
     for target in targets:
         try:
             live = [r for r in before if r['index'] == target['index']]
@@ -434,6 +473,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
         active += change
         peak = max(peak, active)
     report['peak_worker_concurrency'] = peak
+    report['finished_at'] = datetime.now(timezone.utc).isoformat()
     report['result'] = 'PASS' if (targets and all(r['result'] == 'COMPLETE' for r in report['accounts'])
         and report['all_selection_states_restored'] and report['protected_state_unchanged']
         and report['ldplayer_name_write_attempts'] == 0 and report['preserved_journals_unchanged']) else 'PARTIAL'

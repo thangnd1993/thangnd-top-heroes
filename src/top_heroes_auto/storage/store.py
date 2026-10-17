@@ -149,7 +149,11 @@ class Store:
                     "SELECT idx,name,present FROM instances WHERE namespace=?", (namespace,)
                 )
             }
-            db.execute("UPDATE instances SET present=0 WHERE namespace=?", (namespace,))
+            current_indexes = {instance.index for instance in instances}
+            for index, previous in old.items():
+                if index not in current_indexes and previous[1]:
+                    db.execute('UPDATE instances SET present=0,selected=0 WHERE namespace=? AND idx=?',
+                               (namespace, index))
             for instance in instances:
                 previous = old.get(instance.index)
                 if previous is None:
@@ -157,7 +161,7 @@ class Store:
                         "INSERT INTO instances VALUES (?,?,?,0,0,1)",
                         (namespace, instance.index, instance.name),
                     )
-                else:
+                elif previous != (instance.name, 1):
                     # Labels are presentation only; absence revokes selection.
                     changed = previous[1] != 1
                     db.execute(
@@ -167,10 +171,14 @@ class Store:
                         (instance.name, changed, namespace, instance.index),
                     )
                 if instance.stable_id:
-                    binding = db.execute('SELECT stable_id,state FROM instance_identities WHERE namespace=? AND idx=?',
+                    binding = db.execute('SELECT stable_id,state,observed_id FROM instance_identities WHERE namespace=? AND idx=?',
                                          (namespace, instance.index)).fetchone()
-                    claims = db.execute('SELECT id,before_evidence FROM reward_claims WHERE namespace=? AND instance_index=?',
-                                        (namespace, instance.index)).fetchall()
+                    # Historical migration is read once per missing sidecar, not
+                    # re-parsed/re-written on every unchanged inventory refresh.
+                    claims = db.execute('''SELECT r.id,r.before_evidence FROM reward_claims r
+                        LEFT JOIN journal_identities j ON j.claim_id=r.id
+                        WHERE r.namespace=? AND r.instance_index=? AND (? OR j.claim_id IS NULL)''',
+                        (namespace, instance.index, binding is None)).fetchall()
                     proofs = {}
                     for claim_id, raw in claims:
                         try:
@@ -184,13 +192,13 @@ class Store:
                              or (not binding and proven - {instance.stable_id}) else
                              binding[1] if binding else 'VERIFIED')
                     pinned = binding[0] if binding else instance.stable_id
-                    db.execute('INSERT OR REPLACE INTO instance_identities VALUES (?,?,?,?,?)',
-                               (namespace, instance.index, pinned, instance.stable_id, state))
+                    if binding != (pinned, state, instance.stable_id):
+                        db.execute('INSERT OR REPLACE INTO instance_identities VALUES (?,?,?,?,?)',
+                                   (namespace, instance.index, pinned, instance.stable_id, state))
                     # Sidecar migration preserves every historical journal byte/lock.
                     for claim_id, proof in proofs.items():
                         db.execute('INSERT OR IGNORE INTO journal_identities VALUES (?,?,?)',
                                    (claim_id, proof, 'VERIFIED' if proof == pinned else 'AMBIGUOUS'))
-            db.execute("UPDATE instances SET selected=0 WHERE namespace=? AND present=0", (namespace,))
 
     def metadata(self, namespace: str, index: int) -> Metadata:
         with self.connect() as db:
@@ -198,7 +206,6 @@ class Store:
                 "SELECT selected,protected FROM instances WHERE namespace=? AND idx=? AND present=1",
                 (namespace, index),
             ).fetchone()
-        with self.connect() as db:
             binding = db.execute('SELECT stable_id,state FROM instance_identities WHERE namespace=? AND idx=?',
                                  (namespace, index)).fetchone()
         if binding and binding[1] != 'VERIFIED':

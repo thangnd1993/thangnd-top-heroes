@@ -49,6 +49,9 @@ def journal_completions(session,rewards,*,vip_period=False):
     rows = store.reward_claims(namespace,session.index)
     completed = {}
     for reward in rewards:
+        if reward == 'shop-monthly-privilege-gift':
+            # One bulk journal cannot complete independent lower entitlement rows.
+            continue
         action = MONTHLY_QUICK if reward == 'shop-monthly-privilege-gift' else reward
         prior = (vip_attempts if vip_period else fixed_attempts)(rows,action)
         if not prior or any(row['status'] != 'VERIFIED' for row in prior):

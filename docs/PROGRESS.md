@@ -1,3 +1,67 @@
+## October17 complete-repair checkpoint — USER initiates final acceptance
+
+Current repair starts from d540ab6 on codex/phase8-dynamic-events. The latest
+request is top_heroes_complete_repair_prompt.txt including its authoritative
+addendum: one Codex agent, two application workers, final full run initiated by
+USER after delivery. No Phase9. No active app process/queued worker remained at
+preflight. User runs10 and11 were CANCELLED, not successful acceptance. Read
+artifacts/complete-repair-user-runs-audit.json; run10 has20 VERIFIED labels and2
+uncertain dispatches; run11 has16 VERIFIED labels and2 uncertain dispatches.
+Those counts are not a claim of route completeness. Baseline578 journal rows
+through600 is saved in artifacts/complete-repair-before-journals.json. Preserve
+600 (Technology ordinary dispatch uncertain),596 and disputed507 without replay.
+
+Demonstrated defects: run11 Technology repeated11 ordinary taps despite the
+visible Cống Hiến Nhanh; the Monthly route omitted the independent lower daily
+Nhận. New production code prefers quick, allows only one ordinary prerequisite,
+requires exhausted counter proof for bulk, and records actual count deltas.
+Monthly main daily reward has separate owned-panel geometry, paid exclusion and
+journal; upper/bulk completion never completes this child. Unknown ad rows stay
+blocked; individual video/ad buttons remain forbidden. No broad click-by-text.
+
+Measured run11 exclusive overhead was dominated by recognition, inventory and
+storage, not sleeps: index3 detection621s+recovery detection602s,inventory434s,
+DB199s,deliberate waits35s; total2236s. Index2 total2033s with43s deliberate waits.
+Current repair narrows relevant template regions, avoids unchanged DB rewrites,
+queues noncritical diagnostics, and bounds UI log rendering. No few-minute fleet
+performance claim has yet been demonstrated. New normal UI runs save packaged
+commit/run/EXE identity, early report path, worker/source/timing and transitions.
+
+Focused development completed, using only production services, secrets.choice
+from live non-Protected inventory, one target per check, no external step clicks:
+- index10 / current display HiHi, ADB emulator-5574: Shop601-604 VERIFIED;
+  independent Monthly daily605 dispatched once, left RESERVED/POSSIBLE because
+  the old per-visit popup budget blocked its receipt dismissal. Saved recovery
+  final frame positively shows lower Đã Nhận (detector0.999985) and no active
+  daily claim. No replay or manual journal change. Fixed popup budget now resets
+  ONLY after a new qualified page input; repeat dismissal itself never resets it.
+- index5 / 4-Em Pé, ADB emulator-5564: Guild606-608 VERIFIED. Technology did not
+  dispatch: LIKE scored0.958964 vs0.97. Strict subpixel alignment of the SAME
+  existing icon now scores0.982221 at threshold0.98; duplicate markers still block.
+  Real bulk wood contribution is NOT VERIFIED by these checks; no fabricated result.
+- Both checks ended PARTIAL, owned cleanup SUCCESS, all original selections and
+  Protected inventory unchanged. All578 old journal rows remain byte-for-byte
+  unchanged. New605 remains locked; disputed507 and uncertain600 are untouched.
+Evidence: artifacts/complete-repair-development-audit.json. First root
+20261016-173609-665314Z-0e1a5701; second20261017-063344-793756Z-635901ff under
+AppData/Local/TopHeroesAutoManager/diagnostics/tasks/automation.
+
+Measured developer totals:487.141s (cold start115.561s,Shop302.421s,blocked Guild
+recovery63.609s) and527.574s (startup99.219s,Guild423.611s). These different scoped
+checks are NOT a before/after full-workload speedup or proof of a few minutes per
+full account. First check DB6.343s/1997 calls,inventory177.670s/745, recovery
+recognition155.508s; reads/recognition remain the leading measured overhead.
+
+Targeted regression groups passed including27 new repair cases,68 wood/session/
+controller cases and48 timing/Shop/controller cases. The long affected-image group
+had199 passes and one obsolete Monthly-entry expectation; that expectation was
+updated and passed in the focused rerun. Ruff and whitespace checks required.
+Fresh CI and Desktop delivery must be verified against the final commit's local
+provenance/delivery record before use. Deliver only a passing artifact; keep at
+most two cache versions and one Desktop version. Developer automation has stopped.
+Final handoff is READY_FOR_USER_RUN only after that gate. USER presses Start with
+concurrency2; never auto-run a full fleet or mark the phase PASS from these checks.
+
 ## October16 full-panel follow-up — run9 remains autonomous on delivered fa87153
 
 fa87153 passed CI38778685168:1988 tests passed,26 skipped, lint, portable build,

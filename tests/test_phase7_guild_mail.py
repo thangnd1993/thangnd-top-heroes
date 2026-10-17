@@ -206,7 +206,7 @@ def test_donation_exact_decrement_only(rig):
     port = Port([('AVAILABLE',2),('AVAILABLE',1),('AVAILABLE',1),
                  ('AVAILABLE',1),('NOT_AVAILABLE',0),('NOT_AVAILABLE',0)])
     result = execute(rig,port,'guild-technology')
-    assert result['result'] == 'SUCCESS' and port.taps == 2
+    assert result['result'] == 'BLOCKED' and port.taps == 1
 
 
 def test_donation_skipped_counter_fails_closed(rig):
@@ -306,7 +306,7 @@ def test_donation_bounded_even_if_charges_refill(rig):
     states = [('AVAILABLE',20),('AVAILABLE',19),('AVAILABLE',19)]*20
     port = Port(states)
     result = execute(rig,port,'guild-technology')
-    assert result['result'] == 'BOUNDED_LIMIT' and port.taps == 20
+    assert result['result'] == 'BLOCKED' and port.taps == 1
 
 
 def test_foreign_prior_identity_prevents_new_batch(rig):

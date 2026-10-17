@@ -394,7 +394,7 @@ def test_invalid_completion_cannot_skip_later_independent_flow(rig,tmp_path):
 
 
 @pytest.mark.parametrize('bad',[None,'possible','name','identity','protected'])
-def test_fixed_feature_completes_only_bound_current_verified_journal(bad):
+def test_monthly_bulk_journal_never_completes_independent_lower_rows(bad):
     from types import SimpleNamespace
 
     from top_heroes_auto.app.reward_flows import journal_completions
@@ -411,9 +411,7 @@ def test_fixed_feature_completes_only_bound_current_verified_journal(bad):
             journal_completions(session,('shop-monthly-privilege-gift',))
     else:
         result=journal_completions(session,('shop-monthly-privilege-gift',))
-        assert bool(result)==(bad in (None,"name"))
-        if result:
-            assert result['shop-monthly-privilege-gift']['claim_id']==73
+        assert result == {}
 
 
 def test_unauthorized_resource_does_not_fail_other_independent_flows(rig,tmp_path):

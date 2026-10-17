@@ -145,17 +145,15 @@ def run(rig,port):
     return report
 
 
-def test_twenty_wood_inputs_reacquire_geometry_and_stop_at_zero(rig):
+def test_ordinary_wood_never_falls_back_to_twenty_taps(rig):
     states = []
     for n in range(20,0,-1):
         post = 'AVAILABLE' if n>1 else 'NOT_AVAILABLE'
         states.extend([('AVAILABLE',n),(post,n-1),(post,n-1)])
     port = WoodPort(states)
     report = run(rig,port)
-    assert report['result'] == 'SUCCESS' and report['start_remaining'] == 20 and report['end_remaining'] == 0
-    assert len(port.inputs) == report['claim_count'] == 20
-    assert len({capture for capture,point in port.inputs}) == 20
-    assert len({point for capture,point in port.inputs}) == 20
+    assert report['result'] == 'BLOCKED' and report['start_remaining'] == 20 and report['end_remaining'] == 19
+    assert len(port.inputs) == report['claim_count'] == 1
     assert all(row['status']=='VERIFIED' for row in rig[2].reward_claims(rig[0].namespace,7))
     again = WoodPort([('NOT_AVAILABLE',0)])
     assert run(rig,again)['result'] == 'NOT_AVAILABLE' and not again.inputs

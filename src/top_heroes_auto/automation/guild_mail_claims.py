@@ -1,5 +1,6 @@
 """One-shot, progress-verified Guild/Mail actions on a single owned session."""
 import json
+import logging
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
@@ -61,14 +62,18 @@ def qualified_progress(before_frame, before, after_frame, after, *, maximum_elap
         return False
     if not 0 <= after.remaining < before.remaining:
         return False
-    return before.reward != 'guild-technology' or after.remaining == before.remaining-1
+    if before.reward == 'guild-technology':
+        return after.remaining == (0 if before.role == 'donation-quick' else before.remaining-1)
+    return True
 
 
 def process(port, store, namespace, task_id, reward, identity, report, persist):
     if reward not in (*GUILD_REWARDS,*MAIL_REWARDS):
         raise SafetyError('Unsupported Guild/Mail action.')
     report.update(result='UNKNOWN',journal='NONE',claim_dispatched=False,claim_count=0,actions=[])
-    limit = 20 if reward == 'guild-technology' else 1 if reward == 'guild-relic' else 12
+    limit = 3 if reward == 'guild-technology' else 1 if reward == 'guild-relic' else 12
+    if reward == 'guild-technology':
+        report.update(ordinary_taps=0, quick_invocations=0, verified_contributions=0)
     for _ in range(limit):
         frame, view = port.opportunity(reward)
         report['latest'] = dict(frame=frame.evidence(),opportunity=view.evidence())
@@ -140,6 +145,15 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
             return
         if reward != 'guild-relic' and (type(view.remaining) is not int or view.remaining <= 0):
             raise SafetyError('Action needs a qualified positive current count.')
+        if reward == 'guild-technology':
+            if view.role != 'donation-quick' and report['ordinary_taps']:
+                report.update(result='BLOCKED', error='QUICK_CONTROL_EXPECTED: no ordinary fallback loop.')
+                persist()
+                return
+            if view.role == 'donation-quick' and report['quick_invocations']:
+                report.update(result='BLOCKED', error='Quick contribution already dispatched; no retry.')
+                persist()
+                return
         if period and relic_cycle(datetime.fromisoformat(frame.captured.timestamp)) != period:
             report['result'] = 'STALE_PERIOD_EVIDENCE'
             persist()
@@ -166,10 +180,15 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
                 if period and period != relic_cycle():
                     raise SafetyError('Relic period changed before input.')
                 store.mark_reward_dispatch(claim_id,task_id)
+                action['dispatch_monotonic'] = time.perf_counter()
+                action['dispatch_at'] = datetime.now(timezone.utc).isoformat()
                 dispatched = True
                 action['claim_dispatched'] = 'POSSIBLE'
                 report['claim_dispatched'] = True
                 report['claim_count'] += 1
+                if reward == 'guild-technology':
+                    key = 'quick_invocations' if view.role == 'donation-quick' else 'ordinary_taps'
+                    report[key] += 1
 
             port.claim(frame,view,before_input=intent)
             action['claim_dispatched'] = True
@@ -197,8 +216,14 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
                 store.verify_reward_claim(claim_id,task_id,json.dumps(
                     dict(after=action['after'],confirmation=action['confirmation']),ensure_ascii=False))
                 action.update(journal='VERIFIED',result='SUCCESS')
+                logging.getLogger('top_heroes_auto').info(
+                    '[#%s] %s: đã xác minh thay đổi từ %s → %s; journal %s.',
+                    frame.captured.index, reward, view.remaining, confirmation.remaining, claim_id,
+                    extra={'category':'operation'})
+                action['dispatch_to_verified_seconds'] = time.perf_counter()-action['dispatch_monotonic']
                 report.update(journal='VERIFIED',result='SUCCESS',remaining=after.remaining)
                 if reward == 'guild-technology':
+                    report['verified_contributions'] += view.remaining-confirmation.remaining
                     report['end_remaining'] = confirmation.remaining
                     report['resource'] = getattr(confirmation_frame,'values',{}).get('donation_resource',{})
                     if confirmation.state == 'RESOURCE_NOT_AUTHORIZED':

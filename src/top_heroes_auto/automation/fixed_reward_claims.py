@@ -1,5 +1,6 @@
 """One-shot journal boundary shared by BXH and the two authorized shop gifts."""
 import json
+import logging
 import time
 
 from top_heroes_auto.automation.timing import pause
@@ -115,6 +116,8 @@ def process_reward(port, store, namespace, task_id, reward, identity, report, pe
                 (after.captured.index, after.captured.serial, after.captured.boot_id)):
             store.verify_reward_claim(claim_id, task_id, json.dumps(after.evidence(), ensure_ascii=False))
             report.update(journal='VERIFIED', result='SUCCESS')
+            logging.getLogger('top_heroes_auto').info('[#%s] %s: đã nhận và xác minh; journal %s.',
+                before.captured.index,reward,claim_id,extra={'category':'operation'})
         else:
             report['result'] = 'ACTION_DISPATCHED_UNVERIFIED'
     except Exception:

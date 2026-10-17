@@ -5,14 +5,16 @@ def terminal_plan(plan, details, rewards):
     checks = {}
     for flow in plan:
         detail = details.get(flow.id, {})
-        explicit = detail.get('result') in {'COMPLETE', 'BLOCKED', 'DISABLED', 'NOT_APPLICABLE', 'ALREADY_COMPLETED'} and not detail.get('omitted_rewards')
+        explicit = detail.get('result') in {'COMPLETE', 'BLOCKED', 'DISABLED', 'NOT_APPLICABLE', 'ALREADY_COMPLETED', 'NOT_RUN_TARGET_BLOCKED'} and not detail.get('omitted_rewards')
         explicit = explicit and all(rewards.get(r, {}).get('result') not in {None, '', 'NOT_STARTED', 'RUNNING', 'PENDING', 'QUEUED', 'DISCOVERED'} for r in flow.rewards)
         skipped = detail.get('result') in {'DISABLED', 'NOT_APPLICABLE', 'ALREADY_COMPLETED'}
         # Explicit pre-feature failures are genuine blockers. A returned feature
         # must supply its own terminal evidence; no placeholder can stand for scan.
         cancelled = (detail.get('blocking_stage') == 'cancelled' and detail.get('no_input') is True
                      and bool(detail.get('error')))
-        qualified = skipped or cancelled or flow.terminal_evidence(detail)
+        target_blocked = (detail.get('result') == 'NOT_RUN_TARGET_BLOCKED'
+                          and detail.get('no_input') is True and event_terminal(detail))
+        qualified = skipped or cancelled or target_blocked or flow.terminal_evidence(detail)
         checks[flow.id] = dict(terminal=bool(explicit and qualified), evidence=detail)
     return dict(terminal=bool(plan) and all(c['terminal'] for c in checks.values()), flows=checks)
 

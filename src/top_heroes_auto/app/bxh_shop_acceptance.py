@@ -161,8 +161,12 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
                     frame = port.observe_settled() if shop_started else port.home()
                     shop_started = True
                     port.open_shop_reward(frame, reward)
-                action_reward = MONTHLY_QUICK if reward == 'shop-monthly-privilege-gift' else reward
-                process_reward(port, manager.store, manager.namespace, task_id, action_reward, identity, outcome, persist)
+                if reward == 'shop-monthly-privilege-gift':
+                    from top_heroes_auto.automation.monthly_privilege import process_monthly
+
+                    process_monthly(port, manager.store, manager.namespace, task_id, identity, outcome, persist)
+                else:
+                    process_reward(port, manager.store, manager.namespace, task_id, reward, identity, outcome, persist)
             except Exception as exc:  # noqa: BLE001 - each reward retains its own durable result
                 if outcome['result'] in {'NOT_STARTED', 'RESERVED', 'AVAILABLE'}:
                     outcome['result'] = 'TAB_NOT_FOUND' if isinstance(exc, TabNotFound) else 'BLOCKED'

@@ -3,10 +3,10 @@ import hashlib
 import json
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 import cv2
 
-from top_heroes_auto.automation.fixed_reward_claims import observe_reward
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.automation.overlays import DISMISSIBLE, OverlayBudget, dismiss_overlay_bottom_left
 from top_heroes_auto.automation.timing import measure, measured, pause, poll, wait
@@ -103,11 +103,18 @@ class FixedRewardPort:
         if action == 'tap' and getattr(self, 'record_tap_geometry', False):
             tap_overlay = self.save_tap_geometry(observation.captured, values)
         self.events.append(dict(before=str(observation.captured.source_image), action=action,
-                                values=list(values), outcome='POSSIBLE', tap_overlay=tap_overlay))
+                                values=list(values), outcome='POSSIBLE', tap_overlay=tap_overlay,
+                                started_at=datetime.now(timezone.utc).isoformat(),
+                                started_monotonic=time.perf_counter()))
+        if len(self.events) > 1:
+            previous = self.events[-2].get('finished_monotonic')
+            if previous is not None:
+                self.events[-1]['since_previous_input_seconds'] = self.events[-1]['started_monotonic']-previous
         self.save_events()
         self.manager.execute(self.index, action, values=values, snapshot=self.snapshot,
                              observed_target=self.target, before_input=before_input)
         self.events[-1]['outcome'] = 'DISPATCHED'
+        self.events[-1]['finished_monotonic'] = time.perf_counter()
         self.last = None
         self.save_events()
 
@@ -126,6 +133,9 @@ class FixedRewardPort:
         if not any(anchor is a for a in observation.anchors.values()):
             raise SafetyError('Action anchor does not belong to current frame.')
         self.dispatch(observation, 'tap', anchor.device_box.center, before_input)
+        # A newly qualified navigation/claim has its own receipt sequence.
+        # Dismissal uses dispatch directly and never resets this bounded budget.
+        self.overlay_budget = OverlayBudget(max_total=6, max_same=3)
 
     def settle(self, observation):
         for attempt in range(6):
@@ -238,11 +248,6 @@ class FixedRewardPort:
         if observation.page != expected:
             observation = self.find_tab(observation, f'{route}-tab')
             observation = self.navigate(observation, f'{route}-tab', expected)
-        if route == 'monthly':
-            observation, state, _, _ = observe_reward(self, observation, reward)
-            if state != 'AVAILABLE':
-                raise SafetyError('Monthly entry is not independently qualified; no navigation tap.')
-            observation = self.navigate(observation, 'monthly-gift', 'shop-ad-privileges')
         return observation
 
     def home(self):

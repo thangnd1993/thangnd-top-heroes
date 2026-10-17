@@ -1,0 +1,13 @@
+{
+  "id": "monthly-daily-heading",
+  "state": "FREE_REWARD_PAGE",
+  "template": "monthly-daily-heading.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": false
+}

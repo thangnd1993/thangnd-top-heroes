@@ -187,9 +187,16 @@ def main(argv: list[str] | None = None):
     handler = RotatingFileHandler(
         data / "logs" / "app.log", maxBytes=2_000_000, backupCount=3, encoding="utf-8"
     )
-    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    from top_heroes_auto.app.log_context import DiagnosticListener, DiagnosticQueue
+
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s run=%(run_id)s index=%(instance_index)s '
+        'worker=%(threadName)s %(filename)s:%(lineno)d %(message)s'))
     logging.getLogger("top_heroes_auto").setLevel(logging.DEBUG)
-    logging.getLogger("top_heroes_auto").addHandler(handler)
+    queued = DiagnosticQueue(handler)
+    listener = DiagnosticListener(queued.queue, handler)
+    listener.start()
+    logging.getLogger("top_heroes_auto").addHandler(queued)
     window = Window(Store(data / "config.sqlite3", recover_running=False), data)
     window.show()
     if "--smoke-test" in argv:
@@ -203,7 +210,15 @@ def main(argv: list[str] | None = None):
             app.quit()
 
         QTimer.singleShot(1500, finish_smoke)
-    return app.exec()
+    try:
+        return app.exec()
+    finally:
+        logging.getLogger('top_heroes_auto').removeHandler(queued)
+        listener.stop()
+        if queued.dropped_repetitive:
+            with (data/'logs'/'log-pressure-summary.txt').open('w', encoding='utf-8') as stream:
+                stream.write(f'Repetitive technical records omitted under queue pressure: {queued.dropped_repetitive}\n')
+        handler.close()
 
 
 if __name__ == "__main__":

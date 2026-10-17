@@ -29,6 +29,7 @@ class InstanceSession:
         self.changed_selection = self.started = self.cleanup_attempted = self.closed = False
         self.initial = None
         self.used_initial = False
+        self.navigation_blocked = None
         self.report = dict(cleanup='NOT_REQUIRED', selection_restored=False, recoveries=[],
                            started_by_run=False, stable_instance_id=target['persistent_identity'],
                            starting_display_label=self.name, ending_display_label=self.name,
@@ -94,9 +95,12 @@ class InstanceSession:
     def recover(self):
         """Navigation only after first start. A stopped target cannot be relaunched."""
         self.check()
+        if self.navigation_blocked:
+            raise SafetyError(f'NOT_RUN_TARGET_BLOCKED: {self.navigation_blocked}')
         if self.initial is None:
             raise SafetyError('Instance session was not started.')
         if self.initial[0].status not in {RecoveryStatus.SUCCESS, RecoveryStatus.ALREADY_HOME}:
+            self.navigation_blocked = self.initial[0].status.value
             raise SafetyError(f'Initial recovery blocked: {self.initial[0].status.value}')
         if not self.used_initial:
             self.used_initial = True
@@ -107,6 +111,10 @@ class InstanceSession:
             if started:
                 raise SafetyError('Navigation-only recovery acquired lifecycle ownership.')
             self.report['recoveries'].append(dict(status=result.status.value, report=str(path)))
+            if result.status not in {RecoveryStatus.SUCCESS, RecoveryStatus.ALREADY_HOME}:
+                # One bounded recovery budget, not another multi-minute reset
+                # for every downstream feature on the same unsafe screen.
+                self.navigation_blocked = result.status.value
         return result, path, False  # Only this session owns lifecycle cleanup.
 
     def finish_plan(self, details, rewards):

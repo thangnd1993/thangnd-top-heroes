@@ -817,5 +817,16 @@
       20
     ],
     "threshold": 0.98
-  }
+  },
+{
+  "id": "donation-quick",
+  "source": "run11-technology",
+  "source_bbox": [
+    450,
+    818,
+    129,
+    43
+  ],
+  "threshold": 0.98
+}
 ]
