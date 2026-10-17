@@ -15,6 +15,7 @@ from top_heroes_auto.vision.idle_detector import IdleRewardDetector
 from top_heroes_auto.vision.idle_panel_recovery import adventure_back_evidence, idle_panel_evidence
 from top_heroes_auto.vision.loading_progress import loading_progress_evidence
 from top_heroes_auto.vision.local_ocr import read_words
+from top_heroes_auto.vision.login_notice import assistance_close
 from top_heroes_auto.vision.models import AnchorEvidence, NormalizedRect, ScreenDetection, ScreenState
 from top_heroes_auto.vision.resources import template_folder
 from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
@@ -152,13 +153,23 @@ class RecoveryScreenDetector:
         notice_visible = len(notice) == 3 and all(e.matched for e in notice)
         territory = tuple(unique_current_anchor(screen, a) for a in self.territory_notice_anchors)
         close = next((e for e in notice if e.anchor_id == 'match-notice-close'), None)
-        territory_visible = len(territory) == 2 and all(e.matched for e in territory) and close and close.matched
+        territory_title = next(e for e in territory if e.anchor_id == 'territory-notice-title')
+        territory_labels = [e for e in territory if e.anchor_id != 'territory-notice-title']
+        labels = [e for e in territory_labels if e.matched]
+        if (territory_title.matched and close and close.matched
+                and (len(labels) > 1 or any(e.score >= e.threshold and not e.matched
+                                           for e in territory_labels))):
+            return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
+                           evidence=(*territory, close))
+        territory_visible = (territory_title.matched and len(labels) == 1
+                             and all(e.matched or e.score < e.threshold for e in territory_labels)
+                             and close and close.matched)
         if territory_visible:
             if notice_visible:
                 return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
                                evidence=(*detected.evidence, *notice, *territory))
             # Reuse the exact known close and layout guard, never the blue Go CTA.
-            notice = (*territory, close)
+            notice = (territory_title, labels[0], close)
             notice_visible = True
         groups = {}
         for anchor in self.receipt_anchors:
@@ -212,8 +223,9 @@ class RecoveryScreenDetector:
                            confidence=min(e.score for e in receipt), evidence=receipt)
         if notice_visible:
             boxes = {e.anchor_id: e.device_box for e in notice}
-            title, preparing, close = (next(b for k,b in boxes.items() if k.endswith('-'+role))
-                                       for role in ('title', 'preparing', 'close'))
+            title = next(b for k,b in boxes.items() if k.endswith('-title'))
+            preparing = next(b for k,b in boxes.items() if k.endswith(('-preparing', '-battle')))
+            close = next(b for k,b in boxes.items() if k.endswith('-close'))
             width, height = screen.device_size or screen.original_size
             layout = (title.y+title.height < preparing.y < close.y and title.y < height*.15
                       and close.y > height*.85 and all(abs(b.center[0]-width*.5) < width*.12
@@ -250,6 +262,16 @@ class RecoveryScreenDetector:
                     confidence=min(item.score for item in evidence),
                     evidence=evidence,
                 )
+
+        if (detected.state == ScreenState.POPUP_GENERIC
+                and {e.anchor_id for e in detected.evidence} == {
+                    'login-assistance-title', 'login-assistance-banner'}
+                and close is not None and not event_visible and not notice_visible
+                and not (promo_title.matched and promo_cta.matched)):
+            assistance = (*detected.evidence, close)
+            if assistance_close(screen, assistance) is not None:
+                return replace(detected, state=ScreenState.LOGIN_ASSISTANCE,
+                               confidence=min(e.score for e in assistance), evidence=assistance)
 
         if promo_title.matched and promo_cta.matched:
             evidence = (promo_title, promo_cta)

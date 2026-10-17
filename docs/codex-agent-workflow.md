@@ -1,9 +1,9 @@
 # Single-agent Codex workflow
 
 Current delivery/acceptance contract: see AGENTS.md's October17 repair section.
-After the cohesive repair and fresh passing Desktop delivery, stop at
-READY_FOR_USER_RUN. The user performs final normal-UI Start; do not automatically
-launch another fleet. Review the actual user-run diagnostics when requested.
+The latest direct October17 instruction authorizes Codex to open the passing
+Desktop app, Start with two workers, test and fix. Inspect actual run12 evidence
+before further real checks; preserve journals and avoid broad repeated fleet runs.
 
 Use one Codex agent for repository work. Do not route work to custom Developer
 or Reviewer agents, or spawn/delegate work to child agents.

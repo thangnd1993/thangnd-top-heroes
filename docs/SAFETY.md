@@ -9,9 +9,15 @@ two fresh agreeing exhausted remaining counters. Unknown confirmation/cost or
 uncertain dispatch stays locked, with no ordinary fallback. No other spending
 exception is granted. Monthly upper/bulk and lower owned daily reward are separate
 actions and journals; incomplete row coverage cannot complete the route.
-Final full acceptance is USER-initiated Start on the delivered CI-passing app,
-with two workers. Developer checks are focused, random, production-service checks;
-no automatic full-fleet run after delivery and no Phase9.
+Latest direct October17 instruction authorizes Codex to operate normal UI Start
+on the delivered CI-passing app with two workers. Follow-up developer checks stay
+focused, random and use production services. No Phase9 or journal reset.
+
+Run12 startup notices: assistance requires the existing title/banner plus unique
+current red close, all >=.98 and qualified relative geometry. Only that close is
+allowed, never Thanks/settings. Territory preparation/battle variants require
+exactly one stable phase label plus title/close; conflicting labels fail closed.
+Both retain stable-frame, target identity and bounded dismissal checks.
 
 ## Authorized two-account continuation — 2026-10-14
 

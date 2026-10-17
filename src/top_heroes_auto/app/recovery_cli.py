@@ -197,7 +197,8 @@ class DiagnosticRecoveryPort:
         self._after_overlay = True
         self.manager.execute(self.index, "tap", values=point, snapshot=self.snapshot,
                              observed_target=target)
-        log.info("[%s / #%s] Qualified overlay bottom-left tap %s", self.name, self.index, point)
+        log.info("[%s / #%s] Qualified %s dismissal tap %s", self.name, self.index,
+                 detection.state.value, point)
         return point
 
     def dismiss_home_overlay_back(self, observation):

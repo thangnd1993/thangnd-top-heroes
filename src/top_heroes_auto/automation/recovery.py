@@ -388,7 +388,9 @@ class HomeRecoveryEngine:
                         action = 'dismiss_home_overlay_back'
                     else:
                         point = port.dismiss_overlay(observation)
-                        action = f"dismiss_overlay_bottom_left:{point[0]},{point[1]}"
+                        label = ('dismiss_assistance_close' if detection.state == ScreenState.LOGIN_ASSISTANCE
+                                 else 'dismiss_overlay_bottom_left')
+                        action = f"{label}:{point[0]},{point[1]}"
                 except (CommandError, OSError, SafetyError, ValueError) as exc:
                     return finish(RecoveryStatus.PROMO_BLOCKING, str(exc))
                 result.actions.append(action)

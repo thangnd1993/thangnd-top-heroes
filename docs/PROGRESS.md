@@ -1,4 +1,31 @@
-## October17 complete-repair checkpoint — USER initiates final acceptance
+## October17 normal app run12 — direct user authorized Start/test/fix
+
+User explicitly requested Codex open the app, run, test and fix, superseding the
+earlier USER-only Start handoff. Normal Desktop a1770c1 / CI39012385343 created
+run12 at08:21:43UTC, concurrency2, all8 current non-Protected2/3/4/5/8/9/10/11.
+Protected0/1/6/7/12 excluded. End09:11:39UTC: FAILED/PARTIAL, not phase PASS.
+23 new claims609-631 all VERIFIED (index5:10, index10:13). All older journals
+unchanged, all original selections restored, Protected unchanged, owned cleanup
+SUCCESS for every target. Evidence:artifacts/app-run12-final-audit.json and
+diagnostics/tasks/automation/20261017-082143-257572Z-b3f976d8/fleet-report.json.
+
+Monthly upper+independent lower passed on both5/10 (617/619 and624/625). LIKE
+navigation now passes; Technology correctly refused non-WOOD on both accounts,
+ordinary/quick dispatch0. Quick wood real acceptance remains unproven. Index5
+full plan took about36min; no few-minute performance claim. Event remains blocked
+on unqualified content; historical Idle and uncertain Mail locks stay locked.
+
+Concrete startup blockers:2/4 known assistance title/banner but no qualified
+close handler;3/8/9 territory announcement changed from preparation to battle
+phase label (title1.0,close~1.0,old label.765). Index11 explicit ADB unavailable;
+no ADB/config/global restart workaround. Repair only these two evidenced notice
+variants: assistance uses three strict anchors and current red close; territory
+uses exactly one stable phase label, excluding timer/artwork. No claim, identity,
+journal or resource permission changes. Both preserve bounded fresh-frame checks.
+Focused regression68 passed; final conflicting-phase check/Ruff, fresh CI build,
+delivery and focused real follow-up must be completed before claiming repair PASS.
+
+## October17 complete-repair checkpoint — prior USER initiates final acceptance
 
 Current repair starts from d540ab6 on codex/phase8-dynamic-events. The latest
 request is top_heroes_complete_repair_prompt.txt including its authoritative

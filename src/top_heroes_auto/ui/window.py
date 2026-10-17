@@ -487,6 +487,7 @@ class Window(QMainWindow):
                 "GAME_LOADING": "Đang tải game",
                 "GAME_HOME": "Trang chủ game",
                 "POPUP_GENERIC": "Popup",
+                "LOGIN_ASSISTANCE": "Thông báo hỗ trợ Hội",
                 "CONNECTION_ERROR": "Lỗi kết nối",
                 "UPDATE_NOTICE": "Thông báo cập nhật",
             }

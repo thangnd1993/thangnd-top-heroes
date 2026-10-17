@@ -2,11 +2,16 @@
 
 ## Current repair / handoff contract (2026-10-17)
 
+Latest direct user instruction authorizes Codex to open the delivered app, Start,
+test and fix. This overrides the user-only Start handoff for this continuation.
+Use the normal packaged UI with two workers; do not replay verified/uncertain
+claims. Run12 evidence is the baseline for repairs, not a reason for blind retries.
+
 Settle existing workers before repairs or executable replacement. Development
 may use randomly selected live non-Protected targets through production services;
 never replay VERIFIED/uncertain actions. After focused checks and one cohesive
-CI/build gate, deliver the newest verified Desktop app and stop developer work at
-READY_FOR_USER_RUN. The USER initiates final normal-UI Start with two workers.
+CI/build gate, deliver the newest verified Desktop app. Final normal-UI Start
+uses two workers; Codex may operate it under the latest explicit authorization.
 Read that actual run's logs afterward; developer checks/CI do not establish PASS.
 
 Technology is WOOD ONLY: qualified quick contribution first, or one ordinary

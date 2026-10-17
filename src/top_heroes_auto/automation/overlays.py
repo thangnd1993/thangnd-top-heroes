@@ -4,10 +4,12 @@ import math
 from collections import Counter
 
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.vision.login_notice import assistance_close
 from top_heroes_auto.vision.models import ScreenState
 
 DISMISSIBLE = frozenset({ScreenState.PROMO_AD, ScreenState.EVENT_PROMO, ScreenState.REWARD_RECEIPT,
-                         ScreenState.HOME_OVERLAY, ScreenState.PROMO_BLOCKING})
+                         ScreenState.HOME_OVERLAY, ScreenState.PROMO_BLOCKING,
+                         ScreenState.LOGIN_ASSISTANCE})
 
 
 def overlay_signature(detection):
@@ -15,7 +17,7 @@ def overlay_signature(detection):
 
 
 def dismiss_overlay_bottom_left(screen, detection):
-    """Calculate in actual device orientation; never in the rotated template plane."""
+    """Use known notice close, otherwise bottom-left, in actual device orientation."""
     if detection.state not in DISMISSIBLE or not math.isfinite(detection.confidence) or detection.confidence < .96:
         raise SafetyError("Screen is not a qualified dismissible overlay.")
     evidence = detection.evidence
@@ -27,6 +29,11 @@ def dismiss_overlay_bottom_left(screen, detection):
     width, height = screen.device_size or screen.original_size
     if width <= 0 or height <= 0:
         raise SafetyError("Missing current screenshot dimensions.")
+    if detection.state == ScreenState.LOGIN_ASSISTANCE:
+        point = assistance_close(screen, evidence)
+        if point is None:
+            raise SafetyError('Assistance notice requires its unique current close control.')
+        return point
     return round(width * .08), round(height * .94)
 
 

@@ -1,0 +1,14 @@
+{
+  "id": "territory-notice-battle",
+  "state": "EVENT_PROMO",
+  "template": "territory-notice-battle.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": true,
+  "notes": "Stable battle-phase label, excluding countdown and account artwork. Require title + exactly one phase label + unique close; no Go permission."
+}
