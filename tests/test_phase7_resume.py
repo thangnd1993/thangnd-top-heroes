@@ -111,6 +111,13 @@ def test_known_assistance_popup_requires_paired_underlying_home():
         image = frame.normalized.copy()
         b = evidence.normalized_box
         image[b.y:b.y+b.height,b.x:b.x+b.width] = 0
+        # Without paired Home, only the separately qualified current red close
+        # may dismiss this known notice; the Back fallback remains forbidden.
+        notice = detector.detect(replace(frame,normalized=image))
+        assert notice.state == ScreenState.LOGIN_ASSISTANCE
+        close = next(e for e in notice.evidence if e.anchor_id == 'match-notice-close')
+        b = close.normalized_box
+        image[b.y:b.y+b.height,b.x:b.x+b.width] = 0
         assert detector.detect(replace(frame,normalized=image)).state == ScreenState.POPUP_GENERIC
 
 

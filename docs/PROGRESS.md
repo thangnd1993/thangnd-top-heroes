@@ -24,6 +24,11 @@ uses exactly one stable phase label, excluding timer/artwork. No claim, identity
 journal or resource permission changes. Both preserve bounded fresh-frame checks.
 Focused regression68 passed; final conflicting-phase check/Ruff, fresh CI build,
 delivery and focused real follow-up must be completed before claiming repair PASS.
+CI39021745605 found2 assistance/Home-overlay regressions (2035passed,26skipped).
+Keep existing qualified Home-overlay precedence and its guarded Back path; use
+the strict current close only when paired Home is unavailable. Removing both
+Home and close evidence still yields non-actionable POPUP_GENERIC. Both failed
+cases and the23-case notice regression group now pass locally; fresh CI required.
 
 ## October17 complete-repair checkpoint — prior USER initiates final acceptance
 

@@ -263,16 +263,6 @@ class RecoveryScreenDetector:
                     evidence=evidence,
                 )
 
-        if (detected.state == ScreenState.POPUP_GENERIC
-                and {e.anchor_id for e in detected.evidence} == {
-                    'login-assistance-title', 'login-assistance-banner'}
-                and close is not None and not event_visible and not notice_visible
-                and not (promo_title.matched and promo_cta.matched)):
-            assistance = (*detected.evidence, close)
-            if assistance_close(screen, assistance) is not None:
-                return replace(detected, state=ScreenState.LOGIN_ASSISTANCE,
-                               confidence=min(e.score for e in assistance), evidence=assistance)
-
         if promo_title.matched and promo_cta.matched:
             evidence = (promo_title, promo_cta)
             if detected.state not in {ScreenState.UNKNOWN, ScreenState.POPUP_GENERIC, ScreenState.GAME_LOADING} or (
@@ -320,6 +310,16 @@ class RecoveryScreenDetector:
                 if sharpness > max(15, background*3):
                     return replace(detected, state=ScreenState.HOME_OVERLAY,
                                    confidence=min(e.score for e in covered), evidence=covered)
+        if (detected.state == ScreenState.POPUP_GENERIC
+                and {e.anchor_id for e in detected.evidence} == {
+                    'login-assistance-title', 'login-assistance-banner'}
+                and close is not None and not event_visible and not notice_visible
+                and not (promo_title.matched and promo_cta.matched)):
+            assistance = (*detected.evidence, close)
+            if assistance_close(screen, assistance) is not None:
+                return replace(detected, state=ScreenState.LOGIN_ASSISTANCE,
+                               confidence=min(e.score for e in assistance), evidence=assistance)
+
         return detected
 
     @staticmethod
