@@ -49,15 +49,23 @@ class ScreenDetector:
 
     def detect(self, screen) -> ScreenDetection:
         started = time.perf_counter()
-        grouped = defaultdict(list)
+        groups = defaultdict(list)
         weights = {anchor.id: anchor.weight for anchor in self.anchors}
         required = {anchor.id for anchor in self.anchors if anchor.required}
         for anchor in self.anchors:
-            grouped[(anchor.state, anchor.variant)].append(match_anchor(screen, anchor))
+            groups[(anchor.state, anchor.variant)].append(anchor)
         candidates = []
-        for (state, _variant), evidence in grouped.items():
+        for (state, _variant), anchors in groups.items():
+            evidence = []
+            for anchor in sorted(anchors, key=lambda a: not a.required):
+                item = match_anchor(screen, anchor)
+                evidence.append(item)
+                if anchor.id in required and not item.matched:
+                    break  # This variant cannot qualify; still evaluate competing variants.
             if any(item.anchor_id in required and not item.matched for item in evidence):
                 continue
+            order = {a.id: n for n, a in enumerate(anchors)}
+            evidence.sort(key=lambda e: order[e.anchor_id])
             total = sum(weights[item.anchor_id] for item in evidence)
             confidence = sum(item.score * weights[item.anchor_id] for item in evidence) / total
             candidates.append((confidence, state, tuple(evidence)))

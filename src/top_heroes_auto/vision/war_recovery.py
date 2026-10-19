@@ -7,8 +7,14 @@ from top_heroes_auto.vision.resources import template_folder
 
 
 def war_evidence(screen):
-    return tuple(unique_current_anchor(screen, anchor) for anchor in
-                 load_anchors(template_folder().parent / 'tasks/phase8/war-recovery'))
+    evidence = []
+    anchors = load_anchors(template_folder().parent / 'tasks/phase8/war-recovery')
+    for anchor in sorted(anchors, key=lambda a: a.id != 'war-title'):
+        item = unique_current_anchor(screen, anchor)
+        evidence.append(item)
+        if not item.matched:
+            break
+    return tuple(evidence)
 
 
 def qualified_war(screen, evidence):

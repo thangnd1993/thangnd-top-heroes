@@ -44,8 +44,14 @@ def _hud_icon(screen, anchor):
 
 def world_evidence(screen):
     anchors = load_anchors(template_folder().parent / 'tasks/phase8/world-recovery')
-    return tuple((_hud_icon if a.id in {'world-search', 'world-locator'}
-                  else unique_current_anchor)(screen, a) for a in anchors)
+    evidence = []
+    for anchor in sorted(anchors, key=lambda a: a.id != 'world-return-label'):
+        item = (_hud_icon if anchor.id in {'world-search', 'world-locator'}
+                else unique_current_anchor)(screen, anchor)
+        evidence.append(item)
+        if not item.matched:
+            break
+    return tuple(evidence)
 
 
 def qualified_world(screen, evidence):

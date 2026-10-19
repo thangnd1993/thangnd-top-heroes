@@ -123,7 +123,7 @@ class DynamicEventPort:
                             continue
                         references=getattr(self,'home_navigation_references',{})
                         stable=[key for key,(prior,box) in references.items()
-                                if stable_entry_match(prior,box,image,candidate.icon_box)]
+                                if stable_entry_match(prior,box,image,candidate.icon_box,require_geometry=False)]
                         if len(stable)>1:
                             blocked.append('AMBIGUOUS_ICON_CORE')
                             continue
@@ -166,8 +166,18 @@ class DynamicEventPort:
                 shell=collaboration_hub(image)
             if shell is None:
                 shell=collaboration_training(image)
+            if shell is None:
+                from top_heroes_auto.vision.event_chapter import chapter_navigation
+
+                shell=chapter_navigation(image, observed.box('back'))
             if shell:
                 page = shell['page']
+                from top_heroes_auto.vision.event_nested_tabs import reward_task_strip
+
+                nested = reward_task_strip(image) if not shell.get('permission') else None
+                if nested:
+                    page += ':nested-'+nested['selected']
+                    controls.append(Control(nested['identity'], nested['box'], nested['evidence'], 'tab'))
                 self.event_title = shell['title']
                 grid=shell.get('permission')=='TASK_GRID'
                 achievements=shell.get('permission')=='ACHIEVEMENTS'
@@ -237,6 +247,13 @@ class DynamicEventPort:
                     elif book:
                         controls.append(Control('book-objective-list',book['scroll'],
                             ('qualified-book-objectives','paired-functional-book-chrome','outside-action-column'),'scroll'))
+                    elif inline and len(self.rows)>=2 and all(
+                            'qualified-group-buy-objectives' in r['evidence'] for r in self.rows):
+                        first,last=self.rows[0]['row'],self.rows[-1]['row']
+                        surface=BoundingBox(first.x+round(first.width*.20),first.y+20,
+                            round(first.width*.30),last.y+last.height-first.y-40)
+                        controls.append(Control('public-objective-list',surface,
+                            ('paired-group-buy-functional-titles','complete-reward-card','outside-action-column'),'scroll'))
                     elif len(self.rows)>=2 and not inline:
                         first,last=self.rows[0]['row'],self.rows[-1]['row']
                         # Gesture stays wholly within CURRENT complete reward cards,
@@ -288,7 +305,7 @@ class DynamicEventPort:
                         controls.append(Control(key,box,shell['evidence'],'child'))
                 if shell.get('permission')=='KNOWN_BLOCKER_EXIT':
                     contract='UNSUPPORTED'
-                    blocked.append('TRAINING_MAP_REWARDS_UNQUALIFIED')
+                    blocked.append(shell.get('blocking_reason','TRAINING_MAP_REWARDS_UNQUALIFIED'))
                 coverage_known=contract!='UNSUPPORTED'
                 achievement = achievement_navigation(image)
                 if achievement and shell.get('permission') not in {'BACK_ONLY', 'KNOWN_BLOCKER_EXIT'}:
@@ -419,6 +436,9 @@ class DynamicEventPort:
                 json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         return finish_expedition(self,frame,persist=persist)
 
+    def check_cancelled(self):
+        self.session.manager.check_cancelled()
+
     def scroll_missions(self, frame, *, reverse):
         """Current qualified container surface, no historical coordinates."""
         if frame is not self.current or frame.popup:
@@ -524,8 +544,6 @@ class DynamicEventPort:
             if len(matches) != 1:
                 continue
             target = matches[0]
-            if not stable_entry_match(reference,control.box,self.navigation_image,target.box):
-                continue
             # A duplicate candidate near this one invalidates uniqueness even if
             # only one cropped patch happens to reach the pixel threshold.
             if any(c is not target and c.kind=='event' and overlaps(c.box,target.box) for c in fresh.controls):
@@ -622,7 +640,10 @@ class DynamicEventPort:
             return []
         observations = []
         matched = None
-        for _ in range(4):
+        inspected = set()
+        scrolls = 0
+        for _ in range(6):
+            self.check_cancelled()
             after = self.observe()
             if runtime_key(after.identity) != runtime_key(before.identity) or after.popup:
                 return []
@@ -633,7 +654,18 @@ class DynamicEventPort:
             changes = dispatch_transition(origin[1], self.navigation_image,
                                            origin[2], self.mission_rows)
             keys = {(r['row'].x,r['row'].y,r['row'].width,r['row'].height) for r in changes}
-            if not keys or (matched is not None and keys != matched):
+            if not keys:
+                if (matched is not None or scrolls >= 3 or after.fingerprint in inspected
+                        or not after.mission_states or not after.coverage_known
+                        or not any(c.kind=='scroll' and c.identity=='task-list-vertical' for c in after.controls)):
+                    return []
+                # A dispatched card may sort below remaining available cards.
+                # Search only the current qualified mission list, never resend.
+                inspected.add(after.fingerprint)
+                self.scroll_missions(after, reverse=False)
+                scrolls += 1
+                continue
+            if matched is not None and keys != matched:
                 return []
             matched = keys
             observations.append(dict(identity=list(after.identity), capture=after.capture,

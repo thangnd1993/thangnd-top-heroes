@@ -199,8 +199,9 @@ def mission_rows(image, context_template, *, reader):
 def dispatch_transition(before, after, before_rows, after_rows):
     """Prove at least one particular available card entered running state.
 
-    No scroll is permitted between these captures. Pair unique stable card
-    title/item regions; timers must be new, rather than merely present somewhere.
+    Cards can reorder after dispatch or move during qualified list inspection.
+    Pair unique stable title/item regions in BOTH frames; timers must be new,
+    rather than merely present somewhere. Position never identifies a mission.
     Partial/hidden cards are not counted as verified missions.
     """
     changed = []
@@ -209,18 +210,28 @@ def dispatch_transition(before, after, before_rows, after_rows):
             continue
         b = old['row']
         reference = before[b.y+6:b.y+b.height-6, b.x+8:b.x+round(b.width*.72)]
+        old_matches = 0
+        for candidate in before_rows:
+            c = candidate['row']
+            crop = before[c.y+6:c.y+c.height-6, c.x+8:c.x+round(c.width*.72)]
+            if crop.shape == reference.shape and reference.size and reference.std()>5:
+                score = float(cv2.matchTemplate(crop, reference, cv2.TM_CCOEFF_NORMED)[0,0])
+                old_matches += bool(np.isfinite(score) and score>=.995)
+        if old_matches != 1:
+            continue
         matches = []
         for new in after_rows:
             c = new['row']
             crop = after[c.y+6:c.y+c.height-6, c.x+8:c.x+round(c.width*.72)]
-            if crop.shape == reference.shape and abs(c.y-b.y) <= 3:
+            if crop.shape == reference.shape:
                 score = float(cv2.matchTemplate(crop, reference, cv2.TM_CCOEFF_NORMED)[0, 0])
                 if np.isfinite(score) and score >= .995:
                     matches.append(new)
         if (len(matches) == 1 and matches[0]['state'] == 'WAITING'
                 and matches[0].get('timer_confirmed')):
             changed.append(dict(before='DISPATCHABLE', after='WAITING',
-                                seconds=matches[0]['seconds'], row=b))
+                                seconds=matches[0]['seconds'], row=b,
+                                current_row=vars(matches[0]['row'])))
     return changed
 
 

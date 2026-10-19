@@ -43,19 +43,20 @@ def idle_panel_close_point(screen, detection):
 
 def adventure_back_evidence(screen, detector):
     """Reuse the existing qualified Idle entry, adding its current Back arrow."""
+    anchor = next(a for a in load_anchors(template_folder().parent/'tasks/phase6/fixed-rewards')
+                  if a.id == 'back')
+    back = unique_current_anchor(screen, replace(anchor, expected_region=NormalizedRect(0,0,.10,1),
+                                                 state=ScreenState.UNKNOWN))
+    w, h = screen.device_size or screen.original_size
+    if (not back.matched or back.device_box is None or back.device_box.center[0] > w*.2
+            or back.device_box.y < h*.9):
+        return None
     detected = detector.detect(screen)
     if detected.state not in {ScreenState.IDLE_ENTRY_AVAILABLE, ScreenState.IDLE_ENTRY_NOT_AVAILABLE}:
         return None
     if not detected.evidence or any(not e.matched or e.score < .95 for e in detected.evidence):
         return None
-    anchor = next(a for a in load_anchors(template_folder().parent/'tasks/phase6/fixed-rewards')
-                  if a.id == 'back')
-    back = unique_current_anchor(screen, replace(anchor, expected_region=NormalizedRect(0,0,.10,1),
-                                                 state=detected.state))
-    w, h = screen.device_size or screen.original_size
-    if (not back.matched or back.device_box is None or back.device_box.center[0] > w*.2
-            or back.device_box.y < h*.9):
-        return None
+    back = replace(back, state=detected.state)
     return replace(detected, evidence=(*detected.evidence,back),
                    confidence=min(detected.confidence,back.score))
 

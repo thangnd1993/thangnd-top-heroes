@@ -319,7 +319,7 @@ def test_blank_wait_keeps_same_verified_target_and_persists_each_invalid_sample(
     target = Target(7, "Farm-007", "emulator-5568", "boot")
     changed_target = Target(7, "Farm-007", "emulator-5570", "other-boot")
     returned = iter(((target, b"blank-one"), (target, b"blank-two"), (changed_target, b"blank-three")))
-    monkeypatch.setattr(manager, "capture_verified", lambda *args: next(returned))
+    monkeypatch.setattr(manager, "capture_verified", lambda *args, **kwargs: next(returned))
     monkeypatch.setattr(
         ScreenshotService,
         "take",
@@ -353,7 +353,7 @@ def test_valid_black_png_is_screen_not_ready_and_persisted_with_bounded_recaptur
     assert encoded
     captures = []
 
-    def capture_verified(*args):
+    def capture_verified(*args, **kwargs):
         captures.append(args[0])
         return target, payload.tobytes()
 

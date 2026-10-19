@@ -40,7 +40,13 @@ class InstanceSession:
         meta = self.manager.store.metadata(self.manager.namespace, self.index)
         if meta.protected or (selected and not meta.selected):
             raise SafetyError('Session target must remain selected and not Protected.')
-        if self.identity_reader(self.manager, self.index) != self.target['persistent_identity']:
+        # query() just read the live inventory AND backing-file identity and
+        # merged it into the protected store. Reuse that proof within this
+        # decision instead of persistent_identity() doing two more inventories.
+        # Input/capture still perform their own fresh indexed runtime/boot checks.
+        identity = (self.manager.store.require_identity(self.manager.namespace, self.index, live.stable_id)
+                    if self.identity_reader is persistent_identity else self.identity_reader(self.manager, self.index))
+        if identity != self.target['persistent_identity']:
             raise SafetyError('Persistent session identity changed.')
         if self.runtime is not None and (live.pid, live.vbox_pid) != self.runtime:
             raise SafetyError('Runtime owner changed; no cleanup or restart.')

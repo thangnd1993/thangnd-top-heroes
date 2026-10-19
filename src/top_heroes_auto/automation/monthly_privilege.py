@@ -43,6 +43,7 @@ def _process_monthly(port, store, namespace, task_id, identity, report, persist)
         else:
             upper['error'] = 'Upper navigation control unqualified; lower row remains independent.'
     except Exception as exc:  # noqa: BLE001 - only a freshly safe page permits the sibling
+        getattr(port, 'check_cancelled', lambda: None)()
         upper['error'] = str(exc)
         frame = port.observe_settled()
         if frame.page == 'shop-ad-privileges':

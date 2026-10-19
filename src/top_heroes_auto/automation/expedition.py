@@ -20,6 +20,7 @@ def finish_expedition(port, initial, *, persist=lambda report: None, scroll_limi
         report['blocked'].append(dict(reason=reason,capture=current.capture,page=current.page))
     try:
         for _ in range(32):
+            getattr(port, 'check_cancelled', lambda: None)()
             persist(report)
             if runtime_key(current.identity)!=identity:
                 block('MISSION_RUNTIME_CHANGED')
@@ -130,7 +131,24 @@ def finish_expedition(port, initial, *, persist=lambda report: None, scroll_limi
         else:
             block('MISSION_OBSERVATION_LIMIT')
     except Exception as exc:  # noqa: BLE001 - retain the blocker and continue only on fresh evidence
+        getattr(port, 'check_cancelled', lambda: None)()
         block(f'MISSION_VISIT_FAILED: {type(exc).__name__}: {exc}')
+    # An uncertain/locked Confirm remains locked. Its independently qualified
+    # close returns to the originating mission list, not the Event's Home
+    # parent. Do not leave the outer traversal with an untracked modal depth.
+    getattr(port, 'check_cancelled', lambda: None)()
+    if (current.page == 'event:relic-expedition:confirm'
+            and runtime_key(current.identity) == identity and not current.popup
+            and current.parent and current.parent.kind == 'parent'):
+        report['actions'].append(dict(kind='mission-modal-close', capture=current.capture,
+                                      identity=current.parent.identity))
+        persist(report)
+        port.navigate(current, current.parent)
+        current = port.observe()
+        report['modal_return'] = ('SUCCESS' if runtime_key(current.identity) == identity
+                                  and current.page == page and not current.popup else 'UNVERIFIED')
+        if report['modal_return'] != 'SUCCESS':
+            block('MISSION_MODAL_PARENT_UNVERIFIED')
     report['final_capture']=current.capture
     report['final_states']=current.mission_states
     report['scrolls']=scrolls

@@ -8,7 +8,13 @@ from top_heroes_auto.vision.resources import template_folder
 
 def hanging_evidence(screen):
     anchors = load_anchors(template_folder().parent / "tasks/phase7/hanging-recovery")
-    return tuple(unique_current_anchor(screen, a) for a in anchors)
+    evidence = []
+    for anchor in sorted(anchors, key=lambda a: a.id != 'hanging-title'):
+        item = unique_current_anchor(screen, anchor)
+        evidence.append(item)
+        if not item.matched:
+            break
+    return tuple(evidence)
 
 
 def qualified_hanging(screen, evidence):

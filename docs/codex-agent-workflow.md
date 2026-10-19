@@ -1,9 +1,10 @@
 # Single-agent Codex workflow
 
-Current delivery/acceptance contract: see AGENTS.md's October17 repair section.
-The latest direct October17 instruction authorizes Codex to open the passing
-Desktop app, Start with two workers, test and fix. Inspect actual run12 evidence
-before further real checks; preserve journals and avoid broad repeated fleet runs.
+Current delivery/acceptance contract: October19 supersedes the October17 Start
+instruction. Codex performs focused production development checks with two
+independent workers; the USER performs the final full-plan normal app Start after
+coherent CI-passing delivery. Read matching run16 evidence (600a70f), retaining
+run12 only as historical comparison. Preserve journals; no broad repeated fleet runs.
 
 Use one Codex agent for repository work. Do not route work to custom Developer
 or Reviewer agents, or spawn/delegate work to child agents.

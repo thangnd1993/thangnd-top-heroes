@@ -646,7 +646,7 @@ def event_body_contract(image,rows,template,*,reader):
             return 'COUNTDOWN_INFORMATION'
     if calendar_timeline(image, buttons, reader=reader):
         return 'SCHEDULE'
-    utc=body_label_box(image,'schedule-utc')
+    utc=body_label_box(image,'schedule-utc') or body_label_box(image,'schedule-utc-current')
     rewards=body_label_box(image,'schedule-rewards')
     value=body_label_box(image,'schedule-value')
     if (utc and rewards and value and utc.y<rewards.y<value.y
@@ -787,21 +787,28 @@ def calendar_timeline(image, buttons, *, reader):
     import re
 
     h,w=image.shape[:2]
-    utc=body_label_box(image,'schedule-utc')
+    utc=body_label_box(image,'schedule-utc') or body_label_box(image,'schedule-utc-current')
     rewards=body_label_box(image,'schedule-rewards')
     value=body_label_box(image,'schedule-value') or body_label_box(image,'schedule-value-orange')
     footer=body_label_box(image,'schedule-footer')
-    if not (utc and rewards and value and footer and
-            utc.y<rewards.y<value.y<footer.y<h*.91):
+    if not (utc and rewards and footer and
+            utc.y<rewards.y<footer.y<h*.91):
+        return False
+    if value and not rewards.y<value.y<footer.y:
         return False
     dates=image[utc.y+utc.height+20:rewards.y-20]
     if not dates.size:
         return False
+    date_readings=[]
     for scale in (1,2):
         text=folded(' '.join(q['text'] for q in reader(cv2.resize(dates,None,fx=scale,fy=scale))))
-        if len(re.findall(r'(?<!\d)\d{1,2}/\d{2}(?!\d)',text))<4:
+        values=set(re.findall(r'(?<!\d)\d{1,2}/\d{2}(?!\d)',text))
+        date_readings.append(values)
+        if len(values)<(4 if value else 2):
             return False
-    table=image[rewards.y+rewards.height+10:value.y-10]
+    if not value and len(date_readings[0] & date_readings[1])<2:
+        return False
+    table=image[rewards.y+rewards.height+10:(value.y if value else footer.y)-10]
     if not table.size:
         return False
     lines=cv2.morphologyEx(cv2.Canny(table,20,60),cv2.MORPH_OPEN,
@@ -815,13 +822,36 @@ def calendar_timeline(image, buttons, *, reader):
     if not any(np.min(g)>.10*w and np.max(g)<.17*w and np.ptp(g)<6
                for g in groups_of_five):
         return False
+    if value is None:
+        # Expanded single-section variant must expose the entire seven-column
+        # grid, plus two independently repeated dates and UTC/footer anchors.
+        # This grants no navigation/claim permission, only information coverage.
+        seven=[np.diff(positions[i:i+7]) for i in range(len(positions)-6)]
+        if not any(np.min(g)>.10*w and np.max(g)<.17*w and np.ptp(g)<6 for g in seven):
+            return False
+        # A second full-width section bar with an unreadable label is not the
+        # rewards-only variant. Keep the former missing-value-label rejection.
+        bars=cv2.inRange(cv2.cvtColor(image,cv2.COLOR_BGR2HSV),(5,90,200),(30,230,230))
+        for c in cv2.findContours(bars,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[0]:
+            x,y,bw,bh=cv2.boundingRect(c)
+            if bw>w*.9 and bh>20 and rewards.y+rewards.height<y<footer.y:
+                return False
     for b in buttons:
         if not rewards.y+rewards.height<b.y<b.y+b.height<footer.y:
             return False
         crop=image[b.y:b.y+b.height,b.x:b.x+b.width]
         green=cv2.inRange(cv2.cvtColor(crop,cv2.COLOR_BGR2HSV),(35,60,80),(85,255,255))
         if np.mean(green>0)>.15:
-            if b.y<value.y+value.height or not right_arrow_banner(green):
+            if value is None or b.y<value.y+value.height or not right_arrow_banner(green):
+                return False
+        elif value is None:
+            # The expanded rewards-only calendar has no value section. All
+            # colored candidates must be timeline banners clipped by the grid
+            # edge or have a pointed end; a rectangular action is not exhausted.
+            hsv=cv2.cvtColor(crop,cv2.COLOR_BGR2HSV)
+            banner=(cv2.inRange(hsv,(10,100,150),(38,255,255)) |
+                    cv2.inRange(hsv,(85,60,80),(115,255,255)))
+            if b.x+b.width<w*.98 and not right_arrow_banner(banner):
                 return False
     return True
 

@@ -128,6 +128,7 @@ class Manager:
         self._lock = threading.RLock()
         self._active: RunSnapshot | None = None
         self._last_lifecycle_attempt: LifecycleAttempt | None = None
+        self.last_adb_resolution = None
         self.cancelled = lambda: False
 
     def check_cancelled(self):
@@ -208,8 +209,11 @@ class Manager:
                 raise SafetyError(f"[#{index}] Hết thời gian chờ {state}; hủy riêng thao tác này.")
             pause(time.sleep, min(self.POLL_INTERVAL, remaining))
 
-    def _stop(self, index: int):
+    def _stop(self, index: int, *, expected=None):
         instance = self._check(index)
+        if expected is not None and (instance.stable_id, instance.pid, instance.vbox_pid) != (
+                expected.stable_id, expected.pid, expected.vbox_pid):
+            raise SafetyError('Cleanup runtime changed; no quit sent.')
         if instance.running:
             log.info("[%s / #%s] Dừng đúng instance bằng index", instance.name, index)
             self.ld._indexed("quit", index)
@@ -275,10 +279,10 @@ class Manager:
             attempt.failure_stage = 'resolve_transport'
         return started
 
-    def _check(self, index: int):
+    def _check(self, index: int, *, current=None):
         if self._active is None or self._active.namespace != self.namespace:
             raise SafetyError("Không có hàng đợi thao tác đang hoạt động.")
-        current = self._inventory()
+        current = self._inventory() if current is None else current
         self.store.merge(self.namespace, current)
         if self._active.immutable:
             return require_run_member(self.store, self._active, current, index)
@@ -292,17 +296,18 @@ class Manager:
             raise SafetyError('Exact instance runtime changed during ADB verification.')
         return current
 
-    def _probe_identity(self, index, probe, *, instance=None):
+    def _probe_identity(self, index, probe, *, instance=None, just_checked=False):
         """Retry only read-only identity probes, never an input or a mismatch."""
         original = instance or self._check(index)
         for attempt in range(self.IDENTITY_PROBE_ATTEMPTS):
-            self._same_runtime(index, original)
+            if not just_checked or attempt:
+                self._same_runtime(index, original)
             try:
                 value = probe()
             except (BootIdentityUnavailable, IndexedSerialUnavailable, CommandError):
                 if attempt + 1 == self.IDENTITY_PROBE_ATTEMPTS:
                     raise
-                log.warning('[#%s] Transient identity probe; bounded retry %s/%s',
+                log.debug('[#%s] Transient identity probe; bounded retry %s/%s',
                             index, attempt + 1, self.IDENTITY_PROBE_ATTEMPTS)
                 pause(time.sleep, self.IDENTITY_PROBE_DELAY)
                 continue
@@ -312,12 +317,17 @@ class Manager:
 
     def _resolve(self, index: int) -> Target:
         instance = self._check(index)
+        started = time.monotonic()
+        self.last_adb_resolution = dict(index=index, stable_id=instance.stable_id,
+            runtime=[instance.pid, instance.vbox_pid], android_ready=instance.android_started,
+            stage='ANDROID_READINESS', samples=[])
         if not instance.android_started:
             raise SafetyError("Android chưa sẵn sàng; không thể xác minh ADB.")
         self.adb.start_server()
         deadline = time.monotonic() + self.ADB_RESOLVE_TIMEOUT
         original_serial = original_boot = None
         while True:
+            self.last_adb_resolution['stage'] = 'INDEXED_SERIAL_DISCOVERY'
             self._same_runtime(index, instance)
             # This serial comes from LDPlayer's documented --index mechanism,
             # never from a port formula or the first global adb device.
@@ -342,14 +352,16 @@ class Manager:
                 raise SafetyError('Indexed ADB serial changed during resolution.')
             original_serial = serial
             devices = self.adb.devices()
+            self.last_adb_resolution['stage'] = 'INDEXED_BOOT_PROBE'
             try:
                 # Strategy B is authoritative identity, even when global
                 # enumeration has not registered the transport yet.
                 expected = self._probe_identity(index, lambda: valid_boot_id(self.ld.adb_command(
                     index, "shell cat /proc/sys/kernel/random/boot_id"
                 )), instance=instance)
-            except (CommandError, BootIdentityUnavailable):
+            except (CommandError, BootIdentityUnavailable) as exc:
                 expected = None
+                self.last_adb_resolution['indexed_boot_error'] = str(exc)[:500]
             if expected:
                 if original_boot is not None and expected != original_boot:
                     raise SafetyError('Indexed Android boot identity changed during resolution.')
@@ -373,6 +385,13 @@ class Manager:
                 except CommandError:
                     pass
             target_serial = next((item for item in candidates if devices.get(item) == "device"), None)
+            sample = dict(elapsed_seconds=round(time.monotonic()-started, 3),
+                indexed_serial=serial, indexed_boot_available=bool(expected),
+                transports={item: devices.get(item, 'ABSENT') for item in candidates})
+            self.last_adb_resolution['samples'].append(sample)
+            self.last_adb_resolution['samples'] = self.last_adb_resolution['samples'][-32:]
+            self.last_adb_resolution['stage'] = ('BOOT_IDENTITY_VERIFICATION' if target_serial
+                                                 else 'TARGET_TRANSPORT_UNAVAILABLE')
             if target_serial and expected:
                 self._check(index)
                 if self._probe_identity(index, lambda: self.adb.boot_id(target_serial), instance=instance) != expected:
@@ -386,18 +405,21 @@ class Manager:
                 ):
                     raise SafetyError("Android đã khởi động lại trong lúc xác minh.")
                 log.info("[%s / #%s] Đã xác minh ADB %s", instance.name, index, target_serial)
+                self.last_adb_resolution.update(stage='VERIFIED', target=target_serial,
+                    elapsed_seconds=round(time.monotonic()-started, 3))
                 return Target(index, self._check(index).name, target_serial, expected, instance.stable_id)
             if time.monotonic() >= deadline:
                 # Shared ADB belongs to all instances; never restart it here.
                 raise TransportResolutionError(
                     f"LDPlayer xác định ADB {serial} cho #{index}, nhưng target không sẵn sàng; "
-                    "kiểm tra ADB debugging của đúng instance."
+                    f"stage={self.last_adb_resolution['stage']}; "
+                    f"indexed_boot={bool(expected)}; transports={sample['transports']}"
                 )
             pause(time.sleep, self.POLL_INTERVAL)
 
-    def _capture_ready(self, index: int) -> Instance:
+    def _capture_ready(self, index: int, *, current=None) -> Instance:
         """Retry readiness read-only on the same running process, never restart."""
-        original = self._check(index)
+        original = self._check(index, current=current)
         if not original.running:
             raise SafetyError('Capture target stopped; no readiness restart allowed.')
         identity = (original.index, original.stable_id, original.pid, original.vbox_pid)
@@ -420,12 +442,14 @@ class Manager:
             raise SafetyError('Observed screenshot belongs to another stable instance.')
         # One read-only indexed proof transaction, bracketed by fresh durable
         # runtime/protection checks. No input occurs between these two reads.
-        serial, boot = self._probe_identity(index, lambda: (
-            validate_serial(self.ld.adb_serial(index)), valid_boot_id(self.ld.boot_id(index))),
-            instance=instance)
-        if observed.serial not in {serial, self._local_endpoint(serial)}:
-            raise SafetyError('Current indexed serial differs from the screenshot.')
-        if boot != observed.boot_id:
+        def identity():
+            serial = validate_serial(self.ld.adb_serial(index))
+            if observed.serial not in {serial, self._local_endpoint(serial)}:
+                raise SafetyError('Current indexed serial differs from the screenshot.')
+            return valid_boot_id(self.ld.boot_id(index)), self.adb.boot_id(observed.serial)
+
+        boot, transport_boot = self._probe_identity(index, identity, instance=instance, just_checked=True)
+        if boot != observed.boot_id or transport_boot != boot:
             raise SafetyError('Observed screenshot boot changed before input.')
         return Target(index, instance.name, observed.serial, boot, instance.stable_id)
 
@@ -444,14 +468,15 @@ class Manager:
                 snapshot.identities,
             )
             try:
-                capture_runtime = self._capture_ready(index)
+                capture_runtime = self._capture_ready(index, current=current)
                 target = (self._verify_observed(index, observed_target, instance=capture_runtime)
                           if observed_target is not None else self._resolve(index))
                 # _probe_identity checks the same runtime immediately before
                 # AND after the explicit transport boot read. Do not duplicate
                 # those identical inventories with no intervening operation.
-                if self._probe_identity(index, lambda: self.adb.boot_id(target.serial),
-                                        instance=capture_runtime) != target.boot_id:
+                if observed_target is None and self._probe_identity(
+                        index, lambda: self.adb.boot_id(target.serial),
+                        instance=capture_runtime) != target.boot_id:
                     raise SafetyError("ADB target đã thay đổi; hủy chụp màn hình.")
                 return target, self.adb._capture(target.serial)
             except Exception:
@@ -509,7 +534,7 @@ class Manager:
                 snapshot.identities,
             )
             try:
-                instance = self._check(index)
+                instance = self._check(index, current=current)
                 attempt = self._last_lifecycle_attempt
                 if attempt is not None and attempt.action == action:
                     attempt.target_name = instance.name
@@ -552,13 +577,18 @@ class Manager:
                     except TransportResolutionError:
                         attempt = self._last_lifecycle_attempt
                         if attempt is not None and attempt.dispatch_attempted:
-                            attempt.ownership = LIFECYCLE_UNKNOWN
                             attempt.failure_stage = "resolve_transport_retry"
                             attempt.error = "ADB transport remained unavailable after scoped retry"
-                        # Preserve the existing bounded transport cleanup, but
-                        # do not treat identity/selection failures as transport
-                        # failures below.
-                        self._stop(index)
+                        # Transport failure cannot erase indexed lifecycle proof.
+                        # Revalidate that exact owned runtime before cleanup;
+                        # a replacement/revocation goes through the outer unsafe
+                        # failure path and must never receive an index-only quit.
+                        current = self._check(index)
+                        if (attempt is None or attempt.ownership != LIFECYCLE_OWNED
+                                or current.stable_id != attempt.confirmed_identity
+                                or (current.pid, current.vbox_pid) != attempt.confirmed_runtime):
+                            raise SafetyError('Retry cleanup lacks exact owned runtime proof.')
+                        self._stop(index, expected=current)
                         raise
                     except Exception as exc:
                         attempt = self._last_lifecycle_attempt
@@ -570,11 +600,13 @@ class Manager:
                         # identity. Never issue an index-only quit after a
                         # boot/name/selection or other non-transport failure.
                         raise
-                self._check(index)
                 # Revalidate explicit transport immediately before sending the action.
-                if self._probe_identity(index, lambda: self.adb.boot_id(target.serial)) != target.boot_id:
+                # Observed input already checked indexed serial, indexed boot AND
+                # transport boot in one read-only transaction bracketed by live
+                # runtime/protection checks. Do not repeat that entire transaction.
+                if observed_target is None and self._probe_identity(
+                        index, lambda: self.adb.boot_id(target.serial)) != target.boot_id:
                     raise SafetyError("ADB target đã thay đổi; hủy thao tác.")
-                self._check(index)
                 if observed_target is not None:
                     if target != observed_target:
                         raise SafetyError("Current ADB identity differs from the action's screenshot.")

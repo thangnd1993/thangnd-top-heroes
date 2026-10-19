@@ -14,6 +14,10 @@ from top_heroes_auto.vision.models import BoundingBox
 def objective_label_glyph(image, row):
     crop = image[row.y : row.y + round(row.height * 0.36), row.x + 6 : row.x + row.width - 6]
     mask = cv2.inRange(cv2.cvtColor(crop, cv2.COLOR_BGR2HSV), (0, 0, 180), (179, 110, 255))
+    # Public group-buy objectives use brown captions on a pale card. This
+    # glyph excludes green progress; the paired titles/caption prove the schema.
+    if np.mean(mask>0)>.35:
+        mask=cv2.inRange(cv2.cvtColor(crop,cv2.COLOR_BGR2HSV),(0,85,40),(25,255,190))
     # Only white objective text: green/red progress numbers are separate evidence.
     points = cv2.findNonZero(mask)
     if points is None or len(points) < 150:
@@ -23,6 +27,11 @@ def objective_label_glyph(image, row):
 
 
 def inline_objective_rows(image, *, reader):
+    from top_heroes_auto.vision.event_group_buy import group_buy_rows
+
+    public=group_buy_rows(image,reader=reader,glyph_reader=objective_label_glyph)
+    if public:
+        return public
     h, w = image.shape[:2]
     edge = cv2.Canny(image, 40, 120)
     contours = cv2.findContours(edge, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]

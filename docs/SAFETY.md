@@ -9,9 +9,10 @@ two fresh agreeing exhausted remaining counters. Unknown confirmation/cost or
 uncertain dispatch stays locked, with no ordinary fallback. No other spending
 exception is granted. Monthly upper/bulk and lower owned daily reward are separate
 actions and journals; incomplete row coverage cannot complete the route.
-Latest direct October17 instruction authorizes Codex to operate normal UI Start
-on the delivered CI-passing app with two workers. Follow-up developer checks stay
-focused, random and use production services. No Phase9 or journal reset.
+October19 supersedes the prior agent-operated full Start: Codex may run focused,
+random development checks through production services, recording the actual
+checkout when using source. The USER performs the final full-plan run on the
+new CI-passing Desktop app, concurrency2. No Phase9 or journal reset.
 
 Run12 startup notices: assistance requires the existing title/banner plus unique
 current red close, all >=.98 and qualified relative geometry. Only that close is

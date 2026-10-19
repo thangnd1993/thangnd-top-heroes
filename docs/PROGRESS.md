@@ -1,3 +1,109 @@
+## October19 remaining repairs — final full Start belongs to USER
+
+Continue clean 600a70f, one Codex agent/two independent application workers.
+Latest request supersedes October17 agent-operated full Start: focused development
+checks remain authorized; final full run is the user's independent normal app run.
+Do not begin Phase9 or unlock historical/uncertain claims.
+
+Correction after reading the live application DB: normal-ui **run16** is newer
+than the supplied summary. It ran 600a70f / CI39028434524 on October18,
+04:45:04–06:34:03 UTC, indexes2/3/4/5/8/9/10/11, concurrency2, PARTIAL.
+Original report: `diagnostics/tasks/automation/20261018-044504-077682Z-d2f167af/fleet-report.json`.
+Run16 worker5 active2256.688s; worker10 active2438.818s. Their inventory totals
+707.64/743.03s (2830/2956 calls), recovery recognition683.09/742.84s,
+feature detection360.64/400.73s; waits48.67/45.87s. These supersede run12 timings.
+Historical comparison only: normal-ui run12, a1770c11 / CI39012385343,
+2026-10-17 08:21:43–09:11:39 UTC, indexes2/3/4/5/8/9/10/11. Later 600a70f
+Home checks on2/3 are separate; assistance/battle handlers NOT_OBSERVED_LIVE.
+Run12: 23 VERIFIED claims, all on5/10; overall PARTIAL. Worker5 active2191.092s
+(queue232.865s), worker10 active2358.526s (queue632.356s). Both overlap from
+08:32:19 through09:02:11 UTC. Full fleet elapsed2995.649s including failures.
+
+Pending correction list from original account/flow reports:
+- Event: nested upper tabs/free controls omitted on season-pass and group-buy
+  pages; calendar/information variants unqualified; parent verification and
+  animated root reacquisition fail. Preserve mission243/other uncertain locks.
+- Speed:5/10 inventory681.4/728.2s (2602/2906 calls), recovery recognition
+  673.7/681.1s exclusive, feature recognition327.6/408.8s. Deliberate waits only
+  46.5/47.2s; optimize measured duplicate work, not timeout or safety thresholds.
+- Index11: launch progressed to indexed serial emulator-5576; inspect original
+  transport/boot evidence and current exact target before assigning root cause.
+- Verify quick WOOD contribution, all Monthly rows/scrolling, mission collect→send,
+  recoverable sibling continuation and Stop propagation in production paths.
+  Monthly upper+lower were verified on5/10; Technology correctly rejected STONE.
+- Keep default UI logs concise and diagnostics bounded. Focused tests/real checks,
+  then one final CI/build/delivery. Not READY_FOR_USER_RUN until code blockers close.
+
+October19 exact index11 development check: startup and Android-ready succeeded,
+indexed serial emulator-5576; indexed boot unavailable and explicit transport
+ABSENT through the bounded retry. No claim/game input, no config writes.
+Config basicSettings.adbDebug is absent (not proven equivalent to disabled).
+All selection/running states restored, Protected unchanged, journals unchanged.
+Evidence: artifacts/oct19-index11-result.json and referenced recovery report.
+Repair retains independently established lifecycle ownership on transport-only
+failure and checks exact runtime before scoped cleanup.
+
+In progress: grouped detector short circuit (all competing groups still checked),
+reuse current inventory within one decision, combined explicit identity probes,
+Event moved-icon reacquisition, reward/task nested strip, expanded calendar,
+locked mission modal return to exact originating list, explicit Stop propagation.
+Focused production Events check completed October19 03:46:19–03:51:58 UTC:
+`diagnostics/tasks/automation/20261019-034619-983160Z-987d434a/fleet-report.json`.
+SystemRandom sampled9/5 from2/3/4/5/8/9/10;11 excluded after its scoped diagnostic.
+Two separate Managers under one lease, peak concurrency2, elapsed338.933s including
+startup. Index9 active337.397s (startup134.998, Events200.417, cleanup1.372);
+index5 active300.212s (startup115.309, Events182.685, cleanup1.532).
+Both Home recoveries and owned cleanup succeeded; PARTIAL, zero new reward claims.
+Index9 sent exactly one mission batch: journal709 RESERVED/POSSIBLE,
+ACTION_DISPATCHED_UNVERIFIED. NEVER redispatch709 for better proof. Mission cards
+reordered after sending; visible initial rows lacked a matching positive timer.
+All original selections, Protected states and older journals remained unchanged.
+Actual before/final inventory for this pair: all instances stopped, including
+Protected0/1/6/7/12. Do not substitute an earlier running-state baseline.
+Source hashes and diff captured in artifacts/oct19-events-source-and-selection.json;
+this was the dirty source build, NOT the old Desktop600a70f executable.
+
+Post-check repairs (not yet exercised live): unique mission-card body matching
+across reorder, bounded current-list inspection for two running-timer proofs;
+qualified chapter Back-only return with explicit material/contribution blocker;
+reuse verified target binding during recovery (still fresh pixels/indexed boot);
+public group-buy objective cards below the paid offer, current progress + sole
+Nhận label + two functional headings, paid exclusion and bounded list traversal.
+Saved October18 group-buy frame proves100/100 and500/500 free controls; the clipped
+1000 row is deliberately not actionable. New recognition shares the existing
+inline-objective journal and two explicit unavailable postconditions. No claim
+has been performed by this new detector yet. Do not call this live acceptance.
+
+Controlled offline ScreenDetector benchmark, same3 frames/5 samples per version:
+600a70f medians .271–.274s; repaired .171–.175s, identical states/confidences.
+The expanded calendar also passed actual Windows OCR. These measurements cover
+the detector component only; the full routine workload is not yet proven to
+finish in a few minutes. Latest pair was Events-only and PARTIAL, not comparable
+to a completed full plan. Inventory/identity duplicate work was removed inside
+one decision, never across a subsequent action or a runtime/protection change.
+
+Product correction evidence: run16 Monthly on5/10 verified upper quick action,
+all5 known rows RECEIVED (no hidden unresolved row), and independent lower daily
+claim. Technology saw STONE and correctly sent0; quick WOOD remains
+NOT_OBSERVED_LIVE. Existing quick-first logic is retained. UI repeated routine
+identity retry moved to DEBUG; operation/error/uncertain output stays visible,
+existing repeated-message aggregation and2MB x3 diagnostic rotation preserved.
+
+Remaining readiness blockers: season-pass/login free-column bulk qualification;
+unknown wishing/material/chapter actions; book milestone controls; no live proof
+for the new group-buy handler or reordered mission timer verification; index11
+transport ABSENT with missing indexed boot (adbDebug absent, no config write).
+Journal709 remains locked. Do not declare READY_FOR_USER_RUN or phase PASS from
+tests/CI/other feature rewards. Final independent full Start remains USER-only.
+
+Final focused local suite:233 passed (including Windows OCR); affected Ruff and
+diff whitespace checks passed. Self-review covered one-shot dispatch, preserved
+POSSIBLE/VERIFIED locks, paired cost exclusion, bounded scrolling/retries, live
+identity/Protection at each input, and cancellation propagation. Added fixtures
+are saved game UI only and clean functional crops; no diagnostics DB/log upload.
+CI packaging and Desktop delivery follow this cohesive patch; final readiness
+remains BLOCKED by the explicit branch/transport/live-evidence items above.
+
 ## October17 normal app run12 — direct user authorized Start/test/fix
 
 User explicitly requested Codex open the app, run, test and fix, superseding the

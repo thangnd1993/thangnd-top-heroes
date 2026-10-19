@@ -1,17 +1,18 @@
 # auto-top-heroes workflow
 
-## Current repair / handoff contract (2026-10-17)
+## Current repair / handoff contract (2026-10-19)
 
-Latest direct user instruction authorizes Codex to open the delivered app, Start,
-test and fix. This overrides the user-only Start handoff for this continuation.
-Use the normal packaged UI with two workers; do not replay verified/uncertain
-claims. Run12 evidence is the baseline for repairs, not a reason for blind retries.
+Latest user request restores the user-only final full-plan Start after repairs.
+Codex may perform focused random development checks through production services
+with two independent workers, recording the actual source checkout when used.
+Run16 on600a70f is the latest normal application evidence; run12 is comparison.
+Do not replay verified/uncertain claims or substitute a recovery check for a run.
 
 Settle existing workers before repairs or executable replacement. Development
 may use randomly selected live non-Protected targets through production services;
 never replay VERIFIED/uncertain actions. After focused checks and one cohesive
 CI/build gate, deliver the newest verified Desktop app. Final normal-UI Start
-uses two workers; Codex may operate it under the latest explicit authorization.
+uses two workers and is performed independently by the USER.
 Read that actual run's logs afterward; developer checks/CI do not establish PASS.
 
 Technology is WOOD ONLY: qualified quick contribution first, or one ordinary

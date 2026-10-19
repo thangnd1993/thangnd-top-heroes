@@ -59,12 +59,15 @@ class FixedRewardPort:
         return self.shop
 
     def check(self):
-        if self.cancelled():
-            raise SafetyError('Fixed reward run cancelled.')
+        self.check_cancelled()
         self.identity_check()
         meta = self.manager.store.metadata(self.manager.namespace, self.index)
         if meta.protected or not meta.selected:
             raise SafetyError('Target must remain selected and non-Protected.')
+
+    def check_cancelled(self):
+        if self.cancelled():
+            raise SafetyError('Fixed reward run cancelled.')
 
     def observe(self):
         self.check()

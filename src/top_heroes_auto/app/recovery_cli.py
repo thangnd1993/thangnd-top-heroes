@@ -86,6 +86,7 @@ class DiagnosticRecoveryPort:
         self.package = package
         self.detector = RecoveryScreenDetector()
         self.verified_identity: tuple[str, str] | None = None
+        self.observed_target = None
         self.clock = clock
         self.started = clock()
         self.sample_thresholds = [0, 10, 20, 40]
@@ -96,11 +97,13 @@ class DiagnosticRecoveryPort:
         self._overlay_samples = 0
 
     def observe(self, step: int) -> RecoveryObservation:
-        target, payload = self.manager.capture_verified(self.index, self.snapshot)
+        target, payload = self.manager.capture_verified(self.index, self.snapshot,
+                                                        observed_target=self.observed_target)
         identity = target.serial, target.boot_id
         if self.verified_identity is not None and identity != self.verified_identity:
             raise SafetyError("ADB target identity changed during recovery.")
         self.verified_identity = identity
+        self.observed_target = target
 
         def exact_capture(serial: str) -> bytes:
             if serial != target.serial:
@@ -333,6 +336,7 @@ def run_home_recovery(
     allow_start: bool = True,
     engine: HomeRecoveryEngine | None = None,
 ) -> tuple[RecoveryResult, Path, bool]:
+    total_started = time.monotonic()
     target = _instance(manager, index, name)
     queen = _instance(manager, 0, "Queen")
     if not manager.store.metadata(manager.namespace, queen.index).protected:
@@ -439,6 +443,8 @@ def run_home_recovery(
             "cleanup_requested": cleanup_owned,
             "cleanup_performed": cleanup_performed,
             "launch_attempt": launch_attempt,
+            "adb_resolution": getattr(manager, 'last_adb_resolution', None),
+            "total_elapsed_seconds": round(time.monotonic() - total_started, 3),
             "ownership_uncertain": ownership_uncertain,
             "diagnostic_samples": port.diagnostic_samples if port is not None else [],
             **result.as_dict(),
