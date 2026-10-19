@@ -104,6 +104,13 @@ are saved game UI only and clean functional crops; no diagnostics DB/log upload.
 CI packaging and Desktop delivery follow this cohesive patch; final readiness
 remains BLOCKED by the explicit branch/transport/live-evidence items above.
 
+CI39201962063 on038f6e8:2060 passed/26 skipped/9 failed. Eight failures were
+test doubles missing newly supported optional current/observed_target arguments;
+one was World evidence output order changing when its evaluation was reordered.
+Preserve original public anchor order (no threshold/geometry change), update
+those test doubles, rerun the affected regression groups and the full CI gate.
+No failed artifact was delivered; Desktop600a70f remains until a fresh full PASS.
+
 ## October17 normal app run12 — direct user authorized Start/test/fix
 
 User explicitly requested Codex open the app, run, test and fix, superseding the

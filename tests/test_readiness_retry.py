@@ -17,7 +17,7 @@ def test_transient_readiness_same_runtime_readonly(monkeypatch):
     original=instance()
     states=iter([original,replace(original,android_started=True)])
     monkeypatch.setattr('top_heroes_auto.app.service.time.sleep',lambda _:None)
-    m=SimpleNamespace(_check=lambda index:next(states),IDENTITY_PROBE_DELAY=.2)
+    m=SimpleNamespace(_check=lambda index,**kwargs:next(states),IDENTITY_PROBE_DELAY=.2)
     assert Manager._capture_ready(m,23).android_started
 
 
@@ -26,14 +26,14 @@ def test_readiness_changed_runtime_fails_closed(monkeypatch,changes):
     original=instance()
     states=iter([original,replace(original,android_started=True,**changes)])
     monkeypatch.setattr('top_heroes_auto.app.service.time.sleep',lambda _:None)
-    m=SimpleNamespace(_check=lambda index:next(states),IDENTITY_PROBE_DELAY=.2)
+    m=SimpleNamespace(_check=lambda index,**kwargs:next(states),IDENTITY_PROBE_DELAY=.2)
     with pytest.raises(SafetyError):
         Manager._capture_ready(m,23)
 
 
 def test_persistent_readiness_bounded(monkeypatch):
     calls=[]
-    def query(index):
+    def query(index,**kwargs):
         calls.append(index)
         return instance()
     monkeypatch.setattr('top_heroes_auto.app.service.time.sleep',lambda _:None)

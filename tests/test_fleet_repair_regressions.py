@@ -153,7 +153,7 @@ def test_recovery_samples_are_bounded_and_final_is_fresh(rig, tmp_path, monkeypa
     port = DiagnosticRecoveryPort(manager, snapshot, 7, 'Farm-007', tmp_path, clock=lambda: now[0])
     target = Target(7, 'Farm-007', 'emulator-5568', 'boot')
     captures = []
-    def capture(*args):
+    def capture(*args, **kwargs):
         captures.append(now[0])
         return target, b'raw-' + str(now[0]).encode()
     monkeypatch.setattr(manager, 'capture_verified', capture)
@@ -178,7 +178,7 @@ def test_final_capture_failure_reported_no_retry(rig, tmp_path, monkeypatch):
     port = DiagnosticRecoveryPort(manager, bound_snapshot(manager.store, manager.namespace, ((7, 'Farm-007'),), True),
                                   7, 'Farm-007', tmp_path)
     calls = []
-    def fail(*args):
+    def fail(*args, **kwargs):
         calls.append(1)
         raise SafetyError('identity changed')
     monkeypatch.setattr(manager, 'capture_verified', fail)

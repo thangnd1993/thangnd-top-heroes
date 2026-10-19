@@ -51,7 +51,10 @@ def world_evidence(screen):
         evidence.append(item)
         if not item.matched:
             break
-    return tuple(evidence)
+    # Evaluation order is an internal optimization. Preserve the public anchor
+    # order for overlays/consumers, including adjacent label and castle crops.
+    order = {a.id: n for n, a in enumerate(anchors)}
+    return tuple(sorted(evidence, key=lambda e: order[e.anchor_id]))
 
 
 def qualified_world(screen, evidence):
