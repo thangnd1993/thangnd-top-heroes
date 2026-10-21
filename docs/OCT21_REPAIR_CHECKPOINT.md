@@ -78,6 +78,15 @@ Two-worker OpenCV thread-count experiment showed no consistent benefit; unchange
 - Repeated expedition viewport now reports NO_FURTHER_PROGRESS and
   MISSION_LIST_END_UNPROVEN, not COMPLETE. Independently qualified visible
   collection/send remains allowed; whole-list exhaustion remains blocked.
+- Follow-up saved-frame review: Book Nhận caption raster alignment was .957 raw
+  versus .996 with the existing strict subpixel matcher (threshold .995 unchanged).
+  More importantly, original claim388 postframes193321/193335 on October13 show
+  a season-card PURCHASE reminder, not a receipt. A completed fraction and green
+  Nhận therefore do not independently prove free entitlement on this route.
+  Book rows are explicitly UNKNOWN candidates / BOOK_FREE_ENTITLEMENT_UNPROVEN,
+  never FREE controls, pending clean entitlement/postcondition qualification.
+  Two additional game-only fixtures retain the current page and original reminder.
+  No historical claim was unlocked, reclassified VERIFIED or redispatched.
 
 Image additions contain game UI only: empty member page, stable empty text core,
 and cropped System mail tab/badge. No credentials/tokens/cookies/private files.

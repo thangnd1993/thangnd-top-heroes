@@ -197,6 +197,8 @@ class DynamicEventPort:
                 if book:
                     self.rows=book_rows(image,reader=read_words)
                     page='event:'+shell['title']+':book-objectives'
+                    if self.rows:
+                        blocked.append('BOOK_FREE_ENTITLEMENT_UNPROVEN')
                 if context is not None or grid or achievements or inline or book:
                     if not grid and not achievements and not inline and not book:
                         page = 'event:'+shell['title']+':personal-tasks'
@@ -204,7 +206,8 @@ class DynamicEventPort:
                         self.session.manager.store.reward_claims(self.session.manager.namespace, self.session.index),
                         persistent_identity=self.session.target['persistent_identity'], index=self.session.index,
                         family='book-objectives' if book else 'inline-objectives' if inline else 'achievement-cards' if achievements else 'race-task-grid' if grid else 'personal-tasks')
-                    if any(r['state'] == 'UNKNOWN' for r in self.rows):
+                    if any(r['state'] == 'UNKNOWN' and 'free-entitlement-unproven' not in r['evidence']
+                           for r in self.rows):
                         blocked.append('UNRESOLVED_SAVED_REWARD_IDENTITY')
                     for row in self.rows:
                         if row['state'] != 'NOT_AVAILABLE':

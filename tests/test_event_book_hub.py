@@ -51,12 +51,14 @@ def test_unrelated_page_is_not_hub():
     assert collaboration_hub(cv2.imread(str(FIXTURES/'season-objectives.png'))) is None
 
 
-def test_book_completed_one_has_one_current_free_target():
+def test_book_completed_one_is_candidate_without_free_entitlement():
     image=cv2.imread(str(FIXTURES/'season-objectives.png'))
     rows=book_rows(image,reader=lambda im: [])
     assert len(rows)==1
     assert rows[0]['box'].center==(567,854)
-    assert rows[0]['state']=='AVAILABLE'
+    assert rows[0]['state']=='UNKNOWN'
+    assert 'free-entitlement-unproven' in rows[0]['evidence']
+    assert 'sole-no-cost-claim-label' not in rows[0]['evidence']
     assert 'completed-objective-fraction' in rows[0]['evidence']
     shifted=cv2.warpAffine(image,np.float32([[1,0,15],[0,1,0]]),(720,1280))
     moved=book_rows(shifted,reader=lambda im: [])
@@ -84,3 +86,22 @@ def test_book_requires_paired_context_and_rejects_other_ui():
     assert book_context(image) is None
     assert not book_rows(image,reader=lambda im: [])
     assert book_context(cv2.imread(str(FIXTURES/'collaboration-hub.png'))) is None
+
+
+def test_current_caption_raster_variants_are_candidates_never_free_controls():
+    image=cv2.imread(str(FIXTURES/'season-objectives-current.png'))
+    # Isolate caption alignment; every actual visible fixture row is completed.
+    rows=book_rows(image,reader=lambda _: [{'text':'3/3'}])
+    assert len(rows)==3
+    assert all(r['state']=='UNKNOWN' and 'free-entitlement-unproven' in r['evidence'] for r in rows)
+    assert all('sole-no-cost-claim-label' not in r['evidence'] for r in rows)
+    shifted=cv2.warpAffine(image,np.float32([[1,0,12],[0,1,0]]),(720,1280))
+    moved=book_rows(shifted,reader=lambda _: [{'text':'3/3'}])
+    assert len(moved)==3
+    assert sorted(r['box'].center[0] for r in moved)==[579]*3
+
+
+def test_actual_purchase_reminder_is_not_book_reward_postcondition():
+    image=cv2.imread(str(FIXTURES/'season-objectives-purchase-reminder.png'))
+    assert book_context(image) is None
+    assert not book_rows(image,reader=lambda _: [{'text':'da nhan'}])

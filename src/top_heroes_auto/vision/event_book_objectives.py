@@ -1,13 +1,15 @@
 """Book objective UI: paired functional anchors, completed fraction, sole free control."""
 import hashlib
 import re
+from types import SimpleNamespace
 
 import cv2
 import numpy as np
 
 from top_heroes_auto.vision.dynamic_events import folded
-from top_heroes_auto.vision.models import BoundingBox
+from top_heroes_auto.vision.models import BoundingBox, NormalizedRect, ScreenState, VisualAnchor
 from top_heroes_auto.vision.resources import template_folder
+from top_heroes_auto.vision.subpixel import unique_subpixel_anchor
 
 
 def _ref(name):
@@ -67,7 +69,13 @@ def book_rows(image,*,reader):
         box=BoundingBox(x,y,bw,bh)
         label=_match(image[y:y+bh,x:x+bw],'claim-label')
         if label is None:
-            continue
+            patch=image[y:y+bh,x:x+bw]
+            aligned=unique_subpixel_anchor(SimpleNamespace(normalized=patch,to_device_box=lambda b:b),
+                VisualAnchor('book-claim-caption',ScreenState.UNKNOWN,
+                    template_folder().parent/'tasks/phase8/season-objectives/claim-label.png',
+                    NormalizedRect(0,0,1,1),.995),antialias=True)
+            if not aligned.matched:
+                continue
         inside=hsv[y+5:y+bh-5,x+25:x+bw-25]
         # The action surface must contain only green plus white/dark caption.
         foreign=(inside[:,:,1]>110)&(inside[:,:,2]>120)&((inside[:,:,0]<30)|(inside[:,:,0]>90))
@@ -87,8 +95,13 @@ def book_rows(image,*,reader):
         if not complete or glyph is None:
             continue
         rows.append(dict(identity=hashlib.sha256(glyph.tobytes()).hexdigest(),row=row,box=box,
-            state='AVAILABLE',evidence=('qualified-book-objectives','complete-reward-card',
-                'paired-functional-book-chrome','completed-objective-fraction','sole-no-cost-claim-label','qualified-control-color')))
+            # Original real postframes show a season-card purchase reminder
+            # after this green caption. Completion and Nhận are candidates,
+            # not independent proof of free entitlement. Never reserve/tap it
+            # as FREE until that prerequisite has separately been qualified.
+            state='UNKNOWN',evidence=('qualified-book-objectives','complete-reward-card',
+                'paired-functional-book-chrome','completed-objective-fraction',
+                'qualified-claim-caption','qualified-control-color','free-entitlement-unproven')))
     if len({r['identity'] for r in rows})!=len(rows):
         return ()
     return tuple(rows)
