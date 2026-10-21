@@ -135,13 +135,18 @@ def test_vip_receipt_dismiss_gets_fresh_underlying_frame_without_claim(rig, tmp_
     manager.refresh()
     manager.select(2, True)
     frames = iter(['receipt-reference.png', 'index2-vip-claimable.png'])
-    monkeypatch.setattr(manager, 'capture_verified', lambda *args: (TARGET,(FIXTURES / next(frames)).read_bytes()))
+    bindings=[]
+    def capture(index,snapshot,*,observed_target=None):
+        bindings.append(observed_target)
+        return TARGET,(FIXTURES/next(frames)).read_bytes()
+    monkeypatch.setattr(manager, 'capture_verified', capture)
     taps = []
     monkeypatch.setattr(manager, 'execute', lambda index, action, **kwargs: taps.append((index,action,kwargs)))
     profile, _ = _load_profile_details('vip-reward')
     port = ManagerRewardPort(manager, bound_snapshot(manager.store, manager.namespace, ((2,TARGET.name),),True), 2,TARGET.name,profile,tmp_path)
     before = port.observe()
     after = port.dismiss_receipts(before, sleep=lambda _: None)
+    assert bindings==[None,TARGET]
     assert after.capture_id != before.capture_id
     assert len(taps) == 1 and taps[0][2]['values'] == (58,1203)
     assert taps[0][2]['observed_target'] == TARGET
@@ -182,12 +187,17 @@ def test_vip_receipt_then_claimed_state_is_independently_verified(rig, tmp_path,
     portrait = cv2.rotate(changed,cv2.ROTATE_90_COUNTERCLOCKWISE)
     payload = cv2.imencode('.png',portrait)[1].tobytes()
     frames = iter([(FIXTURES/'receipt-reference.png').read_bytes(),payload])
-    monkeypatch.setattr(manager,'capture_verified',lambda *args:(TARGET,next(frames)))
+    bindings=[]
+    def capture(index,snapshot,*,observed_target=None):
+        bindings.append(observed_target)
+        return TARGET,next(frames)
+    monkeypatch.setattr(manager,'capture_verified',capture)
     taps=[]
     monkeypatch.setattr(manager,'execute',lambda *args,**kwargs:taps.append(kwargs['values']))
     port = ManagerRewardPort(manager,bound_snapshot(manager.store, manager.namespace,((2,TARGET.name),),True),2,TARGET.name,profile,tmp_path)
     popup=port.observe()
     after=port.dismiss_receipts(popup,sleep=lambda _:None)
+    assert bindings==[None,TARGET]
     assert taps == [(58,1203)]
     assert port.classify_claim(before.screen,after,before.screen.rewards[0]) == ClaimOutcome.CLAIMED
 
