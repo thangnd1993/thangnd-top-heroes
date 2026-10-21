@@ -108,10 +108,10 @@ def fresh(saved):
     frames = []
     for n,seconds in enumerate((20,10)):
         image = saved.folder/f'fresh{n}.png'
-        evidence = dict(capture=str(image),index=7,name='Farm-007',adb='emulator-test',boot_id='new-verified-boot',
+        evidence = dict(capture=str(image),index=7,name='Farm-007',adb='emulator-test',boot_id='boot',
                         timestamp=(now-timedelta(seconds=seconds)).isoformat())
         frames.append(SimpleNamespace(page='gifts-member',captured=SimpleNamespace(source_image=image,index=7,
-            name='Farm-007',serial='emulator-test',boot_id='new-verified-boot',timestamp=evidence['timestamp']),
+            name='Farm-007',serial='emulator-test',boot_id='boot',timestamp=evidence['timestamp']),
             evidence=lambda e=evidence:e))
     return saved,frames
 
@@ -123,6 +123,44 @@ def test_fresh_exhausted_batch_with_original_receipt_verifies_without_input(fres
     proof = reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,'disk')
     assert proof['claim_redispatched'] is False
     assert saved.store.reward_claims(saved.namespace,7)[0]['status'] == 'VERIFIED'
+
+
+@pytest.mark.parametrize('cause',['new_boot','later_day'])
+def test_later_empty_state_cannot_verify_original_batch(fresh,cause):
+    from top_heroes_auto.automation.guild_mail_reconcile import (
+        prepare_observed_guild_mail,
+        reconcile_observed_guild_mail,
+    )
+
+    saved,frames=fresh
+    original_row=saved.store.reward_claims(saved.namespace,7)[0]
+    prepared=prepare_observed_guild_mail(saved.store,saved.claim,saved.detector,'disk')
+    if cause=='new_boot':
+        for frame in frames:
+            frame.captured.boot_id='another-verified-boot'
+    else:
+        original=prepared[2]
+        original.captured.timestamp=(datetime.fromisoformat(original.captured.timestamp)-timedelta(days=1)).isoformat()
+    with pytest.raises(ValueError):
+        reconcile_observed_guild_mail(saved.store,saved.claim,saved.detector,frames,'disk',prepared=prepared)
+    assert saved.store.reward_claims(saved.namespace,7)[0]==original_row
+
+
+def test_invalid_legacy_verified_batch_is_held_without_downgrade(saved):
+    from top_heroes_auto.automation.guild_mail_claims import process
+
+    row=saved.store.reward_claims(saved.namespace,7)[0]
+    saved.store.verify_reward_claim(saved.claim,row['task_run_id'],json.dumps(dict(
+        method='original_one_shot_receipt_and_two_fresh_progress_frames',before={},receipt={},after=[])))
+    original=saved.store.reward_claims(saved.namespace,7)[0]
+    frame=saved.frames[saved.evidence[0]['capture']]
+    port=SimpleNamespace(opportunity=lambda reward:(frame,saved.detector.availability(frame,reward)),
+        claim=lambda *a,**k:pytest.fail('Legacy invalid proof must not open eligibility'))
+    report={}
+    process(port,saved.store,saved.namespace,row['task_run_id'],'guild-gifts-member','disk',report,lambda:None)
+    assert report['result']=='JOURNAL_PROOF_REVIEW_REQUIRED'
+    assert report['held_claim_ids']==[saved.claim] and not report['claim_dispatched']
+    assert saved.store.reward_claims(saved.namespace,7)[0]==original
 
 
 @pytest.mark.parametrize('bad',['identity','stale','duplicate','one','receipt_missing','receipt_unknown','unchanged','boot'])
@@ -286,7 +324,7 @@ def test_proven_old_batch_then_one_remaining_batch_is_not_a_replay(fresh):
         item = dict(first.evidence(),capture=str(saved.folder/f'next{n}.png'),
                     timestamp=(datetime.now(timezone.utc)-timedelta(seconds=8-n)).isoformat())
         frames.append(SimpleNamespace(page='gifts-member',captured=SimpleNamespace(source_image=saved.folder/f'next{n}.png',
-            index=7,name='Farm-007',serial='emulator-test',boot_id='new-verified-boot',timestamp=item['timestamp']),
+            index=7,name='Farm-007',serial='emulator-test',boot_id='boot',timestamp=item['timestamp']),
             evidence=lambda e=item:e))
     a,b,c,d = frames[2:]
     views = iter([(first,1),(a,1),(b,0),(c,0),(d,0)])

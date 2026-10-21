@@ -82,6 +82,17 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
             report['end_remaining'] = view.remaining
             report['resource'] = getattr(frame,'values',{}).get('donation_resource',{})
         rows = [r for r in store.reward_claims(namespace,frame.captured.index) if r['reward_id'] == reward]
+        from top_heroes_auto.automation.guild_mail_reconcile import batch_proof_requires_review
+
+        held = [row['id'] for row in rows if batch_proof_requires_review(row)]
+        if held:
+            report.update(result='JOURNAL_PROOF_REVIEW_REQUIRED',journal='VERIFIED',
+                          held_claim_ids=held,claim_dispatched=False)
+            logging.getLogger('top_heroes_auto').warning(
+                '[#%s] Giữ khóa lô thưởng: bằng chứng journal %s cần rà soát; không gửi lại.',
+                frame.captured.index, ', '.join(map(str,held)),extra={'category':'operation'})
+            persist()
+            return
         for row in rows:
             original = json.loads(row['before_evidence'])
             if original.get('persistent_identity') != identity:

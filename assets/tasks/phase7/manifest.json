@@ -839,5 +839,16 @@
       33
     ],
     "threshold": 0.98
-  }
+  },
+{
+  "id": "donation-zero-fraction",
+  "source": "donation-quick-zero-after",
+  "source_bbox": [
+    569,
+    969,
+    48,
+    35
+  ],
+  "threshold": 0.98
+}
 ]

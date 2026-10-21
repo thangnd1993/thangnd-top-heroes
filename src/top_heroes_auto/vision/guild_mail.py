@@ -19,7 +19,7 @@ MAIL_REWARDS = tuple(f'mail-{tab}' for tab in MAIL_TABS)
 # resized references. Keep their original strict pixel qualification.
 PIXEL_ROLES = frozenset({'home-guild','home-mail','back','relic-gift','technology-like',
     'donation-wood','donation-diamond','donation-stone','modal-close','donation-count-suffix','relic-gift-unavailable',
-    'badge-digit-1','badge-digit-3','badge-digit-4','badge-digit-6','gift-received-check'})
+    'badge-digit-1','badge-digit-3','badge-digit-4','badge-digit-6','gift-received-check','donation-zero-fraction'})
 
 
 
@@ -407,6 +407,19 @@ class GuildMailDetector:
         region = BoundingBox(label.x+label.width, label.y, suffix.x-label.x-label.width, label.height)
         part = crop(image, region)
         remaining = self.number_reader(part, maximum=20) if part is not None and part.size else None
+        if remaining is None:
+            # OCR can omit a single zero. Match the COMPLETE current 0/20
+            # footprint between the independently located label and suffix.
+            # A substring inside 10/20 cannot cover this whole gap.
+            height,width=image.shape[:2]
+            full=BoundingBox(region.x,region.y,suffix.x+suffix.width-region.x,region.height)
+            zero=self.anchor(frame.captured,'donation-zero-fraction',(
+                full.x/width,full.y/height,(full.x+full.width)/width,(full.y+full.height)/height))
+            b=zero.device_box
+            if (zero.matched and b and abs(b.x-full.x)<=2 and abs(b.y-full.y)<=2
+                    and abs(b.width-full.width)<=2 and abs(b.height-full.height)<=2):
+                frame.anchors['donation-zero-fraction']=zero
+                remaining=0
         if remaining == 0:
             return 'NOT_AVAILABLE', None, 0
         if (remaining is None or green is None or paid is None or intersects(green,paid)

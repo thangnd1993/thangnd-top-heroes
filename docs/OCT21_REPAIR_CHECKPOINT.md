@@ -1,5 +1,69 @@
 # October 21 production repair checkpoint
 
+## Latest follow-up and journal incident — read first
+
+The later random development sample from2/3/4 chose2 and4, on clean source
+b5b72c8, with one lease/two workers. This was NOT the user's final normal UI run.
+Source and full hashes: `artifacts/oct21-followup-manifest.json`.
+Report: `diagnostics/tasks/automation/20261021-085558-471001Z-2390bba5/fleet-report.json`.
+2:55.304s, no claim; launch_game left Android Home unchanged in the20s sample,
+explicit emulator-5558.4:832.604s, developer safety cancellation, not a completed
+full-plan account. Both scoped cleanup SUCCESS and selections restored.
+Protected/running/name states unchanged. Final normal-UI Start remains USER-only.
+
+**Incident:** existing production fresh-batch reconciliation upgraded old579
+RESERVED/POSSIBLE→VERIFIED without input, using an original October16 receipt
+plus October21 empty-member frames/new boot. This is insufficient causal proof.
+Only579 changed among the pre-task journals (status/verified_at/after_evidence).
+Do NOT claim every old journal remained unchanged across this second check.
+Original row is preserved in both journal baseline files; do not silently roll
+it back, downgrade it or erase the reconciliation sidecar. No579 reward tap occurred.
+The safety cancellation stopped before any Mail reward input; Events not run on4.
+
+Repair: fresh-batch reconciliation requires the ORIGINAL boot and two fresh
+postframes within180s of original action, with original receipt within60s.
+Later empty pages, expiration, resets and a newly verified boot cannot prove
+old consumption. Existing raw VERIFIED rows with invalid legacy observed-batch
+proof are kept unchanged but production refuses new eligibility for that reward,
+reporting JOURNAL_PROOF_REVIEW_REQUIRED. Held IDs:
+124,358,359,448,505,575,577,578,579. No schema/config/identity redesign or journal reset.
+`artifacts/oct21-final-journal-audit.json` records the exact incident and holds.
+
+Other concrete follow-up repairs:
+-4 reached the Technology modal through the stable-node guard, and only WOOD
+  was qualified before input. Ordinary747 consumed20→19. Quick748 was dispatched
+  ONCE. OCR omitted zero afterward. Strict complete current0/20 footprint now
+  proves zero without O→0 guessing or accepting a substring inside10/20.
+  Production original-file qualification found two ORIGINAL0/20 postframes at
+  09:08:16.196506/09:08:23.429782 UTC, before09:08:02.159797, same boot.
+  Production reconcile_saved_guild_mail upgraded748 with NO redispatch.
+  Proof: `artifacts/oct21-748-qualified.json`, `artifacts/oct21-748-reconciled.json`.
+  Next visible contribution cost is STONE; no further contribution is authorized.
+  732 lacks two original zero frames and stays RESERVED/POSSIBLE.
+-4 Monthly upper quick744 VERIFIED; independent lower daily remained UNKNOWN
+  during the run and was NOT tapped. Its owned-label raster scored.962708 below
+  .98. Existing strict subpixel matcher scores.988250, with the same paired
+  Monthly title/daily heading/current green bbox/paid exclusion. Offline repair
+  retains threshold.98, ambiguity rejection and separate lower journal.
+-4 member empty label is positively matched (.999524), but its historical579
+  auto-reconciliation exposed the incident above; do not call that a new claim.
+
+Totals after saved-file748 proof:39 NEW journals710–748,38 VERIFIED and732 POSSIBLE.
+These comprise30 reward operations (VIP6/BXH3/Shop14/Guild7),4 Mail read batches,
+3 WOOD operations (two ordinary plus one quick;21 contributions total),
+and1 expedition mission send.579 is NOT included as a new verified operation.
+56 total RESERVED/POSSIBLE rows remain locked, plus9 raw VERIFIED proof-review holds.
+The earlier counts below describe the first8/10 development run only.
+
+Final code is subject to one completed full CI/Windows build/smoke gate after
+this batch. Earlier39570566455/39572491362 were canceled before completion when
+additional concrete defects were found; neither is delivery evidence.
+Final related regression batch:219 passed in527.95s, including target inventory,
+Guild/Mail/WOOD, original-action reconciliation, Monthly and Book candidate guards.
+Earlier60 Book/Event proof tests also PASS (overlap; do not sum test batches).
+Ruff and diff checks PASS. No game worker remains active.
+No further real developer reward run is planned before the user's independent Start.
+
 Phase 8 remains **PARTIAL**. No Phase 9. Final normal-UI full-plan Start with
 two workers belongs to the USER. Developer checks do not establish standalone PASS.
 Normal-UI run16 / 600a70f remains the latest independently started application run.

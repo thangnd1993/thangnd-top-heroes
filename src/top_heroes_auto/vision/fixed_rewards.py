@@ -182,6 +182,12 @@ class FixedRewardDetector:
         conflict = recovery.state not in {ScreenState.UNKNOWN, ScreenState.GAME_HOME}
         conflict |= recovery.state == ScreenState.UNKNOWN and bool(recovery.evidence)
         page = known[0] if len(known) == 1 and not conflict else "UNKNOWN"
+        if page == 'shop-monthly' and anchors['monthly-daily-heading'].matched:
+            owned = anchors['monthly-owned-label']
+            if not owned.matched and .85 <= owned.score < owned.threshold:
+                aligned = unique_subpixel_anchor(captured, replace(self.anchors['monthly-owned-label'],
+                    expected_region=portrait_region(0,.60,1,.92)), antialias=True)
+                anchors['monthly-owned-label'] = self._same_target_variant(owned,aligned)
         if page == 'shop-ad-privileges':
             for row in ADS_ROWS:
                 role = f'ads-{row}'

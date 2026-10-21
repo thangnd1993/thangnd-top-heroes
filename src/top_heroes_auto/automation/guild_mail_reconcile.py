@@ -168,6 +168,35 @@ def reconcile_saved_guild_mail(store, claim_id, *, detector=None):
 FRESH_BATCH_REWARDS = frozenset(('guild-gifts-loot','guild-gifts-member',*MAIL_REWARDS))
 
 
+def observed_batch_causal_window(proof):
+    """A later empty inbox/gift list cannot prove an earlier batch consumption."""
+    try:
+        before,receipt=proof['before'],proof['receipt']
+        after=[item['frame'] for item in proof['after']]
+        if len(after)!=2:
+            return False
+        frames=[before,receipt,*after]
+        keys=[runtime_key((f['index'],f['name'],f['adb'],f['boot_id'])) for f in frames]
+        times=[datetime.fromisoformat(f['timestamp']) for f in frames]
+        return (len(set(keys))==1 and len({f['capture'] for f in frames})==4
+                and all(t.tzinfo is not None for t in times)
+                and times[0]<times[1]<times[2]<times[3]
+                and times[1]-times[0]<=timedelta(seconds=60)
+                and times[3]-times[0]<=timedelta(seconds=180))
+    except (KeyError,TypeError,ValueError):
+        return False
+
+
+def batch_proof_requires_review(row):
+    """Keep stored VERIFIED intact but do not reuse an invalid causal proof."""
+    if row['status']!='VERIFIED':
+        return False
+    proof=json.loads(row.get('after_evidence') or '{}')
+    return (isinstance(proof,dict)
+            and proof.get('method')=='original_one_shot_receipt_and_two_fresh_progress_frames'
+            and not observed_batch_causal_window(proof))
+
+
 def prepare_observed_guild_mail(store, claim_id, detector, identity):
     """Qualify original files before taking fresh observations; no transport."""
     row,path,before,action,detector,observe,original,available = _original_action(
@@ -251,12 +280,14 @@ def reconcile_observed_guild_mail(store, claim_id, detector, frames, identity, *
     a,b = (frame.captured for frame in frames)
     if (a.source_image is None or b.source_image is None or a.source_image == b.source_image
             or runtime_key((a.index,a.name,a.serial,a.boot_id)) != runtime_key((b.index,b.name,b.serial,b.boot_id))
-            or runtime_key((a.index,a.name,a.serial)) != runtime_key((original.captured.index,original.captured.name,original.captured.serial))):
+            or runtime_key((a.index,a.name,a.serial,a.boot_id)) != runtime_key((
+                original.captured.index,original.captured.name,original.captured.serial,original.captured.boot_id))):
         raise ValueError('Fresh post-state identity/capture is ambiguous.')
     now = datetime.now(timezone.utc)
     at,bt = datetime.fromisoformat(a.timestamp),datetime.fromisoformat(b.timestamp)
     if not (datetime.fromisoformat(receipt.captured.timestamp) < at < bt <= now
-            and now-at <= timedelta(seconds=60)):
+            and now-at <= timedelta(seconds=60)
+            and bt-datetime.fromisoformat(original.captured.timestamp)<=timedelta(seconds=180)):
         raise ValueError('Fresh post-state observations are stale or unordered.')
     observations = []
     for frame in frames:
@@ -275,6 +306,8 @@ def reconcile_observed_guild_mail(store, claim_id, detector, frames, identity, *
     proof = dict(method='original_one_shot_receipt_and_two_fresh_progress_frames',claim_id=claim_id,
                  persistent_identity=identity,before=original.evidence(),receipt=receipt.evidence(),
                  after=observations,claim_redispatched=False)
+    if not observed_batch_causal_window(proof):
+        raise ValueError('Post-state must remain on the original boot and within its bounded action window.')
     store.verify_reward_claim(claim_id,row['task_run_id'],json.dumps(proof,ensure_ascii=False))
     (path.parent/f'claim-{claim_id}-reconciled.json').write_text(json.dumps(proof,ensure_ascii=False,indent=2),encoding='utf-8')
     return proof

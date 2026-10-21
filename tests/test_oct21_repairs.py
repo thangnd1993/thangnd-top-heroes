@@ -151,3 +151,59 @@ def test_unstable_technology_tree_never_authorizes_input():
     port.observe_settled=lambda:SimpleNamespace(page='technology',box=lambda _:BoundingBox(20,next(positions),100,100))
     with pytest.raises(SafetyError,match='stabilize'):
         port.stable_technology_node(SimpleNamespace(box=lambda _:BoundingBox(20,600,100,100)))
+
+
+def test_owned_monthly_current_raster_keeps_independent_free_daily_target():
+    from top_heroes_auto.vision.fixed_rewards import MONTHLY_DAILY, FixedRewardDetector, claim_geometry
+
+    path=Path(__file__).parent/'fixtures/phase6_fixed/monthly-owned-current.png'
+    frame=FixedRewardDetector().observe(ScreenshotService(lambda _:path.read_bytes()).take(
+        Target(4,'fixture','serial','boot')))
+    detector=FixedRewardDetector()
+    state,core,_=detector.availability(frame,MONTHLY_DAILY)
+    assert state=='AVAILABLE' and frame.anchors['monthly-owned-label'].score>=.98
+    geometry=claim_geometry(frame,MONTHLY_DAILY,core)
+    assert geometry['inside_allowed'] and geometry['outside_forbidden']
+    anchors=dict(frame.anchors)
+    anchors['monthly-owned-label']=replace(anchors['monthly-owned-label'],matched=False,score=0)
+    assert detector.availability(replace(frame,anchors=anchors),MONTHLY_DAILY)[0]=='UNKNOWN'
+
+
+@pytest.fixture(scope='module')
+def zero_donation():
+    from datetime import datetime, timedelta, timezone
+
+    detector=GuildMailDetector(number_reader=lambda *a,**k:None)
+    frames=[]
+    start=datetime.now(timezone.utc)
+    for n,name in enumerate(('before','after','confirmation')):
+        path=Path(__file__).parent/f'fixtures/phase7/donation-quick-zero-{name}.png'
+        captured=ScreenshotService(lambda _,p=path:p.read_bytes()).take(Target(4,'fixture','serial','boot'))
+        captured=replace(captured,source_image=path,timestamp=(start+timedelta(seconds=n)).isoformat())
+        frames.append(detector.observe(captured))
+    return detector,frames
+
+
+def test_two_original_zero_frames_prove_quick_consumption_without_ocr_guess(zero_donation):
+    from top_heroes_auto.automation.guild_mail_claims import qualified_progress
+
+    detector,frames=zero_donation
+    detector.number_reader=lambda *a,**k:19
+    before=detector.availability(frames[0],'guild-technology')
+    detector.number_reader=lambda *a,**k:None
+    assert before.state=='AVAILABLE' and before.role=='donation-quick'
+    for frame in frames[1:]:
+        after=detector.availability(frame,'guild-technology')
+        assert after.state=='NOT_AVAILABLE' and after.remaining==0
+        assert frame.anchors['donation-zero-fraction'].score>=.98
+        assert qualified_progress(frames[0],before,frame,after)
+
+
+def test_zero_substring_cannot_cover_larger_counter_gap(zero_donation):
+    detector,frames=zero_donation
+    frame=frames[1]
+    anchors=dict(frame.anchors)
+    label=anchors['donation-counter-label']
+    anchors['donation-counter-label']=replace(label,device_box=replace(label.device_box,x=label.device_box.x-14))
+    assert detector.availability(replace(frame,anchors=anchors),'guild-technology').state=='UNKNOWN'
+    assert detector.availability(frames[0],'guild-technology').state=='UNKNOWN'
