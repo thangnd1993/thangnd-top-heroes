@@ -29,6 +29,21 @@ class RecoveryScreenDetector:
 
     _unique_anchor_prefixes = ("stranger-loading-", "login-assistance-")
 
+    @staticmethod
+    def _paired(screen, anchors, *, always=()):
+        """Reject an absent required title before scanning its detail controls.
+
+        All competing title groups still run. Shared close controls remain
+        independent, and all phase alternatives run when their title qualifies.
+        """
+        titles=[a for a in anchors if a.id.endswith('-title')]
+        found={a.id:unique_current_anchor(screen,a) for a in titles}
+        qualified=bool(titles) and all(e.matched for e in found.values())
+        for anchor in anchors:
+            if anchor.id not in found and (qualified or anchor.id in always):
+                found[anchor.id]=unique_current_anchor(screen,anchor)
+        return tuple(found[a.id] for a in anchors if a.id in found)
+
     def __init__(self):
         templates = template_folder()
         self.anchors = load_anchors(templates)
@@ -140,8 +155,9 @@ class RecoveryScreenDetector:
     def _detect_existing(self, screen):
         detected = self.detector.detect(screen)
         promo_title = unique_current_anchor(screen, self.promo_title)
-        promo_cta = unique_current_anchor(screen, self.promo_cta)
-        event = tuple(unique_current_anchor(screen, a) for a in self.event_anchors)
+        promo_cta = (unique_current_anchor(screen, self.promo_cta) if promo_title.matched else
+                     AnchorEvidence(self.promo_cta.id,self.promo_cta.state,0,self.promo_cta.threshold,False))
+        event = self._paired(screen,self.event_anchors)
         event_visible = bool(event) and all(e.matched for e in event)
         event_qualified = event_visible
         if event_qualified:
@@ -149,9 +165,9 @@ class RecoveryScreenDetector:
             title, started, close = (boxes[k] for k in ('blood-night-title', 'blood-night-started', 'blood-night-close'))
             layout = title.y+title.height < started.y < close.y and abs(started.center[0]-close.center[0]) < started.width*.3
             event_qualified = layout
-        notice = tuple(unique_current_anchor(screen, a) for a in self.notice_anchors)
+        notice = self._paired(screen,self.notice_anchors,always=('match-notice-close',))
         notice_visible = len(notice) == 3 and all(e.matched for e in notice)
-        territory = tuple(unique_current_anchor(screen, a) for a in self.territory_notice_anchors)
+        territory = self._paired(screen,self.territory_notice_anchors)
         close = next((e for e in notice if e.anchor_id == 'match-notice-close'), None)
         territory_title = next(e for e in territory if e.anchor_id == 'territory-notice-title')
         territory_labels = [e for e in territory if e.anchor_id != 'territory-notice-title']
@@ -171,9 +187,14 @@ class RecoveryScreenDetector:
             # Reuse the exact known close and layout guard, never the blue Go CTA.
             notice = (territory_title, labels[0], close)
             notice_visible = True
-        groups = {}
+        variants = {}
         for anchor in self.receipt_anchors:
-            groups.setdefault(anchor.variant, []).append(unique_current_anchor(screen, anchor))
+            variants.setdefault(anchor.variant, []).append(anchor)
+        groups={key:list(self._paired(screen,anchors)) for key,anchors in variants.items()
+                if key!='continue-alternative'}
+        if any(e.anchor_id=='receipt-title' and e.matched for e in groups.get('default',[])):
+            groups['continue-alternative']=[unique_current_anchor(screen,a)
+                for a in variants.get('continue-alternative',[])]
         alternatives = groups.pop('continue-alternative', [])
         if alternatives:
             default = groups.get('default', [])
@@ -283,8 +304,9 @@ class RecoveryScreenDetector:
                 detected.duration_ms,
             )
 
-        loading_title = unique_current_anchor(screen, self.promo_loading_title)
-        if loading_title.matched and detected.state == ScreenState.GAME_LOADING:
+        loading_title = (unique_current_anchor(screen,self.promo_loading_title)
+                         if detected.state==ScreenState.GAME_LOADING else None)
+        if loading_title and loading_title.matched:
             return ScreenDetection(
                 ScreenState.PROMO_LOADING,
                 loading_title.score,

@@ -174,6 +174,27 @@ class Manager:
         with self._lock:
             return self._inventory()
 
+    @measured('target_inventory')
+    def _target_inventory(self, index):
+        """Fresh Multi runtime and backing proof for exactly one target.
+
+        list2 is still fresh, but unrelated disks/journals are not re-read or
+        merged during another worker's input. No identity or runtime is cached.
+        """
+        if type(index) is not int or index < 0:
+            raise SafetyError('Invalid target index; no fallback.')
+        matches=[i for i in self.ld.list_instances() if i.index==index]
+        if len(matches)!=1:
+            raise SafetyError('Exact target missing or ambiguous in fresh Multi inventory.')
+        item=matches[0]
+        try:
+            stable_id=self.identity_reader(self.ld.installation.console,index)
+        except (OSError,ValueError):
+            stable_id=''
+        current=(replace(item,stable_id=stable_id),)
+        self.store.merge(self.namespace,current,complete=False)
+        return current
+
     def select(self, index: int, selected: bool, *, expected_revision=None):
         with self._lock:
             live = self.query(index)
@@ -190,7 +211,8 @@ class Manager:
         """Read-only lifecycle query; even protected instances may be listed."""
         if type(index) is not int or index < 0:
             raise SafetyError("Index không hợp lệ; không fallback về index 0.")
-        matches = [instance for instance in self.refresh() if instance.index == index]
+        with self._lock:
+            matches = list(self._target_inventory(index))
         if len(matches) != 1:
             raise SafetyError("Không tìm thấy đúng giả lập được chỉ định.")
         return matches[0]
@@ -282,8 +304,7 @@ class Manager:
     def _check(self, index: int, *, current=None):
         if self._active is None or self._active.namespace != self.namespace:
             raise SafetyError("Không có hàng đợi thao tác đang hoạt động.")
-        current = self._inventory() if current is None else current
-        self.store.merge(self.namespace, current)
+        current = self._target_inventory(index) if current is None else current
         if self._active.immutable:
             return require_run_member(self.store, self._active, current, index)
         return require_selected(self.store, self._active, current, index)
@@ -458,7 +479,7 @@ class Manager:
                          *, observed_target: Target | None = None) -> tuple[Target, bytes]:
         """Capture exactly one PNG through a freshly verified explicit target."""
         with self._lock:
-            current = self.refresh()
+            current = self._target_inventory(index) if snapshot is not None else self.refresh()
             immutable_snapshot = snapshot is not None
             snapshot = snapshot or create_snapshot(self.store, self.namespace, current)
             self._active = RunSnapshot(
@@ -523,7 +544,7 @@ class Manager:
         with self._lock:
             if action in {"launch", "reboot"}:
                 self._last_lifecycle_attempt = LifecycleAttempt(index=index, action=action)
-            current = self.refresh()
+            current = self._target_inventory(index) if snapshot is not None else self.refresh()
             immutable_snapshot = snapshot is not None
             snapshot = snapshot or create_snapshot(self.store, self.namespace, current)
             # Restrict membership to the exact UI target, not every selected instance.
@@ -612,7 +633,7 @@ class Manager:
                         raise SafetyError("Current ADB identity differs from the action's screenshot.")
                     # Visual actions must respect a live selection revocation,
                     # even when a queue snapshot captured earlier membership.
-                    require_selected(self.store, self._active, self._inventory(), index)
+                    require_selected(self.store, self._active, self._target_inventory(index), index)
                 if action in {"launch", "reboot"}:
                     attempt = self._last_lifecycle_attempt
                     if attempt is not None and attempt.dispatch_attempted:

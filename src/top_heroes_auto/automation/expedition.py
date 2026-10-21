@@ -70,7 +70,9 @@ def finish_expedition(port, initial, *, persist=lambda report: None, scroll_limi
                 continue
             if phase=='COLLECT':
                 if current.fingerprint in seen:
-                    report['collection_scan']='COMPLETE'
+                    # A repeated viewport can be a gesture that did not move.
+                    # It is not positive evidence that hidden rows are exhausted.
+                    report['collection_scan']='NO_FURTHER_PROGRESS'
                     phase='RETURN'
                 else:
                     seen.add(current.fingerprint)
@@ -137,6 +139,9 @@ def finish_expedition(port, initial, *, persist=lambda report: None, scroll_limi
     # close returns to the originating mission list, not the Event's Home
     # parent. Do not leave the outer traversal with an untracked modal depth.
     getattr(port, 'check_cancelled', lambda: None)()
+    if report['collection_scan']=='NO_FURTHER_PROGRESS':
+        block('MISSION_LIST_END_UNPROVEN')
+        report['result']='BLOCKED'
     if (current.page == 'event:relic-expedition:confirm'
             and runtime_key(current.identity) == identity and not current.popup
             and current.parent and current.parent.kind == 'parent'):

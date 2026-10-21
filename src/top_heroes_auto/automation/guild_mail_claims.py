@@ -242,6 +242,7 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
                 store.release_undispatched_reward(claim_id,task_id,'Current-frame dispatch hook was never entered.')
                 action['journal'] = report['journal'] = 'NONE'
             persist()
+            getattr(port, 'check_cancelled', lambda: None)()
         if (reward == 'guild-relic' or report.get('remaining') == 0
                 or report.get('remaining_result') == 'RESOURCE_NOT_AUTHORIZED'):
             return

@@ -77,9 +77,10 @@ class DynamicEventPort:
         self.menu_icon_cores = {}
         self.event_title = None
         self.unavailable_observations = {}
-        self.pending_claim_ids = {r['id'] for r in session.manager.store.reward_claims(
-            session.manager.namespace, session.index)
-            if r['status'] == 'RESERVED' and r['dispatch_state'] == 'POSSIBLE'}
+        # A later daily/seasonal unavailable screen cannot prove an old action.
+        # Automatic reconciliation is limited to actions from THIS live visit.
+        # Historical POSSIBLE locks require their own original action evidence.
+        self.pending_claim_ids = set()
         self.task_context = cv2.imread(str(template_folder().parent/'tasks/phase8/personal-task-tab.png'))
 
     @measured('event_observation')
@@ -709,6 +710,8 @@ class DynamicEventPort:
             result=dispatch_once(store,task,self.session.manager.namespace,fresh,control,
                 event_identity=title,persistent_identity=self.session.target['persistent_identity'],
                 dispatch=dispatch,postcondition=postcondition,persist=persist)
+            if result.get('claim_dispatched') and result.get('journal')=='RESERVED':
+                self.pending_claim_ids=getattr(self,'pending_claim_ids',set()) | {result['claim_id']}
             store.finish_task_run(task,result['result'],report_path=str(path))
             return result
         except Exception as exc:

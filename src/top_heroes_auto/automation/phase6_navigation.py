@@ -122,6 +122,8 @@ class ManagerEntryPort(EntryPort):
         self.name = name
         self.folder = folder
         self._target: Target | None = None
+        self._binding: Target | None = None
+        self._current_frame: EntryFrame | None = None
 
     def record_target(self, frame: EntryFrame, anchor: VisualAnchor, evidence) -> dict | None:
         if anchor.id != "home-vip-entry" or self.folder is None:
@@ -144,20 +146,26 @@ class ManagerEntryPort(EntryPort):
         }
 
     def observe(self, tag: str) -> EntryFrame:
-        target, payload = self.manager.capture_verified(self.index, self.snapshot)
+        binding = {"observed_target": self._binding} if self._binding is not None else {}
+        target, payload = self.manager.capture_verified(self.index, self.snapshot, **binding)
         if runtime_key((target.index, target.name)) != runtime_key((self.index, self.name)):
             raise SafetyError("Entry capture identity changed.")
-        if self._target and (target.serial, target.boot_id) != (self._target.serial, self._target.boot_id):
+        if self._binding and (target.serial, target.boot_id) != (self._binding.serial, self._binding.boot_id):
             raise SafetyError("Entry capture transport identity changed.")
+        self._binding = target
         self._target = target
         captured = ScreenshotService(lambda serial: payload if serial == target.serial else b"").take(
             target, self.folder, tag
         )
-        return EntryFrame(target, captured)
+        self._current_frame = EntryFrame(target, captured)
+        return self._current_frame
 
     def tap(self, frame: EntryFrame, point: tuple[int, int]) -> None:
-        if self._target != frame.target:
+        if self._current_frame is not frame or self._target != frame.target:
             raise SafetyError("Entry action target is stale or changed.")
+        # Consume even if transport raises after dispatch; never retry a frame.
+        self._target = None
+        self._current_frame = None
         self.manager.execute(
             self.index,
             "tap",
@@ -165,7 +173,6 @@ class ManagerEntryPort(EntryPort):
             snapshot=self.snapshot,
             observed_target=frame.target,
         )
-        self._target = None
 
 
 class GuardedEntryNavigator:
@@ -222,12 +229,13 @@ class GuardedEntryNavigator:
             raise SafetyError("Entry overlay requires a fresh capture.")
         result.captures.append(frame.capture_id)
 
-    def _clear_overlays(self, result, frame, cancelled):
+    def _clear_overlays(self, result, frame, cancelled, detection=None):
         stable = None
         for attempt in range(10):
-            detection = self.home_detector(frame.screen)
+            if detection is None:
+                detection = self.home_detector(frame.screen)
             if detection.state not in DISMISSIBLE:
-                return frame
+                return frame, detection
             if cancelled():
                 raise _Cancelled("Cancelled before entry overlay input.")
             signature = overlay_signature(detection)
@@ -247,13 +255,13 @@ class GuardedEntryNavigator:
                 raise _Cancelled("Cancelled after overlay wait.")
             frame = self.port.observe(f"{self.profile.task}-overlay-after-{attempt}")
             self._record_frame(result, frame)
+            detection = None
         raise SafetyError("Entry overlay observation bound reached.")
 
     def _home(self, result: NavigationResult, tag: str, cancelled=lambda: False) -> EntryFrame:
         frame = self.port.observe(tag)
         self._record_frame(result, frame)
-        frame = self._clear_overlays(result, frame, cancelled)
-        detection = self.home_detector(frame.screen)
+        frame, detection = self._clear_overlays(result, frame, cancelled)
         if detection.state != ScreenState.GAME_HOME or detection.confidence < .9:
             raise SafetyError("Current frame is not a verified GAME_HOME screen.")
         return frame
@@ -318,9 +326,9 @@ class GuardedEntryNavigator:
             except StopIteration:
                 break
             self._record_frame(result, after)
-            if self.home_detector(after.screen).state in DISMISSIBLE:
-                after = self._clear_overlays(result, after, cancelled)
-                detected = self.home_detector(after.screen)
+            detected = self.home_detector(after.screen)
+            if detected.state in DISMISSIBLE:
+                after, detected = self._clear_overlays(result, after, cancelled, detected)
                 if detected.state == ScreenState.GAME_HOME and detected.confidence >= .9:
                     raise _HomeAfterOverlay(after)
                 # A destination page can have its own qualified page anchor even

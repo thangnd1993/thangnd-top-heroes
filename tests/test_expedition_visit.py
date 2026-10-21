@@ -49,8 +49,9 @@ def test_collect_prior_day_and_hidden_rewards_before_sending_in_same_visit():
                frame('hidden','COMPLETED',rewards=('c',),top=False),
                bottom,bottom,frame('top-restored','DISPATCHABLE',mission=True),frame('running','WAITING')])
     result=finish_expedition(port,initial)
-    assert result['result']=='WAITING' and not result['blocked']
-    assert result['collection_scan']=='COMPLETE'
+    assert result['result']=='BLOCKED'
+    assert [b['reason'] for b in result['blocked']]==['MISSION_LIST_END_UNPROVEN']
+    assert result['collection_scan']=='NO_FURTHER_PROGRESS'
     kinds=[k for k,_ in port.calls]
     assert kinds==['collect','collect','scroll','collect','scroll','scroll-top','open','dispatch','scroll']
     assert len(result['rewards'])==3 and len(result['dispatches'])==1
@@ -60,7 +61,8 @@ def test_running_missions_never_dispatch_or_wait_for_completion():
     current=frame('running','WAITING')
     port=Port([current])
     result=finish_expedition(port,current)
-    assert result['result']=='WAITING' and not result['dispatches']
+    assert result['result']=='BLOCKED' and not result['dispatches']
+    assert result['blocked'][-1]['reason']=='MISSION_LIST_END_UNPROVEN'
     assert port.calls==[('scroll','running')]
 
 

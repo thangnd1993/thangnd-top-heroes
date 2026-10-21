@@ -192,7 +192,7 @@ class GuildMailDetector:
                             'guild-trial-forbidden','back'),
             'territory-title': ('territory-fortress','relic-summary','relic-owned-tab','relic-gift','relic-gift-unavailable','relic-tab','back'),
             'gifts-title': ('loot-selected','member-selected','loot-inactive','member-inactive',
-                            'gifts-quick','gift-claim','loot-row-title','member-row-title','back'),
+                            'gifts-quick','gift-claim','gifts-empty-label','loot-row-title','member-row-title','back'),
             'technology-title': ('technology-contribution','technology-like','back'),
             'donation-heading': ('donation-counter-label','donation-count-suffix','donation-green',
                                 'donation-paid','donation-quick','modal-close'),
@@ -327,6 +327,20 @@ class GuildMailDetector:
             return None
         if readings:
             return next(iter(readings))
+        # A two-digit white numeral can overhang a nearly round red fill.
+        # Read one bounded wider footprint only after the ordinary crops fail;
+        # retain two-scale OCR consensus and reject conflicting margins.
+        wider = max(badge.width,round(badge.height*1.6))
+        if wider > numeral_width:
+            for margin in (0,1,2):
+                region = BoundingBox(badge.x-(wider-badge.width)//2-margin,
+                                     badge.y-margin,wider+2*margin,badge.height+2*margin)
+                part = crop(image,region)
+                number = self.number_reader(part) if part is not None else None
+                if number is not None:
+                    readings.add(number)
+            if readings:
+                return next(iter(readings)) if len(readings)==1 else None
         region = BoundingBox(badge.x-4,badge.y-4,badge.width+8,badge.height+8)
         # Windows OCR can omit a single character. Only qualified real glyph
         # anchors may resolve it; no numeric substitutions or guessed counts.
@@ -573,7 +587,16 @@ class GuildMailDetector:
             if quick:
                 count = self.local_badge(frame,quick,numbered=True)
                 if count is not None and count > 0:
+                    empty = frame.anchors.get('gifts-empty-label')
+                    if empty and empty.score >= empty.threshold:
+                        return unknown
                     return Opportunity(reward,'AVAILABLE','gifts-quick',quick,count,reward)
+            empty = frame.anchors.get('gifts-empty-label')
+            row_claim = frame.anchors.get('gift-claim')
+            if (quick and empty and empty.matched and self.undimmed(frame.captured,empty)
+                    and self.badge_absent(frame,quick) and row_claim is not None
+                    and row_claim.score < row_claim.threshold):
+                return Opportunity(reward,'NOT_AVAILABLE',remaining=0,context=reward)
             # A batch may contain exactly one gift. Its positive received check,
             # the qualified tab/control, no badge and no remaining claim label
             # jointly prove exhaustion; a missing badge alone is insufficient.

@@ -345,7 +345,8 @@ class ManagerRewardPort(ExplorerPort):
         )
 
     def observe(self) -> RewardScreen:
-        target, payload = self.manager.capture_verified(self.index, self.snapshot)
+        binding = {"observed_target": self._target} if self._target is not None else {}
+        target, payload = self.manager.capture_verified(self.index, self.snapshot, **binding)
         if runtime_key((target.index, target.name)) != runtime_key((self.index, self.name)):
             raise SafetyError("Reward capture identity changed.")
         if self._target and (target.serial, target.boot_id) != (self._target.serial, self._target.boot_id):
@@ -367,9 +368,11 @@ class ManagerRewardPort(ExplorerPort):
         from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
 
         detector = RecoveryScreenDetector()
+        following = None
         for attempt in range(5):
             current = self._current(screen)
-            detection = detector.detect(current.captured)
+            detection = following if following is not None else detector.detect(current.captured)
+            following = None
             allowed = {ScreenState.REWARD_RECEIPT}
             if self.adapter.profile.task.startswith("vip-"):
                 allowed.update({ScreenState.EVENT_PROMO, ScreenState.PROMO_AD})

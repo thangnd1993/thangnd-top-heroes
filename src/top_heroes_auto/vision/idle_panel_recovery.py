@@ -15,7 +15,13 @@ def idle_panel_evidence(screen):
     anchors.append(VisualAnchor('idle-panel-close', ScreenState.IDLE_REWARD_PANEL,
         template_folder().parent/'tasks/phase8/idle-panel/close.png',
         NormalizedRect(0, 0, 1, 1), .98))
-    evidence = tuple(unique_current_anchor(screen, a) for a in anchors)
+    found={}
+    for anchor in sorted(anchors,key=lambda a:a.id!='idle-title-claimable'):
+        item=unique_current_anchor(screen,anchor)
+        if not item.matched:
+            return ()
+        found[anchor.id]=item
+    evidence=tuple(found[a.id] for a in anchors)
     if not qualified_idle_panel(screen, evidence):
         return ()
     return evidence

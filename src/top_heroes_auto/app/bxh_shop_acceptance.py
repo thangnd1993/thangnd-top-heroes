@@ -114,8 +114,10 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
     identity = target.get('persistent_identity')
 
     def check_identity():
-        _instance(manager, index, name)
-        if identity_reader(manager, index) != identity:
+        live = _instance(manager, index, name)
+        current = (manager.store.require_identity(manager.namespace,index,live.stable_id)
+                   if identity_reader is persistent_identity else identity_reader(manager,index))
+        if current != identity:
             raise SafetyError('Persistent target identity changed; no action or cleanup permitted.')
 
     try:

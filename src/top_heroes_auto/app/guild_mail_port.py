@@ -148,10 +148,23 @@ class GuildMailPort(FixedRewardPort):
                 frame = self.navigate(frame,role,expected)
         elif reward == 'guild-technology':
             frame = self.navigate(frame,'guild-technology','technology')
+            frame = self.stable_technology_node(frame)
             frame = self.navigate(frame,'technology-node','donation')
         else:
             raise SafetyError('Unsupported Guild route.')
         return frame
+
+    def stable_technology_node(self, frame):
+        """The tree can auto-scroll after entry; never tap a moving node."""
+        previous = frame.box('technology-node')
+        for _ in range(3):
+            self.check_cancelled()
+            following = self.observe_settled()
+            current = following.box('technology-node') if following.page == 'technology' else None
+            if previous is not None and current is not None and previous == current:
+                return following
+            previous = current
+        raise SafetyError('Technology node did not stabilize in fresh frames; no node input.')
 
     def opportunity(self, reward, initial=None):
         frame = self.settle(initial) if initial is not None else self.observe_settled()

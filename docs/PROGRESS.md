@@ -1,3 +1,10 @@
+## October21 current repair checkpoint
+
+Read [OCT21_REPAIR_CHECKPOINT.md](OCT21_REPAIR_CHECKPOINT.md) first.
+Focused random production check on8/10 completed PARTIAL; all old journals and
+Protected states preserved.732 remains locked. Cohesive offline repairs require
+fresh full CI/portable delivery; final normal-UI Start belongs to USER. No Phase9.
+
 ## October19 remaining repairs — final full Start belongs to USER
 
 Continue clean 600a70f, one Codex agent/two independent application workers.

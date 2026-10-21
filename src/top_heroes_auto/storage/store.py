@@ -141,7 +141,7 @@ class Store:
         with self.connect() as db:
             db.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", (key, value))
 
-    def merge(self, namespace: str, instances: tuple[Instance, ...]):
+    def merge(self, namespace: str, instances: tuple[Instance, ...], *, complete=True):
         with self.connect() as db:
             old = {
                 row[0]: row[1:]
@@ -151,7 +151,7 @@ class Store:
             }
             current_indexes = {instance.index for instance in instances}
             for index, previous in old.items():
-                if index not in current_indexes and previous[1]:
+                if complete and index not in current_indexes and previous[1]:
                     db.execute('UPDATE instances SET present=0,selected=0 WHERE namespace=? AND idx=?',
                                (namespace, index))
             for instance in instances:

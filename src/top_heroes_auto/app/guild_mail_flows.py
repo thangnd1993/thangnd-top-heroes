@@ -53,16 +53,20 @@ def run(session, folder, rewards, *, port_factory=GuildMailPort):
                 port.open_reward(reward)
                 process(port,store,namespace,task,reward,session.target['persistent_identity'],outcome,persist)
             except Exception as exc:  # noqa: BLE001 - later independent rewards still receive safe evaluation
+                if session.cancelled():
+                    raise
                 if outcome['result'] in {'NOT_STARTED','RESERVED','AVAILABLE'}:
                     outcome['result'] = 'BLOCKED'
                 outcome['error'] = f'{type(exc).__name__}: {exc}'
             persist()
     except Exception as exc:  # noqa: BLE001 - lifecycle remains owned by the enclosing session
         report['error'] = str(exc)
+        if session.cancelled():
+            raise
     finally:
         for reward in rewards:
             report['rewards'].setdefault(reward,dict(result='BLOCKED',journal='NONE',claim_dispatched=False))
-        if port is not None:
+        if port is not None and not session.cancelled():
             if folder.name == 'mail':
                 try:
                     audit_current_mail(port, report)
@@ -78,6 +82,8 @@ def run(session, folder, rewards, *, port_factory=GuildMailPort):
                 report['return_home'] = 'FAILED'
                 report['recovery_error'] = str(exc)
             report.update(entries=port.entries,popup_dismissals=port.dismissals)
+        if session.cancelled():
+            report['return_home'] = 'SKIPPED_CANCELLED'
         report['result'] = 'SUCCESS' if (not report.get('current_tab_audit_error') and
             all(r['result'] in COMPLETE for r in report['rewards'].values())) else 'BLOCKED'
         store.finish_task_run(task,report['result'],report_path=str(path))
