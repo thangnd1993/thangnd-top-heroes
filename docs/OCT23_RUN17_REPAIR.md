@@ -43,7 +43,7 @@ All rows refer to **run17** and paths relative to the report base directory.
 | --- | --- | --- | --- | --- |
 | 3 | Mail `3/mail/20261022-085517-989823Z-guild-mail.png`, evidence JSON, actions.json | World ticker covers tab labels; sharp Mail title/close/read/delete remain. HOME_OVERLAY fallback sent bottom-left, then siblings failed `Feature already entered` | Qualified Mail modal suppresses generic dismissal while tabs are obscured. Bounded fresh captures, still UNKNOWN/no input until full tab evidence returns; no re-entry bypass | Original ticker fixture; capture-only transition; persistent ticker bounded/no input |
 | 4 | Mail `4/mail/20261022-091348-795245Z-guild-mail.png` | System badge **9** present but Windows two-render OCR omitted it; no qualified9 glyph in assets | Strict full-badge9 glyph fallback using existing association/uniqueness checks; OCR disagreement still rejects. Reports42 remains UNKNOWN when unqualified | Original9 at two positions; conflicting OCR cannot use fallback |
-| 8 | Tầm Bảo `8/events/20261022-093736-923550Z-bxh-shop.png`, actions.json, postframes093745/093751/093755 | Exactly one collection802, then compact receipt title is smaller than existing templates (old title score.267). No dismissal/post-state images; journal remains POSSIBLE | Paired compact title/continue anchors at>=.98 plus relative layout qualify dismissal only. Future claims still need independent underlying state change; never retry802 | Original receipt; partial/reversed anchors rejected; receipt-only postcondition remains unverified/no repeat |
+| 8 | Tầm Bảo `8/events/20261022-093736-923550Z-bxh-shop.png`, actions.json, postframes093745/093751/093755 | Exactly one collection802, then a report receipt remains UNKNOWN. Default title score.267, but the existing large title qualifies; its continuation raw score.956 fails over the changed blurred background. No dismissal/post-state images; journal remains POSSIBLE | Reuse the existing large title and strict continuation glyph-detail matcher (.988>=.98), preserving duplicate and relative-layout guards. Future claims still need independent underlying state change; never retry802 | Original receipt; partial/reversed anchors rejected; receipt-only postcondition remains unverified/no repeat; old large/report receipt and removal-effect regressions |
 | 3 | Events `3/events/` UNKNOWN frame retained in fixture `rank-notice.png` | Informational `Xin Chúc Mừng` guild rank notice not recognized, blocking remaining roots | Three stable title/body/blank-dismiss anchors plus layout qualify bottom-left as EVENT_PROMO, explicitly NOT REWARD_RECEIPT | Actual notice; missing anchor rejects; never receipt |
 | 2/4/5/8/10 | Collaboration root, e.g. `2/events/20261022-090434-356222Z-bxh-shop.png` | Existing preview/training/collection glyph scores .994859/.963236/.994077 below unchanged .995; hub became UNKNOWN | Three small clean caption raster variants, same global search/strict threshold and cross-variant uniqueness; only currently indicated children | Original current hub detects treasure/training-rewards; duplicate/missing labels reject; previous hub tests retained |
 | 2/3/4/5/8/10 | Guild/Mail repeated captures; open_reward returns a qualified fresh frame, process immediately captured again without intervening input | Redundant capture, target scans and detector passes | Pass the exact unconsumed navigation frame once to opportunity; stale/consumed frame rejected. Every input still verifies identity, every post-action observation is fresh | Navigation-frame reuse/consumption, no extra capture, stale frame rejection, existing uncertain-journal tests |
@@ -108,6 +108,15 @@ The first local batch had a new test's incorrect geometry-call arguments and
 an existing import-order-sensitive registry assertion; the corrected targeted
 suite uses the production registry's ordinary initialization order. No scheduler
 or flow-order production change was made for that test-order artifact.
+
+CI39913333616 exposed7 receipt/removal-effect regressions (2107 passed,26 skipped):
+the first added compact receipt group overlapped the existing large group and
+could rescue a duplicate large title. It was NOT delivered. Remove those four
+overlapping assets and instead reuse the existing large title with the existing
+strict continuation glyph-detail matcher, only when the title is unique and the
+raw continuation is below threshold (never a duplicate). All81 focused tests for
+the failed receipt/removal-effect paths, run17 and overlay dismissal now PASS in
+213.51s; Ruff/diff checks PASS. Require a fresh full CI gate for this correction.
 
 **Phase8 remains PARTIAL. No Phase9. No real gameplay/claim in this repair.**
 Fresh user-run evidence is still required for the repaired ticker/receipt/hub,

@@ -245,6 +245,19 @@ class RecoveryScreenDetector:
             detail = unique_detail_anchor(screen, anchor)
             if detail.matched:
                 groups['default'] = [detail if e is continuation else e for e in default]
+        # The expedition report receipt already has the qualified large title.
+        # Only its continuation's blurred background differs. Reuse the same
+        # strict glyph-detail matcher; do not add an overlapping receipt group
+        # that could rescue duplicate titles or conflict with existing receipts.
+        large = groups.get('large-receipt', [])
+        title = next((e for e in large if e.anchor_id == 'large-receipt-title'), None)
+        continuation = next((e for e in large if e.anchor_id == 'large-receipt-continue'), None)
+        if (title and title.matched and continuation and not continuation.matched
+                and continuation.score < continuation.threshold):
+            anchor = next(a for a in self.receipt_anchors if a.id == 'large-receipt-continue')
+            detail = unique_detail_anchor(screen, anchor)
+            if detail.matched:
+                groups['large-receipt'] = [detail if e is continuation else e for e in large]
         qualified_receipts = [tuple(items) for variant, items in groups.items()
                               if len(items) >= 2 and all(e.matched for e in items)
                               and self._receipt_layout(screen, variant, items)]
@@ -362,10 +375,10 @@ class RecoveryScreenDetector:
 
     @staticmethod
     def _receipt_layout(screen, variant, items):
-        if variant in {'large-receipt', 'compact-receipt'}:
+        if variant == 'large-receipt':
             boxes = {e.anchor_id: e.device_box for e in items}
-            title = boxes[variant+'-title']
-            continuation = boxes[variant+'-continue']
+            title = boxes['large-receipt-title']
+            continuation = boxes['large-receipt-continue']
             width, height = screen.device_size or screen.original_size
             # Expedition receipts add helper reports below the rewards; the
             # same unique title sits lower, still above the upper fifth.
