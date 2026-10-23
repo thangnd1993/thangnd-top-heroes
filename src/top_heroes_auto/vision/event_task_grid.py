@@ -170,6 +170,25 @@ def task_grid_rows(image,shell,*,reader):
                           'independent-task-caption','explicit-claimed-label','original-green-control-absent')))
             continue
         texts=[folded(' '.join(q['text'] for q in reader(cv2.resize(crop,None,fx=s,fy=s)))).strip(" .,:'\"") for s in (2,3)]
+        if texts[0] != texts[1] or texts[0] not in {'nhan','mien phi','den','da nhan'}:
+            # Run19: scaling the whole action column makes OCR drop the label.
+            # Isolate a complete current green/blue button first, then require
+            # two exact readings of its white glyphs. No caption correction.
+            hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+            controls = cv2.inRange(hsv, (35,60,80), (115,255,255))
+            boxes = [cv2.boundingRect(c) for c in cv2.findContours(
+                controls, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
+                if cv2.boundingRect(c)[2] > b.width*.60
+                and .028*h < cv2.boundingRect(c)[3] < .07*h
+                and cv2.contourArea(c)/np.prod(cv2.boundingRect(c)[2:]) > .80]
+            if len(boxes) == 1:
+                x,y,bw,bh = boxes[0]
+                inside = hsv[y+4:y+bh-4,x+4:x+bw-4]
+                white = cv2.inRange(inside, (0,0,185), (179,90,255))
+                rendered = cv2.copyMakeBorder(cv2.cvtColor(255-white, cv2.COLOR_GRAY2BGR),
+                    15,15,15,15,cv2.BORDER_CONSTANT,value=(255,255,255))
+                texts = [folded(' '.join(q['text'] for q in reader(
+                    cv2.resize(rendered,None,fx=s,fy=s)))).strip(" .,:'\"") for s in (1,2)]
         if texts[0]!=texts[1] or texts[0] not in {'nhan','mien phi','den','da nhan'}:
             continue
         hsv=cv2.cvtColor(crop,cv2.COLOR_BGR2HSV)
@@ -209,6 +228,16 @@ def task_grid_rows(image,shell,*,reader):
                                        cv2.BORDER_CONSTANT,value=(255,255,255))
             texts=[folded(' '.join(q['text'] for q in reader(cv2.resize(rendered,None,fx=s,fy=s)))) for s in (3,4)]
             fractions=[re.findall(r'(?<!\d)(\d+)\s*/\s*(\d+)(?!\d)',t) for t in texts]
+            if not (len(fractions[0]) == 1 and fractions[0] == fractions[1]):
+                # Run19: one masked rendering drops the slash entirely. Two
+                # unmasked readings of the same owned progress line may prove
+                # it, but cannot override ANY conflicting recognized fraction.
+                rendered = cv2.copyMakeBorder(crop,10,10,10,10,cv2.BORDER_CONSTANT,value=(255,255,255))
+                raw = [re.findall(r'(?<!\d)(\d+)\s*/\s*(\d+)(?!\d)',folded(' '.join(
+                    q['text'] for q in reader(cv2.resize(rendered,None,fx=s,fy=s))))) for s in (4,5)]
+                if (len(raw[0]) == 1 and raw[0] == raw[1]
+                        and all(not f or f == raw[0] for f in fractions)):
+                    fractions = raw
         progress_crop=image[b.y+round(b.height*.70):b.y+round(b.height*.80),b.x:b.x+b.width]
         progress_green=cv2.inRange(cv2.cvtColor(progress_crop,cv2.COLOR_BGR2HSV),(35,60,80),(85,255,255))
         bars=[]

@@ -10,6 +10,7 @@ from top_heroes_auto.automation.overlays import DISMISSIBLE, dismiss_overlay_bot
 from top_heroes_auto.automation.timing import measure, measured, pause, poll, wait
 from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.guild_mail import GuildMailDetector, portrait
+from top_heroes_auto.vision.models import ScreenState
 from top_heroes_auto.vision.screenshot import ScreenshotService
 
 
@@ -18,14 +19,40 @@ class GuildMailPort(FixedRewardPort):
         super().__init__(session.manager,session.snapshot,session.index,session.name,folder,
                          session.check,session.cancelled)
         self.historical_names = tuple(session.target.get('historical_names', ()))
+        self.session = session
         self.detector = GuildMailDetector()
         self.qualified = None
         self.entries = {'guild':0,'mail':0}
         self.dismissals = 0
+        self.sibling_recoveries = []
+        self.reentry_frame = None
+
+    def recover_for_sibling(self, session):
+        """One explicit navigation-only recovery, never retry the failed reward."""
+        frame = self.last
+        if self.sibling_recoveries or frame is None:
+            return
+        if frame.page != 'home' and frame.overlay.state != ScreenState.GAME_WORLD:
+            return
+        record = dict(capture=str(frame.captured.source_image), page=frame.page,
+                      state=frame.overlay.state.value, result='NOT_STARTED')
+        self.sibling_recoveries.append(record)  # Failed recovery consumes the budget too.
+        if frame.page != 'home':
+            result, path, _ = session.recover()
+            record.update(result=result.status.value, report=str(path))
+        current = self.observe_settled()
+        if current.page != 'home':
+            record['result'] = 'HOME_UNPROVEN'
+            return
+        record.update(result='HOME_VERIFIED', home_capture=str(current.captured.source_image))
+        self.reentry_frame = current
 
     def observe(self):
-        self.check()
+        self.last = None
+        self.qualified = None
+        self.check(transport=True)
         target, payload = self.manager.capture_verified(self.index,self.snapshot,
+            **self.operation_options(),
             **({'observed_target': self.target} if self.target is not None else {}))
         if runtime_key((target.index,target.name)) != runtime_key((self.index,self.name)):
             raise SafetyError('Guild/Mail capture identity changed.')
@@ -52,6 +79,11 @@ class GuildMailPort(FixedRewardPort):
                 local += 1
                 self.dismissals += 1
             elif frame.page != 'UNKNOWN':
+                return frame
+            elif frame.overlay.state not in {ScreenState.UNKNOWN, *DISMISSIBLE}:
+                # A positively known foreign surface is not a fading Mail tab.
+                # Let the feature owner record/recover it once, without six
+                # expensive captures for every independent sibling reward.
                 return frame
             if frame.overlay.state not in DISMISSIBLE:
                 wait(.3, cancelled=self.cancelled)
@@ -91,8 +123,9 @@ class GuildMailPort(FixedRewardPort):
             raise SafetyError(f'No qualified navigation edge: {frame.page}/{role}.')
         if role in {'home-guild','home-mail'}:
             feature = role.removeprefix('home-')
-            if self.entries[feature]:
+            if self.entries[feature] and not (self.entries[feature] == 1 and frame is self.reentry_frame):
                 raise SafetyError('Feature already entered; no silent re-entry.')
+            self.reentry_frame = None
             self.entries[feature] += 1
         self.tap(frame,frame.anchors[role])
         after = poll(self.observe_settled, lambda f: f.page in destinations or f.page != origin,
@@ -113,7 +146,13 @@ class GuildMailPort(FixedRewardPort):
         return frame
 
     def open_reward(self, reward):
-        frame = self.observe_settled()
+        # The recovery frame is current and unconsumed, not a saved coordinate.
+        frame = self.settle(self.last) if self.last is not None else self.observe_settled()
+        feature = 'mail' if reward.startswith('mail-') else 'guild'
+        if (self.entries[feature] and self.reentry_frame is None and
+                (frame.page == 'home' or frame.overlay.state == ScreenState.GAME_WORLD)):
+            self.recover_for_sibling(self.session)
+            frame = self.last
         if reward.startswith('mail-'):
             if frame.page == 'home':
                 frame = self.navigate(frame,'home-mail','mail')
@@ -197,7 +236,7 @@ class GuildMailPort(FixedRewardPort):
         self.qualified = None
 
     def home(self):
-        frame = self.observe_settled()
+        frame = self.settle(self.last) if self.last is not None else self.observe_settled()
         if frame.page == 'home':
             return frame
         if frame.page == 'mail':

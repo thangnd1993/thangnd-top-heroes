@@ -476,7 +476,7 @@ class Manager:
 
     @measured('capture_and_identity')
     def capture_verified(self, index: int, snapshot: RunSnapshot | None = None,
-                         *, observed_target: Target | None = None) -> tuple[Target, bytes]:
+                         *, observed_target: Target | None = None, operation_guard=None) -> tuple[Target, bytes]:
         """Capture exactly one PNG through a freshly verified explicit target."""
         with self._lock:
             current = self._target_inventory(index) if snapshot is not None else self.refresh()
@@ -499,6 +499,8 @@ class Manager:
                         index, lambda: self.adb.boot_id(target.serial),
                         instance=capture_runtime) != target.boot_id:
                     raise SafetyError("ADB target đã thay đổi; hủy chụp màn hình.")
+                if operation_guard is not None:
+                    operation_guard(capture_runtime, target)
                 return target, self.adb._capture(target.serial)
             except Exception:
                 log.exception("[#%s] Hủy capture đã xác minh", index)
@@ -510,6 +512,7 @@ class Manager:
     def execute(
         self, index: int, action: str, package: str = "", values: tuple = (), snapshot: RunSnapshot | None = None,
         *, observed_target: Target | None = None, before_input=None, allow_lifecycle_retry=True,
+        operation_guard=None,
     ):
         """One explicit manual action = one short-lived immutable queue.
 
@@ -578,7 +581,7 @@ class Manager:
                 if action in {"launch", "reboot"}:
                     self._start(index)
                 try:
-                    target = self._verify_observed(index, observed_target) if observed_target is not None else self._resolve(index)
+                    target = self._verify_observed(index, observed_target, instance=instance) if observed_target is not None else self._resolve(index)
                 except TransportResolutionError:
                     if action not in {"launch", "reboot"} or not allow_lifecycle_retry:
                         raise
@@ -633,7 +636,9 @@ class Manager:
                         raise SafetyError("Current ADB identity differs from the action's screenshot.")
                     # Visual actions must respect a live selection revocation,
                     # even when a queue snapshot captured earlier membership.
-                    require_selected(self.store, self._active, self._target_inventory(index), index)
+                    instance = require_selected(self.store, self._active, self._target_inventory(index), index)
+                if operation_guard is not None:
+                    operation_guard(instance, target)
                 if action in {"launch", "reboot"}:
                     attempt = self._last_lifecycle_attempt
                     if attempt is not None and attempt.dispatch_attempted:

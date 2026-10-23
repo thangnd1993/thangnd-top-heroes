@@ -58,9 +58,15 @@ class FixedRewardPort:
             self.shop = ShopTraversal()
         return self.shop
 
-    def check(self):
+    def operation_options(self):
+        owner = getattr(self.identity_check, '__self__', None)
+        guard = getattr(owner, 'validate_operation', None)
+        return {'operation_guard': guard} if guard is not None else {}
+
+    def check(self, *, transport=False):
         self.check_cancelled()
-        self.identity_check()
+        if not transport or not self.operation_options():
+            self.identity_check()
         meta = self.manager.store.metadata(self.manager.namespace, self.index)
         if meta.protected or not meta.selected:
             raise SafetyError('Target must remain selected and non-Protected.')
@@ -70,8 +76,10 @@ class FixedRewardPort:
             raise SafetyError('Fixed reward run cancelled.')
 
     def observe(self):
-        self.check()
+        self.last = None  # A failed fresh capture must not revive an older proof.
+        self.check(transport=True)
         target, payload = self.manager.capture_verified(self.index, self.snapshot,
+            **self.operation_options(),
             **({'observed_target': self.target} if self.target is not None else {}))
         if target.index != self.index:
             raise SafetyError('Fixed-flow capture identity changed.')
@@ -99,7 +107,7 @@ class FixedRewardPort:
 
     @measured('input_dispatch')
     def dispatch(self, observation, action, values, before_input=None):
-        self.check()
+        self.check(transport=True)
         if observation is not self.last or self.target is None:
             raise SafetyError('Stale fixed-flow observation.')
         tap_overlay = None
@@ -114,8 +122,11 @@ class FixedRewardPort:
             if previous is not None:
                 self.events[-1]['since_previous_input_seconds'] = self.events[-1]['started_monotonic']-previous
         self.save_events()
+        # Consume before the transport call too: an exception after dispatch
+        # must not leave an old screenshot eligible for a second action.
+        self.last = None
         self.manager.execute(self.index, action, values=values, snapshot=self.snapshot,
-                             observed_target=self.target, before_input=before_input)
+                             observed_target=self.target, before_input=before_input, **self.operation_options())
         self.events[-1]['outcome'] = 'DISPATCHED'
         self.events[-1]['finished_monotonic'] = time.perf_counter()
         self.last = None
@@ -254,7 +265,7 @@ class FixedRewardPort:
         return observation
 
     def home(self):
-        observation = self.observe_settled()
+        observation = self.settle(self.last) if self.last is not None else self.observe_settled()
         for _ in range(3):
             if observation.page == 'home':
                 return observation

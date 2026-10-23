@@ -37,7 +37,19 @@ class RecoveryScreenDetector:
         independent, and all phase alternatives run when their title qualifies.
         """
         titles=[a for a in anchors if a.id.endswith('-title')]
-        found={a.id:unique_current_anchor(screen,a) for a in titles}
+        found = {}
+        for anchor in titles:
+            if anchor.id == 'large-receipt-title' and screen.rotated_from_portrait:
+                # _receipt_layout already REQUIRES this entire title above
+                # the upper fifth. A cheap rejection there cannot discard a
+                # valid receipt. Any hit still gets the ORIGINAL full search,
+                # preserving duplicate rejection everywhere in the frame.
+                probe = unique_current_anchor(screen, replace(anchor,
+                    expected_region=NormalizedRect(.80, 0, 1, 1)))
+                if not probe.matched:
+                    found[anchor.id] = probe
+                    continue
+            found[anchor.id] = unique_current_anchor(screen, anchor)
         qualified=bool(titles) and all(e.matched for e in found.values())
         for anchor in anchors:
             if anchor.id not in found and (qualified or anchor.id in always):

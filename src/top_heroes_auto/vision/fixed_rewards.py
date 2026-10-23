@@ -106,6 +106,18 @@ class FixedRewardDetector:
                     relevant = anchors['profile-title'].matched
                 elif name not in {'home-shop-entry','back'}:
                     relevant = shop
+                    # All competing page titles have already been evaluated.
+                    # Footer navigation stays independent of the selected page;
+                    # another route's reward controls cannot authorize this one.
+                    navigation = ('tab' in name or 'selected-icon' in name or name.endswith('active-current'))
+                    if not navigation:
+                        for route in ('daily', 'weekly', 'permanent', 'monthly'):
+                            if name.startswith(route+'-') and name != 'daily-received':
+                                relevant &= any(anchors[k].matched for k in titles
+                                                if k.startswith(route+'-title'))
+                        if name in {'shop-gift', 'shop-attention'}:
+                            relevant &= any(anchors[k].matched for k in
+                                            ('daily-title', 'weekly-title', 'weekly-title-current'))
                 if not relevant:
                     anchors[name] = AnchorEvidence(name, ScreenState.UNKNOWN, 0, anchor.threshold, False)
                     continue
@@ -182,6 +194,12 @@ class FixedRewardDetector:
         conflict = recovery.state not in {ScreenState.UNKNOWN, ScreenState.GAME_HOME}
         conflict |= recovery.state == ScreenState.UNKNOWN and bool(recovery.evidence)
         page = known[0] if len(known) == 1 and not conflict else "UNKNOWN"
+        back = anchors['back']
+        if (page in SHOP_PAGES and not back.matched and .90 <= back.score < back.threshold):
+            # Run19: current footer Back fluctuates just below .96 under
+            # renderer resampling. Strict alignment, not a threshold reduction.
+            anchors['back'] = unique_subpixel_anchor(captured, replace(self.anchors['back'],
+                expected_region=portrait_region(0, .90, 1, 1)), antialias=True)
         if page == 'shop-monthly' and anchors['monthly-daily-heading'].matched:
             owned = anchors['monthly-owned-label']
             if not owned.matched and .85 <= owned.score < owned.threshold:

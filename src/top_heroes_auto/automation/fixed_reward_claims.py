@@ -3,17 +3,17 @@ import json
 import logging
 import time
 
-from top_heroes_auto.automation.timing import pause
+from top_heroes_auto.automation.timing import measure, pause
 from top_heroes_auto.vision.fixed_rewards import ALL_REWARDS as REWARDS
 from top_heroes_auto.vision.fixed_rewards import claim_geometry
 
 
-def observe_reward(port, frame, reward):
+def observe_reward(port, frame, reward, *, post_action=False):
     state, core, badge = port.detector.availability(frame, reward)
     # A positively detected transient announcement can cover the gift label.
     # Wait only; it is never permission for a dismiss/claim input.
     announced = bool(frame.box('shop-notice-speaker'))
-    for _ in range(4 if announced else 2):
+    for _ in range(4 if announced or post_action else 2):
         if state != 'UNKNOWN' or frame.page == 'UNKNOWN':
             break
         pause(time.sleep, 1 if announced else .4)
@@ -27,7 +27,9 @@ def process_reward(port, store, namespace, task_id, reward, identity, report, pe
         raise ValueError("Reward is outside the annotated fixed flow.")
     if reward == 'shop-monthly-privilege-gift':
         raise ValueError('Monthly upper gift is navigation, not a reward claim. Preserve legacy journal.')
-    before, state, core, badge = observe_reward(port, port.observe_settled(), reward)
+    current = getattr(port, 'last', None)
+    before, state, core, badge = observe_reward(
+        port, port.settle(current) if current is not None else port.observe_settled(), reward)
     report.update(before=before.evidence(), availability=state, claim_dispatched=False,
                   journal="NONE", result=state,
                   badge_confidence=badge.score if badge else None)
@@ -105,12 +107,13 @@ def process_reward(port, store, namespace, task_id, reward, identity, report, pe
 
         port.tap(before, core, before_input=intent)
         report['claim_dispatched'] = True
-        immediate = port.observe()
-        report['immediate_after'] = immediate.evidence()
-        persist()
-        after, after_state, _, _ = observe_reward(port, port.settle(immediate), reward)
-        report['after'] = after.evidence()
-        report['post_condition'] = after_state
+        with measure('postcondition_verification'):
+            immediate = port.observe()
+            report['immediate_after'] = immediate.evidence()
+            persist()
+            after, after_state, _, _ = observe_reward(port, port.settle(immediate), reward, post_action=True)
+            report['after'] = after.evidence()
+            report['post_condition'] = after_state
         if (after_state == 'NOT_AVAILABLE' and before.captured.source_image != after.captured.source_image
                 and (before.captured.index, before.captured.serial, before.captured.boot_id) ==
                 (after.captured.index, after.captured.serial, after.captured.boot_id)):

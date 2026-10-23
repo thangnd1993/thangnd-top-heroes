@@ -148,7 +148,8 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
         if recovery.status not in {RecoveryStatus.SUCCESS, RecoveryStatus.ALREADY_HOME}:
             raise SafetyError(recovery.error or f'Recovery failed: {recovery.status.value}')
         row['recovery'] = 'SUCCESS'
-        port = port_factory(manager, snapshot, index, name, folder, check_identity, cancelled)
+        transport_identity = session.check if session is not None else check_identity
+        port = port_factory(manager, snapshot, index, name, folder, transport_identity, cancelled)
         shop_started = False
         for reward in rewards:
             outcome = row['rewards'][reward]
@@ -160,7 +161,11 @@ def run_account(manager, data, target, folder, *, rewards=REWARDS, cancelled=lam
                 else:
                     # One Shop session for the account. A receipt or a blocked
                     # independent reward never sends traversal back Home.
-                    frame = port.observe_settled() if shop_started else port.home()
+                    if shop_started:
+                        current = getattr(port, 'last', None)
+                        frame = port.settle(current) if current is not None else port.observe_settled()
+                    else:
+                        frame = port.home()
                     shop_started = True
                     port.open_shop_reward(frame, reward)
                 if reward == 'shop-monthly-privilege-gift':

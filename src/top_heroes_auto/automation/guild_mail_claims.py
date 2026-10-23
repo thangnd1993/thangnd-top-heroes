@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 
 from top_heroes_auto.automation.guard import SafetyError
-from top_heroes_auto.automation.timing import pause
+from top_heroes_auto.automation.timing import measure, pause
 from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.vision.guild_mail import GUILD_REWARDS, MAIL_REWARDS
 
@@ -205,23 +205,24 @@ def process(port, store, namespace, task_id, reward, identity, report, persist, 
 
             port.claim(frame,view,before_input=intent)
             action['claim_dispatched'] = True
-            immediate = port.observe()
-            action['immediate_after'] = immediate.evidence()
-            persist()
-            after_frame, after = port.opportunity(reward, initial=immediate)
-            action['post_observations'] = []
-            # The first screenshot can precede the server/UI update. Poll only;
-            # no second action and no journal release, even if nothing changes.
-            for attempt in range(3):
-                action['post_observations'].append(dict(frame=after_frame.evidence(),opportunity=after.evidence()))
+            with measure('postcondition_verification'):
+                immediate = port.observe()
+                action['immediate_after'] = immediate.evidence()
                 persist()
-                if qualified_progress(frame,view,after_frame,after) or attempt == 2:
-                    break
-                pause(time.sleep, .4)
-                after_frame, after = port.opportunity(reward)
-            confirmation_frame, confirmation = port.opportunity(reward)
-            action['after'] = dict(frame=after_frame.evidence(),opportunity=after.evidence())
-            action['confirmation'] = dict(frame=confirmation_frame.evidence(),opportunity=confirmation.evidence())
+                after_frame, after = port.opportunity(reward, initial=immediate)
+                action['post_observations'] = []
+                # The first screenshot can precede the server/UI update. Poll only;
+                # no second action and no journal release, even if nothing changes.
+                for attempt in range(3):
+                    action['post_observations'].append(dict(frame=after_frame.evidence(),opportunity=after.evidence()))
+                    persist()
+                    if qualified_progress(frame,view,after_frame,after) or attempt == 2:
+                        break
+                    pause(time.sleep, .4)
+                    after_frame, after = port.opportunity(reward)
+                confirmation_frame, confirmation = port.opportunity(reward)
+                action['after'] = dict(frame=after_frame.evidence(),opportunity=after.evidence())
+                action['confirmation'] = dict(frame=confirmation_frame.evidence(),opportunity=confirmation.evidence())
             if (qualified_progress(frame,view,after_frame,after) and
                     qualified_progress(frame,view,confirmation_frame,confirmation) and
                     after_frame.captured.source_image != confirmation_frame.captured.source_image and

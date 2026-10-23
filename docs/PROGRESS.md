@@ -1,3 +1,18 @@
+## October23 newest run19 repair
+
+Read [OCT23_RUN19_REPAIR.md](OCT23_RUN19_REPAIR.md) first. Latest independent
+normal-UI run19 used Desktop5988549 / CI39920326037, October23 16:12–17:45
+Vietnam, two workers, indexes2/3/4/5/8/9/10/11, PARTIAL. Run18 was cancelled.
+Offline fixes target Shop footer/received settling, race-grid OCR, bounded
+Guild/Mail sibling recovery and current-frame/transaction reuse. Protected1
+runtime and index8 display-label changes have UNPROVEN causes; no restoration.
+837/866/881 and all historical uncertain/VERIFIED locks remain untouched.
+Inline objective removal proof and unavailable index11 transport remain blockers.
+Full CI and newest-only Desktop delivery are required; exact build/run provenance
+is recorded in the delivered portable artifact and local repair audit.
+No gameplay in this repair. Final normal-UI Start belongs to USER.
+Phase8 remains PARTIAL; no Phase9.
+
 ## October23 run17 offline repair
 
 Read [OCT23_RUN17_REPAIR.md](OCT23_RUN17_REPAIR.md) first. Exact latest independent

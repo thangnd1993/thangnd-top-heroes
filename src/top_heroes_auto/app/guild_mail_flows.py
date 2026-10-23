@@ -59,6 +59,11 @@ def run(session, folder, rewards, *, port_factory=GuildMailPort):
                 if outcome['result'] in {'NOT_STARTED','RESERVED','AVAILABLE'}:
                     outcome['result'] = 'BLOCKED'
                 outcome['error'] = f'{type(exc).__name__}: {exc}'
+                if reward != rewards[-1] and hasattr(port, 'recover_for_sibling'):
+                    try:
+                        port.recover_for_sibling(session)
+                    except Exception as recovery_exc:  # noqa: BLE001 - never repeat an uncertain action
+                        outcome['sibling_recovery_error'] = str(recovery_exc)
             persist()
     except Exception as exc:  # noqa: BLE001 - lifecycle remains owned by the enclosing session
         report['error'] = str(exc)
@@ -83,6 +88,7 @@ def run(session, folder, rewards, *, port_factory=GuildMailPort):
                 report['return_home'] = 'FAILED'
                 report['recovery_error'] = str(exc)
             report.update(entries=port.entries,popup_dismissals=port.dismissals)
+            report['sibling_recoveries'] = getattr(port, 'sibling_recoveries', [])
         if session.cancelled():
             report['return_home'] = 'SKIPPED_CANCELLED'
         report['result'] = 'SUCCESS' if (not report.get('current_tab_audit_error') and

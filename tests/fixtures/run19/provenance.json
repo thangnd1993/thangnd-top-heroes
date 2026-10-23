@@ -1,0 +1,12 @@
+{
+  "run": 19,
+  "commit": "59885498039f5d9509a8760a14cb9a951e141f3e",
+  "source_files": {
+    "shop-back-resampled": "10/shop/20261023-103110-016029Z-bxh-shop.png",
+    "shop-permanent-ticker": "4/shop/20261023-094348-455160Z-bxh-shop.png",
+    "shop-permanent-received": "4/shop/20261023-094404-429253Z-bxh-shop.png",
+    "race-task-grid": "2/events/20261023-093422-252755Z-bxh-shop.png",
+    "mail-world": "9/mail/20261023-101321-226391Z-guild-mail.png"
+  },
+  "orientation": "restored portrait from original saved landscape; no pixel resampling"
+}

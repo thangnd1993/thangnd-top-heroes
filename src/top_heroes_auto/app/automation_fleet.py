@@ -463,6 +463,13 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
     report['protected_state_unchanged'] = all(any(
         a['index'] == r['index'] and a['stable_id'] == r['stable_id'] and a['protected'] and not a['selected']
         and a['status'] == r['status'] for a in report['after_instances']) for r in before if r['protected'])
+    report['protected_flags_unchanged'] = all(any(
+        a['index'] == r['index'] and a['stable_id'] == r['stable_id']
+        and a['protected'] == r['protected'] and a['selected'] == r['selected']
+        for a in report['after_instances']) for r in before if r['protected'])
+    report['protected_runtime_changes'] = [dict(index=r['index'], before=r['status'], after=a['status'],
+        cause='UNPROVEN') for r in before if r['protected'] for a in report['after_instances']
+        if a['index'] == r['index'] and a['status'] != r['status']]
     report['instance_names_unchanged'] = {r['index']: r['name'] for r in before} == {
         r['index']: r['name'] for r in report['after_instances']}
     report['ldplayer_name_write_attempts'] = name_write_attempts() - name_writes_before

@@ -59,9 +59,32 @@ class InstanceSession:
             raise SafetyError('Run cancelled.')
         self.name = live.name
         self.report['ending_display_label'] = live.name
+
         if live.name != self.report['starting_display_label']:
             self.report['display_label_event'] = 'DISPLAY_NAME_CHANGE_CAUSE_UNPROVEN'
         return live
+
+    def validate_operation(self, live, target):
+        """Validate the Manager's fresh transaction proof, without a second query.
+
+        Manager still brackets indexed serial/boot verification with fresh disk,
+        PID and protection reads. This callback is only used inside that operation;
+        it is never a reusable permission or a cached availability decision.
+        """
+        if (live.index != self.index or target.index != self.index or not live.running
+                or live.stable_id != self.target['persistent_identity']
+                or target.stable_id != live.stable_id
+                or (self.runtime is not None and (live.pid, live.vbox_pid) != self.runtime)
+                or (self.boot_id is not None and target.boot_id != self.boot_id)):
+            raise SafetyError('Session operation runtime/disk/boot changed.')
+        meta = self.manager.store.metadata(self.manager.namespace, self.index)
+        if meta.protected or not meta.selected or self.cancelled():
+            raise SafetyError('Session operation authorization revoked.')
+        self.name = live.name
+        self.report['ending_display_label'] = live.name
+
+        if live.name != self.report['starting_display_label']:
+            self.report['display_label_event'] = 'DISPLAY_NAME_CHANGE_CAUSE_UNPROVEN'
 
     def start(self):
         if self.initial is not None:
