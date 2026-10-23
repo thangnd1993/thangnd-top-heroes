@@ -850,5 +850,16 @@
     35
   ],
   "threshold": 0.98
+},
+{
+  "id": "badge-mail-digit-9",
+  "source": "run17/mail-system",
+  "source_bbox": [
+    394,
+    177,
+    27,
+    27
+  ],
+  "threshold": 0.98
 }
 ]

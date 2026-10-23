@@ -167,6 +167,8 @@ class GuildMailPort(FixedRewardPort):
         raise SafetyError('Technology node did not stabilize in fresh frames; no node input.')
 
     def opportunity(self, reward, initial=None):
+        if initial is not None and initial is not self.last:
+            raise SafetyError('Opportunity requires the current unconsumed navigation frame.')
         frame = self.settle(initial) if initial is not None else self.observe_settled()
         view = self.detector.availability(frame,reward)
         self.qualified = (frame,view)

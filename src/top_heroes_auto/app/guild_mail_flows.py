@@ -50,8 +50,9 @@ def run(session, folder, rewards, *, port_factory=GuildMailPort):
             report['rewards'][reward] = outcome
             try:
                 session.check()
-                port.open_reward(reward)
-                process(port,store,namespace,task,reward,session.target['persistent_identity'],outcome,persist)
+                opened = port.open_reward(reward)
+                process(port,store,namespace,task,reward,session.target['persistent_identity'],outcome,persist,
+                        initial=opened)
             except Exception as exc:  # noqa: BLE001 - later independent rewards still receive safe evaluation
                 if session.cancelled():
                     raise

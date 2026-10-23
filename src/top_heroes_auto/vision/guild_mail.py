@@ -233,6 +233,13 @@ class GuildMailDetector:
         if pages == ['mail'] and overlay.state == ScreenState.HOME_OVERLAY:
             conflict = False
             overlay = replace(overlay, state=ScreenState.UNKNOWN, confidence=0, evidence=())
+        elif overlay.state == ScreenState.HOME_OVERLAY and all(
+                anchors[r].matched and self.undimmed(captured, anchors[r])
+                for r in ('mail-title', 'modal-close', 'mail-read', 'mail-delete-forbidden')):
+            # A live world ticker can cover every tab label. This is a known
+            # Mail modal, not permission to dismiss a generic Home popup.
+            # Keep the page UNKNOWN until its independent tabs are visible.
+            overlay = replace(overlay, state=ScreenState.UNKNOWN, confidence=0, evidence=())
         page = pages[0] if len(pages) == 1 and not conflict else 'UNKNOWN'
         frame = GuildObservation(captured, page, anchors, overlay)
         if page == 'technology':

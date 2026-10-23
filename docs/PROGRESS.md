@@ -1,3 +1,13 @@
+## October23 run17 offline repair
+
+Read [OCT23_RUN17_REPAIR.md](OCT23_RUN17_REPAIR.md) first. Exact latest independent
+normal-UI run17 used Desktop6927a84 / CI39586666118, October22, concurrency2,
+PARTIAL. Confirmed Mail ticker, System9 badge, compact expedition receipt,
+guild rank notice and collaboration glyph defects repaired offline; redundant
+Guild/Mail navigation capture removed.331 related tests PASS. No gameplay in
+this repair.802 remains POSSIBLE; all existing journals preserved. Fresh full
+CI and Desktop delivery required; Phase8 PARTIAL, no Phase9.
+
 ## October21 current repair checkpoint
 
 Read [OCT21_REPAIR_CHECKPOINT.md](OCT21_REPAIR_CHECKPOINT.md) first.

@@ -52,6 +52,7 @@ class RecoveryScreenDetector:
         self.receipt_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "overlays")
         self.notice_anchors = load_anchors(templates.parent / 'tasks/phase8/notice-overlays')
         self.territory_notice_anchors = load_anchors(templates.parent / 'tasks/phase8/territory-notice')
+        self.rank_notice_anchors = load_anchors(templates.parent / 'tasks/phase8/rank-notice')
         self.event_anchors = load_anchors(templates.parent / 'tasks/phase6/event-overlays')
         self.home_overlay_anchors = load_anchors(templates.parent / 'tasks/phase6/home-overlays')
         promo_anchors = load_anchors(templates.parent / "tasks" / "phase6" / "promo")
@@ -92,6 +93,21 @@ class RecoveryScreenDetector:
             evidence=tuple(AnchorEvidence(dialog['reason'],ScreenState.SYSTEM_BLOCKING,
                                           1,.98,True,device_box=b) for b in dialog['panels'])
             return replace(detected,state=ScreenState.SYSTEM_BLOCKING,confidence=1,evidence=evidence)
+        rank = self._paired(screen, self.rank_notice_anchors)
+        if len(rank) == 3 and all(e.matched for e in rank):
+            boxes = {e.anchor_id: e.device_box for e in rank}
+            title, body, dismiss = (boxes['guild-rank-notice-'+key] for key in ('title','body','dismiss'))
+            width, height = screen.device_size or screen.original_size
+            layout = (title.y+title.height < body.y < dismiss.y and title.y < height*.3
+                      and dismiss.y > height*.7 and abs(title.center[0]-dismiss.center[0]) < width*.1)
+            if layout and (detected.state == ScreenState.HOME_OVERLAY or
+                           detected.state == ScreenState.UNKNOWN and not detected.evidence):
+                # An informational rank notice is dismissible, never a reward
+                # receipt or independent proof that any claim succeeded.
+                return replace(detected, state=ScreenState.EVENT_PROMO,
+                               confidence=min(e.score for e in rank), evidence=rank)
+            return replace(detected, state=ScreenState.UNKNOWN, confidence=0,
+                           evidence=(*detected.evidence, *rank))
         evidence = idle_panel_evidence(screen)
         if evidence:
             if detected.state != ScreenState.UNKNOWN or detected.evidence:
@@ -346,10 +362,10 @@ class RecoveryScreenDetector:
 
     @staticmethod
     def _receipt_layout(screen, variant, items):
-        if variant == 'large-receipt':
+        if variant in {'large-receipt', 'compact-receipt'}:
             boxes = {e.anchor_id: e.device_box for e in items}
-            title = boxes['large-receipt-title']
-            continuation = boxes['large-receipt-continue']
+            title = boxes[variant+'-title']
+            continuation = boxes[variant+'-continue']
             width, height = screen.device_size or screen.original_size
             # Expedition receipts add helper reports below the rewards; the
             # same unique title sits lower, still above the upper fifth.

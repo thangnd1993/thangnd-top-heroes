@@ -1,4 +1,6 @@
 """Qualified collaboration-map navigation; labels and badges grant no reward permission."""
+from functools import lru_cache
+
 import cv2
 import numpy as np
 
@@ -11,19 +13,30 @@ def _white(image):
     return cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV), (0, 0, 185), (179, 95, 255))
 
 
+@lru_cache(maxsize=32)
+def _references(name):
+    folder = template_folder().parent/'tasks/phase8/collaboration-hub'
+    return tuple(_white(cv2.imread(str(path))) for suffix in ('', '-current')
+                 if (path := folder/f'{name}{suffix}.png').is_file())
+
+
 def _unique(view, name):
-    reference = cv2.imread(str(template_folder().parent/'tasks/phase8/collaboration-hub'/f'{name}.png'))
-    if reference is None:
-        return None
-    scores = cv2.matchTemplate(_white(view), _white(reference), cv2.TM_CCOEFF_NORMED)
-    _, score, _, (x, y) = cv2.minMaxLoc(scores)
-    h, w = reference.shape[:2]
-    if not np.isfinite(score) or score < .995:
-        return None
-    scores[max(0,y-h//2):y+h//2+1, max(0,x-w//2):x+w//2+1] = -1
-    if scores.max() >= .995:
-        return None
-    return BoundingBox(x,y,w,h)
+    found = []
+    glyphs = _white(view)
+    for reference in _references(name):
+        scores = cv2.matchTemplate(glyphs, reference, cv2.TM_CCOEFF_NORMED)
+        _, score, _, (x, y) = cv2.minMaxLoc(scores)
+        h, w = reference.shape[:2]
+        if not np.isfinite(score) or score < .995:
+            continue
+        scores[max(0,y-h//2):y+h//2+1, max(0,x-w//2):x+w//2+1] = -1
+        if scores.max() >= .995:
+            return None  # A second raster must never rescue a duplicate.
+        box = BoundingBox(x,y,w,h)
+        if any(abs(box.center[0]-b.center[0]) > 2 or abs(box.center[1]-b.center[1]) > 2 for b in found):
+            return None
+        found.append(box)
+    return found[0] if found else None
 
 
 def collaboration_hub(image):

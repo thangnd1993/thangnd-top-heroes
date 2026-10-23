@@ -67,7 +67,7 @@ def qualified_progress(before_frame, before, after_frame, after, *, maximum_elap
     return True
 
 
-def process(port, store, namespace, task_id, reward, identity, report, persist):
+def process(port, store, namespace, task_id, reward, identity, report, persist, *, initial=None):
     if reward not in (*GUILD_REWARDS,*MAIL_REWARDS):
         raise SafetyError('Unsupported Guild/Mail action.')
     report.update(result='UNKNOWN',journal='NONE',claim_dispatched=False,claim_count=0,actions=[])
@@ -75,7 +75,9 @@ def process(port, store, namespace, task_id, reward, identity, report, persist):
     if reward == 'guild-technology':
         report.update(ordinary_taps=0, quick_invocations=0, verified_contributions=0)
     for _ in range(limit):
-        frame, view = port.opportunity(reward)
+        frame, view = (port.opportunity(reward, initial=initial) if initial is not None
+                       else port.opportunity(reward))
+        initial = None  # Only the current navigation frame, never a later action.
         report['latest'] = dict(frame=frame.evidence(),opportunity=view.evidence())
         if reward == 'guild-technology':
             report.setdefault('start_remaining',view.remaining)
