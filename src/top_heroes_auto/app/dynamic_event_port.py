@@ -479,11 +479,12 @@ class DynamicEventPort:
         if not blocked:
             return True
         held_markers = {'unresolved-saved-reward-identity', 'ambiguous-saved-reward-identity'}
+        rows = getattr(self, 'rows', ())
         if (not frame.page.endswith((':personal-tasks', ':race-task-grid'))
-                or not self.rows or not blocked <= {
+                or not rows or not blocked <= {
                     'UNRESOLVED_SAVED_REWARD_IDENTITY', 'UNQUALIFIED_TASK_GRID_ACTION'}):
             return False
-        held = [r for r in self.rows if r['state'] == 'UNKNOWN']
+        held = [r for r in rows if r['state'] == 'UNKNOWN']
         required = {'complete-reward-card', 'qualified-control-color'}
         required.add('completed-fraction-full-bar-and-free-label' if frame.page.endswith(':race-task-grid')
                      else 'sole-no-cost-action-label')
@@ -495,7 +496,7 @@ class DynamicEventPort:
             shell = task_grid_shell(self.navigation_image)
             # Only for checking that EVERY green control is geometrically
             # accounted for. The actual held rows remain UNKNOWN throughout.
-            accounted = tuple(dict(r, state='AVAILABLE') if r in held else r for r in self.rows)
+            accounted = tuple(dict(r, state='AVAILABLE') if r in held else r for r in rows)
             return shell is not None and not unresolved_grid_actions(self.navigation_image, shell, accounted)
         return blocked == {'UNRESOLVED_SAVED_REWARD_IDENTITY'}
 

@@ -436,6 +436,7 @@ Source: `C:\Users\ADMIN\AppData\Local\TopHeroesAutoManager\diagnostics\recovery\
 ## Validation and delivery contract
 
 - Local targeted regression: **179 passed in72.12s**, plus185 recovery/Shop/vision/reconciliation regressions passed in238.06s across Run20, dynamic Event traversal, VIP countdown/fleet/visual profiles, Run19 guards and Event geometry. Ruff affected files PASS; diff whitespace check PASS. Full lint/pytest/portable build/GUI smoke/artifact upload in fresh GitHub Actions.
+- First full gate40085034225:2153 passed,26 skipped,2 failed. Both failures were existing negative scroll tests with deliberately incomplete port objects: the new blocker helper accessed missing rows instead of returning a fail-closed rejection. Narrow fix uses empty evidence when rows are absent; existing SafetyError/no-input expectations are preserved. Exact failing suites + Run20 + traversal: **125 passed in20.13s**; Ruff PASS. Require a fresh full gate before Desktop delivery.
 - Self-review: no journal writes, eligibility reset, claim retry, global timeout increase, account-coordinate routing, identity fallback, Protected mutation, lifecycle command or new phase.
 - Qualify/upload only the saved game UI fixtures and compact received-label runtime asset. They contain game UI only, no credentials or unrelated private files.
 - Replace Desktop app only after exact-commit CI passes; verify artifact/run/commit/hashes and retain no more than two verified portable versions. Preserve all diagnostics and journals.
