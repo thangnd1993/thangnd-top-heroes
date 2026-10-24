@@ -205,6 +205,7 @@ def test_grid_ocr_conflict_or_partial_evidence_never_authorizes_claim(fault):
         return words
     rows = task_grid_rows(image,task_grid_shell(image),reader=reader)
     assert not any(r['state'] == 'AVAILABLE' for r in rows)
+    assert unresolved_grid_actions(image,task_grid_shell(image),rows)
 
 
 def test_navigation_frame_reuse_does_not_bypass_journal_lock(rig,tmp_path,monkeypatch):

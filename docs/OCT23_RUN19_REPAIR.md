@@ -332,3 +332,15 @@ comparison: **859/859 journal rows byte-for-byte unchanged**, max ID881.
 Full end-to-end after-repair duration is **NOT MEASURED** because this task forbids
 another gameplay run. The few-minute target remains unproven. Fresh passing CI and
 portable delivery do not establish runtime acceptance or Phase8 PASS.
+
+## Final UNKNOWN coverage correction
+
+First full gate: `b1aefcb`, CI39985246415, all steps passed. A final negative
+boundary check then reproduced an additional reporting defect: a green card with
+recognized geometry but contradictory progress remained UNKNOWN, yet
+`unresolved_grid_actions` treated its geometry alone as accounted for. The new
+assertion failed on the original run19 pixels. The final targeted correction
+requires a positively AVAILABLE/NOT_AVAILABLE row before accounting for a green
+control; UNKNOWN keeps UNQUALIFIED_TASK_GRID_ACTION and cannot mark traversal
+exhausted. No input permission or journal eligibility is added. Fresh full CI is
+required for this final correction before Desktop delivery.

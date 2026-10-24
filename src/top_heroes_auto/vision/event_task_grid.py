@@ -280,7 +280,8 @@ def unresolved_grid_actions(image, shell, rows):
             x,y,w,bh = cv2.boundingRect(contour)
             if w > card.width*.60 and .028*h < bh < .07*h:
                 box = BoundingBox(column.x+x,column.y+y,w,bh)
-                if not any(r['row']==card and _contains(box,r['box']) for r in rows):
+                if not any(r['row']==card and r['state'] in {'AVAILABLE','NOT_AVAILABLE'}
+                           and _contains(box,r['box']) for r in rows):
                     unresolved.append(box)
     return tuple(unresolved)
 
