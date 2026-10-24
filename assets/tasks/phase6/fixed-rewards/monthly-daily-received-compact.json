@@ -1,0 +1,13 @@
+{
+  "id": "monthly-daily-received-compact",
+  "state": "FREE_REWARD_PAGE",
+  "template": "monthly-daily-received-compact.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.995,
+  "required": false
+}

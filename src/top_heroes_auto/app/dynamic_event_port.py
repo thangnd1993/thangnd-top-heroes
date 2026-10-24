@@ -397,6 +397,7 @@ class DynamicEventPort:
         self.current = EventFrame(str(c.source_image),identity,page,fingerprint,tuple(controls),
                                   coverage_known=coverage_known, parent=parent, popup=popup, blocked=tuple(blocked),
                                   stable_id=self.session.target['persistent_identity'], event_scan_performed=event_scan_performed,
+                                  selected_tabs=tuple(BoundingBox(**b) for b in shell['selected']) if shell else (),
                                   mission_states=tuple({**r,'row':asdict(r['row'])} for r in self.mission_rows),
                                   mission_at_top=bool(self.mission_rows and context is not None and
                                       self.mission_rows[0]['row'].y-context.y-context.height < image.shape[0]*.04),
@@ -464,6 +465,40 @@ class DynamicEventPort:
         self.transport.dispatch(self.transport.last,'swipe',(x,start,x,end,350))
         self.current=None
 
+    def _scroll_blockers_safe(self, frame, control):
+        """A journal lock denies its reward, not a proven card-disjoint swipe.
+
+        This does not remove blockers, alter rows, expose reward controls or
+        change a journal. Unknown visual controls still deny navigation. Run20
+        rejected a current task-grid gutter because a known free card was held
+        by an old POSSIBLE action, then spent a full recovery leaving the grid.
+        """
+        blocked = set(frame.blocked)
+        if 'qualified-book-objectives' in control.evidence:
+            return not (blocked-{'BOOK_MILESTONES_AND_UNQUALIFIED_CONTROLS'})
+        if not blocked:
+            return True
+        held_markers = {'unresolved-saved-reward-identity', 'ambiguous-saved-reward-identity'}
+        if (not frame.page.endswith((':personal-tasks', ':race-task-grid'))
+                or not self.rows or not blocked <= {
+                    'UNRESOLVED_SAVED_REWARD_IDENTITY', 'UNQUALIFIED_TASK_GRID_ACTION'}):
+            return False
+        held = [r for r in self.rows if r['state'] == 'UNKNOWN']
+        required = {'complete-reward-card', 'qualified-control-color'}
+        required.add('completed-fraction-full-bar-and-free-label' if frame.page.endswith(':race-task-grid')
+                     else 'sole-no-cost-action-label')
+        if not held or any(not held_markers.intersection(r['evidence'])
+                           or not required <= set(r['evidence'])
+                           or 'ambiguous-task-caption' in r['evidence'] for r in held):
+            return False
+        if frame.page.endswith(':race-task-grid'):
+            shell = task_grid_shell(self.navigation_image)
+            # Only for checking that EVERY green control is geometrically
+            # accounted for. The actual held rows remain UNKNOWN throughout.
+            accounted = tuple(dict(r, state='AVAILABLE') if r in held else r for r in self.rows)
+            return shell is not None and not unresolved_grid_actions(self.navigation_image, shell, accounted)
+        return blocked == {'UNRESOLVED_SAVED_REWARD_IDENTITY'}
+
     def navigate(self, frame, control):
         if frame is not self.current:
             raise SafetyError('Stale event navigation frame.')
@@ -479,8 +514,8 @@ class DynamicEventPort:
             if runtime_key(fresh.identity)!=runtime_key(frame.identity) or fresh.stable_id!=frame.stable_id:
                 raise SafetyError('Event scroll runtime changed on fresh capture; no input or recovery.')
             if (fresh.page!=frame.page or fresh.popup
-                    or not fresh.coverage_known or (set(fresh.blocked)-({'BOOK_MILESTONES_AND_UNQUALIFIED_CONTROLS'}
-                        if 'qualified-book-objectives' in control.evidence else set())) or len(matches)!=1):
+                    or not fresh.coverage_known or not self._scroll_blockers_safe(fresh, control)
+                    or len(matches)!=1):
                 raise EventNavigationRejected('Event scroll changed on fresh capture; no input.')
             control=matches[0]
             b=control.box

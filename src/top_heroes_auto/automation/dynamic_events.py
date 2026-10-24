@@ -48,6 +48,7 @@ class EventFrame:
     event_scan_performed: bool = False
     mission_states: tuple[dict, ...] = ()
     mission_at_top: bool = False
+    selected_tabs: tuple[BoundingBox, ...] = ()  # Current qualified footer; denial only.
 
 
 @dataclass(frozen=True)
@@ -111,6 +112,7 @@ class DynamicEventExplorer:
         scroll_counts, scroll_views = {}, {}
         visited_tabs = set()
         visited_tab_regions = {}
+        observed_selected_tabs = {}
         stack = ["home"] if initial_event else []
         active = initial_event
         active_seen = bool(initial_event)
@@ -401,6 +403,12 @@ class DynamicEventExplorer:
                         break
                     if not frame.coverage_known:
                         block('UNQUALIFIED_CONTENT', frame)
+                    # The initially displayed tab has already been inspected.
+                    # Record its qualified highlight, not just tabs we tapped.
+                    # This can only suppress a redundant input; it supplies no
+                    # reward identity, completion proof or navigation target.
+                    selected = observed_selected_tabs.setdefault((active, tuple(stack)), [])
+                    selected.extend(b for b in frame.selected_tabs if b not in selected)
                     visit = active, frame.page
                     if frame.mission_states and visit not in expedition_visits and hasattr(port,'finish_expedition'):
                         expedition_visits.add(visit)
@@ -464,6 +472,12 @@ class DynamicEventExplorer:
                             # a target, reward, journal or resumed route.
                             if 'tab-strip' in c.evidence:
                                 scope = active, tuple(stack)
+                                if any(min(c.box.x+c.box.width,b.x+b.width)-max(c.box.x,b.x)
+                                           >= .90*c.box.width
+                                       and min(c.box.y+c.box.height,b.y+b.height)-max(c.box.y,b.y)
+                                           >= .90*c.box.height
+                                       for b in observed_selected_tabs.get(scope, ())):
+                                    continue
                                 regions = visited_tab_regions.setdefault(scope, [])
                                 if any(
                                     min(c.box.x+c.box.width,b.x+b.width)-max(c.box.x,b.x)

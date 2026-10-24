@@ -91,6 +91,7 @@ class DiagnosticRecoveryPort:
         self.started = clock()
         self.sample_thresholds = [0, 10, 20, 40]
         self.diagnostic_samples = []
+        self.game_launch_evidence = []
         self.final_sample = False
         self._overlay_frame = None
         self._after_overlay = False
@@ -316,12 +317,21 @@ class DiagnosticRecoveryPort:
 
     def launch_game(self) -> None:
         log.info("[%s / #%s] Recovery action: launch verified package", self.name, self.index)
-        self.manager.execute(
-            self.index,
-            "open_game",
-            self.package,
-            snapshot=self.snapshot,
-        )
+        record = dict(index=self.index, package=self.package, action='open_game',
+                      dispatched=None, result='NOT_COMPLETED')
+        self.game_launch_evidence.append(record)
+        started = self.clock()
+        try:
+            output = self.manager.execute(
+                self.index, "open_game", self.package, snapshot=self.snapshot)
+            # Run20 had two launcher screenshots but discarded monkey's result.
+            # Transport success is diagnostic only; Home still needs fresh proof.
+            record.update(dispatched=True, result='TRANSPORT_RETURNED', output=str(output)[:4000])
+        except Exception as exc:
+            record.update(result='FAILED_OR_UNCERTAIN', error=f'{type(exc).__name__}: {exc}')
+            raise
+        finally:
+            record['elapsed_seconds'] = round(self.clock()-started, 3)
 
 
 @exclusive_automation
@@ -447,6 +457,7 @@ def run_home_recovery(
             "total_elapsed_seconds": round(time.monotonic() - total_started, 3),
             "ownership_uncertain": ownership_uncertain,
             "diagnostic_samples": port.diagnostic_samples if port is not None else [],
+            "game_launch_evidence": getattr(port, 'game_launch_evidence', []),
             **result.as_dict(),
         }
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

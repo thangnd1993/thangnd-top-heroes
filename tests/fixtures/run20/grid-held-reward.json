@@ -1,0 +1,110 @@
+{
+  "reward_rows": [
+    {
+      "identity": "task-caption:hoan thanh 10 ian treo thddng",
+      "row": {
+        "x": 69,
+        "y": 380,
+        "width": 189,
+        "height": 325
+      },
+      "box": {
+        "x": 95,
+        "y": 640,
+        "width": 140,
+        "height": 48
+      },
+      "family": "race-task-grid",
+      "state": "NOT_AVAILABLE",
+      "evidence": [
+        "qualified-race-task-grid",
+        "qualified-task-grid",
+        "complete-reward-card",
+        "qualified-control-color",
+        "independent-task-caption",
+        "blue-go-no-claim"
+      ]
+    },
+    {
+      "identity": "task-caption:thddng dei giao dich xuat phat 4 ian",
+      "row": {
+        "x": 463,
+        "y": 380,
+        "width": 188,
+        "height": 325
+      },
+      "box": {
+        "x": 488,
+        "y": 640,
+        "width": 140,
+        "height": 48
+      },
+      "family": "race-task-grid",
+      "state": "NOT_AVAILABLE",
+      "evidence": [
+        "qualified-race-task-grid",
+        "qualified-task-grid",
+        "complete-reward-card",
+        "qualified-control-color",
+        "independent-task-caption",
+        "blue-go-no-claim"
+      ]
+    },
+    {
+      "identity": "task-caption:c6ng hien hei 10 ian",
+      "row": {
+        "x": 267,
+        "y": 382,
+        "width": 187,
+        "height": 321
+      },
+      "box": {
+        "x": 291,
+        "y": 639,
+        "width": 140,
+        "height": 49
+      },
+      "family": "race-task-grid",
+      "state": "NOT_AVAILABLE",
+      "evidence": [
+        "qualified-race-task-grid",
+        "qualified-task-grid",
+        "complete-reward-card",
+        "qualified-control-color",
+        "independent-task-caption",
+        "blue-go-no-claim"
+      ]
+    },
+    {
+      "identity": "task-caption:danh hoang da 10 ian trong the gidi",
+      "row": {
+        "x": 267,
+        "y": 741,
+        "width": 187,
+        "height": 321
+      },
+      "box": {
+        "x": 291,
+        "y": 998,
+        "width": 140,
+        "height": 48
+      },
+      "family": "race-task-grid",
+      "state": "UNKNOWN",
+      "evidence": [
+        "qualified-race-task-grid",
+        "qualified-task-grid",
+        "complete-reward-card",
+        "qualified-control-color",
+        "independent-task-caption",
+        "completed-fraction-full-bar-and-free-label",
+        "unresolved-saved-reward-identity"
+      ]
+    }
+  ],
+  "page": "event:functional-race-task-grid:race-task-grid",
+  "blocked": [
+    "UNRESOLVED_SAVED_REWARD_IDENTITY",
+    "UNQUALIFIED_TASK_GRID_ACTION"
+  ]
+}

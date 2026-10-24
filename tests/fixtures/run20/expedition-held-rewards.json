@@ -1,0 +1,80 @@
+{
+  "reward_rows": [
+    {
+      "identity": "cdebfaa4fac90428112168af8c443e5e69808c81841d67c54ce36ae7d1a1f5dc",
+      "row": {
+        "x": 19,
+        "y": 489,
+        "width": 682,
+        "height": 161
+      },
+      "box": {
+        "x": 537,
+        "y": 557,
+        "width": 151,
+        "height": 67
+      },
+      "state": "UNKNOWN",
+      "evidence": [
+        "selected-task-context",
+        "complete-reward-card",
+        "inventory-reward-items",
+        "sole-no-cost-action-label",
+        "qualified-control-color",
+        "unresolved-saved-reward-identity"
+      ]
+    },
+    {
+      "identity": "0a3a4cde3eeb02a65d9161b271498743cea290fb245b16dbb599ea406dccd3a1",
+      "row": {
+        "x": 19,
+        "y": 658,
+        "width": 682,
+        "height": 161
+      },
+      "box": {
+        "x": 537,
+        "y": 726,
+        "width": 151,
+        "height": 67
+      },
+      "state": "UNKNOWN",
+      "evidence": [
+        "selected-task-context",
+        "complete-reward-card",
+        "inventory-reward-items",
+        "sole-no-cost-action-label",
+        "qualified-control-color",
+        "unresolved-saved-reward-identity"
+      ]
+    },
+    {
+      "identity": "55351e7ea281fdea8333e1d0295d1abcaf1e9dd08f7f2426f388aa4aee23272c",
+      "row": {
+        "x": 19,
+        "y": 827,
+        "width": 682,
+        "height": 161
+      },
+      "box": {
+        "x": 537,
+        "y": 895,
+        "width": 151,
+        "height": 67
+      },
+      "state": "UNKNOWN",
+      "evidence": [
+        "selected-task-context",
+        "complete-reward-card",
+        "inventory-reward-items",
+        "sole-no-cost-action-label",
+        "qualified-control-color",
+        "unresolved-saved-reward-identity"
+      ]
+    }
+  ],
+  "page": "event:event:personal-tasks",
+  "blocked": [
+    "UNRESOLVED_SAVED_REWARD_IDENTITY"
+  ]
+}

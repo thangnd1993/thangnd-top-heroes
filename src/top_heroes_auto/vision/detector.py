@@ -4,6 +4,7 @@ import json
 import time
 from collections import defaultdict
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 
 from top_heroes_auto.vision.matcher import match_anchor
@@ -16,8 +17,18 @@ from top_heroes_auto.vision.models import (
 
 
 def load_anchors(folder: Path) -> tuple[VisualAnchor, ...]:
+    # Static metadata only. Check the complete file set and fresh file stats:
+    # removal/replacement cannot reuse old configuration. No screenshot or
+    # detection result is cached between observations or account workers.
+    metadata = tuple(sorted(folder.rglob("*.json"))) if folder.is_dir() else ()
+    signature = tuple((p, p.stat().st_mtime_ns, p.stat().st_size) for p in metadata)
+    return _load_anchors(signature)
+
+
+@lru_cache(maxsize=64)
+def _load_anchors(signature) -> tuple[VisualAnchor, ...]:
     anchors = []
-    for metadata in sorted(folder.rglob("*.json")) if folder.is_dir() else ():
+    for metadata, _modified, _size in signature:
         item = json.loads(metadata.read_text(encoding="utf-8"))
         template = metadata.parent / item["template"]
         anchors.append(

@@ -23,6 +23,13 @@ def countdown_box(image, *, reader=read_words):
         rendered=cv2.copyMakeBorder(cv2.cvtColor(255-text,cv2.COLOR_GRAY2BGR),20,20,20,20,
                                     cv2.BORDER_CONSTANT,value=(255,255,255))
         readings=[' '.join(q['text'] for q in reader(cv2.resize(rendered,None,fx=s,fy=s))) for s in (2,3)]
+        # Run20: Windows OCR returns NO text at 2x on the disabled clock,
+        # while 3x reads it cleanly. Padding the SAME complete glyphs gives
+        # a second reading. Never replace conflicting/nonempty invalid text.
+        if not readings[0] and re.fullmatch(r'\d{2}:\d{2}:\d{2}',readings[1]):
+            padded=cv2.copyMakeBorder(rendered,10,10,10,10,cv2.BORDER_CONSTANT,value=(255,255,255))
+            readings=[readings[1], ' '.join(q['text'] for q in reader(
+                cv2.resize(padded,None,fx=3,fy=3)))]
         if readings[0]!=readings[1] or not re.fullmatch(r'\d{2}:\d{2}:\d{2}',readings[0]):
             continue
         hours,minutes,seconds=map(int,readings[0].split(':'))

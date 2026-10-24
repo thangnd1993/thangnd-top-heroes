@@ -1,3 +1,16 @@
+## October24 newest normal application run20 repair
+
+Read [OCT24_RUN20_REPAIR.md](OCT24_RUN20_REPAIR.md) first. Exact run20 used
+Desktop c2dac26 / CI40062497019, October24 12:54–13:41 Vietnam, two workers,
+eight accounts, PARTIAL. Actual journals:43 VERIFIED and2 POSSIBLE (883/885).
+No gameplay or journal mutation in this repair. Offline fixes target strict VIP
+clock reading, compact Monthly received state, safe independent Event scrolling,
+initial-tab revisit suppression and repeated static metadata I/O. Preserve all
+historical claim locks. Index3 launch cause and index8/11 absent ADB transports
+remain unproven; October24 general app.log is missing. Fresh full CI and exact
+newest Desktop delivery required. USER performs final normal Start; developer
+tests do not prove runtime success. Phase8 PARTIAL; no Phase9.
+
 ## October23 newest run19 repair
 
 Read [OCT23_RUN19_REPAIR.md](OCT23_RUN19_REPAIR.md) first. Latest independent

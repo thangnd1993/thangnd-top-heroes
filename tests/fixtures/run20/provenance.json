@@ -1,0 +1,28 @@
+{
+  "run_id": 20,
+  "commit": "c2dac26e20db28f6e3e635960b2c0f34f31ffccb",
+  "ci_run": "40062497019",
+  "source_report": "C:\\Users\\ADMIN\\AppData\\Local\\TopHeroesAutoManager\\diagnostics\\tasks\\automation\\20261024-055412-465873Z-a4dcc84e\\fleet-report.json",
+  "images": {
+    "vip-disabled-2": {
+      "source": "C:\\Users\\ADMIN\\AppData\\Local\\TopHeroesAutoManager\\diagnostics\\tasks\\automation\\20261024-055412-465873Z-a4dcc84e\\2\\vip\\20261024-055716-739357Z-phase6-reward.png",
+      "transform": "90deg CCW restores original portrait pixels; no resampling"
+    },
+    "vip-disabled-4": {
+      "source": "C:\\Users\\ADMIN\\AppData\\Local\\TopHeroesAutoManager\\diagnostics\\tasks\\automation\\20261024-055412-465873Z-a4dcc84e\\4\\vip\\20261024-055815-089757Z-phase6-reward.png",
+      "transform": "90deg CCW restores original portrait pixels; no resampling"
+    },
+    "grid-held-reward": {
+      "source": "C:\\Users\\ADMIN\\AppData\\Local\\TopHeroesAutoManager\\diagnostics\\tasks\\automation\\20261024-055412-465873Z-a4dcc84e\\2\\events\\20261024-061003-711058Z-bxh-shop.png",
+      "transform": "90deg CCW restores original portrait pixels; no resampling"
+    },
+    "expedition-held-rewards": {
+      "source": "C:\\Users\\ADMIN\\AppData\\Local\\TopHeroesAutoManager\\diagnostics\\tasks\\automation\\20261024-055412-465873Z-a4dcc84e\\2\\events\\20261024-060810-116116Z-bxh-shop.png",
+      "transform": "90deg CCW restores original portrait pixels; no resampling"
+    },
+    "monthly-received": {
+      "source": "C:\\Users\\ADMIN\\AppData\\Local\\TopHeroesAutoManager\\diagnostics\\tasks\\automation\\20261024-055412-465873Z-a4dcc84e\\10\\shop\\20261024-063607-309449Z-bxh-shop.png",
+      "transform": "90deg CCW restores original portrait pixels; no resampling"
+    }
+  }
+}

@@ -154,6 +154,8 @@ class FixedRewardDetector:
         if reference and not reference.matched and reference.score >= reference.threshold:
             anchors['shop-title'] = replace(title, matched=False, device_box=None, normalized_box=None)
         recovery = self.recovery.detect(captured)
+        anchors['monthly-daily-received'] = self._same_target_variant(
+            anchors['monthly-daily-received'], anchors['monthly-daily-received-compact'])
         for role, variant in [('weekly-title', 'weekly-title-current'), ('permanent-tab', 'permanent-tab-current')]:
             anchors[role] = self._same_target_variant(anchors[role], anchors[variant])
         for route in ('permanent', 'monthly'):
