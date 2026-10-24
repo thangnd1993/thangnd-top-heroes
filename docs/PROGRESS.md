@@ -7,7 +7,8 @@ No gameplay or journal mutation in this repair. Offline fixes target strict VIP
 clock reading, compact Monthly received state, safe independent Event scrolling,
 initial-tab revisit suppression and repeated static metadata I/O. Preserve all
 historical claim locks. Index3 launch cause and index8/11 absent ADB transports
-remain unproven; October24 general app.log is missing. Fresh full CI and exact
+remain unproven;695 correlated run20 app.log lines were read (file modification
+metadata was stale). Only package-launch stdout is missing. Fresh full CI and exact
 newest Desktop delivery required. USER performs final normal Start; developer
 tests do not prove runtime success. Phase8 PARTIAL; no Phase9.
 
