@@ -10,7 +10,7 @@ requires-python = ">=3.12"
 dependencies = ["PySide6>=6.8,<7", "numpy>=2,<3", "opencv-python-headless>=4.10,<5"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<10", "ruff>=0.11,<1", "pyinstaller>=6.11,<7"]
+dev = ["pytest>=8,<10", "pytest-xdist>=3,<4", "ruff>=0.11,<1", "pyinstaller>=6.11,<7"]
 
 [project.gui-scripts]
 top-heroes-auto = "top_heroes_auto.app.main:main"

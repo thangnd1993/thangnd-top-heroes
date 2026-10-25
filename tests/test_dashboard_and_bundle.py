@@ -234,3 +234,18 @@ def test_bundle_without_any_run_refuses_instead_of_inventing(tmp_path, rig):
     empty.mkdir()
     with pytest.raises(ValueError):
         export_bundle(empty)
+
+
+def test_bundle_redacts_credentials_but_keeps_evidence(rig, tmp_path):
+    from top_heroes_auto.app.diagnostic_bundle import redact
+
+    token = 'ghp_' + 'a' * 36
+    assert token not in redact(f'push with {token} ok') and 'push with' in redact(f'push with {token} ok')
+    fake = 'hunter2' + 'secret'  # built at runtime so the repo never contains a credential-shaped literal
+    assert fake not in redact('pass' + f'word = "{fake}"') and fake not in redact('{"api' + f'_key": "{fake}"}}')
+    assert redact('claim 883 VERIFIED index=7') == 'claim 883 VERIFIED index=7'  # evidence is untouched
+    run_id = build_run(rig, tmp_path)
+    (tmp_path / 'logs' / 'app.log').write_text(f'x run={run_id} Authorization: Bearer abcdef123456\n', encoding='utf-8')
+    with zipfile.ZipFile(export_bundle(tmp_path, run_id)) as bundle:
+        log = bundle.read(f'logs/app-run{run_id}.log').decode()
+    assert 'abcdef123456' not in log and f'run={run_id}' in log

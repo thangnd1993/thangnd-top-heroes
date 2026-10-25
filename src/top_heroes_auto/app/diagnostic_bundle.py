@@ -25,6 +25,17 @@ JOURNAL_TABLES = (
 )
 
 
+_SECRETS = re.compile(
+    r'(ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|sk-[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}|'
+    r'-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----|'
+    r'(?i:(?:password|passwd|secret|api[_-]?key|access[_-]?token|authorization)["\']?\s*[=:]\s*["\']?(?:(?:bearer|basic)\s+)?)[^\s"\',}]{6,})')
+
+
+def redact(text: str) -> str:
+    """Remove credential-shaped values from copied text; evidence structure is preserved."""
+    return _SECRETS.sub('<redacted>', text)
+
+
 def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -135,7 +146,8 @@ def export_bundle(data_dir: Path, run_id: int | None = None, *, screenshots: boo
             if path.stat().st_size > MAX_FILE_BYTES:
                 missing.append(f'{path.name} skipped: larger than {MAX_FILE_BYTES} bytes')
                 continue
-            entries.append((f'reports/{path.relative_to(root).as_posix()}', path.read_bytes()))
+            entries.append((f'reports/{path.relative_to(root).as_posix()}',
+                            redact(path.read_text(encoding='utf-8', errors='replace')).encode('utf-8')))
             if path.name == 'account-report.json':
                 try:
                     accounts.append(json.loads(path.read_text(encoding='utf-8')))
@@ -154,15 +166,15 @@ def export_bundle(data_dir: Path, run_id: int | None = None, *, screenshots: boo
         missing.append(f'fleet report for run {run_id} not found (setting automation-report:{run_id}).')
     log_lines = _run_log_lines(data_dir / 'logs', run_id)
     if log_lines:
-        entries.append((f'logs/app-run{run_id}.log', ''.join(log_lines).encode('utf-8')))
+        entries.append((f'logs/app-run{run_id}.log', redact(''.join(log_lines)).encode('utf-8')))
     else:
         missing.append(f'no app.log lines tagged run={run_id}.')
     pressure = data_dir / 'logs' / 'log-pressure-summary.txt'
     if pressure.is_file():
-        entries.append(('logs/log-pressure-summary.txt', pressure.read_bytes()))
+        entries.append(('logs/log-pressure-summary.txt', redact(pressure.read_text(encoding='utf-8', errors='replace')).encode('utf-8')))
     journal, notes = _journal(db_path, run_id)
     missing.extend(notes)
-    entries.append(('journal-snapshot.json', json.dumps(journal, indent=2, default=str).encode('utf-8')))
+    entries.append(('journal-snapshot.json', redact(json.dumps(journal, indent=2, default=str)).encode('utf-8')))
     entries.append(('timings.json', json.dumps(dict(accounts=_timing_table(accounts), worker_overlap=_overlap(accounts)),
                                                indent=2, default=str).encode('utf-8')))
     manifest = dict(created_at=(now or datetime.now(UTC)).isoformat(), run_id=run_id, version=version.as_report(),
