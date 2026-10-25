@@ -18,13 +18,17 @@
 | Live progress | Fleet `event()` log records now carry `ui_index/ui_flow/ui_state`; `OperationalLogHandler` forwards them; `RunProgress` shows real per-account flow state and done/blocked counts (no invented percentages). Structured error categories (`ui/run_progress.py`) align with the existing status model. | same |
 | Logging | Main view still shows only warnings/operation outcomes with repeat-folding; full records stay in `logs/app.log`. | existing `test_complete_repair.py` |
 | Diagnostics export | `diagnostic_bundle.export_bundle` / `diagnostic-export` CLI / "Xuất gói chẩn đoán" button: one zip with reports, run-tagged log lines, journal snapshot (read-only SQLite), per-account timing %, actual worker overlap, manifest with SHA-256 and declared missing evidence. Screenshots opt-in. Nothing deleted or rewritten. | same |
-| Performance 1 | `Manager._target_inventory` reuses a read **only** when adjacent: same target, no command issued since (`Process.command_serial`), no deliberate wait since (`timing.wait_epoch`), < 250 ms. Selection/Protection are re-read by every guard. Transports that cannot count commands never coalesce. | `tests/test_adjacent_inventory.py` |
+| Performance | `Manager._target_inventory` reuses a read **only** when adjacent: same target, no command issued since (`Process.command_serial`), no deliberate wait since (`timing.wait_epoch`), < 250 ms. Selection/Protection are re-read by every guard. Transports that cannot count commands never coalesce. | `tests/test_adjacent_inventory.py` |
 
 ## Measurements (this Linux container; relative, NOT Windows wall-clock)
 
-- **Command count, verified capture on the production guard path (FakeProcess with command counting):**
-  24 commands / 16 `list2` → **16 commands / 8 `list2`**. Guarded tap: 3 → 2 `list2`. All non-inventory identity probes unchanged.
-  Run20 attributed 181 s (inventory) + 151 s (identity) per account to these commands; the saving applies to the inventory share only.
+- **Command count, verified capture, production guard path with a command-counting fake transport** (`tests/test_adjacent_inventory.py`,
+  coalescing off vs on):
+  Linux container: 24 commands / 16 `list2` → **16 / 8**; guarded tap 7/3 → 6/2. The first Windows CI run recorded the *baseline* as 17
+  commands / 9 `list2` (the absolute counts are platform-dependent in this fake, so the test asserts only: fewer `list2`, fewer commands, and
+  the non-inventory command sequence unchanged). The Windows "after" figure is printed by the CI step *Record measured command counts*.
+  All non-inventory identity probes are unchanged. Run20 attributed 181 s (inventory) + 151 s (identity) per account to these commands;
+  the saving applies to the inventory share only and is NOT yet measured as wall-clock on a real LDPlayer.
 - **Recognition profile on the saved Run20 frames** (`tests/fixtures/run20`): `cv2.matchTemplate` = 98 % of `RecoveryScreenDetector.detect`
   (157 calls, ≈77 ms each here); 36 % of it sits in `adventure_back_evidence` → `IdleRewardDetector.detect`. On busy frames 11–12 % of
   `matchTemplate` calls were exact duplicates (28/28 unique on one frame, 36/43 on three others).

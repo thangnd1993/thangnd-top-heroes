@@ -28,6 +28,10 @@ jobs:
       - run: python -m pytest -q
         env:
           QT_QPA_PLATFORM: offscreen
+      - name: Record measured command counts
+        run: python -m pytest -q -s tests/test_adjacent_inventory.py -k fewer_inventory
+        env:
+          QT_QPA_PLATFORM: offscreen
       - name: Record packaged build provenance
         run: python tools/write_build_info.py --commit "${{ github.sha }}" --ci-run "${{ github.run_id }}" --repository "${{ github.repository }}"
       - run: python -m PyInstaller --clean --noconfirm TopHeroesAutoManager.spec
