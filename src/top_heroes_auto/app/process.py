@@ -16,6 +16,8 @@ class CommandError(RuntimeError):
 class Process:
     def __init__(self):
         self.metrics = {}
+        # Total commands issued through this boundary (ldconsole and adb alike).
+        self.command_serial = 0
 
     def run(self, args: list[str], timeout: int = 20) -> bytes:
         executable = args[0].replace("\\", "/").rsplit("/", 1)[-1].casefold() if args else ""
@@ -38,6 +40,7 @@ class Process:
                     'inventory' if 'list2' in args else 'startup' if 'launch' in args else
                     'cleanup' if 'quit' in args else 'identity_or_other')
         started = time.perf_counter()
+        self.command_serial += 1
         try:
             with measure('command_'+category):
                 result = subprocess.run(

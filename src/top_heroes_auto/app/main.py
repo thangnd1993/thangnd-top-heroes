@@ -14,6 +14,36 @@ def data_directory() -> Path:
 
 def main(argv: list[str] | None = None):
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv == ['--version']:
+        import json
+
+        from top_heroes_auto.app.version_info import load_version_info
+
+        text = json.dumps(load_version_info().as_report())
+        # A windowed (console=False) executable has no stdout; --version-file keeps it testable.
+        if sys.stdout is not None:
+            print(text)
+        return 0
+    if len(argv) == 2 and argv[0] == '--version-file':
+        import json
+
+        from top_heroes_auto.app.version_info import load_version_info
+
+        Path(argv[1]).write_text(json.dumps(load_version_info().as_report()), encoding='utf-8')
+        return 0
+    if argv and argv[0] == 'diagnostic-export':
+        from argparse import ArgumentParser
+
+        from top_heroes_auto.app.diagnostic_bundle import export_bundle
+
+        parser = ArgumentParser(prog=argv[0])
+        parser.add_argument('--run', type=int)
+        parser.add_argument('--screenshots', action='store_true')
+        options = parser.parse_args(argv[1:])
+        path = export_bundle(data_directory(), options.run, screenshots=options.screenshots)
+        if sys.stdout is not None:
+            print(path)
+        return 0
     if argv and argv[0] == 'journal-identity-reconcile':
         if len(argv) != 2 or not argv[1].isdigit():
             raise ValueError('Identity reconciliation requires one explicit journal ID.')

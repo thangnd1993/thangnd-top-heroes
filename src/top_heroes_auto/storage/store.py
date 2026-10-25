@@ -330,6 +330,21 @@ class Store:
                 ),
             )
 
+    def run_dashboard(self, run_id: int) -> dict:
+        """Read-only counts for the dashboard: account totals/finished and VERIFIED claims since start."""
+        with self.connect() as db:
+            run = db.execute('SELECT namespace,started_at FROM runs WHERE id=?', (run_id,)).fetchone()
+            if run is None:
+                return dict(accounts=0, finished=0, verified=0)
+            namespace, started = run
+            accounts, finished = db.execute(
+                "SELECT COUNT(*), COALESCE(SUM(status IN ('SUCCESS','FAILED','CANCELLED','SKIPPED')),0) "
+                "FROM run_accounts WHERE run_id=?", (run_id,)).fetchone()
+            verified = 0 if started is None else db.execute(
+                "SELECT COUNT(*) FROM reward_claims WHERE namespace=? AND status='VERIFIED' AND verified_at>=?",
+                (namespace, started)).fetchone()[0]
+        return dict(accounts=accounts, finished=finished, verified=verified)
+
     def run_accounts(self, run_id: int):
         with self.connect() as db:
             return db.execute(

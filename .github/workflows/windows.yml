@@ -29,9 +29,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
       - name: Record packaged build provenance
-        shell: pwsh
-        run: |
-          @{commit=$env:GITHUB_SHA; ci_run=$env:GITHUB_RUN_ID; repository=$env:GITHUB_REPOSITORY} | ConvertTo-Json | Set-Content -Encoding utf8 assets/build-info.json
+        run: python tools/write_build_info.py --commit "${{ github.sha }}" --ci-run "${{ github.run_id }}" --repository "${{ github.repository }}"
       - run: python -m PyInstaller --clean --noconfirm TopHeroesAutoManager.spec
       - name: Check executable starts
         shell: pwsh
@@ -42,6 +40,17 @@ jobs:
             throw "Application did not complete GUI smoke test within 60 seconds"
           }
           if ($process.ExitCode -ne 0) { throw "Application smoke test failed: $($process.ExitCode)" }
+      - name: Verify packaged version metadata
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'version.json'
+          $p = Start-Process -FilePath .\dist\TopHeroesAutoManager\TopHeroesAutoManager.exe -ArgumentList '--version-file',$out -PassThru
+          if (-not $p.WaitForExit(60000)) { Stop-Process -Id $p.Id; throw 'version query timed out' }
+          $v = Get-Content $out -Raw | ConvertFrom-Json
+          if ($v.commit -ne $env:GITHUB_SHA) { throw "Packaged commit $($v.commit) != $env:GITHUB_SHA" }
+          if ($v.release_date -notmatch '^\d{4}-\d{2}-\d{2}$') { throw "Bad release date $($v.release_date)" }
+          if ($v.channel -ne 'CI Release') { throw "Unexpected channel $($v.channel)" }
+          Write-Host "Packaged: $($v.version) $($v.commit) $($v.release_date) $($v.channel)"
       - uses: actions/upload-artifact@v4
         with:
           name: TopHeroesAutoManager-Windows-x64

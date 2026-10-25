@@ -75,7 +75,7 @@ def execute_instance(manager, data, target, folder, registry, *, prior=None, ena
             monotonic=time.perf_counter(), worker=threading.current_thread().name,
             flow=flow, state=state, message=message))
         logging.getLogger('top_heroes_auto').info('[%s / #%s] %s', target['name'], target['index'], message,
-                                                extra={'category': 'operation'})
+            extra={'category': 'operation', 'ui_index': target['index'], 'ui_flow': flow, 'ui_state': state})
     def persist():
         write(folder/'account-report.json', row)
     persist()  # The execution plan is durable BEFORE selection/lifecycle mutation.

@@ -25,7 +25,7 @@ from top_heroes_auto.automation.guard import (
     require_run_member,
     require_selected,
 )
-from top_heroes_auto.automation.timing import measured, pause
+from top_heroes_auto.automation.timing import measured, pause, wait_epoch
 from top_heroes_auto.ldplayer.client import IndexedSerialUnavailable, Instance, LDPlayer
 from top_heroes_auto.ldplayer.identity import disk_identity
 from top_heroes_auto.storage.store import Store
@@ -106,6 +106,7 @@ class Manager:
     ADB_RESOLVE_TIMEOUT = 30.0
     IDENTITY_PROBE_ATTEMPTS = 3
     IDENTITY_PROBE_DELAY = .2
+    ADJACENT_INVENTORY_SECONDS = .25
 
     @staticmethod
     def _local_endpoint(serial: str) -> str | None:
@@ -129,6 +130,7 @@ class Manager:
         self._active: RunSnapshot | None = None
         self._last_lifecycle_attempt: LifecycleAttempt | None = None
         self.last_adb_resolution = None
+        self._inventory_read = None
         self.cancelled = lambda: False
 
     def check_cancelled(self):
@@ -183,6 +185,9 @@ class Manager:
         """
         if type(index) is not int or index < 0:
             raise SafetyError('Invalid target index; no fallback.')
+        reused = self._adjacent_inventory(index)
+        if reused is not None:
+            return reused
         matches=[i for i in self.ld.list_instances() if i.index==index]
         if len(matches)!=1:
             raise SafetyError('Exact target missing or ambiguous in fresh Multi inventory.')
@@ -193,7 +198,28 @@ class Manager:
             stable_id=''
         current=(replace(item,stable_id=stable_id),)
         self.store.merge(self.namespace,current,complete=False)
+        self._remember_inventory(index, current)
         return current
+
+    def _remember_inventory(self, index, current):
+        serial = getattr(self.ld.process, 'command_serial', None)
+        self._inventory_read = None if serial is None else (
+            index, current, serial, wait_epoch(), time.monotonic())
+
+    def _adjacent_inventory(self, index):
+        """Reuse a read only when it is provably adjacent to this one.
+
+        Adjacent means: same target, NO command (ldconsole or adb) issued since,
+        NO deliberate wait since, and younger than ADJACENT_INVENTORY_SECONDS.
+        Selection/Protection are still re-read by every caller's guard. Any
+        transport that cannot count its commands never coalesces."""
+        read = self._inventory_read
+        serial = getattr(self.ld.process, 'command_serial', None)
+        if (read is None or serial is None or read[0] != index or read[2] != serial
+                or read[3] != wait_epoch()
+                or time.monotonic() - read[4] > self.ADJACENT_INVENTORY_SECONDS):
+            return None
+        return read[1]
 
     def select(self, index: int, selected: bool, *, expected_revision=None):
         with self._lock:
