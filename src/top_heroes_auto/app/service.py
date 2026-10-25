@@ -215,7 +215,9 @@ class Manager:
         transport that cannot count its commands never coalesces."""
         read = self._inventory_read
         serial = getattr(self.ld.process, 'command_serial', None)
-        if (read is None or serial is None or read[0] != index or read[2] != serial
+        # A window <= 0 disables reuse outright; coarse clocks (Windows ~15 ms) can report 0.0 elapsed.
+        if (self.ADJACENT_INVENTORY_SECONDS <= 0 or read is None or serial is None or read[0] != index
+                or read[2] != serial
                 or read[3] != wait_epoch()
                 or time.monotonic() - read[4] > self.ADJACENT_INVENTORY_SECONDS):
             return None

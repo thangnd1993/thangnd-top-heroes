@@ -89,6 +89,15 @@ def test_age_bound_and_target_scope(tmp_path, monkeypatch):
     assert lists(process) == 3
 
 
+def test_zero_window_disables_reuse_even_with_a_coarse_clock(tmp_path, monkeypatch):
+    """Windows CI regression: monotonic() resolution ~15 ms made 0.0 elapsed pass a `> 0` window check."""
+    manager, process, _ = make(tmp_path, window=0.0)
+    monkeypatch.setattr('top_heroes_auto.app.service.time.monotonic', lambda: 1000.0)  # frozen, like a coarse clock
+    manager._target_inventory(7)
+    manager._target_inventory(7)
+    assert lists(process) == 2
+
+
 def test_transport_that_cannot_count_commands_never_coalesces(tmp_path):
     manager, process, _ = make(tmp_path, FakeProcess())
     manager._target_inventory(7)
