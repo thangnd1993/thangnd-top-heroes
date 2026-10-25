@@ -189,6 +189,73 @@ def test_command(manager: Manager, data: Path, index: int, name: str):
             report["cleanup_stop_result"], report["cleanup_stop_changed"] = lifecycle("quit")
 
 
+def verify_target_command(manager: Manager, data: Path, index: int):
+    """Read-only hybrid-workflow check of ONE target: Multi index -> Protection -> stable
+    identity -> indexed ADB serial + boot identity -> one fresh screenshot -> classification.
+
+    Never sends input, launch/quit, selection or Protection changes, or name writes. A
+    Protected, stopped, not-ready or ambiguous target fails closed with an explicit reason
+    before any ADB command is sent to it."""
+    import time
+
+    from top_heroes_auto.automation import timing
+    from top_heroes_auto.automation.guard import bound_snapshot
+
+    timing.reset()
+    started = time.perf_counter()
+    result = dict(index=index, stages={}, input_dispatched=False, lifecycle_dispatched=False)
+
+    def stage(name, began):
+        result['stages'][name] = round(time.perf_counter() - began, 3)
+
+    began = time.perf_counter()
+    matches = [i for i in manager.list_readonly() if i.index == index]
+    stage('inventory_seconds', began)
+    if len(matches) != 1:
+        raise SafetyError(f'TARGET_NOT_FOUND: Multi index {index} missing or ambiguous.')
+    live = matches[0]
+    meta = manager.store.metadata(manager.namespace, index)
+    result.update(display_name_informational_only=live.name, running=live.running,
+                  android_started=live.android_started, protected=meta.protected)
+    if meta.protected:
+        raise SafetyError('PROTECTED_TARGET: automation never sends commands to this instance.')
+    try:
+        stable_id = manager.store.require_identity(manager.namespace, index)
+    except ValueError as exc:
+        raise SafetyError(f'TARGET_IDENTITY_AMBIGUOUS: {exc}') from exc
+    if live.stable_id != stable_id:
+        raise SafetyError('TARGET_IDENTITY_AMBIGUOUS: live backing disk differs from the stored identity.')
+    if not (live.running and live.android_started):
+        raise SafetyError('ADB_UNAVAILABLE: target is not running/Android-ready; this check never launches it.')
+    result['stable_id'] = stable_id
+    began = time.perf_counter()
+    target, payload = manager.capture_verified(
+        index, bound_snapshot(manager.store, manager.namespace, ((index, live.name),), True))
+    stage('identity_and_capture_seconds', began)
+    result.update(adb_serial=target.serial, boot_id=target.boot_id)
+    folder = data / 'diagnostics' / 'verify-target'
+    folder.mkdir(parents=True, exist_ok=True)
+    shot = folder / f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}-{index}.png"
+    shot.write_bytes(payload)
+    result['screenshot'] = str(shot)
+    began = time.perf_counter()
+    try:
+        from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
+        from top_heroes_auto.vision.screenshot import ScreenshotService
+
+        screen = ScreenshotService(lambda serial: payload if serial == target.serial else b'').take(target)
+        detection = RecoveryScreenDetector().detect(screen)
+        result['screen'] = dict(state=detection.state.value, confidence=round(float(detection.confidence), 3))
+    except (ValueError, OSError) as exc:
+        result['screen'] = dict(state='UNKNOWN', error=str(exc)[:300])  # UNKNOWN never authorizes input
+    stage('classification_seconds', began)
+    result['stages']['total_seconds'] = round(time.perf_counter() - started, 3)
+    result['transport_commands'] = getattr(manager.ld.process, 'metrics', {})
+    result['operation_metrics'] = timing.snapshot()
+    print(json.dumps({k: v for k, v in result.items() if k != 'operation_metrics'}, ensure_ascii=True, indent=2))
+    return {'verify_target': result}
+
+
 def parser():
     root = argparse.ArgumentParser(prog="TopHeroesAutoManager.exe diagnostic")
     commands = root.add_subparsers(dest="command", required=True)
@@ -199,6 +266,8 @@ def parser():
         child.add_argument("--name", required=True)
         if command == "run-selected":
             child.add_argument("--concurrency", type=int, choices=(1, 2, 3, 4), default=1)
+    verify = commands.add_parser("verify-target", help="Read-only: identity, indexed ADB, one screenshot. No input.")
+    verify.add_argument("--index", type=int, required=True)
     members = commands.add_parser("run-members")
     members.add_argument(
         "--member",
@@ -260,6 +329,8 @@ def main(argv: list[str], data: Path) -> int:
         elif args.command == "show":
             report["instance"] = _view(manager, (_instance(manager, args.index, args.name),))[0]
             print(json.dumps(report["instance"], ensure_ascii=True, indent=2))
+        elif args.command == "verify-target":
+            report.update(verify_target_command(manager, data, args.index))
         elif args.command == "test":
             report.update(test_command(manager, data, args.index, args.name))
         elif args.command == "run-selected":

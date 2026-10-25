@@ -50,8 +50,15 @@ the detailed safety history; this file is the short enforceable summary. Do not 
 - Never delete user data, logs, journals, screenshots, diagnostics. Never commit logs, `*.sqlite3`, screenshots, tokens.
 - Commit/push only to the designated branch; no PR unless asked. Don't touch the Desktop app unless the environment can actually reach it.
 
+## Hybrid Windows workflow (only when Computer Use / native Windows is really available)
+- Computer Use = desktop and app UI only (launch exe, read version, LDPlayer Multi, dialogs, app Start/Stop/Export). Gameplay = the production
+  app's verified index + ADB path only. One controller per target; never click inside an emulator the app is driving.
+- Read-only preflight per target: `TopHeroesAutoManager.exe diagnostic verify-target --index N` (no input/lifecycle/selection/name writes).
+- Full procedure: `/windows-hybrid-run`.
+
 ## Skills (in `.claude/skills/`)
-`/analyze-run` newest run → ranked defects with evidence · `/fix-regression` confirmed defect → test → fix · `/release-app` gates → artifact → Desktop.
+`/analyze-run` newest run → ranked defects with evidence · `/fix-regression` confirmed defect → test → fix · `/release-app` gates → artifact → Desktop
+· `/windows-hybrid-run` real run with Computer Use + verified ADB.
 
 ## Hooks (`.claude/settings.json`, fast, local-only, no network)
 - After editing a `.py` file: ruff on that file; reminder when a safety-critical file changed.
