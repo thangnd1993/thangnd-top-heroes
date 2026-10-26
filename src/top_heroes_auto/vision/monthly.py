@@ -42,6 +42,17 @@ def daily_availability(detector, frame):
         return 'NOT_AVAILABLE', received, None
     if received.score >= received.threshold:
         return 'UNKNOWN', core, None
+    # Run22 #3: an un-owned card shows its validity label and a paid activation
+    # button where the claim would be. Positive label + no claim/received/owned
+    # anchor anywhere = nothing free to collect; never a tap target.
+    unowned = frame.anchors.get('monthly-unowned-label')
+    owned = frame.anchors['monthly-owned-label']
+    back = frame.box('back')
+    if (unowned is not None and unowned.matched and unowned.device_box and back
+            and core.score < core.threshold and not owned.matched and owned.score < owned.threshold
+            and frame.box('monthly-daily-heading').y < unowned.device_box.y < back.y
+            and not controls(frame, 'monthly-unowned-label', 'green')):
+        return 'NOT_AVAILABLE', unowned, None
     try:
         daily_geometry(frame, core)
     except ValueError:

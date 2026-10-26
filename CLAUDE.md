@@ -30,6 +30,8 @@ safety history; this file is the short enforceable summary. Do not start Phase 9
   Scope ownership and cleanup to the run's own targets; external-running instances stay running.
 - Free rewards only. Never spend money, diamonds, stones, tickets, premium items. Technology/Guild donation is WOOD only (prefer the authorized quick donation).
   Never enter Sảnh Thí Luyện unless explicitly authorized. `UNKNOWN` screen = no gameplay input; no blind coordinate gameplay.
+  Sole exception (user, 2026-10-26): an UNKNOWN Event page just entered by a qualified child edge gets one tap on the Back anchor that
+  matches the qualified parent's Back position (`unqualified_child_exit`); nothing else, page recorded BLOCKED.
 
 ## Reward correctness
 - Discover red/numbered badges and enabled free `NHẬN`/`MIỄN PHÍ`/`NHẬN NHANH` controls (also without badges); inspect all tabs/submenus of a feature in ONE visit;

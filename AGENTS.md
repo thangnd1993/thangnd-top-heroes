@@ -72,6 +72,10 @@ Preserve all project safety rules:
 - Use explicit indexed ADB only. No default, first-device, or index-0 fallback.
 - No `quitall`, broadcast, or global LDPlayer operations.
 - `UNKNOWN` means no gameplay input; no blind coordinate-only gameplay.
+  Sole exception (user decision 2026-10-26): an UNKNOWN Event page entered by a
+  qualified child edge in the same visit may receive ONE tap on the standard
+  Back anchor matched at the qualified parent's Back position; no other input,
+  and the page stays BLOCKED (see docs/SAFETY.md).
 - Free-only claims. Never spend money, diamonds, premium currency, tickets,
   speedups, items, or other resources.
 - Never rename LDPlayer instances or repeat completed claims/surveys.

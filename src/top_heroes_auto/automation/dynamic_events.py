@@ -212,6 +212,13 @@ class DynamicEventExplorer:
                         continue
                     break
                 render_waits = 0
+                if 'UNQUALIFIED_CHILD_PAGE' in frame.blocked and not (pending and pending[0] == 'child' and stack):
+                    # The Back-only exit is valid only for a page this visit just
+                    # entered through a qualified child edge; otherwise it is UNKNOWN.
+                    block('UNKNOWN_SCREEN', frame)
+                    if continue_after_block(frame):
+                        continue
+                    break
                 if active and frame.page == 'home' and pending and pending[:2] == ('parent','home'):
                     # A sent Back is not proof of Home or Event exhaustion.
                     # Retain the active root until this independent fresh frame.

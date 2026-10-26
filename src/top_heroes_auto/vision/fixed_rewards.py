@@ -122,7 +122,7 @@ class FixedRewardDetector:
                     anchors[name] = AnchorEvidence(name, ScreenState.UNKNOWN, 0, anchor.threshold, False)
                     continue
             # Semantic surfaces only. These regions never supply tap coordinates.
-            if name.startswith('monthly-daily-') or name == 'monthly-owned-label':
+            if name.startswith('monthly-daily-') or name in {'monthly-owned-label', 'monthly-unowned-label'}:
                 region = portrait_region(0, .60, 1, .92)
             elif name.startswith('ads-'):
                 region = portrait_region(0, 0, 1, 1)

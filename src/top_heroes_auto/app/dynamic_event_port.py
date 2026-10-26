@@ -60,6 +60,30 @@ from top_heroes_auto.vision.models import BoundingBox, ScreenState
 from top_heroes_auto.vision.resources import template_folder
 from top_heroes_auto.vision.system_dialog import system_dialog
 
+UNQUALIFIED_CHILD_PAGE = 'UNQUALIFIED_CHILD_PAGE'
+
+
+def unqualified_child_exit(previous, back, *, page, entered, popup, dialog, rendering, tolerance=4):
+    """Back-only exit from an UNKNOWN page entered from a qualified event page (user decision 2026-10-26).
+
+    Run22: one unsupported seasonal child page ended the whole Event traversal because
+    UNKNOWN allowed no input. This grants exactly one navigation control: the standard
+    Back anchor, matched now at the same place as the qualified parent's own Back.
+    It never grants claim, tab, child or scroll permission; the caller records the
+    page as BLOCKED and the explorer accepts it only right after a child edge.
+    """
+    if (page != 'UNKNOWN' or not entered or popup or dialog or rendering or back is None
+            or previous is None or previous.popup or not previous.page.startswith('event:')
+            or previous.page.endswith(':unqualified-child')
+            or previous.parent is None or previous.parent.identity != 'current-back'):
+        return None
+    old = previous.parent.box
+    if any(abs(a-b) > tolerance for a, b in ((back.x, old.x), (back.y, old.y),
+                                              (back.width, old.width), (back.height, old.height))):
+        return None
+    return Control('current-back', back, ('qualified-parent-same-visit', 'same-standard-back-anchor',
+                                          'unqualified-child-exit-only'), 'parent')
+
 
 class DynamicEventPort:
     def __init__(self, session, folder):
@@ -76,6 +100,7 @@ class DynamicEventPort:
         self.home_icon_cores = {}
         self.menu_icon_cores = {}
         self.event_title = None
+        self.child_origin = None
         self.unavailable_observations = {}
         # A later daily/seasonal unavailable screen cannot prove an old action.
         # Automatic reconciliation is limited to actions from THIS live visit.
@@ -394,6 +419,18 @@ class DynamicEventPort:
             popup = False  # Never route Android dialogs through game popup dismissal.
             blocked.append(dialog['reason'])
         transition=(competitive_rank_transition(image) if self.entered and page=='UNKNOWN' and not popup and not dialog else None)
+        rendering=bool(self.entered and page=='UNKNOWN' and not popup and not dialog
+                       and (blank_event_render(image) or transition is not None))
+        exit_control=unqualified_child_exit(getattr(self, 'child_origin', None), observed.box('back'), page=page,
+                                            entered=self.entered, popup=popup, dialog=dialog, rendering=rendering)
+        if not rendering:
+            self.child_origin = None
+        if exit_control is not None:
+            page = 'event:'+self.entered+':unqualified-child'
+            parent = exit_control
+            controls = []  # Back only: no reward, tab, child or scroll permission here.
+            coverage_known = False
+            blocked.append(UNQUALIFIED_CHILD_PAGE)
         self.current = EventFrame(str(c.source_image),identity,page,fingerprint,tuple(controls),
                                   coverage_known=coverage_known, parent=parent, popup=popup, blocked=tuple(blocked),
                                   stable_id=self.session.target['persistent_identity'], event_scan_performed=event_scan_performed,
@@ -401,8 +438,7 @@ class DynamicEventPort:
                                   mission_states=tuple({**r,'row':asdict(r['row'])} for r in self.mission_rows),
                                   mission_at_top=bool(self.mission_rows and context is not None and
                                       self.mission_rows[0]['row'].y-context.y-context.height < image.shape[0]*.04),
-                                  render_pending=bool(self.entered and page=='UNKNOWN' and
-                                                      not popup and not dialog and (blank_event_render(image) or transition is not None)))
+                                  render_pending=rendering)
         if getattr(self,'pending_entry_proof',None) is not None:
             proof=self.pending_entry_proof
             proof.update(post_capture=self.current.capture,post_page=page,
@@ -557,6 +593,8 @@ class DynamicEventPort:
         if control.kind in {'tab','parent','child'}:
             if not frame.page.startswith('event:') or control not in (*frame.controls,frame.parent):
                 raise SafetyError('No qualified event tab/parent edge.')
+            # One-shot origin for the Back-only exit; consumed by the next settled observation.
+            self.child_origin = frame if control.kind == 'child' else None
             self.transport.dispatch(self.transport.last,'tap',control.box.center)
             self.current = None
             pause(time.sleep, .5)

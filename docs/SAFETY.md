@@ -138,6 +138,16 @@ cannot turn an incomplete task into success, unlock a claim or restart a session
 Navigation-only recovery continues independent candidates only with fresh safe
 evidence; UNKNOWN itself never authorizes input.
 
+**Unqualified Event child exit (user decision 2026-10-26, run22).** One narrowly
+qualified exception exists: an UNKNOWN Event page that the explorer entered
+through a qualified child edge in the same visit, with no popup, no Android
+dialog and no pending render, whose standard Back anchor is matched within 4 px
+of the qualified parent's own Back, is relabelled `…:unqualified-child` and
+offered exactly that Back as its only control (`unqualified_child_exit`). It
+grants no reward, tab, child or scroll permission; the page and its Event stay
+BLOCKED (`UNQUALIFIED_CHILD_PAGE`, never exhausted). The origin is one-shot and
+the explorer rejects the flag without an immediately preceding child edge.
+
 LDPlayer transport accepts only list2/launch/quit/indexed adb. The obsolete
 whole-config ADB remediation writer is disabled, including backup restoration:
 its old rollback could overwrite concurrent user-owned metadata. No automated

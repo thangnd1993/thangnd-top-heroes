@@ -1,0 +1,13 @@
+{
+  "id": "monthly-unowned-label",
+  "state": "FREE_REWARD_PAGE",
+  "template": "monthly-unowned-label.png",
+  "expected_region": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "threshold": 0.98,
+  "required": false
+}
