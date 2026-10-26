@@ -4,6 +4,7 @@ import json
 import sys
 from pathlib import Path
 
+from top_heroes_auto.app.version_info import load_version_info
 from top_heroes_auto.vision.resources import template_folder
 
 
@@ -17,4 +18,5 @@ def build_identity():
     if metadata.is_file():
         raw = json.loads(metadata.read_text(encoding='utf-8-sig'))
         result['build'] = {k:raw.get(k) for k in ('commit','ci_run','repository')}
+    result['version_info'] = load_version_info().as_report()
     return result

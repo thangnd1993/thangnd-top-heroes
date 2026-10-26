@@ -12,6 +12,15 @@ def reset():
     _local.stack = []
 
 
+def wait_epoch():
+    """Increments on every deliberate wait; lets callers prove no time was spent waiting."""
+    return getattr(_local, 'epoch', 0)
+
+
+def _bump_epoch():
+    _local.epoch = getattr(_local, 'epoch', 0) + 1
+
+
 def snapshot():
     return {key: dict(value) for key, value in getattr(_local, 'metrics', {}).items()}
 
@@ -49,6 +58,7 @@ def measured(category):
 def wait(seconds, *, cancelled=lambda: False):
     """Bounded interruptible deliberate waiting; Stop prevents delayed action."""
     deadline = time.monotonic()+seconds
+    _bump_epoch()
     with measure('deliberate_wait'):
         while not cancelled():
             remaining = deadline-time.monotonic()
@@ -59,8 +69,10 @@ def wait(seconds, *, cancelled=lambda: False):
 
 def pause(sleeper, seconds):
     """Measure an existing injectable wait without changing its timing contract."""
+    _bump_epoch()
     with measure('deliberate_wait'):
         sleeper(seconds)
+    _bump_epoch()
 
 
 def poll(observe, expected, *, attempts=4, cadence=.3, cancelled=lambda: False):

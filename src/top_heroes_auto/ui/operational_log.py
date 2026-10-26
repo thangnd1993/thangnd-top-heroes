@@ -8,6 +8,7 @@ class OperationalLogHandler(logging.Handler):
     def __init__(self):
         super().__init__()
         self.pending = deque(maxlen=500)
+        self.flow_events = deque(maxlen=500)
         self.buffer_lock = threading.Lock()
         self.technical = False
         self.last = None
@@ -15,6 +16,10 @@ class OperationalLogHandler(logging.Handler):
         self.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s', '%H:%M:%S'))
 
     def emit(self, record):
+        # Structured per-flow progress feeds the dashboard regardless of verbosity.
+        if hasattr(record, 'ui_flow'):
+            with self.buffer_lock:
+                self.flow_events.append((record.ui_index, record.ui_flow, record.ui_state, record.getMessage()))
         # WARN/ERROR and actual operational outcomes always remain visible.
         if not (self.technical or record.levelno >= logging.WARNING
                 or getattr(record, 'category', '') == 'operation'):
@@ -34,4 +39,10 @@ class OperationalLogHandler(logging.Handler):
         with self.buffer_lock:
             result = list(self.pending)
             self.pending.clear()
+        return result
+
+    def drain_flow_events(self):
+        with self.buffer_lock:
+            result = list(self.flow_events)
+            self.flow_events.clear()
         return result

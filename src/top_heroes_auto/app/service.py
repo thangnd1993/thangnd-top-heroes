@@ -25,7 +25,7 @@ from top_heroes_auto.automation.guard import (
     require_run_member,
     require_selected,
 )
-from top_heroes_auto.automation.timing import measured, pause
+from top_heroes_auto.automation.timing import measured, pause, wait_epoch
 from top_heroes_auto.ldplayer.client import IndexedSerialUnavailable, Instance, LDPlayer
 from top_heroes_auto.ldplayer.identity import disk_identity
 from top_heroes_auto.storage.store import Store
@@ -103,9 +103,18 @@ class Manager:
     START_TIMEOUT = 120.0
     STOP_TIMEOUT = 60.0
     POLL_INTERVAL = 1.0
-    ADB_RESOLVE_TIMEOUT = 30.0
+    # Run20/21 evidence: #8/#11 never registered within 34s (indexed boot read
+    # empty the whole time) yet the same instances resolved on slower cold boots
+    # in other runs (startup 114-149s). The wait stays bounded to one unchanged
+    # runtime and aborts on Stop; it never restarts ADB or the instance.
+    ADB_RESOLVE_TIMEOUT = 90.0
     IDENTITY_PROBE_ATTEMPTS = 3
     IDENTITY_PROBE_DELAY = .2
+    ADJACENT_INVENTORY_SECONDS = .25
+    # Run21 #9: one 20s screencap timeout during GAME_LOADING blocked the whole
+    # target. Screencap is read-only, so one re-verified retry is safe.
+    CAPTURE_ATTEMPTS = 2
+    CAPTURE_RETRY_DELAY = 1.0
 
     @staticmethod
     def _local_endpoint(serial: str) -> str | None:
@@ -129,6 +138,7 @@ class Manager:
         self._active: RunSnapshot | None = None
         self._last_lifecycle_attempt: LifecycleAttempt | None = None
         self.last_adb_resolution = None
+        self._inventory_read = None
         self.cancelled = lambda: False
 
     def check_cancelled(self):
@@ -183,6 +193,9 @@ class Manager:
         """
         if type(index) is not int or index < 0:
             raise SafetyError('Invalid target index; no fallback.')
+        reused = self._adjacent_inventory(index)
+        if reused is not None:
+            return reused
         matches=[i for i in self.ld.list_instances() if i.index==index]
         if len(matches)!=1:
             raise SafetyError('Exact target missing or ambiguous in fresh Multi inventory.')
@@ -193,7 +206,30 @@ class Manager:
             stable_id=''
         current=(replace(item,stable_id=stable_id),)
         self.store.merge(self.namespace,current,complete=False)
+        self._remember_inventory(index, current)
         return current
+
+    def _remember_inventory(self, index, current):
+        serial = getattr(self.ld.process, 'command_serial', None)
+        self._inventory_read = None if serial is None else (
+            index, current, serial, wait_epoch(), time.monotonic())
+
+    def _adjacent_inventory(self, index):
+        """Reuse a read only when it is provably adjacent to this one.
+
+        Adjacent means: same target, NO command (ldconsole or adb) issued since,
+        NO deliberate wait since, and younger than ADJACENT_INVENTORY_SECONDS.
+        Selection/Protection are still re-read by every caller's guard. Any
+        transport that cannot count its commands never coalesces."""
+        read = self._inventory_read
+        serial = getattr(self.ld.process, 'command_serial', None)
+        # A window <= 0 disables reuse outright; coarse clocks (Windows ~15 ms) can report 0.0 elapsed.
+        if (self.ADJACENT_INVENTORY_SECONDS <= 0 or read is None or serial is None or read[0] != index
+                or read[2] != serial
+                or read[3] != wait_epoch()
+                or time.monotonic() - read[4] > self.ADJACENT_INVENTORY_SECONDS):
+            return None
+        return read[1]
 
     def select(self, index: int, selected: bool, *, expected_revision=None):
         with self._lock:
@@ -436,6 +472,7 @@ class Manager:
                     f"stage={self.last_adb_resolution['stage']}; "
                     f"indexed_boot={bool(expected)}; transports={sample['transports']}"
                 )
+            self.check_cancelled()
             pause(time.sleep, self.POLL_INTERVAL)
 
     def _capture_ready(self, index: int, *, current=None) -> Instance:
@@ -474,6 +511,29 @@ class Manager:
             raise SafetyError('Observed screenshot boot changed before input.')
         return Target(index, instance.name, observed.serial, boot, instance.stable_id)
 
+    def _capture_png(self, index, target, runtime):
+        """Read-only screencap; retry only a command failure on the same target.
+
+        Before each retry the same runtime and the transport's boot identity are
+        verified again. A mismatch or changed runtime fails closed, and no input
+        or lifecycle command is ever issued here.
+        """
+        for attempt in range(self.CAPTURE_ATTEMPTS):
+            try:
+                return self.adb._capture(target.serial)
+            except CommandError as exc:
+                if attempt + 1 == self.CAPTURE_ATTEMPTS:
+                    raise
+                log.warning('[#%s] Screencap lỗi tạm thời; kiểm tra lại đúng target rồi thử lại %s/%s: %s',
+                            index, attempt + 1, self.CAPTURE_ATTEMPTS, exc)
+                self.check_cancelled()
+                pause(time.sleep, self.CAPTURE_RETRY_DELAY)
+                self._same_runtime(index, runtime)
+                if self._probe_identity(index, lambda: self.adb.boot_id(target.serial),
+                                        instance=runtime) != target.boot_id:
+                    raise SafetyError('ADB target đã thay đổi; hủy chụp màn hình.') from exc
+        raise SafetyError('Screencap attempts exhausted.')
+
     @measured('capture_and_identity')
     def capture_verified(self, index: int, snapshot: RunSnapshot | None = None,
                          *, observed_target: Target | None = None, operation_guard=None) -> tuple[Target, bytes]:
@@ -501,7 +561,7 @@ class Manager:
                     raise SafetyError("ADB target đã thay đổi; hủy chụp màn hình.")
                 if operation_guard is not None:
                     operation_guard(capture_runtime, target)
-                return target, self.adb._capture(target.serial)
+                return target, self._capture_png(index, target, capture_runtime)
             except Exception:
                 log.exception("[#%s] Hủy capture đã xác minh", index)
                 raise

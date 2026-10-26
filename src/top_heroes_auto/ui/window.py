@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 )
 
 from top_heroes_auto.app.automation_controller import AutomationController
+from top_heroes_auto.app.diagnostic_bundle import export_bundle
 from top_heroes_auto.app.free_reward_tasks import (
     PHASE6_TARGET,
     run_free_reward_task,
@@ -57,10 +58,12 @@ from top_heroes_auto.app.recovery_cli import run_home_recovery
 from top_heroes_auto.app.registered_tasks import run_registered_selected
 from top_heroes_auto.app.service import Manager
 from top_heroes_auto.app.task_cli import run_idle_reward_diagnostic
+from top_heroes_auto.app.version_info import APP_NAME, load_version_info
 from top_heroes_auto.ldplayer.client import LDPlayer, discover, inspect_folder
 from top_heroes_auto.ldplayer.identity import runtime_key
 from top_heroes_auto.storage.store import AccountStatus
 from top_heroes_auto.ui.operational_log import OperationalLogHandler
+from top_heroes_auto.ui.run_progress import RunProgress, format_elapsed
 from top_heroes_auto.ui.theme import STYLE
 from top_heroes_auto.vision.detector import ScreenDetector
 from top_heroes_auto.vision.resources import template_folder
@@ -96,9 +99,11 @@ class Window(QMainWindow):
         self.phase6_cancelled = threading.Event()
         self.run_controller = None
         self.run_states = {}
-        self.setWindowTitle("Top Heroes Auto Manager — V0.1.0")
+        self.version = load_version_info()
+        self.progress = RunProgress()
+        self.setWindowTitle(f"{APP_NAME} — {self.version.summary}")
         self.resize(1440, 920)
-        self.setMinimumSize(1080, 740)
+        self.setMinimumSize(1180, 740)
         self.setStyleSheet(STYLE)
         central = QWidget()
         self.setCentralWidget(central)
@@ -106,7 +111,7 @@ class Window(QMainWindow):
         root.setContentsMargins(0, 0, 12, 0)
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(200)
+        sidebar.setFixedWidth(168)
         nav = QVBoxLayout(sidebar)
         nav.setContentsMargins(16, 25, 16, 20)
         brand = QLabel("TOP HEROES\nAuto Manager")
@@ -128,7 +133,10 @@ class Window(QMainWindow):
             else:
                 button.clicked.connect(lambda: self.table.setFocus())
         nav.addStretch()
-        credit = QLabel("V0.1.0 · Phase 1\n\nPhát triển bởi\nThang Nguyen")
+        credit = QLabel(f"V{self.version.version}\n{self.version.short_commit}\n{self.version.release_date}\n"
+                        f"{self.version.channel}\n\nPhát triển bởi\nThang Nguyen")
+        credit.setToolTip(f"Commit đầy đủ: {self.version.commit}\nCI run: {self.version.ci_run}")
+        credit.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         credit.setObjectName("muted")
         nav.addWidget(credit)
         root.addWidget(sidebar)
@@ -146,6 +154,30 @@ class Window(QMainWindow):
         tip = QLabel("Chỉ thao tác giả lập đã chọn · Giả lập được bảo vệ luôn bị chặn")
         tip.setObjectName("muted")
         layout.addWidget(tip)
+        self.cards = {}
+        cards = QHBoxLayout()
+        for key, title in (("version", "Phiên bản"), ("run", "Lượt chạy"), ("fleet", "Giả lập"),
+                           ("workers", "Worker hoạt động"), ("done", "Tài khoản hoàn tất"), ("verified", "Quà đã xác minh")):
+            card = QFrame()
+            card.setObjectName("card")
+            box = QVBoxLayout(card)
+            box.setContentsMargins(12, 8, 12, 8)
+            box.setSpacing(2)
+            caption = QLabel(title)
+            caption.setObjectName("cardTitle")
+            value = QLabel("—")
+            value.setObjectName("cardValue")
+            value.setWordWrap(True)
+            box.addWidget(caption)
+            box.addWidget(value)
+            cards.addWidget(card, 3 if key == "version" else 2 if key in {"fleet", "run"} else 1)
+            self.cards[key] = value
+        layout.addLayout(cards)
+        self.warning_banner = QLabel()
+        self.warning_banner.setObjectName("warning")
+        self.warning_banner.setWordWrap(True)
+        self.warning_banner.hide()
+        layout.addWidget(self.warning_banner)
         splitter = QSplitter(Qt.Orientation.Horizontal)
         layout.addWidget(splitter, 1)
         left = QWidget()
@@ -170,38 +202,35 @@ class Window(QMainWindow):
         self.table.setHorizontalHeaderLabels(
             [
                 "Chọn",
-                "#",
-                "Tên giả lập (Tài khoản)",
+                "ID",
+                "Tên hiển thị",
                 "Trạng thái",
-                "Game",
-                "Độ phân giải",
+                "Kết quả gần nhất",
+                "Android",
                 "Bảo vệ",
-                "Tự động",
+                "Tiến độ tự động",
                 "Thao tác",
             ]
         )
+        self.table.verticalHeader().setDefaultSectionSize(36)
         self.table.setAlternatingRowColors(True)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.verticalHeader().hide()
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.Stretch)
         left_layout.addWidget(self.table, 1)
         self.summary = QLabel("Chưa đọc danh sách LDPlayer")
         left_layout.addWidget(self.summary)
         splitter.addWidget(left)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setMinimumWidth(320)
+        scroll.setMinimumWidth(340)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         right = QWidget()
         panels = QVBoxLayout(right)
-        status = self.group(panels, "Trạng thái LDPlayer")
-        self.ld_status = QLabel("Đang kiểm tra…")
-        self.ld_status.setWordWrap(True)
-        self.ld_status.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        status.addWidget(self.ld_status)
-        self.button(status, "Kiểm tra lại", self.discover_ld)
-        self.button(status, "Chọn thư mục LDPlayer", self.pick_folder)
         auto = self.group(panels, "Điều khiển tự động")
         self.run_scope = QComboBox()
         self.run_scope.addItems(['Các tài khoản đã chọn', 'Tất cả tài khoản không bảo vệ'])
@@ -211,12 +240,42 @@ class Window(QMainWindow):
         scope_note = QLabel('Idle · VIP · BXH · Tiệm · Hội · Thư · Event\nChỉ nhận quà đủ điều kiện; giữ khóa chống nhận lặp.')
         scope_note.setWordWrap(True)
         auto.addWidget(scope_note)
-        self.auto_start = self.button(auto, "Bắt đầu tự động (0)", self.start_selected)
-        self.auto_stop = self.button(auto, "Dừng tự động", self.stop_run)
+        auto.addWidget(QLabel("Số tài khoản chạy đồng thời"))
+        self.concurrency = QSpinBox()
+        self.concurrency.setRange(1, 2)
+        self.concurrency.setAccessibleName('Số tài khoản chạy đồng thời')
+        self.concurrency.setValue(int(self.store.get("max_concurrency", "2")))
+        self.concurrency.valueChanged.connect(lambda value: self.store.set("max_concurrency", str(value)))
+        auto.addWidget(self.concurrency)
+        concurrency_note = QLabel("Mỗi tài khoản chạy hết kế hoạch rồi mới chuyển tài khoản tiếp theo.")
+        concurrency_note.setObjectName("muted")
+        concurrency_note.setWordWrap(True)
+        auto.addWidget(concurrency_note)
+        self.auto_start = self.button(auto, "▶ Bắt đầu tự động (0)", self.start_selected)
+        self.auto_start.setObjectName("primary")
+        self.auto_stop = self.button(auto, "■ Dừng tự động", self.stop_run)
+        self.auto_stop.setObjectName("danger")
         self.auto_pause = self.button(auto, "Tạm dừng", self.pause_run)
         self.retry_failed = self.button(auto, "Thử lại lỗi", self.retry_run)
         for button in (self.auto_stop, self.auto_pause, self.retry_failed):
             button.setEnabled(False)
+        status = self.group(panels, "Trạng thái LDPlayer")
+        self.ld_status = QLabel("Đang kiểm tra…")
+        self.ld_status.setWordWrap(True)
+        self.ld_status.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        status.addWidget(self.ld_status)
+        self.button(status, "Kiểm tra lại", self.discover_ld)
+        self.button(status, "Chọn thư mục LDPlayer", self.pick_folder)
+        self.advanced_toggle = QCheckBox("Công cụ nâng cao (ADB, nhận diện, tác vụ thử)")
+        panels.addWidget(self.advanced_toggle)
+        self.advanced = QWidget()
+        main_panels, panels = panels, QVBoxLayout(self.advanced)
+        panels.setContentsMargins(0, 0, 0, 0)
+        main_panels.addWidget(self.advanced)
+        self.advanced.setVisible(False)
+        self.advanced_toggle.toggled.connect(self.advanced.setVisible)
+        self.advanced_toggle.toggled.connect(lambda value: self.table.setColumnHidden(8, not value))
+        self.table.setColumnHidden(8, True)
         actions = self.group(panels, "Thao tác với giả lập đã chọn")
         self.target = QComboBox()
         self.target.currentIndexChanged.connect(self.target_changed)
@@ -309,19 +368,12 @@ class Window(QMainWindow):
         self.action_buttons.append(self.phase6_vip_survey_button)
         self.phase6_cancel_button = self.button(tasks, "Hủy Phase 6", self.cancel_phase6)
         self.phase6_cancel_button.setEnabled(False)
-        options = self.group(panels, "Tùy chọn thực thi")
-        options.addWidget(QLabel("Số giả lập chạy đồng thời"))
-        self.concurrency = QSpinBox()
-        self.concurrency.setRange(1, 2)
-        self.concurrency.setAccessibleName('Số tài khoản chạy đồng thời')
-        self.concurrency.setValue(int(self.store.get("max_concurrency", "2")))
-        self.concurrency.valueChanged.connect(lambda value: self.store.set("max_concurrency", str(value)))
-        options.addWidget(self.concurrency)
-        options.addWidget(QLabel("Mỗi tài khoản chạy hết kế hoạch rồi mới chuyển tài khoản tiếp theo."))
-        panels.addStretch()
+        main_panels.addStretch()
         scroll.setWidget(right)
         splitter.addWidget(scroll)
-        splitter.setSizes([850, 330])
+        splitter.setSizes([820, 360])
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 1)
         log_tools = QHBoxLayout()
         self.run_label = QLabel('Lượt chạy: chưa bắt đầu')
         with self.store.connect() as db:
@@ -333,6 +385,7 @@ class Window(QMainWindow):
         log_tools.addWidget(self.technical_logs)
         self.button(log_tools, 'Mở logs', self.open_logs)
         self.button(log_tools, 'Sao chép tóm tắt lượt chạy', self.copy_run_summary)
+        self.button(log_tools, 'Xuất gói chẩn đoán', self.export_diagnostics)
         layout.addLayout(log_tools)
         self.logs = QPlainTextEdit()
         self.logs.setReadOnly(True)
@@ -376,11 +429,70 @@ class Window(QMainWindow):
         self.clock.setText(
             QDateTime.currentDateTime().toString("dd/MM/yyyy HH:mm:ss") + "  ·  Phát triển bởi Thang Nguyen"
         )
+        self.update_dashboard()
 
     def flush_logs(self):
         messages = self.log_handler.drain()
         if messages:
             self.logs.appendPlainText('\n'.join(messages))
+        events = self.log_handler.drain_flow_events()
+        for index, flow, state, message in events:
+            self.progress.flow_event(index, flow, state, message)
+        if events:
+            self.sync_run_states()
+            self.render()
+
+    def sync_run_states(self):
+        for index, account in self.progress.accounts.items():
+            self.run_states[index] = account.line()
+
+    def update_dashboard(self):
+        """Refresh the summary cards from real state only; unknown values stay unknown."""
+        if not hasattr(self, "cards"):
+            return
+        manager = self.manager
+        total = len(self.instances)
+        eligible = selected = 0
+        if manager:
+            for instance in self.instances:
+                meta = self.store.metadata(manager.namespace, instance.index)
+                eligible += not meta.protected
+                selected += meta.selected and not meta.protected
+        running = sum(1 for i in self.instances if i.running)
+        self.cards["version"].setText(self.version.summary)
+        self.cards["version"].setToolTip(f"Commit: {self.version.commit}\nCI run: {self.version.ci_run}")
+        self.cards["fleet"].setText(f"{total} tổng · {eligible} khả dụng · {selected} chọn")
+        self.cards["fleet"].setToolTip(f"{running} giả lập đang chạy; {total - eligible} được bảo vệ")
+        run_id = self.progress.run_id
+        counts = dict(accounts=0, finished=0, verified=0)
+        if run_id is not None:
+            try:
+                counts = self.store.run_dashboard(run_id)
+            except sqlite3.Error:
+                logging.getLogger("top_heroes_auto").debug("Dashboard counts unavailable", exc_info=True)
+        busy = self.worker is not None and self.mode == "run"
+        self.cards["run"].setText("Chưa bắt đầu" if run_id is None else
+                                  f"#{run_id} · {format_elapsed(self.progress.elapsed())}" + ("" if busy else " · đã dừng"))
+        self.cards["workers"].setText(f"{self.progress.active_workers()}/{self.concurrency.value()}")
+        self.cards["done"].setText(f"{counts['finished']}/{counts['accounts']}" if run_id is not None else "—")
+        self.cards["verified"].setText(str(counts["verified"]) if run_id is not None else "—")
+        blocked = sum(a.blocked for a in self.progress.accounts.values())
+        warnings = []
+        if manager is None:
+            warnings.append("Chưa phát hiện LDPlayer.")
+        if blocked:
+            warnings.append(f"{blocked} mục bị chặn trong lượt này; mở Chi tiết kỹ thuật hoặc xuất gói chẩn đoán.")
+        self.warning_banner.setText(" ".join(warnings))
+        self.warning_banner.setVisible(bool(warnings))
+
+    def export_diagnostics(self):
+        try:
+            path = export_bundle(self.data_dir, self.progress.run_id)
+        except (ValueError, OSError, sqlite3.Error) as exc:
+            QMessageBox.warning(self, "Không xuất được gói chẩn đoán", str(exc))
+            return
+        self.logs.appendPlainText(f"Đã xuất gói chẩn đoán (chỉ đọc, không xóa dữ liệu): {path}")
+        QMessageBox.information(self, "Gói chẩn đoán", f"Đã tạo:\n{path}")
 
     def open_logs(self):
         folder = self.data_dir / 'logs'
@@ -660,12 +772,15 @@ class Window(QMainWindow):
                 check.setEnabled(not meta.protected)
                 check.toggled.connect(lambda value, i=instance.index: self.set_selection(i, value))
                 self.table.setCellWidget(row, 0, check)
+                account = self.progress.accounts.get(instance.index)
+                android = ("Sẵn sàng" if instance.running and instance.android_started
+                           else "Đang khởi động" if instance.running else "Đã tắt")
                 values = {
                     1: str(instance.index),
                     2: instance.name,
                     3: "Đang chạy" if instance.running else "Đã dừng",
-                    4: "Chưa kiểm tra",
-                    5: "Chưa đọc",
+                    4: (account.detail[:60] if account and account.detail else "—"),
+                    5: android,
                     7: self.run_states.get(instance.index, "Chưa chạy"),
                 }
                 for column, text in values.items():
@@ -964,6 +1079,7 @@ class Window(QMainWindow):
         if not self.manager or self.worker:
             return
         self.run_states = {}
+        self.progress = RunProgress()
         self.run_controller = AutomationController(self.store, self._queue_factory, self.run_progress.emit)
         concurrency = self.concurrency.value()
         all_non_protected = self.run_scope.currentIndex() == 1
@@ -1015,6 +1131,7 @@ class Window(QMainWindow):
     @Slot(int, int, object, str)
     def update_run_progress(self, run_id, index, status, detail):
         self.run_label.setText(f'Lượt chạy {run_id}')
+        self.progress.begin(run_id)
         labels = {
             AccountStatus.QUEUED: "Đang chờ",
             AccountStatus.STARTING: "Đang khởi động",
@@ -1023,9 +1140,17 @@ class Window(QMainWindow):
             AccountStatus.FAILED: "Lỗi",
             AccountStatus.CANCELLED: "Đã hủy",
         }
-        self.run_states[index] = labels.get(status, str(status))
+        label = labels.get(status, str(status))
+        if status in (AccountStatus.RUNNING, AccountStatus.STARTING):
+            self.progress.account_started(index)
+        elif status in (AccountStatus.SUCCESS, AccountStatus.FAILED, AccountStatus.CANCELLED):
+            self.progress.account_finished(index, label, detail)
+        else:
+            self.progress._account(index).status = label
+        self.sync_run_states()
         self.logs.appendPlainText(f"[Run {run_id}] [#{index}] {detail}")
         self.render()
+        self.update_dashboard()
 
     def save_package(self):
         from top_heroes_auto.adb.client import validate_package
