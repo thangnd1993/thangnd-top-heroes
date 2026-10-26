@@ -231,10 +231,12 @@ def test_navigation_frame_reuse_does_not_bypass_journal_lock(rig,tmp_path,monkey
     assert store.reward_claims(manager.namespace,7)[0]['dispatch_state'] == 'POSSIBLE'
 
 
-def test_protected_runtime_delta_is_separate_from_flags_and_never_restored(rig,tmp_path,monkeypatch):
+@pytest.mark.parametrize('automation_touched', [False, True])
+def test_protected_runtime_delta_is_separate_from_flags_and_never_restored(rig,tmp_path,monkeypatch,automation_touched):
     from test_instance_pipeline import setup
 
     from top_heroes_auto.app import automation_fleet
+    from top_heroes_auto.ldplayer.client import record_indexed_command
     manager,process,_ = rig
     calls = []
     registry,session,_ = setup(calls)
@@ -244,13 +246,19 @@ def test_protected_runtime_delta_is_separate_from_flags_and_never_restored(rig,t
     def observer(message):
         if 'REPORT' not in message:
             process.listing = original  # Simulate an unrelated user's start.
+            if automation_touched:
+                record_indexed_command(0)  # Pretend this process addressed the Protected index.
     monkeypatch.setattr(automation_fleet,'progress',observer)
     result = automation_fleet.run(manager,tmp_path,registry=registry,session_factory=session,
         identity_reader=lambda *a:'disk')
     assert before != process.listing
     assert result['protected_flags_unchanged'] is True
-    assert result['protected_state_unchanged'] is False
-    assert result['protected_runtime_changes'] == [dict(index=0,before='stopped',after='running',cause='UNPROVEN')]
+    # Run25: the user's own start/stop of a Protected instance is external, not an automation
+    # breach; any indexed command from this process to it keeps it UNPROVEN and fails Protected.
+    cause = 'UNPROVEN' if automation_touched else 'EXTERNAL_NO_AUTOMATION_COMMAND'
+    assert result['protected_runtime_changes'] == [dict(index=0,before='stopped',after='running',cause=cause)]
+    assert result['protected_state_unchanged'] is (not automation_touched)
+    assert (0 in result['automation_commanded_indexes']) is automation_touched
     assert not any('--index' in c and c[c.index('--index')+1] == '0' for c in process.calls)
 
 

@@ -1,12 +1,29 @@
 import os
 import re
 import shutil
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
 from top_heroes_auto.app.process import Process, decode
 from top_heroes_auto.ldplayer.name_safety import guard_command
+
+# Process-wide audit of indexed LDPlayer commands (lifecycle and indexed adb). Every
+# per-instance command goes through LDPlayer._indexed; adb -s targets are resolved
+# from these. Run reports use it to prove automation never addressed an instance.
+_INDEXED_COMMANDS = {}
+_INDEXED_LOCK = threading.Lock()
+
+
+def record_indexed_command(index):
+    with _INDEXED_LOCK:
+        _INDEXED_COMMANDS[index] = _INDEXED_COMMANDS.get(index, 0) + 1
+
+
+def indexed_command_counts():
+    with _INDEXED_LOCK:
+        return dict(_INDEXED_COMMANDS)
 
 
 @dataclass(frozen=True)
@@ -220,6 +237,7 @@ class LDPlayer:
             raise ValueError('Indexed lifecycle allowlist does not accept list2.')
         if type(index) is not int or index < 0:
             raise ValueError("Index bắt buộc, không fallback.")
+        record_indexed_command(index)
         return self.process.run([str(self.installation.console), command, "--index", str(index), *args])
 
     def boot_id(self, index: int) -> str:

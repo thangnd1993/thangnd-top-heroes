@@ -26,6 +26,7 @@ from top_heroes_auto.app.resume_exception import preserved_claims
 from top_heroes_auto.automation import timing
 from top_heroes_auto.automation.execution_plan import terminal_plan
 from top_heroes_auto.automation.guard import SafetyError
+from top_heroes_auto.ldplayer.client import indexed_command_counts
 from top_heroes_auto.ldplayer.name_safety import name_write_attempts
 
 
@@ -250,6 +251,7 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
     for flow in source_registry.snapshot():
         registry.register(flow)  # Freeze once before any worker starts.
     name_writes_before = name_write_attempts()
+    commands_before = indexed_command_counts()
     before = inventory(manager)
     previous = json.loads(Path(resume_report).read_text(encoding='utf-8')) if resume_report else None
     if previous and (previous.get('schema') != 'instance-first-v1' or previous.get('max_concurrency') not in (1, 2)):
@@ -460,16 +462,28 @@ def run(manager, data, *, random_test=False, resume_report=None, registry=None, 
     report['identity_migration_audit'] = manager.store.identity_audit(manager.namespace)
     report['all_selection_states_restored'] = {r['index']: r['selected'] for r in before} == {
         r['index']: r['selected'] for r in report['after_instances']}
-    report['protected_state_unchanged'] = all(any(
-        a['index'] == r['index'] and a['stable_id'] == r['stable_id'] and a['protected'] and not a['selected']
-        and a['status'] == r['status'] for a in report['after_instances']) for r in before if r['protected'])
+    commands_after = indexed_command_counts()
+    commanded = sorted(i for i, n in commands_after.items() if n > commands_before.get(i, 0))
+    report['automation_commanded_indexes'] = commanded
+    targeted = {t['index'] for t in targets}
     report['protected_flags_unchanged'] = all(any(
         a['index'] == r['index'] and a['stable_id'] == r['stable_id']
         and a['protected'] == r['protected'] and a['selected'] == r['selected']
         for a in report['after_instances']) for r in before if r['protected'])
+    # Protected = automation must not act on it; the user may still open/close it.
+    # A running/stopped change with ZERO indexed commands from this process and no
+    # run membership is external (run25 #6). Anything else stays UNPROVEN.
     report['protected_runtime_changes'] = [dict(index=r['index'], before=r['status'], after=a['status'],
-        cause='UNPROVEN') for r in before if r['protected'] for a in report['after_instances']
+        cause=('EXTERNAL_NO_AUTOMATION_COMMAND' if r['index'] not in commanded and r['index'] not in targeted
+               else 'UNPROVEN'))
+        for r in before if r['protected'] for a in report['after_instances']
         if a['index'] == r['index'] and a['status'] != r['status']]
+    external = {c['index'] for c in report['protected_runtime_changes']
+                if c['cause'] == 'EXTERNAL_NO_AUTOMATION_COMMAND'}
+    report['protected_state_unchanged'] = report['protected_flags_unchanged'] and all(any(
+        a['index'] == r['index'] and a['stable_id'] == r['stable_id'] and a['protected'] and not a['selected']
+        and (a['status'] == r['status'] or r['index'] in external) for a in report['after_instances'])
+        for r in before if r['protected'])
     report['instance_names_unchanged'] = {r['index']: r['name'] for r in before} == {
         r['index']: r['name'] for r in report['after_instances']}
     report['ldplayer_name_write_attempts'] = name_write_attempts() - name_writes_before
