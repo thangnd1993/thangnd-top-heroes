@@ -161,6 +161,7 @@ class HomeRecoveryEngine:
         initial_blank_interval: float = 2.0,
         action_settle: float = 2.0,
         unknown_confirmations: int = 2,
+        launch_home_grace: float = 45.0,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
     ):
@@ -172,6 +173,7 @@ class HomeRecoveryEngine:
         self.initial_blank_interval = initial_blank_interval
         self.action_settle = action_settle
         self.unknown_confirmations = unknown_confirmations
+        self.launch_home_grace = launch_home_grace
         self.clock = clock
         self.sleep = measured('deliberate_wait')(sleep)
 
@@ -437,6 +439,17 @@ class HomeRecoveryEngine:
             if detection.state == ScreenState.ANDROID_HOME:
                 if launched:
                     changed = any(step.state == ScreenState.GAME_LOADING for step in result.steps)
+                    # Run23 #3: the publisher splash is drawn translucently over the
+                    # launcher, so a just-launched game still classifies ANDROID_HOME.
+                    # Wait read-only within a bounded grace; never relaunch or tap.
+                    if not changed and self.clock() - loading_started < self.launch_home_grace:
+                        if cancelled():
+                            return finish(RecoveryStatus.CANCELLED)
+                        result.actions.append("wait")
+                        result.steps[-1] = RecoveryStep(step.number, step.state, step.confidence,
+                                                        step.screenshot, "wait")
+                        self.sleep(self.loading_interval)
+                        continue
                     error = ('Game returned to Android home after observed loading; no relaunch.'
                              if changed else 'Game launch did not change Android home.')
                     return finish(RecoveryStatus.ACTION_FAILED, error)

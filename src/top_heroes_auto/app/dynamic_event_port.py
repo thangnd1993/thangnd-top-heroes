@@ -38,6 +38,7 @@ from top_heroes_auto.vision.dynamic_events import (
     event_body_contract,
     event_shell,
     icon_core_image,
+    icon_core_key,
     matching_icon_cores,
     menu_art_image,
     menu_card_boxes,
@@ -101,12 +102,38 @@ class DynamicEventPort:
         self.menu_icon_cores = {}
         self.event_title = None
         self.child_origin = None
+        self.shell_page_cores = {}
         self.unavailable_observations = {}
         # A later daily/seasonal unavailable screen cannot prove an old action.
         # Automatic reconciliation is limited to actions from THIS live visit.
         # Historical POSSIBLE locks require their own original action evidence.
         self.pending_claim_ids = set()
         self.task_context = cv2.imread(str(template_folder().parent/'tasks/phase8/personal-task-tab.png'))
+
+    def stable_shell_page(self, image, shell):
+        """Reuse this visit's page key when the selected-tab core is strictly the same.
+
+        Run23: returning by Back to the same gallery produced a new page key because
+        the //16-quantized core hash flipped (core correlation 0.99999), so the parent
+        check failed and the gallery's remaining cards were skipped. Same entered Event,
+        title and selected-tab box plus a unique >=.995 core match keep the first key.
+        Run-local navigation identity only; ambiguity keeps the raw key.
+        """
+        selected = shell.get('selected') or []
+        if len(selected) != 1 or shell.get('permission'):
+            return shell['page']
+        box = BoundingBox(**selected[0])
+        if not shell['page'].endswith(':'+icon_core_key(image, box)):
+            return shell['page']  # Only the gold-header shell's tab-core signature.
+        known = self.__dict__.setdefault('shell_page_cores', {}).setdefault(
+            (self.entered, shell['title'], (box.x, box.y, box.width, box.height)), {})
+        core = icon_core_image(image, box)
+        keys = matching_icon_cores(core, known)
+        if len(keys) == 1:
+            return keys[0]
+        if not keys:
+            known[shell['page']] = core
+        return shell['page']
 
     @measured('event_observation')
     def observe(self):
@@ -197,7 +224,7 @@ class DynamicEventPort:
 
                 shell=chapter_navigation(image, observed.box('back'))
             if shell:
-                page = shell['page']
+                page = self.stable_shell_page(image, shell)
                 from top_heroes_auto.vision.event_nested_tabs import reward_task_strip
 
                 nested = reward_task_strip(image) if not shell.get('permission') else None

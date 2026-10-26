@@ -76,3 +76,26 @@ def counter(image, *, denominator=None, maximum=9999, reader=read_words):
             return None
         values.append(found[0])
     return values[0] if values[0] == values[1] else None
+
+
+def fraction_line_counter(image, *, denominator, maximum, reader=read_words):
+    """Read 'N/D' from a whole counter line when the lone number crop is unreadable.
+
+    Run23: Windows OCR returns nothing for a single-digit crop ('3') but reads the
+    full line as '3120' / '18120' / '10120' - the slash consistently rendered as '1'.
+    Accept exactly one 'N/D' or 'N1D' token per rendering, two renderings agreeing.
+    """
+    if image is None or not image.size:
+        return None
+    image = cv2.copyMakeBorder(image, 15, 15, 15, 15, cv2.BORDER_CONSTANT,
+                               value=tuple(int(v) for v in image[0,0]))
+    pattern = re.compile(rf'^(\d+)(?:/|1){denominator}$')
+    values = []
+    for scale in (2, 3):
+        enlarged = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+        found = [int(m.group(1)) for w in reader(enlarged)
+                 if (m := pattern.match(w['text'].replace(' ', '')))]
+        if len(found) != 1 or not 0 <= found[0] <= maximum:
+            return None
+        values.append(found[0])
+    return values[0] if values[0] == values[1] else None

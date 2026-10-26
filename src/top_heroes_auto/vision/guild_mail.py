@@ -7,7 +7,7 @@ import numpy as np
 
 from top_heroes_auto.vision.detail_anchor import unique_detail_anchor
 from top_heroes_auto.vision.fixed_rewards import FixedObservation, portrait_region
-from top_heroes_auto.vision.local_ocr import counter
+from top_heroes_auto.vision.local_ocr import counter, fraction_line_counter
 from top_heroes_auto.vision.models import AnchorEvidence, BoundingBox, ScreenState, VisualAnchor
 from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
 from top_heroes_auto.vision.resources import template_folder
@@ -70,7 +70,7 @@ class GuildObservation(FixedObservation):
 
 
 class GuildMailDetector:
-    def __init__(self, *, number_reader=counter):
+    def __init__(self, *, number_reader=counter, line_reader=None):
         self.folder = template_folder().parent / 'tasks/phase7'
         manifest = json.loads((self.folder/'manifest.json').read_text(encoding='utf-8'))
         self.templates = {item['id']: cv2.imdecode(np.frombuffer(
@@ -78,6 +78,9 @@ class GuildMailDetector:
         self.thresholds = {item['id']: item['threshold'] for item in manifest}
         self.recovery = RecoveryScreenDetector()
         self.number_reader = number_reader
+        # The whole-line fallback is a second channel of the SAME local OCR; a
+        # substituted number reader (simulated OCR) gets no hidden real-OCR channel.
+        self.line_reader = line_reader or (fraction_line_counter if number_reader is counter else None)
 
     def anchor(self, captured, role, region=(0, 0, 1, 1), *, grayscale=False):
         """Bounded scale variants share one uniqueness check, never pick a duplicate."""
@@ -427,6 +430,13 @@ class GuildMailDetector:
                     and abs(b.width-full.width)<=2 and abs(b.height-full.height)<=2):
                 frame.anchors['donation-zero-fraction']=zero
                 remaining=0
+        if remaining is None and self.line_reader is not None:
+            # Run23: a single-digit count (3/20) is unreadable alone; read the
+            # whole independently anchored line and require one exact N/20.
+            # Runs after the exact 0/20 anchor so a zero keeps its pixel proof.
+            line = crop(image, BoundingBox(label.x, label.y, suffix.x+suffix.width-label.x, label.height))
+            remaining = (self.line_reader(line, denominator=20, maximum=20)
+                         if line is not None and line.size else None)
         if remaining == 0:
             return 'NOT_AVAILABLE', None, 0
         if (remaining is None or green is None or paid is None or intersects(green,paid)

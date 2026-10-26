@@ -383,10 +383,13 @@ def test_unknown_confirms_with_new_screenshot_then_fails_closed():
 
 def test_failed_launch_postcondition_is_bounded():
     port = Port(ScreenState.ANDROID_HOME)
-    result = HomeRecoveryEngine(sleep=lambda _: None).ensure_game_home(port)
+    clock = Clock()
+    engine = HomeRecoveryEngine(clock=clock, sleep=clock.sleep)
+    result = engine.ensure_game_home(port)
     assert result.status == RecoveryStatus.ACTION_FAILED
-    assert port.launches == 1
-    assert port.observations == 2
+    assert port.launches == 1  # read-only grace waits; never a relaunch
+    assert clock.value >= engine.launch_home_grace
+    assert port.observations <= 2 + engine.launch_home_grace/engine.loading_interval + 1
 
 
 def test_cancellation_prevents_next_capture_or_action():

@@ -182,3 +182,132 @@ def test_unowned_label_with_a_claim_or_owned_label_is_unknown(detector):
     anchors = dict(frame_.anchors)
     anchors['monthly-daily-claim'] = replace(anchors['monthly-daily-claim'], score=.99)
     assert detector.availability(replace(frame_, anchors=anchors), MONTHLY_DAILY)[0] == 'UNKNOWN'
+
+
+# Run23 #3: publisher splash over the launcher kept ANDROID_HOME ~14 s after launch.
+def test_splash_over_launcher_gets_read_only_grace_then_reaches_home():
+    from test_recovery import Clock
+    from test_recovery import Port as RecoveryPort
+
+    from top_heroes_auto.automation.recovery import HomeRecoveryEngine, RecoveryStatus
+    from top_heroes_auto.vision.models import ScreenState
+
+    home, loading, game = ScreenState.ANDROID_HOME, ScreenState.GAME_LOADING, ScreenState.GAME_HOME
+    port = RecoveryPort(home, home, home, loading, game)
+    clock = Clock()
+    result = HomeRecoveryEngine(clock=clock, sleep=clock.sleep).ensure_game_home(port)
+    assert result.status == RecoveryStatus.SUCCESS
+    assert port.launches == 1 and port.dismissals == 0
+    assert result.actions.count('launch_game') == 1 and 'wait' in result.actions
+
+
+def test_launch_grace_honours_stop_without_input():
+    from test_recovery import Clock
+    from test_recovery import Port as RecoveryPort
+
+    from top_heroes_auto.automation.recovery import HomeRecoveryEngine, RecoveryStatus
+    from top_heroes_auto.vision.models import ScreenState
+
+    port = RecoveryPort(ScreenState.ANDROID_HOME)
+    clock = Clock()
+    result = HomeRecoveryEngine(clock=clock, sleep=clock.sleep).ensure_game_home(
+        port, cancelled=lambda: port.launches == 1 and port.observations >= 3)
+    assert result.status == RecoveryStatus.CANCELLED and port.launches == 1
+
+
+# Run23 #2: Back to the same gallery produced a new page key (quantized tab-core hash flip).
+def gallery_shell(name):
+    import cv2
+
+    from top_heroes_auto.vision.dynamic_events import icon_core_key
+
+    raw = cv2.imread(f'tests/fixtures/run22/run23-gallery-{name}.png')
+    image = cv2.rotate(raw, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    box = BoundingBox(124, 1177, 143, 98)  # selected footer tab found by event_shell on both frames
+    from dataclasses import asdict
+    return image, dict(title='trin chien chqng v?ng', page='event:trin chien chqng v?ng:'+icon_core_key(image, box),
+                       selected=[asdict(box)], tabs=[], back=PARENT_BACK)
+
+
+def bare_port():
+    from top_heroes_auto.app.dynamic_event_port import DynamicEventPort
+
+    p = DynamicEventPort.__new__(DynamicEventPort)
+    p.entered = 'season'
+    return p
+
+
+def test_return_to_same_gallery_keeps_first_page_key():
+    p = bare_port()
+    before_image, before = gallery_shell('before')
+    after_image, after = gallery_shell('after')
+    assert before['page'] != after['page']  # the raw run23 keys really differ
+    first = p.stable_shell_page(before_image, before)
+    assert first == before['page']
+    assert p.stable_shell_page(after_image, after) == first
+
+
+def test_page_key_reuse_is_scoped_and_strict():
+    import numpy as np
+
+    p = bare_port()
+    image, shell = gallery_shell('before')
+    p.stable_shell_page(image, shell)
+    other = bare_port()
+    other.__dict__['shell_page_cores'] = p.__dict__['shell_page_cores']
+    other.entered = 'different-event'
+    _, after = gallery_shell('after')
+    assert other.stable_shell_page(image, after) == after['page']  # other Event: no reuse
+    noisy = image.copy()
+    noisy[1177:1275, 124:267] = np.random.default_rng(1).integers(0, 255, noisy[1177:1275, 124:267].shape, dtype=np.uint8)
+    from top_heroes_auto.vision.dynamic_events import icon_core_key
+    changed = dict(shell, page='event:trin chien chqng v?ng:'+icon_core_key(noisy, BoundingBox(124, 1177, 143, 98)))
+    assert p.stable_shell_page(noisy, changed) == changed['page']  # different tab art stays a different page
+    assert p.stable_shell_page(image, dict(shell, permission='BACK_ONLY')) == shell['page']
+
+
+# Run23 #2: Guild Technology "3/20" - a single-digit count was unreadable, so an
+# eligible WOOD contribution became UNKNOWN and was skipped.
+@pytest.mark.parametrize('words,expected', [
+    (['Sd', 'län', 'c6ng', 'hién:', '3120'], 3), (['hién:', '3/20'], 3), (['18120'], 18), (['10120'], 10),
+    (['1120'], 1), (['11120'], 11), (['0120'], 0), (['120'], None), (['21120'], None),
+    (['3120', '4120'], None), ([], None), (['3/21'], None),
+])
+def test_fraction_line_counter_is_strict(words, expected):
+    import numpy as np
+
+    from top_heroes_auto.vision.local_ocr import fraction_line_counter
+
+    reader = lambda _image: [dict(text=t) for t in words]  # noqa: E731
+    assert fraction_line_counter(np.full((30, 200, 3), 200, np.uint8), denominator=20, maximum=20,
+                                 reader=reader) == expected
+
+
+def test_fraction_line_counter_needs_two_agreeing_renderings():
+    import numpy as np
+
+    from top_heroes_auto.vision.local_ocr import fraction_line_counter
+
+    answers = iter([[dict(text='3120')], [dict(text='9120')]])
+    assert fraction_line_counter(np.full((30, 200, 3), 200, np.uint8), denominator=20, maximum=20,
+                                 reader=lambda _image: next(answers)) is None
+
+
+@pytest.mark.skipif(__import__('sys').platform != 'win32', reason='Windows OCR')
+def test_real_single_digit_technology_counter_is_read_and_wood_authorized():
+    from top_heroes_auto.vision.guild_mail import GuildMailDetector
+
+    detector = GuildMailDetector()
+    frame_ = detector.observe(capture('run22/run23-technology-3of20'))
+    assert detector.donation(frame_)[0::2] == ('AVAILABLE', 3)
+    assert frame_.values['donation_resource']['resource'] == 'WOOD'
+
+
+def test_single_digit_fallback_never_overrides_a_readable_count():
+    from top_heroes_auto.vision.guild_mail import GuildMailDetector
+
+    calls = []
+    detector = GuildMailDetector(number_reader=lambda *_a, **_k: 18,
+                                 line_reader=lambda *_a, **_k: calls.append(1) or 3)
+    frame_ = detector.observe(capture('phase7/donation'))
+    assert detector.donation(frame_)[2] == 18 and not calls
