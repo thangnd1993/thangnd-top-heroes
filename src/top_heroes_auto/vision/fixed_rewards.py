@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 
 from top_heroes_auto.vision.detector import load_anchors
-from top_heroes_auto.vision.exploration import unique_current_anchor
+from top_heroes_auto.vision.exploration import anchor_pool, unique_current_anchor
 from top_heroes_auto.vision.gift_detector import unique_pose_anchor
 from top_heroes_auto.vision.models import AnchorEvidence, BoundingBox, NormalizedRect, ScreenState
 from top_heroes_auto.vision.recovery_detector import RecoveryScreenDetector
@@ -85,6 +85,27 @@ class FixedRewardDetector:
         self.folder = root/'fixed-rewards'
         self.recovery = RecoveryScreenDetector()
 
+    @staticmethod
+    def _region(name):
+        # Semantic surfaces only. These regions never supply tap coordinates.
+        if name.startswith('monthly-daily-') or name in {'monthly-owned-label', 'monthly-unowned-label'}:
+            return portrait_region(0, .60, 1, .92)
+        if name.startswith('ads-'):
+            return portrait_region(0, 0, 1, 1)
+        if name in {'permanent-active-current', 'permanent-tab-current', 'permanent-selected-icon',
+                    'monthly-selected-icon', 'monthly-tab-notice'}:
+            return portrait_region(0, .90, 1, 1)
+        if name.startswith("avatar-"):
+            return portrait_region(0, 0, .22, .15)
+        if name == 'shop-notice-speaker':
+            return portrait_region(0, .16, .15, .25)
+        if name in {"profile-bxh", "back", "daily-tab", "weekly-tab", "permanent-tab", "monthly-tab",
+                    "permanent-active-tab", "monthly-active-tab"}:
+            return portrait_region(0, .90, 1, 1)
+        if name == "ranking-close":
+            return portrait_region(.3, .86, .7, 1)
+        return portrait_region(0, 0, 1, .36)
+
     def observe(self, captured):
         anchors = {}
         titles = {'profile-title','ranking-title','shop-title','shop-title-reference','daily-title',
@@ -92,9 +113,27 @@ class FixedRewardDetector:
         # Qualify page titles first. Unrelated controls cannot grant authority;
         # avoid dozens of full-image gift/pose scans on every other page.
         ordered = sorted(self.anchors.items(), key=lambda pair: pair[0] not in titles)
+        # Run24: ~290 independent template searches per Shop frame (~3.6 s). Titles are
+        # searched first; every other relevance decision depends only on titles. Each
+        # search is pure and identical whether run serially or in the shared pool.
+        searches = {}
+
+        def search(pairs):
+            jobs = [(name, replace(anchor, expected_region=self._region(name))) for name, anchor in pairs]
+            for (name, _), evidence in zip(jobs, anchor_pool().map(
+                    lambda job: unique_current_anchor(captured, job[1]), jobs), strict=True):
+                searches[name] = evidence
+
+        search([(n, a) for n, a in ordered if n in titles])
         for name, anchor in ordered:
             if name.startswith('ads-completed') or name in {f'ads-{row}' for row in ADS_ROWS}:
                 continue  # Repeated completion controls need independent row association.
+            if name in titles:
+                anchors[name] = searches[name]
+        relevant_pairs = []
+        for name, anchor in ordered:
+            if name.startswith('ads-completed') or name in {f'ads-{row}' for row in ADS_ROWS}:
+                continue
             if name not in titles:
                 shop = any(anchors.get(k) and anchors[k].matched for k in ('shop-title','shop-title-reference'))
                 relevant = True
@@ -121,26 +160,15 @@ class FixedRewardDetector:
                 if not relevant:
                     anchors[name] = AnchorEvidence(name, ScreenState.UNKNOWN, 0, anchor.threshold, False)
                     continue
-            # Semantic surfaces only. These regions never supply tap coordinates.
-            if name.startswith('monthly-daily-') or name in {'monthly-owned-label', 'monthly-unowned-label'}:
-                region = portrait_region(0, .60, 1, .92)
-            elif name.startswith('ads-'):
-                region = portrait_region(0, 0, 1, 1)
-            elif name in {'permanent-active-current', 'permanent-tab-current', 'permanent-selected-icon', 'monthly-selected-icon', 'monthly-tab-notice'}:
-                region = portrait_region(0, .90, 1, 1)
-            elif name.startswith("avatar-"):
-                region = portrait_region(0, 0, .22, .15)
-            elif name == 'shop-notice-speaker':
-                region = portrait_region(0, .16, .15, .25)
-            elif name in {"profile-bxh", "back", "daily-tab", "weekly-tab"} or name in {"permanent-tab", "monthly-tab", "permanent-active-tab", "monthly-active-tab"}:
-                region = portrait_region(0, .90, 1, 1)
-            elif name == "ranking-close":
-                region = portrait_region(.3, .86, .7, 1)
-            else:
-                region = portrait_region(0, 0, 1, .36)
-            anchors[name] = unique_current_anchor(captured, replace(anchor, expected_region=region))
+                relevant_pairs.append((name, anchor))
+        search(relevant_pairs)
+        for name, anchor in ordered:
+            if name in titles or name not in searches:
+                continue
+            anchors[name] = searches[name]
             if name == 'shop-gift' and not anchors[name].matched and anchors[name].score < anchor.threshold:
-                anchors[name] = unique_pose_anchor(captured, replace(anchor, expected_region=region))
+                anchors[name] = unique_pose_anchor(captured, replace(anchor, expected_region=self._region(name)))
+        anchors = {name: anchors[name] for name, _ in ordered if name in anchors}  # original order
         reference = anchors.get('shop-title-reference')
         title = anchors['shop-title']
         if reference and reference.matched:

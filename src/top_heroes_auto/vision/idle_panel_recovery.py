@@ -4,6 +4,7 @@ from dataclasses import replace
 from top_heroes_auto.automation.guard import SafetyError
 from top_heroes_auto.vision.detector import load_anchors
 from top_heroes_auto.vision.exploration import unique_current_anchor
+from top_heroes_auto.vision.matcher import match_anchor
 from top_heroes_auto.vision.models import NormalizedRect, ScreenState, VisualAnchor
 from top_heroes_auto.vision.resources import idle_reward_template_folder, template_folder
 
@@ -56,6 +57,12 @@ def adventure_back_evidence(screen, detector):
     w, h = screen.device_size or screen.original_size
     if (not back.matched or back.device_box is None or back.device_box.center[0] > w*.2
             or back.device_box.y < h*.9):
+        return None
+    # Run24: every Shop/Guild/Mail/Event page has this Back, so the full Idle
+    # detector (0.76 s) ran on nearly every feature frame. IDLE_ENTRY_* requires
+    # a matched required idle-entry anchor, so none matching is an exact reject.
+    if not any(match_anchor(screen, anchor).matched for anchor in detector.anchors
+               if anchor.id.startswith('idle-entry-')):
         return None
     detected = detector.detect(screen)
     if detected.state not in {ScreenState.IDLE_ENTRY_AVAILABLE, ScreenState.IDLE_ENTRY_NOT_AVAILABLE}:

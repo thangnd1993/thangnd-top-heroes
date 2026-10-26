@@ -38,7 +38,86 @@ def read_words(image):
     return words
 
 
+class _OcrServer:
+    """One persistent ocr-server.ps1 per worker thread (run24: 0.61 s/call was PowerShell+WinRT start-up).
+
+    Same engine/script logic as the one-shot reader. Any protocol error, timeout or
+    engine error closes the server and the caller falls back to the one-shot script.
+    """
+    TIMEOUT = 35.0
+
+    def __init__(self):
+        import queue
+
+        script = template_folder().parent / 'tools/ocr-server.ps1'
+        self.process = subprocess.Popen(
+            ['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', str(script)],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW, encoding='utf-8', bufsize=1)
+        self.replies = queue.Queue()
+        threading.Thread(target=self._pump, daemon=True).start()
+        self.temp = tempfile.TemporaryDirectory(prefix='top-heroes-ocr-')
+
+    def _pump(self):
+        for line in self.process.stdout:
+            self.replies.put(line)
+        self.replies.put(None)
+
+    def read(self, image):
+        import queue
+
+        # WinRT may keep the previous StorageFile open; never overwrite it.
+        self.count = getattr(self, 'count', 0) + 1
+        path = Path(self.temp.name) / f'counter-{self.count}.png'
+        path.write_bytes(cv2.imencode('.png', image)[1].tobytes())
+        previous = Path(self.temp.name) / f'counter-{self.count-1}.png'
+        try:
+            previous.unlink(missing_ok=True)
+        except OSError:
+            pass  # Still held by WinRT; removed with the temporary directory.
+        self.process.stdin.write(str(path)+'\n')
+        self.process.stdin.flush()
+        try:
+            line = self.replies.get(timeout=self.TIMEOUT)
+        except queue.Empty as exc:
+            raise TimeoutError('OCR server timeout') from exc
+        if line is None:
+            raise OSError('OCR server ended')
+        data = json.loads(line.lstrip('﻿'))
+        if data.get('engine') != 'Windows.Media.Ocr':
+            raise ValueError(data.get('error') or 'Unrecognized local OCR engine.')
+        return data['words']
+
+    def close(self):
+        try:
+            self.process.kill()
+        except OSError:
+            pass
+        self.temp.cleanup()
+
+    __del__ = close  # A finished worker thread's server ends with its thread-local state.
+
+
+def _server_words(image):
+    server = getattr(_cache, 'server', None)
+    if server is None:
+        server = _cache.server = _OcrServer()
+    try:
+        return server.read(image)
+    except Exception:
+        _cache.server = None
+        server.close()
+        raise
+
+
 def _read_words(image):
+    try:
+        return _server_words(image)
+    except Exception:  # noqa: BLE001 - fall back to the original one-shot reader
+        return _read_words_once(image)
+
+
+def _read_words_once(image):
     script = template_folder().parent / 'tools/read-image-text.ps1'
     with tempfile.TemporaryDirectory(prefix='top-heroes-ocr-') as temp:
         path = Path(temp) / 'counter.png'

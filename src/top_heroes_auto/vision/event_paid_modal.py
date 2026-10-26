@@ -8,7 +8,11 @@ from top_heroes_auto.vision.resources import template_folder
 
 
 def _match(mask, name):
-    names = (name, name+'-raster') if name in {'close-red-core','purchase-remaining'} else (name,)
+    # Raster variants are crops of real frames (run24 #3 added close '-raster2' and the VND
+    # '-raster'); each still needs >=.995, uniqueness and positional agreement.
+    names = {'close-red-core': (name, name+'-raster', name+'-raster2'),
+             'purchase-remaining': (name, name+'-raster'),
+             'vnd-word': (name, name+'-raster')}.get(name, (name,))
     matches=[]
     for variant in names:
         box, ambiguous = _match_variant(mask,variant)

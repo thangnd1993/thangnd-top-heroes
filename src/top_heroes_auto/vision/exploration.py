@@ -7,6 +7,8 @@ adapter must associate a candidate with a known safe menu/action before dispatch
 from __future__ import annotations
 
 import hashlib
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import cv2
 import numpy as np
@@ -38,6 +40,22 @@ def content_fingerprint(screen: CapturedScreen, regions: tuple[NormalizedRect, .
         digest.update(str((left, top, right, bottom, crop.shape)).encode("ascii"))
         digest.update(crop.tobytes())
     return digest.hexdigest()
+
+
+_POOL = None
+_POOL_LOCK = threading.Lock()
+
+
+def anchor_pool():
+    """Shared pool for independent, pure template searches (cv2 releases the GIL).
+
+    Ordering and results are identical to serial evaluation; only wall time changes.
+    """
+    global _POOL
+    with _POOL_LOCK:
+        if _POOL is None:
+            _POOL = ThreadPoolExecutor(max_workers=6, thread_name_prefix='anchor-search')
+        return _POOL
 
 
 def unique_current_anchor(screen: CapturedScreen, anchor: VisualAnchor) -> AnchorEvidence:
